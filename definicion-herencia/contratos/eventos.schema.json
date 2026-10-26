@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evento interno Herencia v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "company_id",
+    "aggregate_type",
+    "aggregate_id",
+    "aggregate_version",
+    "occurred_at",
+    "correlation_id",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "work_package.review_requested",
+        "release.candidate",
+        "company.activated",
+        "access.revoked",
+        "approval.decided",
+        "inventory.changed",
+        "rate.published",
+        "room.blocked",
+        "quote.created",
+        "reservation.pending",
+        "reservation.confirmed",
+        "reservation.changed",
+        "reservation.cancelled",
+        "payment.authorized",
+        "payment.failed",
+        "payment.unknown",
+        "payment.allocated",
+        "refund.completed",
+        "cash.closed",
+        "fiscal.updated",
+        "stay.checked_in",
+        "stay.room_changed",
+        "stay.checked_out",
+        "night.closed",
+        "purchase.approved",
+        "goods.received",
+        "stock.moved",
+        "stock.adjusted",
+        "task.completed",
+        "task.accepted",
+        "task.rework",
+        "laundry.sent",
+        "laundry.received",
+        "room.ready",
+        "food.produced",
+        "breakfast.served",
+        "dinner.delivered",
+        "space.reserved",
+        "maintenance.opened",
+        "maintenance.closed",
+        "renewal.approved",
+        "asset.installed",
+        "shift.published",
+        "attendance.recorded",
+        "incentive.proposed",
+        "incentive.approved",
+        "bank.imported",
+        "reconciliation.posted",
+        "reconciliation.reversed",
+        "accounting.exported",
+        "cost.distributed",
+        "report.generated",
+        "conversion.recorded",
+        "channel.event_applied",
+        "channel.conflict",
+        "integration.degraded",
+        "inventory.sync_requested",
+        "opportunity.changed",
+        "consent.revoked",
+        "identity.linked",
+        "message.received",
+        "message.delivered",
+        "conversation.taken_over",
+        "message.rejected",
+        "assistant.tool_used",
+        "assistant.escalated",
+        "assistant.stopped",
+        "content.published",
+        "campaign.activated",
+        "campaign.paused",
+        "guest.requested_service",
+        "ticket.resolved",
+        "portal.revoked",
+        "bank.connection_expired",
+        "bank.page_received",
+        "migration.validated",
+        "migration.committed",
+        "handover.exception",
+        "quality.gate_failed",
+        "release.authorized",
+        "recovery.completed",
+        "group.report_ready",
+        "domain.onboard_requested"
+      ]
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "company_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_type": {
+      "type": "string"
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "business_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "changed_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        }
+      },
+      "required": [
+        "changed_fields"
+      ]
+    }
+  },
+  "$defs": {
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "required": [
+        "amount_minor",
+        "currency"
+      ],
+      "description": "Entero en unidad menor. CLP usa unidad peso; cada moneda declara escala. Signo permitido sólo en ajustes y movimientos firmados."
+    }
+  }
+}

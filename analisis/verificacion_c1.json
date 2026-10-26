@@ -1,0 +1,202 @@
+{
+  "originales": 153,
+  "con_seccion_en_specs": 153,
+  "faltan_desarrollo": [],
+  "ids_en_specs_no_originales": [],
+  "specs_con_seccion_duplicada": {},
+  "trazabilidad_rutas_inexistentes": [],
+  "seccion_no_coincide_trazabilidad": [],
+  "paquetes_csv_vs_secciones": [],
+  "US_distintos": 153,
+  "T_citados_en_spec_md": 459,
+  "T_unicos_en_tasks_md": 505,
+  "T_en_tasks_md_no_citados_en_spec_md": [
+    "F00-T00",
+    "F00-T99",
+    "F01-T00",
+    "F01-T99",
+    "F02-T00",
+    "F02-T99",
+    "F03-T00",
+    "F03-T99",
+    "F04-T00",
+    "F04-T99",
+    "F05-T00",
+    "F05-T99",
+    "F06-T00",
+    "F06-T99",
+    "F07-T00",
+    "F07-T99",
+    "F08-T00",
+    "F08-T99",
+    "F09-T00",
+    "F09-T99",
+    "F10-T00",
+    "F10-T99",
+    "F11-T00",
+    "F11-T99",
+    "F12-T00",
+    "F12-T99",
+    "F13-T00",
+    "F13-T99",
+    "F14-T00",
+    "F14-T99",
+    "F15-T00",
+    "F15-T99",
+    "F16-T00",
+    "F16-T99",
+    "F17-T00",
+    "F17-T99",
+    "F18-T00",
+    "F18-T99",
+    "F19-T00",
+    "F19-T99",
+    "F20-T00",
+    "F20-T99",
+    "F21-T00",
+    "F21-T99",
+    "F22-T00",
+    "F22-T99"
+  ],
+  "TC_distintos": 306,
+  "por_spec": {
+    "001-gobierno-y-entorno": {
+      "secciones": 7,
+      "US": 7,
+      "T": 21,
+      "TC": 14
+    },
+    "002-nucleo-multiempresa": {
+      "secciones": 10,
+      "US": 10,
+      "T": 30,
+      "TC": 20
+    },
+    "003-oferta-y-disponibilidad": {
+      "secciones": 8,
+      "US": 8,
+      "T": 24,
+      "TC": 16
+    },
+    "004-reserva-directa": {
+      "secciones": 15,
+      "US": 15,
+      "T": 45,
+      "TC": 30
+    },
+    "005-pagos-caja-documentos": {
+      "secciones": 12,
+      "US": 12,
+      "T": 36,
+      "TC": 24
+    },
+    "006-recepcion-estadias": {
+      "secciones": 6,
+      "US": 6,
+      "T": 18,
+      "TC": 12
+    },
+    "007-compras-inventarios": {
+      "secciones": 10,
+      "US": 10,
+      "T": 30,
+      "TC": 20
+    },
+    "008-aseo-lavanderia": {
+      "secciones": 9,
+      "US": 9,
+      "T": 27,
+      "TC": 18
+    },
+    "009-alimentacion-espacios": {
+      "secciones": 6,
+      "US": 6,
+      "T": 18,
+      "TC": 12
+    },
+    "010-activos-renovacion": {
+      "secciones": 7,
+      "US": 7,
+      "T": 21,
+      "TC": 14
+    },
+    "011-personal-turnos": {
+      "secciones": 6,
+      "US": 6,
+      "T": 18,
+      "TC": 12
+    },
+    "012-conciliacion-finanzas": {
+      "secciones": 8,
+      "US": 8,
+      "T": 24,
+      "TC": 16
+    },
+    "013-costos-indicadores": {
+      "secciones": 9,
+      "US": 9,
+      "T": 27,
+      "TC": 18
+    },
+    "014-canales-externos": {
+      "secciones": 5,
+      "US": 5,
+      "T": 15,
+      "TC": 10
+    },
+    "015-crm-clientes": {
+      "secciones": 8,
+      "US": 8,
+      "T": 24,
+      "TC": 16
+    },
+    "016-mensajeria-social": {
+      "secciones": 3,
+      "US": 3,
+      "T": 9,
+      "TC": 6
+    },
+    "017-asistente-comercial": {
+      "secciones": 2,
+      "US": 2,
+      "T": 6,
+      "TC": 4
+    },
+    "018-contenidos-campanas": {
+      "secciones": 3,
+      "US": 3,
+      "T": 9,
+      "TC": 6
+    },
+    "019-portal-huesped": {
+      "secciones": 3,
+      "US": 3,
+      "T": 9,
+      "TC": 6
+    },
+    "020-bancos-lectura": {
+      "secciones": 1,
+      "US": 1,
+      "T": 3,
+      "TC": 2
+    },
+    "021-traspaso-apertura": {
+      "secciones": 6,
+      "US": 6,
+      "T": 18,
+      "TC": 12
+    },
+    "022-calidad-continuidad": {
+      "secciones": 8,
+      "US": 8,
+      "T": 24,
+      "TC": 16
+    },
+    "023-evolucion-grupo": {
+      "secciones": 1,
+      "US": 1,
+      "T": 3,
+      "TC": 2
+    }
+  }
+}

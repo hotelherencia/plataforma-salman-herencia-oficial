@@ -1,0 +1,134 @@
+{
+  "not_real": true,
+  "purpose": "Especificacion de tests, no datos de apertura",
+  "companies": [
+    "DEMO-HERENCIA",
+    "DEMO-OTRA"
+  ],
+  "rooms": [
+    {
+      "code": "DEMO-R01",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R02",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R03",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R04",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R05",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R06",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R07",
+      "capacity": 1,
+      "type": "DEMO-1",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R08",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R09",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R10",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R11",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R12",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R13",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R14",
+      "capacity": 2,
+      "type": "DEMO-2",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R15",
+      "capacity": 3,
+      "type": "DEMO-3",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R16",
+      "capacity": 3,
+      "type": "DEMO-3",
+      "synthetic": true
+    },
+    {
+      "code": "DEMO-R17",
+      "capacity": 3,
+      "type": "DEMO-3",
+      "synthetic": true
+    }
+  ],
+  "people": [
+    {
+      "name": "Huesped Demo A",
+      "email": "guest-a@example.invalid"
+    },
+    {
+      "name": "Trabajador Demo A",
+      "email": "worker-a@example.invalid"
+    }
+  ],
+  "cases": {
+    "reservation_total": 140000,
+    "deposit": 70000,
+    "settlement_gross": 180000,
+    "fee": 5400,
+    "net": 174600,
+    "laundry_sent": 2,
+    "laundry_received": 1,
+    "breakfast_produced": 10,
+    "breakfast_served": 8,
+    "currency": "CLP"
+  }
+}

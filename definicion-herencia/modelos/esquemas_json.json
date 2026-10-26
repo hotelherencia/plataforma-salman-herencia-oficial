@@ -1,0 +1,3858 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Validaciones de documentos anidados; la politica de tipo exige tambien las reglas del catalogo. No aceptar propiedades desconocidas.",
+  "field_schema_map": {
+    "policy.content": "BusinessPolicy",
+    "supplier.contact": "PartyInput",
+    "audit_event.change_summary": "AuditChanges",
+    "room_type.attributes": "RoomAttributes",
+    "room.bed_configuration": "Beds",
+    "quote.policy_snapshot": "PolicySnapshot",
+    "quote.price_snapshot": "PriceSnapshot",
+    "quote.origin": "Origin",
+    "inventory_hold.hold_items": "HoldItems",
+    "reservation.policy_snapshot": "PolicySnapshot",
+    "reservation_line.price_snapshot": "PriceSnapshot",
+    "service_night.cost_assignment": "CostAssignment",
+    "shift_log.summary": "Summary",
+    "night_audit.exceptions": "Findings",
+    "stock_count.count_lines": "CountLines",
+    "task_execution.checklist_result": "ChecklistResults",
+    "inspection.findings": "Findings",
+    "recipe_line.allowed_substitutions": "Substitutions",
+    "food_batch.actual_ingredients": "IngredientUsage",
+    "space.equipment": "EquipmentList",
+    "incentive_rule.weights": "IncentiveWeights",
+    "incentive_award.source_task_ids": "IncentiveSources",
+    "accounting_export.control_totals": "ControlTotals",
+    "integration_account.capabilities": "Capabilities",
+    "outbox_event.payload": "EventPayload",
+    "agent_run.tools_used": "ToolTrace",
+    "content_piece.asset_document_ids": "DocumentIds",
+    "portal_grant.scopes": "PortalScopes",
+    "migration_batch.control_totals": "ControlTotals",
+    "migration_batch.rejected_rows": "RejectedRows"
+  },
+  "$defs": {
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "required": [
+        "amount_minor",
+        "currency"
+      ],
+      "description": "Entero en unidad menor. CLP usa unidad peso; cada moneda declara escala. Signo permitido sólo en ajustes y movimientos firmados."
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "field_errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "field",
+              "reason"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "correlation_id",
+        "retryable",
+        "field_errors"
+      ]
+    },
+    "ResourceResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "type": "string"
+        },
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "status",
+        "correlation_id",
+        "event_ids"
+      ],
+      "description": "Acuse de comando; no implica aprobación de proveedor ni abono bancario. Leer recurso autorizado para detalle."
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceSummary"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ]
+    },
+    "ResourceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "label": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "status",
+        "version"
+      ],
+      "description": "Proyeccion mínima; campos sensibles sólo en endpoint de detalle con permiso."
+    },
+    "PartyInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone_e164": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "PERSON",
+            "COMPANY"
+          ]
+        }
+      },
+      "required": [
+        "display_name",
+        "kind"
+      ]
+    },
+    "Occupancy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adults": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "children_ages": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 17
+          },
+          "minItems": 0,
+          "maxItems": 10
+        }
+      },
+      "required": [
+        "adults",
+        "children_ages"
+      ]
+    },
+    "StaySearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arrival": {
+          "type": "string",
+          "format": "date"
+        },
+        "departure": {
+          "type": "string",
+          "format": "date"
+        },
+        "occupancy": {
+          "$ref": "#/$defs/Occupancy"
+        },
+        "rooms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 17
+        }
+      },
+      "required": [
+        "arrival",
+        "departure",
+        "occupancy",
+        "rooms"
+      ],
+      "description": "Noches [arrival,departure). Fechas locales del hotel; mayores rangos requieren canal grupos. Nunca aceptar cantidad negativa."
+    },
+    "AvailabilityOffer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "room_type_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rate_plan_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "price_from": {
+          "$ref": "#/$defs/Money"
+        },
+        "restrictions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "room_type_id",
+        "rate_plan_id",
+        "remaining",
+        "price_from",
+        "restrictions"
+      ]
+    },
+    "AvailabilityResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "searched_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "offers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AvailabilityOffer"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "timezone": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "searched_at",
+        "offers",
+        "timezone"
+      ],
+      "description": "Consulta no retiene cupo. Revalidar al cotizar/retener/confirmar."
+    },
+    "Origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "medium": {
+          "type": "string"
+        },
+        "campaign": {
+          "type": "string"
+        },
+        "link_id": {
+          "type": "string"
+        },
+        "tracking_allowed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "tracking_allowed"
+      ]
+    },
+    "QuoteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stay": {
+          "$ref": "#/$defs/StaySearch"
+        },
+        "room_type_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rate_plan_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "promotion_code": {
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      },
+      "required": [
+        "stay",
+        "room_type_id",
+        "rate_plan_id"
+      ]
+    },
+    "PriceNight": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "night": {
+          "type": "string",
+          "format": "date"
+        },
+        "base": {
+          "$ref": "#/$defs/Money"
+        },
+        "discount": {
+          "$ref": "#/$defs/Money"
+        },
+        "tax": {
+          "$ref": "#/$defs/Money"
+        },
+        "total": {
+          "$ref": "#/$defs/Money"
+        },
+        "rule_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "night",
+        "base",
+        "discount",
+        "tax",
+        "total",
+        "rule_version"
+      ]
+    },
+    "CancellationBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "before_arrival_hours": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "charge_kind": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "FIXED",
+            "PERCENT",
+            "FIRST_NIGHT"
+          ]
+        },
+        "charge_value": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]{1,6})?$"
+        }
+      },
+      "required": [
+        "before_arrival_hours",
+        "charge_kind",
+        "charge_value"
+      ]
+    },
+    "PolicySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "cancellation_bands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CancellationBand"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "deposit_kind": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "FIXED",
+            "PERCENT"
+          ]
+        },
+        "deposit_value": {
+          "type": "string"
+        },
+        "payment_due": {
+          "type": "string",
+          "enum": [
+            "BEFORE_ARRIVAL",
+            "AT_CHECKIN",
+            "AT_CHECKOUT",
+            "CORPORATE_TERM"
+          ]
+        },
+        "checkin_local": {
+          "type": "string"
+        },
+        "checkout_local": {
+          "type": "string"
+        },
+        "breakfast_included": {
+          "type": "boolean"
+        },
+        "terms_document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tax_rule_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "cancellation_bands",
+        "deposit_kind",
+        "deposit_value",
+        "payment_due",
+        "checkin_local",
+        "checkout_local",
+        "breakfast_included",
+        "terms_document_id",
+        "tax_rule_version"
+      ]
+    },
+    "QuoteResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "nights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PriceNight"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "total": {
+          "$ref": "#/$defs/Money"
+        },
+        "deposit_due": {
+          "$ref": "#/$defs/Money"
+        },
+        "policy": {
+          "$ref": "#/$defs/PolicySnapshot"
+        },
+        "quote_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "expires_at",
+        "nights",
+        "total",
+        "deposit_due",
+        "policy",
+        "quote_token"
+      ],
+      "description": "Token opaco; sólo cliente autorizado. No registrar token en logs. La oferta no equivale a confirmacion."
+    },
+    "HoldRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quote_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "quote_token"
+      ]
+    },
+    "HoldResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hold_token": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE"
+          ]
+        }
+      },
+      "required": [
+        "hold_token",
+        "expires_at",
+        "status"
+      ]
+    },
+    "ReservationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quote_token": {
+          "type": "string"
+        },
+        "hold_token": {
+          "type": "string"
+        },
+        "booker": {
+          "$ref": "#/$defs/PartyInput"
+        },
+        "terms_version": {
+          "type": "string"
+        },
+        "terms_accepted": {
+          "type": "boolean",
+          "const": true
+        },
+        "marketing_opt_in": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "quote_token",
+        "booker",
+        "terms_version",
+        "terms_accepted"
+      ]
+    },
+    "ReservationPublic": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "CONFIRMED",
+            "CANCELLED",
+            "CONFLICT"
+          ]
+        },
+        "total": {
+          "$ref": "#/$defs/Money"
+        },
+        "paid": {
+          "$ref": "#/$defs/Money"
+        },
+        "balance": {
+          "$ref": "#/$defs/Money"
+        },
+        "arrival": {
+          "type": "string",
+          "format": "date"
+        },
+        "departure": {
+          "type": "string",
+          "format": "date"
+        },
+        "manage_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference",
+        "status",
+        "total",
+        "paid",
+        "balance",
+        "arrival",
+        "departure",
+        "manage_token"
+      ],
+      "description": "Manage token sólo se emite al propietario verificado; no proveer documento de otros huéspedes."
+    },
+    "PaymentStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reservation_token": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "HOSTED_CARD",
+            "BANK_TRANSFER",
+            "CREDIT_AUTHORIZED"
+          ]
+        }
+      },
+      "required": [
+        "reservation_token",
+        "method"
+      ]
+    },
+    "PaymentStartResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CREATED",
+            "PENDING",
+            "NOT_REQUIRED"
+          ]
+        },
+        "redirect_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "status",
+        "redirect_url",
+        "amount",
+        "expires_at"
+      ]
+    },
+    "PaymentResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CREATED",
+            "PENDING",
+            "AUTHORIZED",
+            "FAILED",
+            "UNKNOWN",
+            "REFUNDED"
+          ]
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "reservation_status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "status",
+        "amount",
+        "reservation_status"
+      ]
+    },
+    "Reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "evidence_document_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    },
+    "ApprovalRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "target_type": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "payload_hash": {
+          "type": "string"
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "action",
+        "target_type",
+        "target_id",
+        "payload_hash",
+        "reason"
+      ]
+    },
+    "ApprovalDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision",
+        "reason"
+      ]
+    },
+    "CompanyInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "legal_name": {
+          "type": "string"
+        },
+        "tax_id": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "ACTIVE"
+          ]
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "legal_name",
+        "country",
+        "status"
+      ]
+    },
+    "OwnershipInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "investor_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "percentage": {
+          "type": "string",
+          "pattern": "^([0-9]{1,2}(\\.[0-9]{1,6})?|100(\\.0{1,6})?)$"
+        },
+        "valid_from": {
+          "type": "string",
+          "format": "date"
+        },
+        "valid_to": {
+          "type": "string",
+          "format": "date"
+        },
+        "source_document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "HISTORICAL",
+            "PROPOSED",
+            "VERIFIED"
+          ]
+        }
+      },
+      "required": [
+        "investor_id",
+        "percentage",
+        "valid_from",
+        "source_document_id",
+        "status"
+      ]
+    },
+    "RoleGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "role": {
+          "type": "string"
+        },
+        "unit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "valid_to": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "user_id",
+        "role",
+        "approval_id"
+      ]
+    },
+    "Beds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SINGLE",
+              "DOUBLE",
+              "BUNK",
+              "COT",
+              "OTHER"
+            ]
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "capacity_each": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "kind",
+          "quantity",
+          "capacity_each"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 10
+    },
+    "RoomInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "room_type_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "beds": {
+          "$ref": "#/$defs/Beds"
+        },
+        "max_occupants": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "private_bath": {
+          "type": "boolean"
+        },
+        "valid_from": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "code",
+        "room_type_id",
+        "beds",
+        "max_occupants",
+        "private_bath",
+        "valid_from"
+      ]
+    },
+    "RoomBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "from": {
+          "type": "string",
+          "format": "date"
+        },
+        "to": {
+          "type": "string",
+          "format": "date"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "room_id",
+        "from",
+        "to",
+        "reason"
+      ]
+    },
+    "RateInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "room_type_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rate_plan_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "from": {
+          "type": "string",
+          "format": "date"
+        },
+        "to": {
+          "type": "string",
+          "format": "date"
+        },
+        "occupancy": {
+          "$ref": "#/$defs/Occupancy"
+        },
+        "price": {
+          "$ref": "#/$defs/Money"
+        },
+        "policy_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "room_type_id",
+        "rate_plan_id",
+        "from",
+        "to",
+        "occupancy",
+        "price",
+        "policy_id",
+        "approval_id"
+      ]
+    },
+    "ReservationAmend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "type": "string",
+          "enum": [
+            "DATES",
+            "OCCUPANTS",
+            "ROOM_TYPE",
+            "CANCEL_LINE",
+            "CANCEL_ALL"
+          ]
+        },
+        "line_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "replacement_quote_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "change",
+        "reason"
+      ]
+    },
+    "GuestInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "type": "string"
+        },
+        "document_type": {
+          "type": "string"
+        },
+        "document_value": {
+          "type": "string",
+          "writeOnly": true
+        },
+        "is_minor": {
+          "type": "boolean"
+        },
+        "guardian_guest_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "display_name",
+        "is_minor"
+      ]
+    },
+    "CheckinInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reservation_line_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "guests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GuestInput"
+          },
+          "minItems": 1,
+          "maxItems": 10
+        },
+        "exception_approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "reservation_line_id",
+        "room_id",
+        "guests"
+      ]
+    },
+    "MoveInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "new_room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "effective_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "exception_approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "new_room_id",
+        "effective_at",
+        "reason"
+      ]
+    },
+    "CheckoutInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "departed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "credit_approval_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "departed_at"
+      ]
+    },
+    "ChargeInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "folio_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "concept": {
+          "type": "string"
+        },
+        "service_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "quantity": {
+          "type": "string"
+        },
+        "price": {
+          "$ref": "#/$defs/Money"
+        },
+        "price_source": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "folio_id",
+        "concept",
+        "service_date",
+        "quantity",
+        "price",
+        "price_source"
+      ]
+    },
+    "ManualPayment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "folio_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "CASH",
+            "VERIFIED_TRANSFER",
+            "EXTERNAL_CARD"
+          ]
+        },
+        "external_reference": {
+          "type": "string"
+        },
+        "bank_movement_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "cash_shift_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evidence_document_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "folio_id",
+        "amount",
+        "method",
+        "evidence_document_id"
+      ]
+    },
+    "AllocationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "payment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "folio_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount": {
+                "$ref": "#/$defs/Money"
+              }
+            },
+            "required": [
+              "folio_id",
+              "amount"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "payment_id",
+        "items"
+      ]
+    },
+    "RefundInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "payment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "payment_id",
+        "amount",
+        "reason",
+        "approval_id"
+      ]
+    },
+    "CashOpen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cash_box_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "opening_count": {
+          "$ref": "#/$defs/Money"
+        },
+        "previous_close_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "cash_box_id",
+        "opening_count"
+      ]
+    },
+    "CashClose": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "counted": {
+          "$ref": "#/$defs/Money"
+        },
+        "denominations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "denomination_minor": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "denomination_minor",
+              "quantity"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "reason_difference": {
+          "type": "string"
+        },
+        "reviewer_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "counted",
+        "denominations"
+      ]
+    },
+    "FiscalIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "folio_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_kind": {
+          "type": "string"
+        },
+        "receiver_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tax_rule_version": {
+          "type": "string"
+        },
+        "exemption_document_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "folio_id",
+        "document_kind",
+        "tax_rule_version"
+      ]
+    },
+    "ProductInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sku": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "base_unit": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "FOOD",
+            "DRINK",
+            "AMENITY",
+            "CLEANING",
+            "TEXTILE",
+            "SPARE",
+            "OTHER"
+          ]
+        },
+        "lot_tracked": {
+          "type": "boolean"
+        },
+        "expiry_tracked": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sku",
+        "name",
+        "base_unit",
+        "category",
+        "lot_tracked",
+        "expiry_tracked"
+      ]
+    },
+    "QuantityLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "product_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "quantity": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]{1,6})?$"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "lot_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "product_id",
+        "quantity",
+        "unit"
+      ]
+    },
+    "PurchaseLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "product_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "quantity": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "unit_price": {
+          "$ref": "#/$defs/Money"
+        },
+        "tax_rule_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "product_id",
+        "quantity",
+        "unit",
+        "unit_price"
+      ]
+    },
+    "PurchaseInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supplier_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "warehouse_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PurchaseLine"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "expected_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "budget_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "supplier_id",
+        "warehouse_id",
+        "lines"
+      ]
+    },
+    "ReceiveInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "order_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "warehouse_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "order_line_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "quantity": {
+                "type": "string"
+              },
+              "lot_code": {
+                "type": "string"
+              },
+              "expires_on": {
+                "type": "string",
+                "format": "date"
+              },
+              "accepted": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "order_line_id",
+              "quantity",
+              "lot_code",
+              "expires_on",
+              "accepted"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "evidence_document_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "order_id",
+        "received_at",
+        "warehouse_id",
+        "lines"
+      ]
+    },
+    "StockAdjustment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "warehouse_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QuantityLine"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "IN",
+            "OUT"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "warehouse_id",
+        "lines",
+        "direction",
+        "reason",
+        "approval_id"
+      ]
+    },
+    "StockTransfer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from_warehouse_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to_warehouse_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QuantityLine"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_warehouse_id",
+        "to_warehouse_id",
+        "lines",
+        "reason"
+      ]
+    },
+    "TaskInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "due_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "assignee_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "checklist_version": {
+          "type": "string"
+        },
+        "service_night_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "kind",
+        "due_at",
+        "checklist_version"
+      ]
+    },
+    "TaskExecute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "answers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "item_id": {
+                "type": "string"
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "NA"
+                ]
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "item_id",
+              "result"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "consumed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QuantityLine"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "exception": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "started_at",
+        "ended_at",
+        "answers",
+        "consumed"
+      ]
+    },
+    "InspectTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ACCEPT",
+            "REWORK"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "inspector_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "decision",
+        "reason",
+        "inspector_id"
+      ]
+    },
+    "LaundrySend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supplier_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "from_location": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "textile_type_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "textile_type_id",
+              "quantity"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "expected_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "from_location",
+        "lines"
+      ]
+    },
+    "LaundryReceive": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lot_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "line_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "accepted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "rejected": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lost_declared": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "line_id",
+              "accepted",
+              "rejected",
+              "lost_declared"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "supplier_document_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "lot_id",
+        "lines",
+        "received_at"
+      ]
+    },
+    "FoodProduce": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recipe_version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "portions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "production_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "ingredient_lots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QuantityLine"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "responsible_worker_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "recipe_version_id",
+        "portions",
+        "production_date",
+        "ingredient_lots",
+        "responsible_worker_id"
+      ]
+    },
+    "BreakfastServe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entitlement_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "batch_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "portions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "served_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "entitlement_id",
+        "batch_id",
+        "portions",
+        "served_at"
+      ]
+    },
+    "DinnerOrder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stay_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "supplier_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "service_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "price": {
+          "$ref": "#/$defs/Money"
+        },
+        "cost": {
+          "$ref": "#/$defs/Money"
+        },
+        "accepted_by_guest": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "stay_id",
+        "supplier_id",
+        "service_date",
+        "quantity",
+        "price",
+        "cost",
+        "accepted_by_guest"
+      ]
+    },
+    "SpaceBooking": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "space_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "starts_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ends_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "setup_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cleanup_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attendees": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payer_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "price": {
+          "$ref": "#/$defs/Money"
+        }
+      },
+      "required": [
+        "space_id",
+        "starts_at",
+        "ends_at",
+        "setup_minutes",
+        "cleanup_minutes",
+        "attendees"
+      ]
+    },
+    "AssetInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "location": {
+          "type": "string"
+        },
+        "owner_party_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": {
+          "type": "string"
+        },
+        "serial": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string",
+          "enum": [
+            "GOOD",
+            "FAIR",
+            "POOR",
+            "UNSAFE"
+          ]
+        },
+        "ownership_evidence_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "code",
+        "location",
+        "description",
+        "condition"
+      ]
+    },
+    "MaintenanceInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "PREVENTIVE",
+            "CORRECTIVE"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "CRITICAL",
+            "HIGH",
+            "NORMAL",
+            "LOW"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "blocks_sale": {
+          "type": "boolean"
+        },
+        "due_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "kind",
+        "priority",
+        "description",
+        "blocks_sale"
+      ]
+    },
+    "RenewalInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "asset_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "reason": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "SAFETY",
+            "QUALITY",
+            "EFFICIENCY",
+            "AESTHETICS"
+          ]
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "quotes_document_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "budget_total": {
+          "$ref": "#/$defs/Money"
+        },
+        "owner_approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "asset_ids",
+        "reason",
+        "priority",
+        "quantity",
+        "budget_total"
+      ]
+    },
+    "InstallationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "installed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "inspection_result": {
+          "type": "string",
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "warranty_document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "inspector_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "asset_id",
+        "installed_at",
+        "inspection_result",
+        "inspector_id"
+      ]
+    },
+    "ShiftInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "worker_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "post": {
+          "type": "string"
+        },
+        "starts_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ends_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "break_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "substitution_for_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "policy_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "worker_id",
+        "post",
+        "starts_at",
+        "ends_at",
+        "break_minutes",
+        "policy_version"
+      ]
+    },
+    "AttendanceInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "worker_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "IN",
+            "OUT",
+            "BREAK_START",
+            "BREAK_END"
+          ]
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "MANUAL",
+            "AUTHORIZED_DEVICE"
+          ]
+        },
+        "correction_approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "worker_id",
+        "kind",
+        "occurred_at",
+        "source"
+      ]
+    },
+    "PeriodInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "date"
+        },
+        "to": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "IncentiveCalculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "period": {
+          "$ref": "#/$defs/PeriodInput"
+        },
+        "rule_version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "worker_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "period",
+        "rule_version_id",
+        "worker_ids"
+      ]
+    },
+    "BankImport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bank_account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "file_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "format_version": {
+          "type": "string"
+        },
+        "period": {
+          "$ref": "#/$defs/PeriodInput"
+        }
+      },
+      "required": [
+        "bank_account_id",
+        "file_id",
+        "format_version",
+        "period"
+      ]
+    },
+    "ReconcileInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "side": {
+                "type": "string",
+                "enum": [
+                  "BUSINESS",
+                  "BANK"
+                ]
+              },
+              "source_type": {
+                "type": "string",
+                "enum": [
+                  "PAYMENT",
+                  "SETTLEMENT",
+                  "BANK_MOVEMENT",
+                  "FEE",
+                  "REFUND",
+                  "APPROVED_DIFFERENCE"
+                ]
+              },
+              "source_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount": {
+                "$ref": "#/$defs/Money"
+              }
+            },
+            "required": [
+              "side",
+              "source_type",
+              "source_id",
+              "amount"
+            ]
+          },
+          "minItems": 2,
+          "maxItems": 500
+        },
+        "reason": {
+          "type": "string"
+        },
+        "difference_approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "allocations",
+        "reason"
+      ]
+    },
+    "AccountingExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "period": {
+          "$ref": "#/$defs/PeriodInput"
+        },
+        "mapping_version": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "CSV",
+            "JSON"
+          ]
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "period",
+        "mapping_version",
+        "format",
+        "approval_id"
+      ]
+    },
+    "CostDistribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pool_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "period": {
+          "$ref": "#/$defs/PeriodInput"
+        },
+        "basis": {
+          "type": "string",
+          "enum": [
+            "ROOM_NIGHTS",
+            "PERSON_NIGHTS",
+            "DIRECT_COST",
+            "AREA",
+            "APPROVED_WEIGHT"
+          ]
+        },
+        "policy_version": {
+          "type": "string"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "pool_id",
+        "period",
+        "basis",
+        "policy_version",
+        "approval_id"
+      ]
+    },
+    "IntegrationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider_code": {
+          "type": "string"
+        },
+        "capability": {
+          "type": "string"
+        },
+        "credential_reference": {
+          "type": "string",
+          "writeOnly": true
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "SANDBOX",
+            "PRODUCTION"
+          ]
+        },
+        "owner_party_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "provider_code",
+        "capability",
+        "environment"
+      ]
+    },
+    "ExternalEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "external_event_id": {
+          "type": "string"
+        },
+        "external_revision": {
+          "type": "string"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "external_event_id",
+        "event_type",
+        "payload"
+      ],
+      "description": "Envoltorio interno normalizado DESPUÉS de verificar el formato/firma real del proveedor; no es un payload atribuido a Meta, Booking ni banco. payload se válida con esquema del adaptador versionado."
+    },
+    "ContactInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "phone_e164": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "display_name",
+        "source"
+      ]
+    },
+    "ConsentInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "MARKETING",
+            "TRACKING",
+            "SERVICE_CONTACT"
+          ]
+        },
+        "channel": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "GRANTED",
+            "REVOKED"
+          ]
+        },
+        "proof_document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "contact_id",
+        "purpose",
+        "channel",
+        "status",
+        "captured_at"
+      ]
+    },
+    "MessageInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "SERVICE",
+            "MARKETING"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "template_id": {
+          "type": "string"
+        },
+        "quoted_offer_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "conversation_id",
+        "purpose",
+        "text"
+      ]
+    },
+    "TakeoverInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "assignee_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversation_id",
+        "assignee_id",
+        "reason"
+      ]
+    },
+    "AssistantRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "policy_version": {
+          "type": "string"
+        },
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      },
+      "required": [
+        "conversation_id",
+        "policy_version",
+        "max_steps"
+      ]
+    },
+    "CampaignInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "starts_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ends_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "budget": {
+          "$ref": "#/$defs/Money"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "landing_link_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "name",
+        "starts_at",
+        "ends_at",
+        "budget",
+        "landing_link_id"
+      ]
+    },
+    "ContentInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "campaign_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "media_document_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "rights_document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "scheduled_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "channel",
+        "body"
+      ]
+    },
+    "ServiceTicket": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "SERVICE",
+            "MAINTENANCE",
+            "COMPLAINT"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "preferred_time": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "kind",
+        "description"
+      ]
+    },
+    "MigrationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "cutoff_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ROOMS",
+            "ASSETS",
+            "STOCK",
+            "RESERVATIONS",
+            "PAYMENTS",
+            "PAYABLES",
+            "STAFF_REFERENCES"
+          ]
+        },
+        "source_operator_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "file_id",
+        "schema_version",
+        "cutoff_at",
+        "kind",
+        "source_operator_id"
+      ]
+    },
+    "NightAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "business_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "business_date"
+      ]
+    },
+    "ReportRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "period": {
+          "$ref": "#/$defs/PeriodInput"
+        },
+        "unit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "metric_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "tax_view": {
+          "type": "string",
+          "enum": [
+            "NET",
+            "GROSS"
+          ]
+        }
+      },
+      "required": [
+        "period",
+        "metric_ids",
+        "tax_view"
+      ]
+    },
+    "ReportResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "coverage_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "unit": {
+                "type": "string"
+              },
+              "is_estimated": {
+                "type": "boolean"
+              },
+              "detail_reference": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "value",
+              "unit",
+              "is_estimated",
+              "detail_reference"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "generated_at",
+        "coverage_percent",
+        "metrics",
+        "warnings"
+      ]
+    },
+    "PortalResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reservation_reference": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "arrival": {
+          "type": "string",
+          "format": "date"
+        },
+        "departure": {
+          "type": "string",
+          "format": "date"
+        },
+        "balance": {
+          "$ref": "#/$defs/Money"
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "reservation_reference",
+        "status",
+        "arrival",
+        "departure",
+        "balance",
+        "allowed_actions"
+      ]
+    },
+    "StatusResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "last_success_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "pending_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "status",
+        "last_success_at",
+        "pending_count",
+        "warnings"
+      ]
+    },
+    "RoomAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accessible": {
+          "type": "boolean"
+        },
+        "private_bath": {
+          "type": "boolean"
+        },
+        "wifi": {
+          "type": "boolean"
+        },
+        "equipment_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "notes_public": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "private_bath",
+        "equipment_codes"
+      ]
+    },
+    "HoldItems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "room_type_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "night": {
+            "type": "string",
+            "format": "date"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "room_type_id",
+          "night",
+          "quantity"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "PriceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "nights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PriceNight"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "total_minor": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rounding_rule": {
+          "type": "string",
+          "enum": [
+            "HALF_UP_PER_LINE"
+          ]
+        },
+        "rules_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "currency",
+        "nights",
+        "total_minor",
+        "rounding_rule",
+        "rules_version"
+      ]
+    },
+    "CostAssignment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "room_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "weight": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "TIME",
+              "NIGHT_ROOM",
+              "APPROVED"
+            ]
+          }
+        },
+        "required": [
+          "room_id",
+          "weight",
+          "method"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "Summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "target_type": {
+                "type": "string"
+              },
+              "target_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "CRITICAL",
+                  "HIGH",
+                  "NORMAL"
+                ]
+              },
+              "note": {
+                "type": "string"
+              },
+              "assigned_to": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "target_type",
+              "target_id",
+              "priority",
+              "note"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 500
+        }
+      },
+      "required": [
+        "items"
+      ]
+    },
+    "Findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "CRITICAL",
+              "HIGH",
+              "NORMAL",
+              "LOW"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "resolved": {
+            "type": "boolean"
+          },
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "note",
+          "resolved"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "CountLines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lot_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "counted": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "unit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "expected",
+          "counted",
+          "unit"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "ChecklistResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NA"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "item_id",
+          "result"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "Substitutions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ratio_to_base": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "approval_policy_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "product_id",
+          "ratio_to_base",
+          "approval_policy_id"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "IngredientUsage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lot_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "stock_movement_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "product_id",
+          "lot_id",
+          "quantity",
+          "unit",
+          "stock_movement_id"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "EquipmentList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "included": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "asset_id",
+          "quantity",
+          "included"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "IncentiveWeights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_kind": {
+            "type": "string"
+          },
+          "points": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "quality_min": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "rework_policy": {
+            "type": "string",
+            "enum": [
+              "NO_POINTS",
+              "ON_FINAL_ACCEPTANCE"
+            ]
+          }
+        },
+        "required": [
+          "task_kind",
+          "points",
+          "quality_min",
+          "rework_policy"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "IncentiveSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_execution_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "worker_share": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          },
+          "accepted_points": {
+            "type": "string",
+            "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+          }
+        },
+        "required": [
+          "task_execution_id",
+          "worker_share",
+          "accepted_points"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "ControlTotals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sum_minor": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "concept",
+          "count",
+          "sum_minor"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "Capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "capability": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "DEMO",
+              "SANDBOX",
+              "PRODUCTION"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "DOCUMENTED",
+              "ACCOUNT_VERIFIED",
+              "PERMISSION_VALIDATED",
+              "CONTROLLED_TEST",
+              "PRODUCTION_VERIFIED",
+              "BLOCKED",
+              "UNAVAILABLE"
+            ]
+          },
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "last_verified": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "capability",
+          "environment",
+          "state"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "EventPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "business_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "changed_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 500
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        }
+      },
+      "required": [
+        "changed_fields"
+      ]
+    },
+    "ToolTrace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "consultar_disponibilidad",
+              "cotizar_estadia",
+              "crear_retencion_autorizada",
+              "generar_enlace_pago",
+              "consultar_estado_reserva",
+              "derivar_a_recepcion"
+            ]
+          },
+          "request_hash": {
+            "type": "string"
+          },
+          "result_reference": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "ERROR",
+              "DENIED"
+            ]
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "tool",
+          "request_hash",
+          "result_reference",
+          "duration_ms",
+          "status",
+          "correlation_id"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "DocumentIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "PortalScopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "READ_RESERVATION",
+          "READ_OWN_DOCUMENTS",
+          "PREREGISTER",
+          "REQUEST_SERVICE",
+          "REQUEST_CHANGE"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "RejectedRows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "row": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "field": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "error_code",
+          "message"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "AuditChanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "before_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "after_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "before_masked",
+          "after_masked"
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 500
+    },
+    "BusinessPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "CANCELLATION",
+            "DEPOSIT",
+            "APPROVAL",
+            "TAX",
+            "INVENTORY",
+            "BREAKFAST",
+            "LABOR",
+            "PRIVACY",
+            "INCENTIVE",
+            "ALLOCATION",
+            "SERVICE"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "effective_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "effective_to": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "approved_by": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "threshold_minor": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string"
+            },
+            "percentage": {
+              "type": "string",
+              "pattern": "^-?[0-9]+(\\.[0-9]{1,6})?$"
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "hours": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "method": {
+              "type": "string"
+            },
+            "document_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 0,
+              "maxItems": 500
+            },
+            "bands": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CancellationBand"
+              },
+              "minItems": 0,
+              "maxItems": 500
+            }
+          },
+          "required": []
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "effective_from",
+        "approved_by",
+        "parameters"
+      ]
+    }
+  }
+}

@@ -1,0 +1,3 @@
+﻿requisito,fuente_version,paquete,historia,spec,plan,tareas,pruebas,datos,pantallas,operaciones,estado_especificacion,estado_implementacion,estado_pruebas,aprobacion
+SOC-010,V0.3 preservada,F16,F16-US01,specs/017-asistente-comercial/spec.md,specs/017-asistente-comercial/plan.md,F16-T01A;F16-T01B;F16-T01C,TC-SOC-010-P;TC-SOC-010-N,agent_run,UI-43,runAssistant,DESARROLLADO_PARA_REVISION,NO_IMPLEMENTADO,NO_EJECUTADA,PENDIENTE
+AI-007,V0.3 preservada,F16,F16-US02,specs/017-asistente-comercial/spec.md,specs/017-asistente-comercial/plan.md,F16-T02A;F16-T02B;F16-T02C,TC-AI-007-P;TC-AI-007-N,agent_run,UI-43,runAssistant,DESARROLLADO_PARA_REVISION,NO_IMPLEMENTADO,NO_EJECUTADA,PENDIENTE

@@ -1,0 +1,2 @@
+﻿requisito,fuente_version,paquete,historia,spec,plan,tareas,pruebas,datos,pantallas,operaciones,estado_especificacion,estado_implementacion,estado_pruebas,aprobacion
+INT-004,V0.3 preservada,F19,F19-US01,specs/020-bancos-lectura/spec.md,specs/020-bancos-lectura/plan.md,F19-T01A;F19-T01B;F19-T01C,TC-INT-004-P;TC-INT-004-N,,UI-48,createBankConnection,DESARROLLADO_PARA_REVISION,NO_IMPLEMENTADO,NO_EJECUTADA,PENDIENTE

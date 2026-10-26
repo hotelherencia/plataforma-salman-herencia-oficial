@@ -1,0 +1,6 @@
+{
+  "schema_meta_checks": 421,
+  "passed": 421,
+  "method": "JSON Schema Draft 2020-12 meta-validation",
+  "scope": "Validez estructural de esquemas; no ejecucion de API ni validacion contractual externa"
+}

@@ -1,0 +1,19 @@
+{
+  "feature": "F11",
+  "specification": "DEVELOPED_REVIEW_PENDING",
+  "technical_plan": "PROPOSED",
+  "implementation": "NOT_STARTED",
+  "tests": "NOT_EXECUTED",
+  "approval": "PENDING",
+  "native_spec_kit_run": false,
+  "decisions": [
+    "D08",
+    "D14",
+    "D21",
+    "D34"
+  ],
+  "build_dependencies": [
+    "F04"
+  ],
+  "integration_gates": []
+}

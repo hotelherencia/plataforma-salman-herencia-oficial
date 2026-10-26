@@ -1,0 +1,961 @@
+{
+  "scope": "VALIDACION_DOCUMENTAL_Y_CALCULOS_DE_EJEMPLO_NO_TESTS_DE_APLICACION",
+  "checks": 190,
+  "passed": 190,
+  "failed": 0,
+  "native_spec_kit_executed": false,
+  "application_tests_executed": false,
+  "independent_review": false,
+  "results": [
+    {
+      "check": "Preservacion exacta de campos originales",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Constitucion nativa y vista iguales",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "153 requisitos originales unicos",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "24 capitulos desarrollados",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "23 paquetes con spec plan tasks",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Trazabilidad completa y unica",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Requisitos con detalle propio",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "505 tareas unicas",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "306 casos por requisito",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "48 escenarios criticos desarrollados",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Ninguna prueba de aplicacion falsamente ejecutada",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "45 decisiones pendientes identificadas",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "22 acoplamientos clasificados",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Tareas sin referencias inexistentes",
+      "result": "PASS",
+      "detail": "[]"
+    },
+    {
+      "check": "Grafo de implementacion aciclico",
+      "result": "PASS",
+      "detail": "[]"
+    },
+    {
+      "check": "Referencias AI-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias AI-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias AI-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias AI-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias AI-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias GOV-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias GOV-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HOT-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HOT-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HOT-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HOT-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HOT-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REV-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-008",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-009",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-010",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias RES-011",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-016",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias UX-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias UX-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PAY-008",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias TAX-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias TAX-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias TAX-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-008",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REC-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REC-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REC-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REC-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REC-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias OPS-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INV-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INV-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INV-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INV-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INV-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PUR-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PUR-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PUR-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias PUR-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CAP-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias OPS-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias OPS-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias OPS-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias OPS-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias OPS-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias LIN-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias LIN-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias LIN-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias LIN-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FNB-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FNB-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FNB-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FNB-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FNB-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SPA-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MNT-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MNT-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CAP-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CAP-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CAP-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CAP-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CAP-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HR-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HR-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HR-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HR-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HR-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias HR-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-009",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-011",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-008",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias KPI-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias KPI-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias KPI-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-012",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-018",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias REV-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias FIN-010",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-019",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-009",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-013",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-017",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-008",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-011",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-010",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias AI-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-014",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SOC-015",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias GEX-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias GEX-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias GEX-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias INT-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MIG-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MIG-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MIG-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MIG-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MIG-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias MIG-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-004",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-005",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias AI-006",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-009",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias SEC-010",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias QA-001",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias QA-002",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias QA-003",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Referencias CORE-007",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "109 entidades y1409 campos",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Claves foraneas existentes",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Cada entidad tiene id y version",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Transiciones concuerdan con enums",
+      "result": "PASS",
+      "detail": "[]"
+    },
+    {
+      "check": "API sin referencias rotas",
+      "result": "PASS",
+      "detail": "set()"
+    },
+    {
+      "check": "OperationIds API unicos",
+      "result": "PASS",
+      "detail": "89"
+    },
+    {
+      "check": "Rutas tienen parametros completos",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "API se declara propuesta no servicio real",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Esquemas anidados con referencias validas",
+      "result": "PASS",
+      "detail": "set()"
+    },
+    {
+      "check": "30 camposJSON mapeados",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "53 pantallas y roles definidos",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Permisos comandos cubiertos",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "13 integraciones sin afirmacion de acceso real",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Datos de ejemplo claramente sinteticos",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "17 habitaciones sinteticas",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Sin planillas privadas originales",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Calculo ejemplo liquidacion",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Calculo ejemplo caja",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Calculo ejemplo reparto",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Calculo ejemplo desayuno",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Calculo ejemplo incentivo",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Decisiones referenciadas existen",
+      "result": "PASS",
+      "detail": ""
+    }
+  ]
+}

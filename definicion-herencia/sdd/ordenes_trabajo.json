@@ -1,0 +1,948 @@
+[
+  {
+    "id": "WO-F00",
+    "feature": "F00",
+    "spec_version": "1.0",
+    "objective": "Marco de datos, contratos, pruebas, ambientes y control de agentes; no confundirlo con una aplicación de hotel terminada.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "AI-001",
+      "AI-002",
+      "AI-003",
+      "AI-004",
+      "AI-005",
+      "GOV-001",
+      "GOV-002"
+    ],
+    "dependencies": [],
+    "allowed_paths": [
+      "src/modules/gobierno-y-entorno/",
+      "tests/F00/",
+      "specs/001-gobierno-y-entorno/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F00/"
+  },
+  {
+    "id": "WO-F01",
+    "feature": "F01",
+    "spec_version": "1.0",
+    "objective": "Operar con sociedad y unidad explícitas, permisos comprobables, documentos y cambios trazables.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "CORE-001",
+      "CORE-002",
+      "CORE-003",
+      "CORE-004",
+      "CORE-005",
+      "CORE-006",
+      "SEC-001",
+      "SEC-002",
+      "SEC-003",
+      "SEC-006"
+    ],
+    "dependencies": [
+      "F00"
+    ],
+    "allowed_paths": [
+      "src/modules/nucleo-multiempresa/",
+      "tests/F01/",
+      "specs/002-nucleo-multiempresa/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F01/"
+  },
+  {
+    "id": "WO-F02",
+    "feature": "F02",
+    "spec_version": "1.0",
+    "objective": "Consultar disponibilidad y precio con configuración de camas, fechas, bloqueos y políticas vigentes.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "HOT-001",
+      "HOT-002",
+      "HOT-003",
+      "HOT-004",
+      "HOT-005",
+      "RES-005",
+      "RES-006",
+      "REV-001"
+    ],
+    "dependencies": [
+      "F01"
+    ],
+    "allowed_paths": [
+      "src/modules/oferta-y-disponibilidad/",
+      "tests/F02/",
+      "specs/003-oferta-y-disponibilidad/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F02/"
+  },
+  {
+    "id": "WO-F03",
+    "feature": "F03",
+    "spec_version": "1.0",
+    "objective": "Convertir una visita en reserva mediante el motor central; parametrizar anticipo y enlazar el pago real en F04.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "RES-001",
+      "RES-002",
+      "RES-003",
+      "RES-004",
+      "RES-007",
+      "RES-008",
+      "RES-009",
+      "RES-010",
+      "RES-011",
+      "INT-005",
+      "SOC-002",
+      "SOC-003",
+      "SOC-016",
+      "UX-001",
+      "UX-002"
+    ],
+    "dependencies": [
+      "F02"
+    ],
+    "allowed_paths": [
+      "src/modules/reserva-directa/",
+      "tests/F03/",
+      "specs/004-reserva-directa/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F03/"
+  },
+  {
+    "id": "WO-F04",
+    "feature": "F04",
+    "spec_version": "1.0",
+    "objective": "Verificar y aplicar cobros una vez, distinguir anticipo/garantia, cerrar caja y controlar documentos fiscales.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "PAY-001",
+      "PAY-002",
+      "PAY-003",
+      "PAY-004",
+      "PAY-005",
+      "PAY-006",
+      "PAY-007",
+      "PAY-008",
+      "TAX-001",
+      "TAX-002",
+      "TAX-003",
+      "SEC-008"
+    ],
+    "dependencies": [
+      "F03"
+    ],
+    "allowed_paths": [
+      "src/modules/pagos-caja-documentos/",
+      "tests/F04/",
+      "specs/005-pagos-caja-documentos/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F04/"
+  },
+  {
+    "id": "WO-F05",
+    "feature": "F05",
+    "spec_version": "1.0",
+    "objective": "Registrar pasajeros, cambios, servicios, salida y pendientes con una fecha de negocio controlada.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "REC-001",
+      "REC-002",
+      "REC-003",
+      "REC-004",
+      "REC-005",
+      "OPS-006"
+    ],
+    "dependencies": [
+      "F03",
+      "F04"
+    ],
+    "allowed_paths": [
+      "src/modules/recepcion-estadias/",
+      "tests/F05/",
+      "specs/006-recepcion-estadias/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F05/"
+  },
+  {
+    "id": "WO-F06",
+    "feature": "F06",
+    "spec_version": "1.0",
+    "objective": "Comparar compras, recibir cantidades reales, registrar deuda y mantener inventario por ubicacion/lote.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "INV-001",
+      "INV-002",
+      "INV-003",
+      "INV-004",
+      "INV-005",
+      "PUR-001",
+      "PUR-002",
+      "PUR-003",
+      "PUR-004",
+      "CAP-001"
+    ],
+    "dependencies": [
+      "F01"
+    ],
+    "allowed_paths": [
+      "src/modules/compras-inventarios/",
+      "tests/F06/",
+      "specs/007-compras-inventarios/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F06/"
+  },
+  {
+    "id": "WO-F07",
+    "feature": "F07",
+    "spec_version": "1.0",
+    "objective": "Asignar trabajo y registrar textiles/insumos sin duplicar costos ni perder piezas.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "OPS-001",
+      "OPS-002",
+      "OPS-003",
+      "OPS-004",
+      "OPS-005",
+      "LIN-001",
+      "LIN-002",
+      "LIN-003",
+      "LIN-004"
+    ],
+    "dependencies": [
+      "F05",
+      "F06"
+    ],
+    "allowed_paths": [
+      "src/modules/aseo-lavanderia/",
+      "tests/F07/",
+      "specs/008-aseo-lavanderia/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F07/"
+  },
+  {
+    "id": "WO-F08",
+    "feature": "F08",
+    "spec_version": "1.0",
+    "objective": "Relacionar personas alojadas, servicios, consumos y costos, sin duplicar ventas entre hotel y cafetería.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "FNB-001",
+      "FNB-002",
+      "FNB-003",
+      "FNB-004",
+      "FNB-005",
+      "SPA-001"
+    ],
+    "dependencies": [
+      "F05",
+      "F06"
+    ],
+    "allowed_paths": [
+      "src/modules/alimentacion-espacios/",
+      "tests/F08/",
+      "specs/009-alimentacion-espacios/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F08/"
+  },
+  {
+    "id": "WO-F09",
+    "feature": "F09",
+    "spec_version": "1.0",
+    "objective": "Distinguir inventario, propiedad, desperfectos, compras, instalación y bloqueos de habitaciones.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "MNT-001",
+      "MNT-002",
+      "CAP-002",
+      "CAP-003",
+      "CAP-004",
+      "CAP-005",
+      "CAP-006"
+    ],
+    "dependencies": [
+      "F02",
+      "F06"
+    ],
+    "allowed_paths": [
+      "src/modules/activos-renovacion/",
+      "tests/F09/",
+      "specs/010-activos-renovacion/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F09/"
+  },
+  {
+    "id": "WO-F10",
+    "feature": "F10",
+    "spec_version": "1.0",
+    "objective": "Planificar cobertura y registrar trabajo/calidad con reglas aprobadas, sin decisiones laborales libres de IA.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "HR-001",
+      "HR-002",
+      "HR-003",
+      "HR-004",
+      "HR-005",
+      "HR-006"
+    ],
+    "dependencies": [
+      "F01"
+    ],
+    "allowed_paths": [
+      "src/modules/personal-turnos/",
+      "tests/F10/",
+      "specs/011-personal-turnos/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F10/"
+  },
+  {
+    "id": "WO-F11",
+    "feature": "F11",
+    "spec_version": "1.0",
+    "objective": "Relacionar reservas, cargos, documentos, cobros, liquidaciones y bancos con diferencias visibles.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "FIN-001",
+      "FIN-002",
+      "FIN-003",
+      "FIN-004",
+      "FIN-005",
+      "FIN-006",
+      "FIN-009",
+      "FIN-011"
+    ],
+    "dependencies": [
+      "F04"
+    ],
+    "allowed_paths": [
+      "src/modules/conciliacion-finanzas/",
+      "tests/F11/",
+      "specs/012-conciliacion-finanzas/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F11/"
+  },
+  {
+    "id": "WO-F12",
+    "feature": "F12",
+    "spec_version": "1.0",
+    "objective": "Mostrar resultados sin duplicados, separar datos medidos/estimados y explicar cada fórmula.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "FIN-007",
+      "FIN-008",
+      "KPI-001",
+      "KPI-002",
+      "KPI-003",
+      "SOC-012",
+      "SOC-018",
+      "REV-002",
+      "FIN-010"
+    ],
+    "dependencies": [
+      "F04",
+      "F06",
+      "F11"
+    ],
+    "allowed_paths": [
+      "src/modules/costos-indicadores/",
+      "tests/F12/",
+      "specs/013-costos-indicadores/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F12/"
+  },
+  {
+    "id": "WO-F13",
+    "feature": "F13",
+    "spec_version": "1.0",
+    "objective": "Sincronizar capacidades verificadas por proveedor autorizado y controlar fallas de canal.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "INT-001",
+      "INT-002",
+      "INT-003",
+      "SOC-019",
+      "INT-007"
+    ],
+    "dependencies": [
+      "F03",
+      "F04"
+    ],
+    "allowed_paths": [
+      "src/modules/canales-externos/",
+      "tests/F13/",
+      "specs/014-canales-externos/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F13/"
+  },
+  {
+    "id": "WO-F14",
+    "feature": "F14",
+    "spec_version": "1.0",
+    "objective": "Atender oportunidades con historial y autorizaciones por finalidad, sin fusionar identidades por nombre.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "SOC-001",
+      "SOC-004",
+      "SOC-005",
+      "SOC-006",
+      "SOC-009",
+      "SOC-013",
+      "SOC-017",
+      "SEC-007"
+    ],
+    "dependencies": [
+      "F03",
+      "F01"
+    ],
+    "allowed_paths": [
+      "src/modules/crm-clientes/",
+      "tests/F14/",
+      "specs/015-crm-clientes/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F14/"
+  },
+  {
+    "id": "WO-F15",
+    "feature": "F15",
+    "spec_version": "1.0",
+    "objective": "Recibir mensajes autenticos, respetar reglas por canal y enlazar conversaciones con cotizaciones.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "SOC-007",
+      "SOC-008",
+      "SOC-011"
+    ],
+    "dependencies": [
+      "F14"
+    ],
+    "allowed_paths": [
+      "src/modules/mensajeria-social/",
+      "tests/F15/",
+      "specs/016-mensajeria-social/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F15/"
+  },
+  {
+    "id": "WO-F16",
+    "feature": "F16",
+    "spec_version": "1.0",
+    "objective": "Consultar el motor, cotizar y derivar sin inventar precios, cupos ni permisos.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "SOC-010",
+      "AI-007"
+    ],
+    "dependencies": [
+      "F15",
+      "F04"
+    ],
+    "allowed_paths": [
+      "src/modules/asistente-comercial/",
+      "tests/F16/",
+      "specs/017-asistente-comercial/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F16/"
+  },
+  {
+    "id": "WO-F17",
+    "feature": "F17",
+    "spec_version": "1.0",
+    "objective": "Preparar contenido, publicar formatos verificados y activar gasto sólo dentro de autorizaciones.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "INT-006",
+      "SOC-014",
+      "SOC-015"
+    ],
+    "dependencies": [
+      "F14",
+      "F12"
+    ],
+    "allowed_paths": [
+      "src/modules/contenidos-campanas/",
+      "tests/F17/",
+      "specs/018-contenidos-campanas/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F17/"
+  },
+  {
+    "id": "WO-F18",
+    "feature": "F18",
+    "spec_version": "1.0",
+    "objective": "Permitir autoservicio seguro y seguimiento de solicitudes con acceso limitado a cada estadía.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "GEX-001",
+      "GEX-002",
+      "GEX-003"
+    ],
+    "dependencies": [
+      "F05",
+      "F14"
+    ],
+    "allowed_paths": [
+      "src/modules/portal-huesped/",
+      "tests/F18/",
+      "specs/019-portal-huesped/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F18/"
+  },
+  {
+    "id": "WO-F19",
+    "feature": "F19",
+    "spec_version": "1.0",
+    "objective": "Automatizar lectura bajo contrato sin retirar la importación segura ni iniciar transferencias.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "INT-004"
+    ],
+    "dependencies": [
+      "F11"
+    ],
+    "allowed_paths": [
+      "src/modules/bancos-lectura/",
+      "tests/F19/",
+      "specs/020-bancos-lectura/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F19/"
+  },
+  {
+    "id": "WO-F20",
+    "feature": "F20",
+    "spec_version": "1.0",
+    "objective": "Cargar saldos y compromisos conciliados, incluyendo fondos del operador saliente y estadías cruzadas.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "MIG-001",
+      "MIG-002",
+      "MIG-003",
+      "MIG-004",
+      "MIG-005",
+      "MIG-006"
+    ],
+    "dependencies": [
+      "F05",
+      "F06",
+      "F11"
+    ],
+    "allowed_paths": [
+      "src/modules/traspaso-apertura/",
+      "tests/F20/",
+      "specs/021-traspaso-apertura/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F20/"
+  },
+  {
+    "id": "WO-F21",
+    "feature": "F21",
+    "spec_version": "1.0",
+    "objective": "Aplicar controles desde el inicio y ensayar recuperación e integración de cada capacidad activada; no esperar al final para probar.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "SEC-004",
+      "SEC-005",
+      "AI-006",
+      "SEC-009",
+      "SEC-010",
+      "QA-001",
+      "QA-002",
+      "QA-003"
+    ],
+    "dependencies": [
+      "F00"
+    ],
+    "allowed_paths": [
+      "src/modules/calidad-continuidad/",
+      "tests/F21/",
+      "specs/022-calidad-continuidad/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F21/"
+  },
+  {
+    "id": "WO-F22",
+    "feature": "F22",
+    "spec_version": "1.0",
+    "objective": "Definir interfaces de cafetería, inmobiliarias, inversiones, matriz y constructora sin inventar procesos no estudiados.",
+    "status": "PROPOSED_NOT_AUTHORIZED",
+    "requirements": [
+      "CORE-007"
+    ],
+    "dependencies": [
+      "F01"
+    ],
+    "allowed_paths": [
+      "src/modules/evolucion-grupo/",
+      "tests/F22/",
+      "specs/023-evolucion-grupo/",
+      "db/migrations/"
+    ],
+    "forbidden": [
+      "production_data",
+      "credentials",
+      "unapproved_payments",
+      "other_company_data"
+    ],
+    "reviewer": "TO_BE_NAMED_D42",
+    "human_approval": "PENDING",
+    "budget": "PENDING_D18_D40",
+    "stop_conditions": [
+      "critical_security_issue",
+      "unresolved_business_rule",
+      "budget_limit",
+      "three_failed_correction_cycles_proposed"
+    ],
+    "evidence_path": "evidence/F22/"
+  }
+]
