@@ -1,0 +1,13 @@
+%% Flujo 2 — Reserva sin canal: módulo hotel (continua) y borde HTTP que falta (punteada)
+%% PROPUESTA TÉCNICA 2026-10-27
+flowchart LR
+    U[Huésped / recepción] -->|hoy: llamada en proceso,\nno existe el borde HTTP| H[Módulo hotel\nhotel_inventario]
+    U -.->|destino: HTTPS vía API| API[Railway: API única]
+    API -.-> H
+    H --> INV[(Inventario local\nuna sola empresa)]
+    H -->|cerrojo: máximo una\nconfirmación simultánea| R[Reserva confirmada]
+    H -.->|no se invoca| PC[PuertoCanal\n«no configurado»]
+    PC -.->|cuando exista contrato| CM[Channel manager / OTA]
+    style API stroke-dasharray: 5 5
+    style PC stroke-dasharray: 5 5
+    style CM stroke-dasharray: 5 5

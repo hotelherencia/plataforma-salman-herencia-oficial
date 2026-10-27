@@ -1,0 +1,17 @@
+%% Flujo 3 — Cobro: dos islas de código hoy (continua), enlaces que faltan (punteada)
+%% PROPUESTA TÉCNICA 2026-10-27
+flowchart LR
+    subgraph HOY[Hecho de código: dos islas sin enlace]
+        V[hotel_inventario\npagos, cuenta,\npedir_a_habitacion]
+        K[nucleo\naplicar_resultado_pago\nsolo en sus pruebas,\nsin puertos de pago/documento]
+    end
+    V -.->|falta: la vertical llama\nal núcleo por interfaz interna| K
+    K --> L[Ledger y deuda del núcleo\nefecto registrado sin fingir éxito]
+    K -.->|falta: puerto en el núcleo| PP[PuertoPago\n«no configurado»]
+    K -.->|falta: puerto en el núcleo| PD[PuertoDocumentoTributario\n«no configurado»]
+    PP -.->|hasta existir adaptador| GW[Webpay / Mercado Pago]
+    PD -.->|hasta existir adaptador| SII[DTE / SII]
+    style PP stroke-dasharray: 5 5
+    style PD stroke-dasharray: 5 5
+    style GW stroke-dasharray: 5 5
+    style SII stroke-dasharray: 5 5

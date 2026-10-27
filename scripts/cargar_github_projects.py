@@ -2,7 +2,7 @@
 
 Crea el repositorio si no existe, crea los campos del Project (incluido el
 numérico Esfuerzo), agrega la opción de estado «Decisión humana» y carga los
-150 ítems con sus campos. Esfuerzo solo en tareas hoja del hotel (plan §2).
+155 ítems con sus campos. Esfuerzo solo en tareas hoja del hotel (plan §2).
 Es idempotente: no duplica issues ya creadas.
 """
 import json
@@ -77,6 +77,8 @@ def es_decision_humana(item):
 
 
 def status_para(item):
+    if item["estado"] == "Hecha":
+        return "Done"
     if es_decision_humana(item):
         return DECISION_HUMANA
     return ESTADO_A_STATUS.get(item["estado"], "Todo")
@@ -228,7 +230,7 @@ def fijar_campos(items, item_ids, fields):
 
 def main():
     items = json.loads(ITEMS_PATH.read_text(encoding="utf-8"))
-    assert len(items) == 150, len(items)
+    assert len(items) == 155, len(items)
     asegurar_repo()
     asegurar_campos(query_fields())
     fields = query_fields()

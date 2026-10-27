@@ -131,7 +131,7 @@
     "title": "[Tarea] 002-hotel-reservas-concierge/T003 — Resolver decisiones Q-* de la feature",
     "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T002\n\n**Bloquea:** 002-hotel-reservas-concierge/H1, 002-hotel-reservas-concierge/H2, 002-hotel-reservas-concierge/H3, 002-hotel-reservas-concierge/T004, 002-hotel-reservas-concierge/T102, 002-hotel-reservas-concierge/T202, 002-hotel-reservas-concierge/H1/T-DEC, 002-hotel-reservas-concierge/H2/T-DEC, 002-hotel-reservas-concierge/H3/T-DEC\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-HOT-01: PMS actual y fuente de inventario; Q-HOT-02: acceso OTA/channel manager; Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía.\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
     "tipo": "Tarea",
-    "estado": "Backlog",
+    "estado": "Hecha",
     "prioridad": "P1",
     "vertical": "hotel",
     "iteracion": "",

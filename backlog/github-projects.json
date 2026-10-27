@@ -124,7 +124,7 @@
     "title": "[Tarea] 000-core/T003 — Resolver decisiones Q-* de la feature",
     "body": "**Fuente:** `proyecto/specs/000-core/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 000-core/T002\n\n**Bloquea:** 000-core/H1, 000-core/H1/T-DEC, 000-core/H2, 000-core/H2/T-DEC, 000-core/H3, 000-core/H3/T-DEC, 000-core/T004, 000-core/T102, 000-core/T202\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-CORE-01: empresas, roles y autorización entre empresas; Q-CORE-02: tratamiento fiscal y proveedor DTE por contribuyente; Q-CORE-03: responsables de datos, retención, recuperación, presupuesto y autonomía..\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
     "tipo": "Tarea",
-    "estado": "Backlog",
+    "estado": "Hecha",
     "prioridad": "P1",
     "vertical": "core",
     "iteracion": "",
@@ -811,7 +811,7 @@
     "title": "[Tarea] 001-cafeteria-mesas-pos/T003 — Resolver decisiones Q-* de la feature",
     "body": "**Fuente:** `proyecto/specs/001-cafeteria-mesas-pos/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 001-cafeteria-mesas-pos/T002\n\n**Bloquea:** 001-cafeteria-mesas-pos/H1, 001-cafeteria-mesas-pos/H1/T-DEC, 001-cafeteria-mesas-pos/H2, 001-cafeteria-mesas-pos/H2/T-DEC, 001-cafeteria-mesas-pos/H3, 001-cafeteria-mesas-pos/H3/T-DEC, 001-cafeteria-mesas-pos/T004, 001-cafeteria-mesas-pos/T102\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-CAF-01: momento de pago y propina; Q-CAF-02: convivencia Eleventa y alcance offline; Q-CAF-03: carta, exportaciones, responsables de compras y sesión de cliente.\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
     "tipo": "Tarea",
-    "estado": "Backlog",
+    "estado": "Bloqueada",
     "prioridad": "P1",
     "vertical": "cafeteria",
     "iteracion": "",
@@ -822,7 +822,8 @@
     "etiquetas": [
       "tarea",
       "cafeteria",
-      "gate"
+      "gate",
+      "bloqueada"
     ],
     "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md T003"
   },
@@ -1010,6 +1011,108 @@
       "gate"
     ],
     "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md T105"
+  },
+  {
+    "id": "001-cafeteria-mesas-pos/T201",
+    "title": "[Tarea] 001-cafeteria-mesas-pos/T201 — Investigar y reconstruir RF derivados",
+    "body": "**Fuente:** `proyecto/specs/001-cafeteria-mesas-pos/tasks.md` TT201. Clase de evidencia: HECHO DOCUMENTADO. Completada en tasks.md; FR-015 y FR-016 registrados en spec.md.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:** ninguna (existente)\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** criterios propuestos y trazabilidad adicional registrados.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.",
+    "estado": "Hecha",
+    "etiquetas": [
+      "tarea",
+      "cafeteria",
+      "gate"
+    ],
+    "tipo": "Tarea",
+    "prioridad": "P1",
+    "vertical": "cafeteria",
+    "iteracion": "",
+    "padre": "001-cafeteria-mesas-pos",
+    "depende_de": [],
+    "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md TT201"
+  },
+  {
+    "id": "001-cafeteria-mesas-pos/T202",
+    "title": "[Tarea] 001-cafeteria-mesas-pos/T202 — Ratificar estados, cantidades, permisos y excepciones de FR-015, FR-016",
+    "body": "**Fuente:** `proyecto/specs/001-cafeteria-mesas-pos/tasks.md` TT202. Clase de evidencia: REQUISITO PROPUESTO. Depende de T003/T102.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 001-cafeteria-mesas-pos/T003\n- 001-cafeteria-mesas-pos/T102\n\n**Bloquea:** 001-cafeteria-mesas-pos/T203, 001-cafeteria-mesas-pos/H1/T-DEC, 001-cafeteria-mesas-pos/H1/T-IMP, 001-cafeteria-mesas-pos/H3/T-DEC, 001-cafeteria-mesas-pos/H3/T-IMP\n\n**Salida que cierra la issue:** ejemplos aprobados con fuente de verdad y rechazos explícitos.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.",
+    "estado": "Bloqueada",
+    "etiquetas": [
+      "tarea",
+      "cafeteria",
+      "bloqueada",
+      "gate"
+    ],
+    "tipo": "Tarea",
+    "prioridad": "P1",
+    "vertical": "cafeteria",
+    "iteracion": "",
+    "padre": "001-cafeteria-mesas-pos",
+    "depende_de": [
+      "001-cafeteria-mesas-pos/T003",
+      "001-cafeteria-mesas-pos/T102"
+    ],
+    "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md TT202"
+  },
+  {
+    "id": "001-cafeteria-mesas-pos/T203",
+    "title": "[Tarea] 001-cafeteria-mesas-pos/T203 — Revisar invariantes y contratos lógicos (timeout, repetición, parcialidad)",
+    "body": "**Fuente:** `proyecto/specs/001-cafeteria-mesas-pos/tasks.md` TT203. Clase de evidencia: REQUISITO PROPUESTO. Depende de T202/T005.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 001-cafeteria-mesas-pos/T202\n- 001-cafeteria-mesas-pos/T005\n\n**Bloquea:** 001-cafeteria-mesas-pos/T205, 001-cafeteria-mesas-pos/H1/T-IMP, 001-cafeteria-mesas-pos/H3/T-IMP\n\n**Salida que cierra la issue:** fixtures autorizados y contrato por proveedor, sin endpoint supuesto.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.",
+    "estado": "Bloqueada",
+    "etiquetas": [
+      "tarea",
+      "cafeteria",
+      "bloqueada",
+      "gate"
+    ],
+    "tipo": "Tarea",
+    "prioridad": "P1",
+    "vertical": "cafeteria",
+    "iteracion": "",
+    "padre": "001-cafeteria-mesas-pos",
+    "depende_de": [
+      "001-cafeteria-mesas-pos/T202",
+      "001-cafeteria-mesas-pos/T005"
+    ],
+    "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md TT203"
+  },
+  {
+    "id": "001-cafeteria-mesas-pos/T204",
+    "title": "[Tarea] 001-cafeteria-mesas-pos/T204 — Comprobar conducta en demo/entorno propio autorizado (REA)",
+    "body": "**Fuente:** `proyecto/specs/001-cafeteria-mesas-pos/tasks.md` TT204. Clase de evidencia: DECISIÓN PENDIENTE. Depende de Q-REA-01/02/03 (definidos en docs/arquitectura/decisiones-pendientes.md y docs/investigacion-competitiva/decisiones-pendientes.md; Q-REA-03 exige aprobación previa a cualquier cambio global de MCP/skills).\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:** ninguna (existente)\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** captura y límites de la comprobación, solo con entorno autorizado.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n\n**Notas:**\n- Documentación pública no cierra esta tarea.",
+    "estado": "Bloqueada",
+    "etiquetas": [
+      "tarea",
+      "cafeteria",
+      "bloqueada",
+      "gate"
+    ],
+    "tipo": "Tarea",
+    "prioridad": "P1",
+    "vertical": "cafeteria",
+    "iteracion": "",
+    "padre": "001-cafeteria-mesas-pos",
+    "depende_de": [],
+    "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md TT204"
+  },
+  {
+    "id": "001-cafeteria-mesas-pos/T205",
+    "title": "[Tarea] 001-cafeteria-mesas-pos/T205 — Revisar costos y latencias por etapa",
+    "body": "**Fuente:** `proyecto/specs/001-cafeteria-mesas-pos/tasks.md` TT205. Clase de evidencia: REQUISITO PROPUESTO. Depende de T203 y decisiones Q del dominio.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 001-cafeteria-mesas-pos/T203\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** plan de evaluación y backlog de desarrollo ratificado posteriormente.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.",
+    "estado": "Bloqueada",
+    "etiquetas": [
+      "tarea",
+      "cafeteria",
+      "bloqueada",
+      "gate"
+    ],
+    "tipo": "Tarea",
+    "prioridad": "P1",
+    "vertical": "cafeteria",
+    "iteracion": "",
+    "padre": "001-cafeteria-mesas-pos",
+    "depende_de": [
+      "001-cafeteria-mesas-pos/T203"
+    ],
+    "fuente": "proyecto/specs/001-cafeteria-mesas-pos/tasks.md TT205"
   },
   {
     "id": "001-cafeteria-mesas-pos/H1/T-DEC",
@@ -1399,7 +1502,7 @@
     "title": "[Tarea] 002-hotel-reservas-concierge/T003 — Resolver decisiones Q-* de la feature",
     "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T002\n\n**Bloquea:** 002-hotel-reservas-concierge/H1, 002-hotel-reservas-concierge/H2, 002-hotel-reservas-concierge/H3, 002-hotel-reservas-concierge/T004, 002-hotel-reservas-concierge/T102, 002-hotel-reservas-concierge/T202, 002-hotel-reservas-concierge/H1/T-DEC, 002-hotel-reservas-concierge/H2/T-DEC, 002-hotel-reservas-concierge/H3/T-DEC\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-HOT-01: PMS actual y fuente de inventario; Q-HOT-02: acceso OTA/channel manager; Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía.\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
     "tipo": "Tarea",
-    "estado": "Backlog",
+    "estado": "Hecha",
     "prioridad": "P1",
     "vertical": "hotel",
     "iteracion": "",
@@ -2079,7 +2182,7 @@
     "title": "[Tarea] 003-inmobiliaria-comercial/T003 — Resolver decisiones Q-* de la feature",
     "body": "**Fuente:** `proyecto/specs/003-inmobiliaria-comercial/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 003-inmobiliaria-comercial/T002\n\n**Bloquea:** 003-inmobiliaria-comercial/H1, 003-inmobiliaria-comercial/H1/T-DEC, 003-inmobiliaria-comercial/H2, 003-inmobiliaria-comercial/H2/T-DEC, 003-inmobiliaria-comercial/T004, 003-inmobiliaria-comercial/T102, 003-inmobiliaria-comercial/T202\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-INM-01: proyectos, CRM y captura autorizada de leads; Q-INM-02: reserva, vigencia y reembolsos; Q-INM-03: revisión legal de promesa y firma; Q-INM-04: garantías y responsables.\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
     "tipo": "Tarea",
-    "estado": "Backlog",
+    "estado": "Bloqueada",
     "prioridad": "P1",
     "vertical": "inmobiliaria",
     "iteracion": "",
@@ -2090,7 +2193,8 @@
     "etiquetas": [
       "tarea",
       "inmobiliaria",
-      "gate"
+      "gate",
+      "bloqueada"
     ],
     "fuente": "proyecto/specs/003-inmobiliaria-comercial/tasks.md T003"
   },
@@ -2661,7 +2765,7 @@
     "title": "[Tarea] 004-constructora-obra/T003 — Resolver decisiones Q-* de la feature",
     "body": "**Fuente:** `proyecto/specs/004-constructora-obra/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 004-constructora-obra/T002\n\n**Bloquea:** 004-constructora-obra/H3, 004-constructora-obra/H3/T-DEC, 004-constructora-obra/H4, 004-constructora-obra/H4/T-DEC, 004-constructora-obra/T004, 004-constructora-obra/T102, 004-constructora-obra/T202\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-OBR-01: obras propias o terceros, presupuesto y módulo previo no entregado; Q-OBR-02: unidad del avance, calendario y umbral; Q-OBR-03: aprobadores, compras, seguridad e inspecciones.\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
     "tipo": "Tarea",
-    "estado": "Backlog",
+    "estado": "Bloqueada",
     "prioridad": "P1",
     "vertical": "constructora",
     "iteracion": "",
@@ -2672,7 +2776,8 @@
     "etiquetas": [
       "tarea",
       "constructora",
-      "gate"
+      "gate",
+      "bloqueada"
     ],
     "fuente": "proyecto/specs/004-constructora-obra/tasks.md T003"
   },

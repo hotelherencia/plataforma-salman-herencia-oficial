@@ -55,6 +55,11 @@ class DisponibilidadTest(unittest.TestCase):
         ofertas = self.servicio.consultar_disponibilidad(EMPRESA, INICIO, FIN, 2)
         self.assertEqual(ofertas, [])
 
+    def test_reserva_confirmada_guarda_la_empresa_fija(self):
+        resultado = self.servicio.reservar(EMPRESA, UNIDAD, INICIO, FIN, self.huesped)
+        self.assertTrue(resultado.confirmada)
+        self.assertEqual(resultado.reserva.empresa_id, EMPRESA_FIJA.id)
+
     def test_rango_no_solapado_sigue_disponible(self):
         self.servicio.reservar(EMPRESA, UNIDAD, INICIO, FIN, self.huesped)
         ofertas = self.servicio.consultar_disponibilidad(EMPRESA, date(2026, 11, 12), date(2026, 11, 14), 2)

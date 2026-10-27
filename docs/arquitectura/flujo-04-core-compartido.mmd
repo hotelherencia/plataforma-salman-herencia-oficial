@@ -1,0 +1,20 @@
+%% Flujo 4 — Core compartido: cuatro verticales con copia de empresa hoy (continua),
+%% destino: un solo login y una sola base de pagos (punteada)
+%% PROPUESTA TÉCNICA 2026-10-27
+flowchart LR
+    subgraph HOY[Hecho de código: sin código compartido]
+        H[hotel_inventario] --> EH[EMPRESA_FIJA propia]
+        A[cafeteria_mesas_pos] --> EA[EMPRESA_FIJA propia]
+        B[inmobiliaria_comercial] --> EB[EMPRESA_FIJA propia]
+        C[constructora_obra] --> EC[EMPRESA_FIJA propia]
+    end
+    subgraph DESTINO[Destino propuesto]
+        F[Vercel: una sola app\n/hotel /cafeteria /inmobiliaria /constructora] --> API[Railway: API única]
+        API --> K[Core: identidad, empresa,\nautorización, pagos,\ndocumentos, auditoría]
+        K --> MH[módulo hotel]
+        K --> MCAF[módulo cafetería]
+        K --> MINM[módulo inmobiliaria]
+        K --> MOBR[módulo constructora]
+    end
+    HOY -.->|falta: front, API y llamada\nvertical a núcleo| DESTINO
+    style DESTINO stroke-dasharray: 5 5

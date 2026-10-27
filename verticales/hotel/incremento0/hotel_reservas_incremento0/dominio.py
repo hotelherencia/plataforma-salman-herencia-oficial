@@ -8,6 +8,18 @@ class EstadoReserva(Enum):
     RECHAZADA = "rechazada"
 
 
+class EstadoOperativo(Enum):
+    DISPONIBLE = "disponible"
+    BLOQUEADA = "bloqueada"
+    FUERA_DE_SERVICIO = "fuera_de_servicio"
+
+
+class EstadoPreparacion(Enum):
+    LIMPIA = "limpia"
+    SUCIA = "sucia"
+    INSPECCIONADA = "inspeccionada"
+
+
 @dataclass(frozen=True)
 class TipoHabitacion:
     id: str
@@ -19,6 +31,8 @@ class TipoHabitacion:
 class UnidadHabitacion:
     id: str
     tipo: TipoHabitacion
+    estado_operativo: EstadoOperativo = EstadoOperativo.DISPONIBLE
+    estado_preparacion: EstadoPreparacion = EstadoPreparacion.SUCIA
 
 
 @dataclass(frozen=True)

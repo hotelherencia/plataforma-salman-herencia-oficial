@@ -19,3 +19,11 @@ No se incluye implementar T008 ni tareas de despliegue. Crear tareas de implemen
 - [ ] T103 Precisar casos AC-US-CAF con muestras, permisos, errores y conectores por plan; revisar contratos/modelo. Depende de T102/T005. Salida: fixtures autorizados y matriz de casos esperados, antes de código.
 - [ ] T104 Evaluar en demo autorizada las observaciones que faltan, mediante REA solo cuando disponible; conservar evidencia y límites. Depende de Q-REA-01/02 y T103. No cerrar afirmaciones de runtime con documentación.
 - [ ] T105 Ejecutar análisis de consistencia oficial al contar con Spec Kit y consolidar backlog por historia ratificada. Depende de T103 y Q-TOOL-01. No iniciar desarrollo dentro de esta misión.
+
+## Preparación derivada de investigación adicional
+
+- [x] T201 Investigar y reconstruir los RF derivados (FR-015, FR-016) desde fuentes primarias y registrar límites. Salida: criterios propuestos y trazabilidad adicional. Completada: FR-015 y FR-016 registrados en spec.md.
+- [ ] T202 Ratificar estados, cantidades, permisos y excepciones de FR-015, FR-016 con responsables de negocio y legales/tributarios cuando aplique. Depende de T003/T102. Salida: ejemplos aprobados con fuente de verdad y rechazo explícitos.
+- [ ] T203 Revisar invariantes y contratos lógicos con casos de timeout, repetición, parcialidad y corrección; conservar resultado esperado por cada AC nuevo. Depende de T202/T005. Salida: fixtures autorizados y contrato por proveedor, sin endpoint supuesto.
+- [ ] T204 Comprobar conducta en demo/entorno propio autorizado con REA cuando esté disponible; conservar captura y límites. Depende de Q-REA-01/02/03. Documentación pública no cierra esta tarea.
+- [ ] T205 Revisar costos y latencias por etapa, no solo resolución final, y actualizar gate de siguiente fase. Depende de T203 y decisiones Q del dominio. Salida: plan de evaluación y backlog de desarrollo ratificado posteriormente.

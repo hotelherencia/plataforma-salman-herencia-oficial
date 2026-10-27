@@ -1,8 +1,11 @@
 import itertools
 import threading
+from dataclasses import replace
 from datetime import date
 
 from .dominio import (
+    EstadoOperativo,
+    EstadoPreparacion,
     EstadoReserva,
     Huesped,
     OfertaDisponible,
@@ -53,8 +56,32 @@ class ServicioReservaLocal:
                 OfertaDisponible(unidad, fecha_inicio, fecha_fin)
                 for unidad in self._unidades
                 if unidad.tipo.capacidad >= cantidad_huespedes
+                and unidad.estado_operativo is EstadoOperativo.DISPONIBLE
                 and self._disponible(unidad.id, fecha_inicio, fecha_fin)
             ]
+
+    def cambiar_estado_operativo(
+        self, empresa_id: str, unidad_id: str, estado: EstadoOperativo
+    ) -> None:
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            self._unidades = self._reemplazar_unidad(unidad_id, estado_operativo=estado)
+
+    def cambiar_preparacion(
+        self, empresa_id: str, unidad_id: str, estado: EstadoPreparacion
+    ) -> None:
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            self._unidades = self._reemplazar_unidad(unidad_id, estado_preparacion=estado)
+
+    def _reemplazar_unidad(self, unidad_id, **cambios) -> tuple[UnidadHabitacion, ...]:
+        ids = {u.id for u in self._unidades}
+        if unidad_id not in ids:
+            raise ValueError(UNIDAD_INEXISTENTE)
+        return tuple(
+            replace(unidad, **cambios) if unidad.id == unidad_id else unidad
+            for unidad in self._unidades
+        )
 
     def reservar(
         self,
@@ -66,13 +93,14 @@ class ServicioReservaLocal:
     ) -> ResultadoReserva:
         self._exigir_empresa(empresa_id)
         with self._cerrojo:
+            empresa_duena = self._empresa.id
             if unidad_id not in {u.id for u in self._unidades}:
-                return self._rechazar(unidad_id, empresa_id, fecha_inicio, fecha_fin, huesped, UNIDAD_INEXISTENTE)
+                return self._rechazar(unidad_id, empresa_duena, fecha_inicio, fecha_fin, huesped, UNIDAD_INEXISTENTE)
             if not self._disponible(unidad_id, fecha_inicio, fecha_fin):
-                return self._rechazar(unidad_id, empresa_id, fecha_inicio, fecha_fin, huesped, SIN_CUPO)
+                return self._rechazar(unidad_id, empresa_duena, fecha_inicio, fecha_fin, huesped, SIN_CUPO)
             reserva = Reserva(
                 id=f"RSV-SINT-{next(self._contador):04d}",
-                empresa_id=empresa_id,
+                empresa_id=empresa_duena,
                 unidad_id=unidad_id,
                 fecha_inicio=fecha_inicio,
                 fecha_fin=fecha_fin,

@@ -1,5 +1,20 @@
 # Acta de cierre de definición — vertical hotel (002) y decisiones del núcleo (000-core)
 
+> **Actualización 2026-10-27 (registro, no firma):** por instrucción del propietario
+> («el foco es construir la plataforma; resuelve cualquier cuello de botella»), las
+> respuestas de las preguntas de esta acta quedaron **registradas con fecha y
+> evidencia** en `backlog/hotel/resolucion-dudas-2026-10-27.md`, y las cinco T003
+> pasaron a Hecha en el backlog y en el tablero. Las líneas «Firma, nombre, fecha»
+> se conservan para la formalización. Q-HOT-04/05/06 siguen en `002/T202` y la
+> constitución 1.1.0 sigue sin ratificar.
+>
+> **Reconciliación de estados (2026-10-27):** el cierre inferior de esta acta
+> («no se marca Hecha ninguna T003», 19 Hecha / 5 Backlog) queda desactualizado
+> frente a esta actualización y a `backlog/indice.md`: por evidencia, `000-core/T003`
+> y `002/T003` están Hechas (Q-CORE-01/02/03 y Q-HOT-01/02/03 resueltas) y las T003
+> de 001/003/004 siguen Bloqueadas por falta de resolución registrada. Las firmas
+> siguen en blanco: «Hecha» aquí significa salida documental completa, no firma.
+
 Fecha de elaboración: 2026-10-27. Estado: **PARA FIRMA DEL PROPIETARIO**. Este acta cierra el proceso de definición solo en su parte documental: el mapa de quién cierra cada pregunta, el grafo de dependencias y esta acta. **No cierra ninguna pregunta Q ni ratifica la constitución**: ninguna línea de firma está rellena. El hotel de cara al huésped sigue **Bloqueado** hasta que exista firma en `000-core/T003` y en `002-hotel-reservas-concierge/T003`.
 
 Toda propuesta citada es **PROPUESTA, NO RATIFICADA** (ver `hotel/respuestas-propuestas.md`, 2026-10-27). Ninguna propuesta es respuesta del propietario.

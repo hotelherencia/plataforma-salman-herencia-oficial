@@ -1,0 +1,121 @@
+[Title] PLATAFORMA INTEGRAL DE GESTIÓN EMPRESARIAL
+[Subtitle] GRUPO SALMAN  |  HOTEL HERENCIA COMO PRIMERA IMPLEMENTACIÓN
+[Heading1] Manual maestro de comprensión funcional y arquitectura conceptual
+Guía de entendimiento, supervisión y validación del desarrollo asistido por inteligencia artificial
+Versión 1.0 · 27 de octubre de 2026 · Destinatarios: Mijaíl y Cristóbal
+[Heading1] Mensaje de apertura
+Mijaíl y Cristóbal: gracias por asumir el desafío de construir esta plataforma. Ya cuentan con especificaciones para orientar la ejecución. Este manual tiene otra finalidad: que comprendan el negocio, la razón de cada función, las relaciones entre los módulos y el resultado que debe experimentar cada usuario. La IA puede proponer y escribir código; ustedes deben entender, dirigir, cuestionar, probar y aprobar lo que se construye. El éxito no consiste en acumular pantallas o funcionalidades, sino en disponer de un sistema confiable que opere de extremo a extremo y que pueda crecer con las empresas del grupo.
+[Heading1] 1. Naturaleza y propósito del sistema
+[Heading2] Qué estamos construyendo
+Una plataforma empresarial modular, multiempresa y con información consolidable, destinada a gestionar procesos comerciales, operativos, financieros y administrativos. La primera puesta en marcha corresponde a Hotel Herencia (17 habitaciones), bajo Herencia SpA. La visión posterior contempla Cafetería Fadwa y las restantes empresas del Grupo Salman.
+[Heading2] Qué no estamos construyendo
+No es únicamente un sitio de reservas, una contabilidad, un CRM ni un conjunto de automatizaciones aisladas. Cada función debe formar parte de un proceso trazable con reglas, responsables, datos compartidos y controles.
+[Heading2] Principios rectores
+Una sola fuente de verdad por dato; separación jurídica y contable entre sociedades; trazabilidad de cambios; permisos por rol; seguridad y privacidad desde el diseño; interoperabilidad; continuidad operativa; supervisión humana de la IA.
+[Heading1] 2. Mapa empresarial y alcance
+[Heading2] Estructura conceptual
+Wembé SpA actúa como matriz del grupo y es propietaria de Inmobiliaria Salman, que participa en otras inmobiliarias. Constructora Salman y SB Inversiones tienen socios comunes con Wembé. Herencia SpA opera Hotel Herencia y Cafetería Fadwa. La configuración societaria exacta, participaciones vigentes y permisos de consolidación deberán validarse contra documentación actualizada.
+[Heading2] Modelo multiempresa
+Cada transacción debe identificar sociedad, unidad de negocio, sucursal o inmueble, centro de costo, usuario y fecha. La consolidación gerencial no debe mezclar indebidamente patrimonios, cajas ni registros legales.
+[Heading2] Secuencia de implantación
+Fase 1: Hotel Herencia y sus procesos completos. Fase 2: Cafetería Fadwa y su relación con el hotel. Fases siguientes: inmuebles, arriendos, inversiones, construcción y tableros consolidados; cada etapa requiere aprobación específica.
+[Heading1] 3. Experiencia completa del huésped
+[Heading2] Descubrimiento y captación
+Una persona ve una campaña o publicación en Instagram, Facebook, buscadores o un canal comercial. La plataforma debe permitir atribuir origen cuando el canal lo permita, registrar una consulta y conducirla a una oferta reservable.
+[Heading2] Cotización y reserva
+El motor consulta disponibilidad real, tarifas, ocupación permitida, restricciones y políticas. Bloquea inventario de forma consistente, evita sobreventas y genera una reserva con identificador único y estado definido.
+[Heading2] Pago y confirmación
+Se calcula el importe, anticipos, impuestos y condiciones aplicables; se registra la operación del proveedor de pagos, sin almacenar datos sensibles de tarjeta; se confirma según reglas y se envía comprobante o mensaje.
+[Heading2] Estadía y salida
+Recepción realiza check-in, asignación de habitación y registro requerido; limpieza y mantención actualizan estados; consumos adicionales se imputan correctamente; check-out liquida saldo y emite documentos según corresponda.
+[Heading2] Cierre financiero
+Cada pago debe poder relacionarse con reserva, documento, caja, movimiento bancario y conciliación. Cancelaciones, devoluciones, no-show y ajustes deben dejar evidencia. El ciclo se cierra con reportes verificables.
+[Heading1] 4. Módulos funcionales y relaciones
+[Heading2] Comercial y canales
+Campañas, contactos, mensajes, embudo de ventas, conversión y seguimiento. Las integraciones con redes y OTA dependen de permisos y API reales; no se deben prometer conexiones no disponibles.
+[Heading2] Reservas, disponibilidad y tarifas
+Calendario único, habitaciones y tipos, bloqueos, temporadas, tarifas, descuentos, promociones, políticas de cancelación, garantías y cambios. Definir fuente maestra y sincronización bidireccional cuando proceda.
+[Heading2] Recepción y operación hotelera
+Check-in/out, huéspedes, asignación, incidencias, turnos, limpieza, lavandería, mantención, objetos perdidos y comunicación entre equipos.
+[Heading2] Caja, pagos, facturación y conciliación
+Cobros por canal y medio, depósitos, reembolsos, arqueos, documentos tributarios, cuentas por cobrar, conciliación bancaria e integración contable, sujetos a validación normativa chilena.
+[Heading2] Compras, inventario y activos
+Catálogo de proveedores, precios unitarios, órdenes, recepción, existencias, consumos, mantenimiento y reposición de camas, colchones, equipos y otros activos.
+[Heading2] Personas y permisos
+Usuarios, roles, turnos, tareas, aprobaciones, bitácoras y segregación de funciones. La gestión laboral y remuneraciones requerirá reglas y tratamiento de datos específicos.
+[Heading2] Indicadores y control
+Ocupación, ADR, RevPAR, ingresos por canal, cancelaciones, conversión, costos, margen, caja, productividad y alertas; cada indicador necesita fórmula, periodo, fuente y responsable.
+[Heading2] Administración multiempresa
+Catálogos comunes cuando convenga, separación de datos y permisos por sociedad, reportes por unidad y consolidación gerencial con eliminaciones y criterios explícitos cuando aplique.
+[Heading1] 5. Arquitectura conceptual para orientar el desarrollo
+[Heading2] Capas
+Canales y experiencia de usuario → servicios de negocio → reglas y flujos → datos y eventos → integraciones externas → observabilidad y seguridad. La elección concreta de tecnologías corresponde al diseño técnico y debe justificar escalabilidad, mantenibilidad y costo.
+[Heading2] Entidades principales
+Sociedad, unidad, inmueble, habitación, tarifa, disponibilidad, cliente/huésped, reserva, pago, documento, movimiento de caja, proveedor, compra, inventario, activo, tarea, usuario, rol, evento y auditoría.
+[Heading2] Estados y eventos
+Ejemplo: reserva solicitada → pendiente de pago → confirmada → check-in → check-out → cerrada; también cancelada/no-show. Los cambios deben disparar acciones controladas y ser idempotentes para evitar duplicados.
+[Heading2] Contratos entre módulos
+Definir entradas, salidas, responsables, errores, reintentos y fuente de verdad. Un módulo no debe alterar silenciosamente datos de otro ni eludir permisos.
+[Heading1] 6. Construcción con IA y agentes: gobierno humano
+[Heading2] Regla esencial
+La IA propone; el equipo comprende, verifica y decide. No aceptar código únicamente porque compila, pasa una prueba superficial o tiene apariencia correcta.
+[Heading2] Ciclo SDD con GitHub Spec Kit
+Para cada capacidad: necesidad y escenario → spec.md (qué y por qué) → plan.md (cómo) → tasks.md (trabajo verificable) → implementación → pruebas → revisión independiente → aprobación → despliegue. Mantener trazabilidad con el Documento Maestro y registrar decisiones.
+[Heading2] Roles sugeridos
+Mijaíl y Cristóbal pueden dividir módulos y revisarse mutuamente; asignar para cada entrega un responsable de implementación y otro de revisión. Las decisiones de negocio y políticas sensibles requieren validación del mandante.
+[Heading2] Control de agentes
+Cada agente debe operar con objetivos, alcance, herramientas, permisos y criterios de aceptación acotados. Las acciones destructivas, pagos, cambios de precios, despliegues y acceso a datos personales requieren controles y aprobación adecuados.
+[Heading1] 7. Cómo evaluar cada entrega de la IA
+[Heading2] Comprensión
+¿Qué problema resuelve? ¿Qué usuario la utiliza? ¿Cuál es el proceso anterior y posterior? ¿Qué ocurre si falla?
+[Heading2] Exactitud funcional
+¿Respeta políticas comerciales, tarifas, estados, permisos, impuestos y excepciones? ¿Evita doble reserva y doble cobro?
+[Heading2] Calidad técnica
+¿Tiene pruebas unitarias, de integración y end-to-end? ¿Registra errores? ¿Es mantenible? ¿Contempla concurrencia, seguridad, respaldo y recuperación?
+[Heading2] Prueba operativa
+Demostrar un recorrido real desde consulta en canal hasta conciliación, incluyendo cancelación, devolución, caída de integración y cambio de turno.
+[Heading2] Evidencia y aprobación
+Exigir demostración, resultados de pruebas, incidencias abiertas, impacto en otros módulos y registro del visto bueno. Una función no está terminada si no está integrada.
+[Heading1] 8. Traspaso de operación del hotel al 1 de enero de 2027
+[Heading2] Continuidad
+Preparar inventario de habitaciones y activos, reservas futuras, saldos y anticipos, personal y turnos, proveedores, contratos, canales y accesos, cajas y obligaciones pendientes. Establecer responsables, acta de entrega y plan de contingencia.
+[Heading2] Migración y validación
+Levantar datos históricos disponibles de ocupación, tarifas, canales, gastos y reservas. Depurar, mapear, importar en entorno de pruebas, cuadrar totales y obtener aceptación antes de pasar a producción.
+[Heading2] Plan de corte
+Definir fecha y hora de corte, operación paralela cuando corresponda, respaldos, reversión, atención a huéspedes y soporte reforzado. No asumir que todo dato estará disponible sin acuerdo con el operador actual.
+[Heading1] 9. Decisiones pendientes que deben resolverse antes de codificar reglas definitivas
+[Heading2] Políticas 2027
+Aprobar temporadas, tarifas, mínimos de estadía, anticipos, cobros, cancelaciones, no-show, devoluciones, descuentos y autorizaciones de excepción.
+[Heading2] Canales e integraciones
+Confirmar qué OTA, redes sociales, motor de reservas, pasarelas de pago, facturación y contabilidad se conectarán, con cuentas, contratos, API y costos reales.
+[Heading2] Estructura y administración
+Verificar participaciones vigentes, sociedades operadoras, centros de costo, niveles de consolidación y responsables de aprobación.
+[Heading2] Operación y presupuesto
+Confirmar procesos de recepción, limpieza y mantención; precios unitarios de proveedores; política de compras y renovación de mobiliario/equipos.
+[Heading1] 10. Criterios de aceptación de la primera versión
+[Heading2] Resultado mínimo
+Un usuario autorizado configura habitaciones y tarifas; un cliente consulta disponibilidad y reserva; se gestiona cobro y confirmación; recepción opera la estadía; se registra salida; caja y conciliación presentan trazabilidad; gerencia consulta indicadores.
+[Heading2] Escenarios obligatorios
+Reserva simultánea sobre última habitación; modificación de fechas; cancelación con devolución parcial; pago duplicado; desconexión de canal; caída de servicio; diferencia de caja; usuario sin permiso; cierre diario; restauración desde respaldo.
+[Heading2] Condiciones de salida
+Sin fallos críticos abiertos; pruebas y evidencias accesibles; manuales de operación; monitoreo y alertas; respaldo probado; usuarios formados; plan de soporte y responsable de aprobación.
+[Heading1] 11. Método de trabajo y reuniones
+[Heading2] Ritmo recomendado
+Revisión breve diaria de bloqueos; demostración funcional semanal; revisión quincenal de arquitectura, seguridad y deuda técnica; decisión formal de alcance al cerrar cada hito.
+[Heading2] Ficha estándar de cada funcionalidad
+Identificador; objetivo de negocio; actores; flujo normal; excepciones; datos; integraciones; reglas; riesgos; pruebas; dependencias; estado; responsable; revisor; decisión y fecha.
+[Heading2] Registro de decisiones
+Toda modificación de alcance debe consignar motivo, alternativas, impacto en calendario/costo, aprobación y actualización de especificaciones y pruebas.
+[Heading1] 12. Glosario de referencia
+[Heading2] SDD
+Desarrollo dirigido por especificaciones: primero se define el comportamiento verificable y luego se implementa.
+[Heading2] PMS / CRM / OTA
+PMS: gestión de propiedad hotelera; CRM: gestión de relaciones comerciales; OTA: agencia de viajes en línea.
+[Heading2] ADR / RevPAR
+ADR: ingreso promedio por habitación vendida; RevPAR: ingreso por habitaciones dividido por habitaciones disponibles.
+[Heading2] API / evento / idempotencia
+API: interfaz entre sistemas; evento: hecho relevante del negocio; idempotencia: repetir una operación sin duplicar su efecto.
+[Heading2] Fuente de verdad / conciliación
+Fuente de verdad: registro autorizado de un dato; conciliación: comprobación de correspondencia entre registros operativos, pagos y bancos.
+[Heading1] Cierre: el estándar que esperamos
+Cada uno debe poder explicar qué hace una funcionalidad, por qué existe, qué datos utiliza, cómo se conecta con las demás, qué puede fallar y qué evidencia demuestra que funciona. Solo entonces está en condiciones de guiar y aprobar con criterio el trabajo generado por IA. Este manual complementa, pero no sustituye, el Documento Maestro, las especificaciones versionadas ni las decisiones formales del proyecto.
