@@ -1,0 +1,26 @@
+﻿id,nombre,valor_propuesto_no_productivo,unidad,estado,decision,paquete,validacion,efecto
+P01,Duracion retención,900,segundos,PROPUESTA_TECNICA,D03,F03,1..3600; no renovar indefinidamente,Retiene cupo no confirma reserva
+P02,Retenciones activas por sesion,3,cantidad,PROPUESTA_TECNICA,D03,F03,1..10; límites antiabuso y excepción grupos,Evitar bloqueo artificial de habitaciones
+P03,Horizonte cotizacion web,365,dias,PROPUESTA_TECNICA,D02,F02,90..730 configurable,Fuera de rango deriva a recepción
+P04,Noches máximas autoservicio,30,noches,PROPUESTA_TECNICA,D02,F03,1..365; estadías superiores por convenio,No confundir límite técnico con política aprobada
+P05,Hora auditoría nocturna,04:00,hora local,PROPUESTA_OPERATIVA,D09,F05,HH:mm zona establecimiento,Cargos por fecha de servicio no por ejecución scheduler
+P06,Desayuno por noche,siguiente manana,regla,PROPUESTA_OPERATIVA,D10,F08,partida corresponde manana posterior incluida salida; llegada excluida salvo adicional,Versión por tarifa y derecho pasajero
+P07,Descuento adicional máximo recepción,,porcentaje,PENDIENTE,D14,F02,0..100 y umbral absoluto,Sin política no puede descontar libremente
+P08,Anticipo exigido,,metodo+valor,PENDIENTE,D03,F03,"NONE,FIXED,PERCENT; 0..total",No existe política universal50%
+P09,Cancelación y no-show,,bandas,PENDIENTE,D03,F03,horas previas crecientes sin solape; cargo <=límite autorizado,Preservar snapshot de reserva
+P10,Precios publicables2027,,CLP/u otra moneda,PENDIENTE,D02,F02,montos completos por noche/ocupacion; impuestos aprobados,No se pública tarifa de prueba
+P11,IVA y exenciones,,reglas versionadas,PENDIENTE,D07,F04,criterios y documentos aprobados por contador,Nacionalidad sola no decide
+P12,Cambio sábanas/toallas,,dias/eventos,PENDIENTE,D11,F07,"regla permanencia,salida,solicitud,incidencia","Registrar cambio real, no asumir automático"
+P13,Consumo estándar por tarea,,unidad/cantidad,PENDIENTE,D32,F07,cantidad>=0; distinguir estimado/real,No confundir con inventario físico confirmado
+P14,Precio por punto incentivo,,moneda/punto,PENDIENTE,D17,F10,decimal>=0; regla laboral aprobada,No transferir automáticamente remuneracion
+P15,Tiempo respuesta comercial,15,minutos,PROPUESTA_META,D28,F15,sólo horario/cobertura comprometida,No prometer humano instantaneo
+P16,Alerta retraso conector,300,segundos,PROPUESTA_META,D04,F13,ajustar aSLA proveedor,"Controla estado funcional, no soloHTTP"
+P17,Reintentos automáticos,max10,intentos,PROPUESTA_TECNICA,D20,F13,"backoff+jitter, respetaRetry-After",Cobro consulta primero antes de nuevo efecto
+P18,RPO,15,minutos,PROPUESTA_META,D20,F21,requiere infraestructura y prueba,No alcanzado por esta entrega
+P19,RTO,120,minutos,PROPUESTA_META,D20,F21,recuperación completa y conciliada,No sólo arranque web
+P20,Disponibilidad nucleo,99.9,porcentaje mensual,PROPUESTA_META,D20,F21,medir por separado dependencias,No SLA contratado
+P21,Carga de prueba,25personal/100publico/20ultimo_cupo,concurrencia,PROPUESTA_META,D20,F21,dataset sintético y hardware identificado,No benchmark ejecutado
+P22,p95 operación local,2000,milisegundos,PROPUESTA_META,D20,F21,excluye espera usuario y tercero; errors reportados,Revisar carga y percentil
+P23,Retención de datos,,por clase/finalidad,PENDIENTE,D16,F01,no cargar PII hasta aprobar matriz,No plazo legal inventado
+P24,Presupuesto anuncios,,moneda/periodo,PENDIENTE,D30,F17,cap y aprobador; cuenta titular verificada,No gasto automático por IA
+P25,Autonomía del asistente,lectura y propuestas iniciales,modo,PROPUESTA_CONTROL,D29,F16,acciones se habilitan individualmente tras pruebas,No cobros/reembolsos fuera de reglas

@@ -1,0 +1,110 @@
+﻿entidad,paquete,alcance,descripcion,campos,restriccion
+group,F01,GLOBAL,"Agrupacion gerencial, no fusion jurídica",7,FK consistentes; permisos por alcance; historial; validación de transiciones.
+company,F01,GLOBAL,Persona jurídica que conserva obligaciones propias,10,"UNIQUE(country,tax_id) cuando tax_id no es NULL; no activar sin identificación validada."
+party,F01,GLOBAL,Persona o entidad con roles societarios o comerciales,9,FK consistentes; permisos por alcance; historial; validación de transiciones.
+ownership,F01,COMPANY,Participación societaria con historia,12,0 < percentage <= 100; valid_to > valid_from; suma verificada por sociedad/clase/periodo no excede 100; faltante no se completa por inferencia.
+establishment,F01,COMPANY,Lugar operado por una sociedad,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+unit,F01,COMPANY,Unidad economica con resultado separado,9,FK consistentes; permisos por alcance; historial; validación de transiciones.
+cost_center,F01,COMPANY,Destino de asignación gerencial,9,FK consistentes; permisos por alcance; historial; validación de transiciones.
+user_account,F01,GLOBAL,Cuenta de acceso sin contraseña propia almacenada,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+role_grant,F01,COMPANY,Alcance efectivo de usuario,11,Mismo usuario/rol/alcance no se duplica en períodos activos; expiracion revoca sesiones pertinentes.
+policy,F01,COMPANY,Regla empresarial versionada,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+approval,F01,COMPANY,Autorización sensible con límite y vigencia,16,FK consistentes; permisos por alcance; historial; validación de transiciones.
+supplier,F06,COMPANY,Relación comercial local con un tercero,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+bank_account,F11,COMPANY,Cuenta cuyo titular y moneda se verifican,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+file_object,F01,COMPANY,Archivo privado con cuarentena y acceso,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+document,F01,COMPANY,Referencia documental de negocio,13,"UNIQUE(company_id,issuer_party_id,document_type,folio) cuando todos definidos; archivo debe CLEAN."
+audit_event,F01,COMPANY,Historia inmutable de acciones relevantes,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+room_type,F02,COMPANY,Categoría comercial validada,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+room,F02,COMPANY,Habitación física,14,"UNIQUE(establishment_id,code); configuración válida capacidad; catálogo real de Hotel Herencia suma 17."
+room_block,F02,COMPANY,Indisponibilidad autorizada con fechas,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+inventory_day,F02,COMPANY,Capacidad serializada por tipo y noche,13,"UNIQUE(establishment_id,room_type_id,night); campos >=0; bloqueo transaccional ordenado; commitments externos en conflicto nunca se ocultan."
+rate_plan,F02,COMPANY,Plan comercial con condiciones,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+rate_price,F02,COMPANY,Precio por fecha y ocupación,16,FK consistentes; permisos por alcance; historial; validación de transiciones.
+promotion,F02,COMPANY,"Descuento al cliente, no comisión",14,FK consistentes; permisos por alcance; historial; validación de transiciones.
+sale_restriction,F02,COMPANY,Límites de venta de un plan/tipo,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+quote,F03,COMPANY,Oferta inmutable con expiracion,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+inventory_hold,F03,COMPANY,"Retención temporal, no reserva vendida",10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+reservation,F03,COMPANY,Compromiso comercial de alojamiento,17,"UNIQUE(company_id,channel_code,external_id) WHERE external_id IS NOT NULL; total = suma de lineas vigentes; estado no prueba cobro."
+reservation_line,F03,COMPANY,Una unidad de alojamiento dentro de reserva,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+reservation_change,F03,COMPANY,Versión y diferencia de modificacion,14,FK consistentes; permisos por alcance; historial; validación de transiciones.
+corporate_agreement,F03,COMPANY,Convenio y crédito empresarial,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+guest,F05,COMPANY,Pasajero con datos mínimos protegidos,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+stay,F05,COMPANY,Servicio real independiente de reserva y pago,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+stay_guest,F05,COMPANY,Presencia efectiva de cada pasajero,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+room_assignment,F05,COMPANY,Segmento físico sin solapes,11,"EXCLUDE solape room_id con tstzrange(from_at,to_at,[)) en estados activos; to_at > from_at; tenant consistente."
+service_night,F05,COMPANY,Unidad canonica de servicio e ingreso por noche,12,"UNIQUE(stay_id,night); traslado no duplica noche, cargo ni ADR."
+shift_log,F05,COMPANY,Entrega operacional entre turnos,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+custody_item,F05,COMPANY,Llave u objeto bajo custodia,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+night_audit,F05,COMPANY,Revisión de fecha operacional,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+folio,F04,COMPANY,Cuenta comercial de estadía o grupo,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+charge,F04,COMPANY,"Cargo por servicio, no cobro",18,"UNIQUE(company_id,source_key); gross=net+tax; reverso conserva monto/moneda y referencia."
+payment_intent,F04,COMPANY,Intento de pago antes de resultado cierto,14,FK consistentes; permisos por alcance; historial; validación de transiciones.
+payment,F04,COMPANY,Fondo recibido y comprobado,16,"UNIQUE(company_id,provider,external_transaction_id) WHERE external_transaction_id IS NOT NULL; no contabilizar callback no verificado."
+payment_allocation,F04,COMPANY,Aplicación que no puede exceder pago o cuenta,11,Suma de aplicaciones activas <= pago neto disponible; bloqueo de pago/cuenta; moneda identica.
+refund,F04,COMPANY,Devolución autorizada del pago original,13,Suma confirmada + reservada para enviar <= saldo reembolsable; no reintentar a ciegas estado UNKNOWN.
+cash_shift,F04,COMPANY,Caja y arqueo por turno,15,Una sola caja/moneda/turno abierto; arqueo exacto; cierre/reapertura con auditoría.
+cash_movement,F04,COMPANY,Movimiento de efectivo o traslado,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+fiscal_document,F04,COMPANY,Estado tributario del proveedor habilitado,16,FK consistentes; permisos por alcance; historial; validación de transiciones.
+product,F06,COMPANY,Articulo normalizado para compra y consumo,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+warehouse,F06,COMPANY,Ubicacion de existencias,9,FK consistentes; permisos por alcance; historial; validación de transiciones.
+stock_lot,F06,COMPANY,Lote utilizable o restringido,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+stock_movement,F06,COMPANY,Libro de cantidades inmutable,17,"UNIQUE(company_id,source_key); no borrar; transferencias son pares con suma cantidad cero; stock disponible no negativo."
+supplier_price,F06,COMPANY,Precio comparable con vigencia,17,FK consistentes; permisos por alcance; historial; validación de transiciones.
+purchase_order,F06,COMPANY,Compromiso autorizado,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+purchase_line,F06,COMPANY,Articulo o servicio pedido,14,FK consistentes; permisos por alcance; historial; validación de transiciones.
+receipt,F06,COMPANY,Entrega física independiente del pago,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+receipt_line,F06,COMPANY,Cantidad aceptada/rechazada por linea,11,Aceptado/rechazado >=0; acumulado no excede pedido+tolerancia aprobada; una reversion no ignora consumo posterior.
+stock_count,F06,COMPANY,Conteo con corte y ajuste autorizado,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+payable,F11,COMPANY,Obligación con proveedor,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+payable_payment,F11,COMPANY,"Pago a proveedor aprobado, no automatizado libremente",12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+task,F07,COMPANY,Trabajo operativo identificable,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+task_execution,F07,COMPANY,Trabajo efectivo sin duplicados,14,"UNIQUE(company_id,device_event_id); participaciones elegibles de tarea suman 1; ended_at>=started_at."
+inspection,F07,COMPANY,Control de calidad,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+textile_movement,F07,COMPANY,Pieza reutilizable y su estado,16,"UNIQUE(company_id,source_key); quantity entero; balance por estado/ubicacion no negativo."
+laundry_lot,F07,COMPANY,Envio y retorno de piezas o kilos,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+laundry_line,F07,COMPANY,Balance por textil del lote,13,sent_qty = good_qty+rejected_qty+lost_qty+pending_qty; pending derivado; pérdida exige aprobación.
+recipe,F08,COMPANY,Receta y rendimiento con versión,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+recipe_line,F08,COMPANY,Consumo base de ingrediente,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+food_batch,F08,COMPANY,Producción que consume ingredientes una vez,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+breakfast_service,F08,COMPANY,Derecho y servicio por pasajero/dia,11,"UNIQUE(stay_guest_id,service_date); servicio no consume nuevamente ingredientes ya consumidos por lote."
+meal_order,F08,COMPANY,Cena subcontratada,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+space,F08,COMPANY,Recurso reservable distinto de habitación,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+space_booking,F08,COMPANY,Uso y buffers de montaje/limpieza,14,EXCLUDE overlap para intervalo ampliado con buffers y espacio en HELD/CONFIRMED; aforo validado.
+asset,F09,COMPANY,Bien propio o de tercero con historia,17,FK consistentes; permisos por alcance; historial; validación de transiciones.
+maintenance_order,F09,COMPANY,Trabajo preventivo/correctivo,17,FK consistentes; permisos por alcance; historial; validación de transiciones.
+asset_inspection,F09,COMPANY,Evaluacion de calidad documentada,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+renewal_item,F09,COMPANY,Inversion justificada,16,FK consistentes; permisos por alcance; historial; validación de transiciones.
+worker,F10,COMPANY,Persona trabajadora y rol vigente,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+shift,F10,COMPANY,Cobertura programada,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+attendance,F10,COMPANY,Tiempo real separado de tareas,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+incentive_rule,F10,COMPANY,Regla de incentivo versionada,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+incentive_award,F10,COMPANY,Preliquidacion auditable,15,"UNIQUE(worker_id,rule_id,period_start,period_end); no duplicar tarea ni períodos; regla congelada al aprobar."
+bank_import,F11,COMPANY,Lote importado sin duplicación,14,FK consistentes; permisos por alcance; historial; validación de transiciones.
+bank_movement,F11,COMPANY,Hecho bancario inmutable,14,"UNIQUE(bank_account_id,external_id) sólo cuando ID estable; fingerprint candidato no causa fusion automática."
+settlement,F11,COMPANY,Liquidacion de procesador o canal,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+settlement_line,F11,COMPANY,Desglose de cobros de liquidacion,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+reconciliation_group,F11,COMPANY,Conciliación many-to-many con control,10,FK consistentes; permisos por alcance; historial; validación de transiciones.
+reconciliation_allocation,F11,COMPANY,Asignación a hecho financiero,11,"Suma aplicada a fuente no excede disponible; por grupo suma lado BUSINESS = lado BANK para POSTED, o diferencia aprobada explícita."
+cost_entry,F12,COMPANY,Costo con fuente y grado de certeza,17,FK consistentes; permisos por alcance; historial; validación de transiciones.
+cost_pool,F12,COMPANY,Bolsa comun neta de costos ya directos,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+budget_line,F12,COMPANY,Presupuesto separado por naturaleza,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+accounting_export,F11,COMPANY,Intercambio contable controlado,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+integration_account,F13,COMPANY,Cuenta y capacidades verificadas,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+channel_mapping,F13,COMPANY,Equivalencias de canal,12,FK consistentes; permisos por alcance; historial; validación de transiciones.
+outbox_event,F00,COMPANY,Evento persistido con transacción de dominio,14,Unicidad por event_id (id); transacción junto a dominio; reintentos acotados.
+inbox_event,F13,COMPANY,Entrada externa autenticada y deduplicada,13,"UNIQUE(integration_id,external_event_id); payload distinto con mismo ID exige investigacion."
+contact,F14,COMPANY,Identidad comercial mínima,11,FK consistentes; permisos por alcance; historial; validación de transiciones.
+channel_identity,F14,COMPANY,Identidad acotada a cuenta/canal,10,"UNIQUE(integration_id,channel,external_user_id); no fusion por nombre."
+consent,F14,COMPANY,Permiso por finalidad y canal,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+opportunity,F14,COMPANY,Consulta convertida en proceso comercial,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+conversation,F15,COMPANY,Hilo y toma humana exclusiva,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+message,F15,COMPANY,Mensaje único con estado de envio,15,"UNIQUE(company_id,dedup_key); unicidad external_id por cuenta; ventana/permiso se revisa al enviar."
+agent_run,F16,COMPANY,Ejecución limitada y evaluable,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+campaign,F17,COMPANY,Plan comercial con gasto autorizado,16,FK consistentes; permisos por alcance; historial; validación de transiciones.
+content_piece,F17,COMPANY,Contenido con derechos y aprobación,13,FK consistentes; permisos por alcance; historial; validación de transiciones.
+conversion_event,F12,COMPANY,Hecho comercial sin duplicación,14,"UNIQUE(company_id,business_event_id,event_name); valor no suma anticipo y venta."
+portal_grant,F18,COMPANY,Acceso limitado al huésped,12,UNIQUE(token_hash); nunca almacenar token plano; scope no incluye devolución.
+service_ticket,F18,COMPANY,Solicitud o reclamo con responsable,15,FK consistentes; permisos por alcance; historial; validación de transiciones.
+migration_batch,F20,COMPANY,Carga de apertura autorizada,13,"UNIQUE(company_id,file_hash,cutoff_at,schema_version); staging no altera producción."
+handover_item,F20,COMPANY,Obligación o bien recibido con excepción,15,FK consistentes; permisos por alcance; historial; validación de transiciones.

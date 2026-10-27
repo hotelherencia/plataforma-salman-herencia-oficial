@@ -1,2 +1,0 @@
-﻿requisito,fuente_version,paquete,historia,spec,plan,tareas,pruebas,datos,pantallas,operaciones,estado_especificacion,estado_implementacion,estado_pruebas,aprobacion
-CORE-007,V0.3 preservada,F22,F22-US01,specs/023-evolucion-grupo/spec.md,specs/023-evolucion-grupo/plan.md,F22-T01A;F22-T01B;F22-T01C,TC-CORE-007-P;TC-CORE-007-N,,UI-52,,DESARROLLADO_PARA_REVISION,NO_IMPLEMENTADO,NO_EJECUTADA,PENDIENTE

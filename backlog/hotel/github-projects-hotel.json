@@ -1,0 +1,733 @@
+[
+  {
+    "id": "002-hotel-reservas-concierge",
+    "title": "[Épica] 002-hotel-reservas-concierge — Hotel: reservas y concierge",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` y `proyecto/specs/002-hotel-reservas-concierge/tasks.md`. Clase de evidencia: REQUISITO PROPUESTO (feature BLOCKED para implementación). IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Problema y actores:** La sincronización bidireccional está bloqueada por acceso comercial y técnico. El hotel básico no necesita que la cafetería esté en producción. Actores: huésped, recepción, housekeeping, administrador y concierge.\n\n**Criterios de éxito (SC, sin Given/When/Then):**\n- SC-001: Cero sobreventas en 90 días de operación con al menos dos canales activos\n- SC-002: La disponibilidad se refleja en todos los canales en menos de 5 minutos en el 95 % de los cambios\n- SC-003: Las reservas directas pasan del nivel actual a al menos 30 % del total en 6 meses\n- SC-004: El 100 % de los pagos queda conciliado con su obligación documental aplicable; objetivo de entrega <60 s cuando proceda y haya disponibilidad externa, sujeto a ratificación; fallos quedan pendientes y alertados\n- SC-005: El 60 % de los huéspedes completa check-in online antes de llegar\n- SC-006: El agente resuelve al menos el 70 % de conversaciones de WhatsApp sin intervención humana\n- SC-007: Cero acciones del agente fuera de sus reglas de autonomía (auditoría mensual del ledger)\n- SC-008: Los upsells ofrecidos por el agente convierten al menos el 8 % (referencia Duve)\n- SC-009: Un empleado nuevo opera recepción con el sistema tras 2 horas de capacitación\n\n**Decisiones que bloquean la feature:**\n- Q-HOT-01: PMS actual y fuente de inventario\n- Q-HOT-02: acceso OTA/channel manager\n- Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía\n\n**Depende de:**\n- 000-core\n\n**Bloquea:** las historias y tareas de implementación de esta feature\n\n**Salida que cierra la issue:** gate de la feature completo: T003–T007 cerradas (informe sin bloqueos y aprobación de inicio de la siguiente fase).\n\n**Fuera de alcance:** implementación, despliegue, migración de datos productivos, pagos o envíos reales, DTE real e integraciones externas.\n",
+    "tipo": "Épica",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": null,
+    "depende_de": [
+      "000-core"
+    ],
+    "etiquetas": [
+      "epica",
+      "hotel",
+      "bloqueada",
+      "feature-blocked"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md (Estado BLOCKED); proyecto/specs/002-hotel-reservas-concierge/tasks.md"
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H1",
+    "title": "[Historia] 002-hotel-reservas-concierge/H1 — Reservar y pagar desde la web del hotel (US-HOT-001)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` §2 (escenarios H1) y §3 (FR FR-001, FR-002, FR-003, FR-004, FR-005, FR-016, FR-017, FR-018, FR-020); alias US-HOT-001 en «Refinamiento competitivo de historias». Clase de evidencia: REQUISITO PROPUESTO. IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Como / quiero / para:** Como huésped y recepcionista, quiero reservar una categoría disponible con cotización y estado de sincronización explícitos, para evitar sobreventa y promesas de disponibilidad basadas en datos inciertos.\n\n**Escenarios base de la spec (H1):**\n- Dadas fechas y número de huéspedes, cuando el visitante consulta, entonces ve solo habitaciones disponibles con tarifa vigente y total con IVA.\n- Dada una reserva con pago aprobado, cuando Webpay confirma, entonces se envía confirmación y se procesa el documento tributario aplicable sin duplicación; objetivo de 60 segundos sujeto a política fiscal y disponibilidad externa, con pendiente/alerta ante fallo.\n- Dada una reserva directa confirmada, cuando el channel manager sincroniza, entonces la disponibilidad baja en todos los canales conectados en menos de 5 minutos.\n- Dada una reserva de Booking, cuando llega por el canal, entonces aparece en el sistema de registro hotelero seleccionado con los mismos datos y bloquea inventario.\n\n**Criterios de aceptación (Given/When/Then):**\n- AC-US-HOT-001-01: Dada última unidad y cien intentos, cuando se confirma, entonces como máximo una reserva local obtiene cupo; conflictos externos se identifican y escalan.\n- AC-US-HOT-001-02: Dada habitación sucia hoy pero vendible en fecha futura, cuando se busca esa fecha, entonces limpieza actual no elimina inventario futuro por sí sola.\n- AC-US-HOT-001-03 (propuesta, no ejecutada): Dada reserva pagada y política de ejemplo que permite devolución, cuando recepción cancela, entonces la reserva puede quedar cancelada pero el dinero permanece sin devolver hasta operación financiera autorizada y confirmada.\n- AC-US-HOT-001-04 (propuesta, no ejecutada): Dada nueva tarifa superior a la aceptada, cuando se previsualiza el cambio, entonces muestra diferencia y no la aplica sin nueva aceptación.\n- AC-US-HOT-001-05 (propuesta, no ejecutada): Dado timeout tras aplicar un cambio, cuando se reintenta, entonces consulta estado y no crea segunda reserva, cargo ni devolución.\n- AC-US-HOT-001-06 (propuesta, no ejecutada): Dada falla de almacenamiento antes de recepción durable, cuando llega reserva del canal, entonces no se declara acuse exitoso ni confirmación local.\n- AC-US-HOT-001-07 (propuesta, no ejecutada): Dada recepción durable y acuse completado pero caída antes de aplicar, cuando se recupera, entonces se reaplica desde evidencia sin perder reserva ni duplicar efectos.\n- AC-US-HOT-001-08 (propuesta, no ejecutada): Dados cinco eventos con igual ID notificación y una actualización nueva del mismo ID de reserva, cuando se reconcilian, entonces se deduplica notificación pero no se descarta el cambio legítimo por usar solo ID reserva.\n\n**Requisitos asociados:**\n- FR: FR-001, FR-002, FR-003, FR-004, FR-005, FR-016, FR-017, FR-018, FR-020\n- NFR: NFR-001, NFR-002, NFR-003, NFR-006 (heredados por la historia de refinamiento)\n- SC: SC-001, SC-002, SC-003, SC-004\n- SC-001: Cero sobreventas en 90 días de operación con al menos dos canales activos\n- SC-002: La disponibilidad se refleja en todos los canales en menos de 5 minutos en el 95 % de los cambios\n- SC-003: Las reservas directas pasan del nivel actual a al menos 30 % del total en 6 meses\n- SC-004: El 100 % de los pagos queda conciliado con su obligación documental aplicable; objetivo de entrega <60 s cuando proceda y haya disponibilidad externa, sujeto a ratificación; fallos quedan pendientes y alertados\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 000-core\n\n**Bloquea:** cierre de la historia; sus tareas hijas T-DEC, T-DIS, T-ACC y T-IMP la cierran por etapas\n\n**Salida que cierra la issue:** historia implementada y verificada contra sus criterios Given/When/Then — no se cierra antes de cerrar el gate de la feature.\n\n**Fuera de alcance:** implementación mientras la feature esté BLOCKED; despliegue; pagos y documentos tributarios reales; integraciones externas sin contrato y permisos aprobados.\n",
+    "tipo": "Historia",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "000-core"
+    ],
+    "etiquetas": [
+      "historia",
+      "hotel",
+      "bloqueada",
+      "alias:US-HOT-001"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H1; alias US-HOT-001"
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H2",
+    "title": "[Historia] 002-hotel-reservas-concierge/H2 — Operar la estadía: check-in digital, pedidos y housekeeping (US-HOT-002)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` §2 (escenarios H2) y §3 (FR FR-006, FR-007, FR-008, FR-009, FR-016, FR-019); alias US-HOT-002 en «Refinamiento competitivo de historias». Clase de evidencia: REQUISITO PROPUESTO. IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Como / quiero / para:** Como recepcionista y responsable de housekeeping, quiero asignar y preparar la habitación sin mezclar limpieza y reserva, para recibir al huésped en un recurso operativo conservando ocupación futura.\n\n**Escenarios base de la spec (H2):**\n- Dado un check-in online completo, cuando el huésped llega, entonces recepción solo entrega la llave y el registro queda firmado.\n- Dado un pedido a la habitación, cuando se confirma, entonces aparece en cocina con número de habitación y se carga a la cuenta del huésped.\n- Dado un check-out, cuando la habitación se libera, entonces se crea la tarea de limpieza y la habitación no queda preparada para el siguiente check-in hasta completar la tarea y levantar bloqueos aplicables; el inventario de fechas futuras se calcula por separado.\n- Dado un cargo pendiente al check-out, cuando el huésped paga, entonces se concilia el saldo y se documenta el hecho aplicable sin repetir anticipos ya cubiertos.\n\n**Criterios de aceptación (Given/When/Then):**\n- AC-US-HOT-002-01: Dada habitación limpia con mantenimiento abierto, cuando se intenta check-in, entonces se bloquea y se ofrece gestión humana de asignación.\n- AC-US-HOT-002-02: Dado checkout completado, cuando housekeeping termina, entonces solo cambia preparación; reservas de otras fechas permanecen intactas.\n- AC-US-HOT-002-03 (propuesta, no ejecutada): Dada configuración de ejemplo de desayuno por persona/noche para dos personas y tres noches y una botella por estadía, cuando se calcula, entonces desayuno tiene seis unidades y botella una, con reglas visibles.\n- AC-US-HOT-002-04 (propuesta, no ejecutada): Dado cargo registrado pero tarea sin entregar, cuando se consulta la cuenta, entonces distingue cobro/cargo de cumplimiento y no informa servicio entregado.\n- AC-US-HOT-002-05 (propuesta, no ejecutada): Dado mismo pedido/cargo reintentado, cuando el conector responde dos veces, entonces hay un cargo y una tarea vinculados, sin segunda comanda.\n\n**Requisitos asociados:**\n- FR: FR-006, FR-007, FR-008, FR-009, FR-016, FR-019\n- NFR: NFR-001, NFR-002, NFR-003, NFR-006 (heredados por la historia de refinamiento)\n- SC: SC-005, SC-009\n- SC-005: El 60 % de los huéspedes completa check-in online antes de llegar\n- SC-009: Un empleado nuevo opera recepción con el sistema tras 2 horas de capacitación\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 000-core\n\n**Bloquea:** cierre de la historia; sus tareas hijas T-DEC, T-DIS, T-ACC y T-IMP la cierran por etapas\n\n**Salida que cierra la issue:** historia implementada y verificada contra sus criterios Given/When/Then — no se cierra antes de cerrar el gate de la feature.\n\n**Fuera de alcance:** implementación mientras la feature esté BLOCKED; despliegue; pagos y documentos tributarios reales; integraciones externas sin contrato y permisos aprobados.\n",
+    "tipo": "Historia",
+    "estado": "Bloqueada",
+    "prioridad": "P2",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "000-core"
+    ],
+    "etiquetas": [
+      "historia",
+      "hotel",
+      "bloqueada",
+      "alias:US-HOT-002"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H2; alias US-HOT-002"
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H3",
+    "title": "[Historia] 002-hotel-reservas-concierge/H3 — Concierge agéntico por WhatsApp con reglas de autonomía (US-HOT-003)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` §2 (escenarios H3) y §3 (FR FR-010, FR-011, FR-012, FR-013, FR-014, FR-017, FR-018, FR-019, FR-020); alias US-HOT-003 en «Refinamiento competitivo de historias». Clase de evidencia: REQUISITO PROPUESTO. IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Como / quiero / para:** Como huésped autenticado y recepción, quiero recibir respuesta basada en datos y transferir la atención con contexto, para resolver consultas sin cambios de reserva no autorizados.\n\n**Escenarios base de la spec (H3):**\n- Dada una consulta de disponibilidad por WhatsApp, cuando el agente responde, entonces cotiza con tarifa real y ofrece link de pago en menos de 30 segundos.\n- Dado un cambio de fechas dentro de la política (sin penalidad), cuando el huésped lo pide, entonces el sistema verifica identidad, política y autorización; inicialmente el cambio requiere aprobación humana. Solo podrá ejecutarse autónomamente tras ratificar Q-HOT-03 y superar evaluación.\n- Dado un cambio con penalidad o cancelación, cuando se solicita, entonces el agente escala a recepción con el contexto completo y no actúa.\n- Dada una reserva pagada 48 horas antes de llegar, cuando corre el agente, entonces ofrece un upsell (late check-out, desayuno) con link de pago.\n\n**Criterios de aceptación (Given/When/Then):**\n- AC-US-HOT-003-01: Dada solicitud de cancelación, cuando se deriva, entonces recepción recibe resumen mínimo y referencia; el agente no cancela ni marca resuelto.\n- AC-US-HOT-003-02: Dado estado en atención humana, cuando llega mensaje adicional, entonces no dispara una modificación autónoma ni dos respuestas de compromiso.\n- AC-US-HOT-003-03 (propuesta, no ejecutada): Dada conversación en la que el huésped pide cancelar y devolver, cuando responde concierge, entonces prepara contexto y escala; no ejecuta ninguna de las dos operaciones.\n- AC-US-HOT-003-04 (propuesta, no ejecutada): Dada misma modificación notificada tres veces, cuando evalúa comunicaciones, entonces no envía tres confirmaciones ni tres upsells por el mismo hecho.\n- AC-US-HOT-003-05 (propuesta, no ejecutada): Dada respuesta correcta con link a un motor, cuando se contabiliza éxito, entonces no figura como reserva pagada hasta evidencia de negocio independiente.\n\n**Requisitos asociados:**\n- FR: FR-010, FR-011, FR-012, FR-013, FR-014, FR-017, FR-018, FR-019, FR-020\n- NFR: NFR-001, NFR-002, NFR-003, NFR-006 (heredados por la historia de refinamiento)\n- SC: SC-006, SC-007, SC-008\n- SC-006: El agente resuelve al menos el 70 % de conversaciones de WhatsApp sin intervención humana\n- SC-007: Cero acciones del agente fuera de sus reglas de autonomía (auditoría mensual del ledger)\n- SC-008: Los upsells ofrecidos por el agente convierten al menos el 8 % (referencia Duve)\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 000-core\n\n**Bloquea:** cierre de la historia; sus tareas hijas T-DEC, T-DIS, T-ACC y T-IMP la cierran por etapas\n\n**Salida que cierra la issue:** historia implementada y verificada contra sus criterios Given/When/Then — no se cierra antes de cerrar el gate de la feature.\n\n**Fuera de alcance:** implementación mientras la feature esté BLOCKED; despliegue; pagos y documentos tributarios reales; integraciones externas sin contrato y permisos aprobados.\n\n**Notas:**\n- CONTRADICCIÓN: SC-008 fija una meta de conversión de upsell del 8 % (referencia Duve), mientras RF-HOT-04 indica que no se usa un porcentaje comercial del proveedor como medición propia. Se conservan ambas. RECOMENDACIÓN (pendiente de confirmación del propietario): no usar el 8 % del proveedor como meta propia; fijar la meta a partir de una línea base propia.\n",
+    "tipo": "Historia",
+    "estado": "Bloqueada",
+    "prioridad": "P3",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "000-core"
+    ],
+    "etiquetas": [
+      "historia",
+      "hotel",
+      "bloqueada",
+      "alias:US-HOT-003"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H3; alias US-HOT-003"
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T001",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T001 — Inventariar fuente, separar alcance y preservar IDs",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T001. Clase de evidencia: HECHO DOCUMENTADO. Completada en tasks.md.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:** ninguna (existente)\n\n**Bloquea:** 002-hotel-reservas-concierge/T002\n\n**Salida que cierra la issue:** spec.md y trazabilidad global.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Hecha",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T001",
+    "esfuerzo": 0
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T002",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T002 — Derivar modelo conceptual, amenazas y catálogo de aceptación",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T002. Clase de evidencia: HECHO DOCUMENTADO. Completada en tasks.md; no equivale a aprobación.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T001\n\n**Bloquea:** 002-hotel-reservas-concierge/T003\n\n**Salida que cierra la issue:** data-model.md, plan.md y acceptance.md.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Hecha",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T001"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T002",
+    "esfuerzo": 0
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T003",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T003 — Resolver decisiones Q-* de la feature",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE. Su salida exige respuesta del cliente; enviar preguntas al cliente es acción externa que requiere aprobación del propietario.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T002\n\n**Bloquea:** 002-hotel-reservas-concierge/H1, 002-hotel-reservas-concierge/H2, 002-hotel-reservas-concierge/H3, 002-hotel-reservas-concierge/T004, 002-hotel-reservas-concierge/T102, 002-hotel-reservas-concierge/T202, 002-hotel-reservas-concierge/H1/T-DEC, 002-hotel-reservas-concierge/H2/T-DEC, 002-hotel-reservas-concierge/H3/T-DEC\n\n**Salida que cierra la issue:** respuestas firmadas o registradas con fecha y evidencia para: Q-HOT-01: PMS actual y fuente de inventario; Q-HOT-02: acceso OTA/channel manager; Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía.\n\n**Fuera de alcance:** inventar respuestas; decidir en nombre del cliente o de revisores tributarios/legales.\n\n**Notas:**\n- Estado Backlog: depende de respuestas del cliente, no de trabajo del equipo.\n",
+    "tipo": "Tarea",
+    "estado": "Backlog",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T002"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T003",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T004",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T004 — Ratificar alternativas, constitución y permisos por empresa",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T004. Clase de evidencia: REQUISITO PROPUESTO. Requiere la ratificación de la constitución propuesta 1.1.0 (pendiente de Cristóbal Herrera).\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n\n**Bloquea:** 002-hotel-reservas-concierge/T005, 002-hotel-reservas-concierge/T102\n\n**Salida que cierra la issue:** decisión y matriz de roles aprobadas.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n\n**Notas:**\n- Bloqueada por ratificación pendiente y por T003.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T004",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T005",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T005 — Completar contratos técnicos",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T005. Clase de evidencia: REQUISITO PROPUESTO. Depende de T004.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T004\n\n**Bloquea:** 002-hotel-reservas-concierge/T006, 002-hotel-reservas-concierge/T103, 002-hotel-reservas-concierge/T203\n\n**Salida que cierra la issue:** contrato revisado por productor y consumidor.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T004"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T005",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T006",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T006 — Convertir acceptance.md en casos de prueba concretos",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T006. Clase de evidencia: REQUISITO PROPUESTO. Depende de T005.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T005\n\n**Bloquea:** 002-hotel-reservas-concierge/T007\n\n**Salida que cierra la issue:** escenarios revisados, incluidos ADV-001 a ADV-003.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T005"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T006",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T007",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T007 — Reejecutar controles documentales y cerrar hallazgos",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T007. Clase de evidencia: REQUISITO PROPUESTO. Depende de T006. Spec Kit no disponible en esta copia (INFORMACIÓN NO VERIFICADA).\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T006\n\n**Bloquea:** 002-hotel-reservas-concierge/H1/T-IMP, 002-hotel-reservas-concierge/H2/T-IMP, 002-hotel-reservas-concierge/H3/T-IMP\n\n**Salida que cierra la issue:** informe sin bloqueos y aprobación de inicio de la siguiente fase; backlog de desarrollo por historia.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T006"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T007",
+    "esfuerzo": 2
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T101",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T101 — Comparar historias heredadas y fuentes; alias US-*",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T101. Clase de evidencia: HECHO DOCUMENTADO. Completada en tasks.md.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:** ninguna (existente)\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** alias US-*, trazabilidad y estado documental explícito.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Hecha",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T101",
+    "esfuerzo": 0
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T102",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T102 — Validar con usuarios reglas nuevas de FR-016/FR-017",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T102. Clase de evidencia: REQUISITO PROPUESTO. Depende de T003/T004.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 002-hotel-reservas-concierge/T004\n\n**Bloquea:** 002-hotel-reservas-concierge/T103, 002-hotel-reservas-concierge/T202\n\n**Salida que cierra la issue:** reglas aprobadas o cambios rechazados con motivo.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n\n**Notas:**\n- No sustituye las respuestas de T003.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "002-hotel-reservas-concierge/T004"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T102",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T103",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T103 — Precisar casos AC-US con muestras, permisos y errores",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T103. Clase de evidencia: REQUISITO PROPUESTO. Depende de T102/T005.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T102\n- 002-hotel-reservas-concierge/T005\n\n**Bloquea:** 002-hotel-reservas-concierge/T104, 002-hotel-reservas-concierge/T105, 002-hotel-reservas-concierge/H1/T-IMP, 002-hotel-reservas-concierge/H2/T-IMP, 002-hotel-reservas-concierge/H3/T-IMP\n\n**Salida que cierra la issue:** fixtures autorizados y matriz de casos esperados, antes de código.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T102",
+      "002-hotel-reservas-concierge/T005"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T103",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T104",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T104 — Evaluar en demo autorizada las observaciones que faltan (REA)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T104. Clase de evidencia: DECISIÓN PENDIENTE. Depende de Q-REA-01/02 y T103.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T103\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** evidencia y límites de la demo autorizada; no se cierran afirmaciones de runtime con documentación.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n\n**Notas:**\n- Q-REA-01 (runtime Node 22+, requiere aprobación) y Q-REA-02 (objetivo permitido y navegador) definidos en docs/arquitectura/decisiones-pendientes.md y docs/investigacion-competitiva/decisiones-pendientes.md.\n- Solo con demo/entorno propio autorizado.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T103"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T104",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T105",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T105 — Análisis de consistencia oficial de Spec Kit y backlog ratificado",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T105. Clase de evidencia: DECISIÓN PENDIENTE. Depende de T103 y Q-TOOL-01 (docs/arquitectura/aclaraciones.md: entorno con red, instalación de Spec Kit v1.2.0, integración y feature activa).\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T103\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** informe de consistencia y backlog por historia ratificada.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n\n**Notas:**\n- No iniciar desarrollo dentro de esta misión.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T103"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T105",
+    "esfuerzo": 2
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T201",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T201 — Investigar y reconstruir RF derivados",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T201. Clase de evidencia: HECHO DOCUMENTADO. Completada en tasks.md.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:** ninguna (existente)\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** criterios propuestos y trazabilidad adicional registrados.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Hecha",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T201",
+    "esfuerzo": 0
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T202",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T202 — Ratificar estados, cantidades, permisos y excepciones de FR-018, FR-019, FR-020",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T202. Clase de evidencia: REQUISITO PROPUESTO. Depende de T003/T102.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 002-hotel-reservas-concierge/T102\n\n**Bloquea:** 002-hotel-reservas-concierge/T203, 002-hotel-reservas-concierge/H1/T-DEC, 002-hotel-reservas-concierge/H1/T-IMP, 002-hotel-reservas-concierge/H2/T-DEC, 002-hotel-reservas-concierge/H2/T-IMP, 002-hotel-reservas-concierge/H3/T-DEC, 002-hotel-reservas-concierge/H3/T-IMP\n\n**Salida que cierra la issue:** ejemplos aprobados con fuente de verdad y rechazos explícitos.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "002-hotel-reservas-concierge/T102"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T202",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T203",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T203 — Revisar invariantes y contratos lógicos (timeout, repetición, parcialidad)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T203. Clase de evidencia: REQUISITO PROPUESTO. Depende de T202/T005.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T202\n- 002-hotel-reservas-concierge/T005\n\n**Bloquea:** 002-hotel-reservas-concierge/T205, 002-hotel-reservas-concierge/H1/T-IMP, 002-hotel-reservas-concierge/H2/T-IMP, 002-hotel-reservas-concierge/H3/T-IMP\n\n**Salida que cierra la issue:** fixtures autorizados y contrato por proveedor, sin endpoint supuesto.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T202",
+      "002-hotel-reservas-concierge/T005"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T203",
+    "esfuerzo": 8
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T204",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T204 — Comprobar conducta en demo/entorno propio autorizado (REA)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T204. Clase de evidencia: DECISIÓN PENDIENTE. Depende de Q-REA-01/02/03 (definidos en docs/arquitectura/decisiones-pendientes.md y docs/investigacion-competitiva/decisiones-pendientes.md; Q-REA-03 exige aprobación previa a cualquier cambio global de MCP/skills).\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:** ninguna (existente)\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** captura y límites de la comprobación, solo con entorno autorizado.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n\n**Notas:**\n- Documentación pública no cierra esta tarea.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T204",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/T205",
+    "title": "[Tarea] 002-hotel-reservas-concierge/T205 — Revisar costos y latencias por etapa",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T205. Clase de evidencia: REQUISITO PROPUESTO. Depende de T203 y decisiones Q del dominio.\n\n**Criterios de aceptación:** no aplica (tarea de gate); los criterios Given/When/Then viven en las historias de la épica.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T203\n\n**Bloquea:** ver la siguiente tarea del gate y las historias de la épica\n\n**Salida que cierra la issue:** plan de evaluación y backlog de desarrollo ratificado posteriormente.\n\n**Fuera de alcance:** implementación, despliegue, pagos y envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T203"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "gate"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/tasks.md T205",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H1/T-DEC",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H1/T-DEC — Decidir Q-HOT-01, Q-HOT-02, Q-HOT-03 para H1",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` §5 y §Reglas; `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE (no hay respuesta documentada).\n\n**Decisión bloqueante:** Q-HOT-01: PMS actual y fuente de inventario; Q-HOT-02: acceso OTA/channel manager; Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía\n\n**Criterios de aceptación:** heredados de 002-hotel-reservas-concierge/H1 (ver historia); esta tarea no define criterios.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 002-hotel-reservas-concierge/T202\n\n**Bloquea:** 002-hotel-reservas-concierge/H1/T-DIS\n\n**Salida que cierra la issue:** decisión firmada o registrada con fecha y evidencia para cada Q listada; el equipo no propone la respuesta.\n\n**Fuera de alcance:** proponer o asumir la respuesta; decisiones comerciales o tributarias sin revisión de su responsable.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H1",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "002-hotel-reservas-concierge/T202"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "decision"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md §5 (Clarificaciones) y proyecto/specs/002-hotel-reservas-concierge/tasks.md T003",
+    "esfuerzo": 2
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H1/T-DIS",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H1/T-DIS — Diseñar contrato y estados de H1",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` H1 (Datos y estados) y `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T005. Clase de evidencia: REQUISITO PROPUESTO.\n\n**Criterios de aceptación:** heredados de 002-hotel-reservas-concierge/H1 (ver historia).\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H1/T-DEC\n\n**Bloquea:** 002-hotel-reservas-concierge/H1/T-ACC\n\n**Salida que cierra la issue:** contrato lógico con estados, idempotencia, errores y permisos por empresa, revisado por productor y consumidor.\n\n**Fuera de alcance:** endpoints o esquemas de producción asumidos sin contrato real del proveedor.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H1",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H1/T-DEC"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "diseno"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H1 (Datos y estados; Reglas de negocio) y proyecto/specs/002-hotel-reservas-concierge/tasks.md T005",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H1/T-ACC",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H1/T-ACC — Casos de aceptación de US-HOT-001",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` (criterios de US-HOT-001); `acceptance.md` (AT/ADV). Clase de evidencia: REQUISITO PROPUESTO. IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Criterios de aceptación (Given/When/Then):**\n- AC-US-HOT-001-01: Dada última unidad y cien intentos, cuando se confirma, entonces como máximo una reserva local obtiene cupo; conflictos externos se identifican y escalan.\n- AC-US-HOT-001-02: Dada habitación sucia hoy pero vendible en fecha futura, cuando se busca esa fecha, entonces limpieza actual no elimina inventario futuro por sí sola.\n- AC-US-HOT-001-03 (propuesta, no ejecutada): Dada reserva pagada y política de ejemplo que permite devolución, cuando recepción cancela, entonces la reserva puede quedar cancelada pero el dinero permanece sin devolver hasta operación financiera autorizada y confirmada.\n- AC-US-HOT-001-04 (propuesta, no ejecutada): Dada nueva tarifa superior a la aceptada, cuando se previsualiza el cambio, entonces muestra diferencia y no la aplica sin nueva aceptación.\n- AC-US-HOT-001-05 (propuesta, no ejecutada): Dado timeout tras aplicar un cambio, cuando se reintenta, entonces consulta estado y no crea segunda reserva, cargo ni devolución.\n- AC-US-HOT-001-06 (propuesta, no ejecutada): Dada falla de almacenamiento antes de recepción durable, cuando llega reserva del canal, entonces no se declara acuse exitoso ni confirmación local.\n- AC-US-HOT-001-07 (propuesta, no ejecutada): Dada recepción durable y acuse completado pero caída antes de aplicar, cuando se recupera, entonces se reaplica desde evidencia sin perder reserva ni duplicar efectos.\n- AC-US-HOT-001-08 (propuesta, no ejecutada): Dados cinco eventos con igual ID notificación y una actualización nueva del mismo ID de reserva, cuando se reconcilian, entonces se deduplica notificación pero no se descarta el cambio legítimo por usar solo ID reserva.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H1/T-DIS\n\n**Bloquea:** 002-hotel-reservas-concierge/H1/T-IMP\n\n**Salida que cierra la issue:** casos de prueba por cada AC listado, con datos autorizados, carga y fallos; lista revisada.\n\n**Fuera de alcance:** datos productivos; datos sintéticos presentados como evidencia de rendimiento real.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H1",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H1/T-DIS"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "casos"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H1 y `acceptance.md` (IDs AT/ADV); proyecto/specs/002-hotel-reservas-concierge/tasks.md T006",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H1/T-IMP",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H1/T-IMP — Implementar H1 (NO INICIAR: bloqueada)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` H1; `proyecto/specs/002-hotel-reservas-concierge/tasks.md` (BLOCKED). Clase de evidencia: REQUISITO PROPUESTO.\n\n**Criterios de aceptación:** los mismos de 002-hotel-reservas-concierge/H1 (AC-US-HOT-001-01, AC-US-HOT-001-02, AC-US-HOT-001-03, AC-US-HOT-001-04, AC-US-HOT-001-05, AC-US-HOT-001-06, AC-US-HOT-001-07, AC-US-HOT-001-08).\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H1/T-ACC\n- 002-hotel-reservas-concierge/T007\n- 000-core/T007\n- 002-hotel-reservas-concierge/T103\n- 002-hotel-reservas-concierge/T202\n- 002-hotel-reservas-concierge/T203\n\n**Bloquea:** cierre de 002-hotel-reservas-concierge/H1\n\n**Salida que cierra la issue:** diff que pasa los casos de T-ACC de esta historia.\n\n**Fuera de alcance:** iniciar código mientras T003–T007 no estén cerradas; despliegue; migración productiva; pagos, DTE real o envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H1",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H1/T-ACC",
+      "002-hotel-reservas-concierge/T007",
+      "000-core/T007",
+      "002-hotel-reservas-concierge/T103",
+      "002-hotel-reservas-concierge/T202",
+      "002-hotel-reservas-concierge/T203"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "codigo"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H1; regla de bloqueo: feature BLOCKED y tasks.md (T003–T007)",
+    "esfuerzo": 13
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H2/T-DEC",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H2/T-DEC — Decidir Q-HOT-01, Q-HOT-03 para H2",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` §5 y §Reglas; `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE (no hay respuesta documentada).\n\n**Decisión bloqueante:** Q-HOT-01: PMS actual y fuente de inventario; Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía\n\n**Criterios de aceptación:** heredados de 002-hotel-reservas-concierge/H2 (ver historia); esta tarea no define criterios.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 002-hotel-reservas-concierge/T202\n\n**Bloquea:** 002-hotel-reservas-concierge/H2/T-DIS\n\n**Salida que cierra la issue:** decisión firmada o registrada con fecha y evidencia para cada Q listada; el equipo no propone la respuesta.\n\n**Fuera de alcance:** proponer o asumir la respuesta; decisiones comerciales o tributarias sin revisión de su responsable.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P2",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H2",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "002-hotel-reservas-concierge/T202"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "decision"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md §5 (Clarificaciones) y proyecto/specs/002-hotel-reservas-concierge/tasks.md T003",
+    "esfuerzo": 2
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H2/T-DIS",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H2/T-DIS — Diseñar contrato y estados de H2",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` H2 (Datos y estados) y `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T005. Clase de evidencia: REQUISITO PROPUESTO.\n\n**Criterios de aceptación:** heredados de 002-hotel-reservas-concierge/H2 (ver historia).\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H2/T-DEC\n\n**Bloquea:** 002-hotel-reservas-concierge/H2/T-ACC\n\n**Salida que cierra la issue:** contrato lógico con estados, idempotencia, errores y permisos por empresa, revisado por productor y consumidor.\n\n**Fuera de alcance:** endpoints o esquemas de producción asumidos sin contrato real del proveedor.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P2",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H2",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H2/T-DEC"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "diseno"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H2 (Datos y estados; Reglas de negocio) y proyecto/specs/002-hotel-reservas-concierge/tasks.md T005",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H2/T-ACC",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H2/T-ACC — Casos de aceptación de US-HOT-002",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` (criterios de US-HOT-002); `acceptance.md` (AT/ADV). Clase de evidencia: REQUISITO PROPUESTO. IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Criterios de aceptación (Given/When/Then):**\n- AC-US-HOT-002-01: Dada habitación limpia con mantenimiento abierto, cuando se intenta check-in, entonces se bloquea y se ofrece gestión humana de asignación.\n- AC-US-HOT-002-02: Dado checkout completado, cuando housekeeping termina, entonces solo cambia preparación; reservas de otras fechas permanecen intactas.\n- AC-US-HOT-002-03 (propuesta, no ejecutada): Dada configuración de ejemplo de desayuno por persona/noche para dos personas y tres noches y una botella por estadía, cuando se calcula, entonces desayuno tiene seis unidades y botella una, con reglas visibles.\n- AC-US-HOT-002-04 (propuesta, no ejecutada): Dado cargo registrado pero tarea sin entregar, cuando se consulta la cuenta, entonces distingue cobro/cargo de cumplimiento y no informa servicio entregado.\n- AC-US-HOT-002-05 (propuesta, no ejecutada): Dado mismo pedido/cargo reintentado, cuando el conector responde dos veces, entonces hay un cargo y una tarea vinculados, sin segunda comanda.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H2/T-DIS\n\n**Bloquea:** 002-hotel-reservas-concierge/H2/T-IMP\n\n**Salida que cierra la issue:** casos de prueba por cada AC listado, con datos autorizados, carga y fallos; lista revisada.\n\n**Fuera de alcance:** datos productivos; datos sintéticos presentados como evidencia de rendimiento real.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P2",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H2",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H2/T-DIS"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "casos"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H2 y `acceptance.md` (IDs AT/ADV); proyecto/specs/002-hotel-reservas-concierge/tasks.md T006",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H2/T-IMP",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H2/T-IMP — Implementar H2 (NO INICIAR: bloqueada)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` H2; `proyecto/specs/002-hotel-reservas-concierge/tasks.md` (BLOCKED). Clase de evidencia: REQUISITO PROPUESTO.\n\n**Criterios de aceptación:** los mismos de 002-hotel-reservas-concierge/H2 (AC-US-HOT-002-01, AC-US-HOT-002-02, AC-US-HOT-002-03, AC-US-HOT-002-04, AC-US-HOT-002-05).\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H2/T-ACC\n- 002-hotel-reservas-concierge/T007\n- 000-core/T007\n- 002-hotel-reservas-concierge/T103\n- 002-hotel-reservas-concierge/T202\n- 002-hotel-reservas-concierge/T203\n\n**Bloquea:** cierre de 002-hotel-reservas-concierge/H2\n\n**Salida que cierra la issue:** diff que pasa los casos de T-ACC de esta historia.\n\n**Fuera de alcance:** iniciar código mientras T003–T007 no estén cerradas; despliegue; migración productiva; pagos, DTE real o envíos externos.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P2",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H2",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H2/T-ACC",
+      "002-hotel-reservas-concierge/T007",
+      "000-core/T007",
+      "002-hotel-reservas-concierge/T103",
+      "002-hotel-reservas-concierge/T202",
+      "002-hotel-reservas-concierge/T203"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "codigo"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H2; regla de bloqueo: feature BLOCKED y tasks.md (T003–T007)",
+    "esfuerzo": 8
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H3/T-DEC",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H3/T-DEC — Decidir Q-HOT-03, Q-HOT-04 para H3",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` §5 y §Reglas; `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T003. Clase de evidencia: DECISIÓN PENDIENTE (no hay respuesta documentada).\n\n**Decisión bloqueante:** Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía; Q-HOT-04: cambios de fecha/categoría/tarifa, penalidad, saldo y devolución; fuente de verdad y aceptación (docs/investigacion-competitiva/decisiones-pendientes.md)\n\n**Criterios de aceptación:** heredados de 002-hotel-reservas-concierge/H3 (ver historia); esta tarea no define criterios.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/T003\n- 002-hotel-reservas-concierge/T202\n\n**Bloquea:** 002-hotel-reservas-concierge/H3/T-DIS\n\n**Salida que cierra la issue:** decisión firmada o registrada con fecha y evidencia para cada Q listada; el equipo no propone la respuesta.\n\n**Fuera de alcance:** proponer o asumir la respuesta; decisiones comerciales o tributarias sin revisión de su responsable.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P3",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H3",
+    "depende_de": [
+      "002-hotel-reservas-concierge/T003",
+      "002-hotel-reservas-concierge/T202"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "decision"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md §5 (Clarificaciones) y proyecto/specs/002-hotel-reservas-concierge/tasks.md T003",
+    "esfuerzo": 2
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H3/T-DIS",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H3/T-DIS — Diseñar contrato y estados de H3",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` H3 (Datos y estados) y `proyecto/specs/002-hotel-reservas-concierge/tasks.md` T005. Clase de evidencia: REQUISITO PROPUESTO.\n\n**Criterios de aceptación:** heredados de 002-hotel-reservas-concierge/H3 (ver historia).\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H3/T-DEC\n\n**Bloquea:** 002-hotel-reservas-concierge/H3/T-ACC\n\n**Salida que cierra la issue:** contrato lógico con estados, idempotencia, errores y permisos por empresa, revisado por productor y consumidor.\n\n**Fuera de alcance:** endpoints o esquemas de producción asumidos sin contrato real del proveedor.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P3",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H3",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H3/T-DEC"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "diseno"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H3 (Datos y estados; Reglas de negocio) y proyecto/specs/002-hotel-reservas-concierge/tasks.md T005",
+    "esfuerzo": 5
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H3/T-ACC",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H3/T-ACC — Casos de aceptación de US-HOT-003",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` (criterios de US-HOT-003); `acceptance.md` (AT/ADV). Clase de evidencia: REQUISITO PROPUESTO. IDs de prueba AT-*/ADV-* listados en acceptance.md; su contenido no fue revisado para este backlog.\n\n**Criterios de aceptación (Given/When/Then):**\n- AC-US-HOT-003-01: Dada solicitud de cancelación, cuando se deriva, entonces recepción recibe resumen mínimo y referencia; el agente no cancela ni marca resuelto.\n- AC-US-HOT-003-02: Dado estado en atención humana, cuando llega mensaje adicional, entonces no dispara una modificación autónoma ni dos respuestas de compromiso.\n- AC-US-HOT-003-03 (propuesta, no ejecutada): Dada conversación en la que el huésped pide cancelar y devolver, cuando responde concierge, entonces prepara contexto y escala; no ejecuta ninguna de las dos operaciones.\n- AC-US-HOT-003-04 (propuesta, no ejecutada): Dada misma modificación notificada tres veces, cuando evalúa comunicaciones, entonces no envía tres confirmaciones ni tres upsells por el mismo hecho.\n- AC-US-HOT-003-05 (propuesta, no ejecutada): Dada respuesta correcta con link a un motor, cuando se contabiliza éxito, entonces no figura como reserva pagada hasta evidencia de negocio independiente.\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H3/T-DIS\n\n**Bloquea:** 002-hotel-reservas-concierge/H3/T-IMP\n\n**Salida que cierra la issue:** casos de prueba por cada AC listado, con datos autorizados, carga y fallos; lista revisada.\n\n**Fuera de alcance:** datos productivos; datos sintéticos presentados como evidencia de rendimiento real.\n",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P3",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H3",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H3/T-DIS"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "casos"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H3 y `acceptance.md` (IDs AT/ADV); proyecto/specs/002-hotel-reservas-concierge/tasks.md T006",
+    "esfuerzo": 3
+  },
+  {
+    "id": "002-hotel-reservas-concierge/H3/T-IMP",
+    "title": "[Tarea] 002-hotel-reservas-concierge/H3/T-IMP — Implementar H3 (NO INICIAR: bloqueada)",
+    "body": "**Fuente:** `proyecto/specs/002-hotel-reservas-concierge/spec.md` H3; `proyecto/specs/002-hotel-reservas-concierge/tasks.md` (BLOCKED). Clase de evidencia: REQUISITO PROPUESTO.\n\n**Criterios de aceptación:** los mismos de 002-hotel-reservas-concierge/H3 (AC-US-HOT-003-01, AC-US-HOT-003-02, AC-US-HOT-003-03, AC-US-HOT-003-04, AC-US-HOT-003-05).\n\n**Depende de:**\n- 002-hotel-reservas-concierge/H3/T-ACC\n- 002-hotel-reservas-concierge/T007\n- 000-core/T007\n- 002-hotel-reservas-concierge/T103\n- 002-hotel-reservas-concierge/T202\n- 002-hotel-reservas-concierge/T203\n\n**Bloquea:** cierre de 002-hotel-reservas-concierge/H3\n\n**Salida que cierra la issue:** diff que pasa los casos de T-ACC de esta historia.\n\n**Fuera de alcance:** iniciar código mientras T003–T007 no estén cerradas; despliegue; migración productiva; pagos, DTE real o envíos externos.\n\n**Pendiente de decisión (Q-CORE-04):** efectos laterales de herramientas y quién autoriza mensajes o cargos. Sigue DECISIÓN PENDIENTE; no tiene ítem propio en el backlog ni se refleja en depende_de.",
+    "tipo": "Tarea",
+    "estado": "Bloqueada",
+    "prioridad": "P3",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge/H3",
+    "depende_de": [
+      "002-hotel-reservas-concierge/H3/T-ACC",
+      "002-hotel-reservas-concierge/T007",
+      "000-core/T007",
+      "002-hotel-reservas-concierge/T103",
+      "002-hotel-reservas-concierge/T202",
+      "002-hotel-reservas-concierge/T203"
+    ],
+    "etiquetas": [
+      "tarea",
+      "hotel",
+      "bloqueada",
+      "codigo"
+    ],
+    "fuente": "proyecto/specs/002-hotel-reservas-concierge/spec.md H3; regla de bloqueo: feature BLOCKED y tasks.md (T003–T007)",
+    "esfuerzo": 13
+  }
+]
