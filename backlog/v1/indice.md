@@ -13,7 +13,7 @@ El corpus documental de ciclos previos queda cerrado en el tablero (ver
 
 - [Hecha 2026-10-28] P1 `v1-api` — Contrato API → **`h1` Hecha**: el OpenAPI 3.1 servido por el backend (`/openapi.json`) cubre las 10 operaciones; prueba de contrato en `test_h5_maduracion.py`.
 - [Lista] P1 `v1-back` — Backend Railway → **H1–H5 Hechas 2026-10-28** (arranque, sesión, reserva persistente, cobro por el núcleo, maduración con validación/seguridad/auditoría y prueba de reinicio real; 39 pruebas del servicio + 181 del dominio).
-- [Lista] P1 `v1-front` — Front Vercel → `h6a` esqueleto y login · `h6b` siete pantallas · `h6c` reglas duras y error sin API. **Siguiente.**
+- [Hecha 2026-10-28] P1 `v1-front` — Front Vercel → **H6a–H6c Hechas** (Next.js: login, 7 pantallas, rutas vacías; verificado con navegador: API caída → error y nada confirmable; demo en http://127.0.0.1:3000 contra la API en :8080).
 - [Lista] P2 `v1-desp` — Despliegue H7 → verificar cuentas, push (derogación solo H7), Railway, Vercel.
 
 Criterio de aceptación de cada hito: las pruebas citadas en su historia, con

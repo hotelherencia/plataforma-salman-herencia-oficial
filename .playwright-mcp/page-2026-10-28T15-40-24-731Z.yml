@@ -1,0 +1,23 @@
+- generic [active] [ref=f7e1]:
+  - navigation [ref=f7e2]:
+    - strong [ref=f7e3]: Herencia
+    - link "Habitaciones y tarifas" [ref=f7e4] [cursor=pointer]:
+      - /url: /hotel/habitaciones
+    - link "Oferta" [ref=f7e5] [cursor=pointer]:
+      - /url: /hotel/oferta
+    - link "Reserva" [ref=f7e6] [cursor=pointer]:
+      - /url: /hotel/reserva
+    - link "Pago" [ref=f7e7] [cursor=pointer]:
+      - /url: /hotel/pago
+    - link "Estadía" [ref=f7e8] [cursor=pointer]:
+      - /url: /hotel/estadia
+    - link "Salida" [ref=f7e9] [cursor=pointer]:
+      - /url: /hotel/salida
+    - link "Caja" [ref=f7e10] [cursor=pointer]:
+      - /url: /hotel/caja
+    - generic [ref=f7e11]: Cafetería · Inmobiliaria · Constructora (fuera de V1)
+    - button "Salir" [ref=f7e12]
+  - main [ref=f7e13]:
+    - heading "Cafetería Fadwa" [level=1] [ref=f7e14]
+    - paragraph [ref=f7e15]: "Fuera de la versión 1 (spec-front-v1: ruta existente y vacía)."
+  - alert [ref=f7e16]

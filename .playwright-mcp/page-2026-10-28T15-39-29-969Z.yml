@@ -1,0 +1,33 @@
+- generic [ref=f5e1]:
+  - navigation [ref=f5e2]:
+    - strong [ref=f5e3]: Herencia
+    - link "Habitaciones y tarifas" [ref=f5e4] [cursor=pointer]:
+      - /url: /hotel/habitaciones
+    - link "Oferta" [ref=f5e5] [cursor=pointer]:
+      - /url: /hotel/oferta
+    - link "Reserva" [ref=f5e6] [cursor=pointer]:
+      - /url: /hotel/reserva
+    - link "Pago" [ref=f5e7] [cursor=pointer]:
+      - /url: /hotel/pago
+    - link "Estadía" [ref=f5e8] [cursor=pointer]:
+      - /url: /hotel/estadia
+    - link "Salida" [ref=f5e9] [cursor=pointer]:
+      - /url: /hotel/salida
+    - link "Caja" [ref=f5e10] [cursor=pointer]:
+      - /url: /hotel/caja
+    - generic [ref=f5e11]: Cafetería · Inmobiliaria · Constructora (fuera de V1)
+    - button "Salir" [ref=f5e12]
+  - main [ref=f5e13]:
+    - heading "Caja del día" [level=1] [ref=f5e14]
+    - paragraph [ref=f5e15]: Operando como admin (administrador)
+    - generic [ref=f5e16]:
+      - generic [ref=f5e17]:
+        - text: Fecha
+        - textbox "Fecha" [ref=f5e18]: 2026-10-28
+      - button "Ver caja" [active] [ref=f5e19]
+    - paragraph [ref=f5e21]:
+      - text: "Total del día:"
+      - strong [ref=f5e22]: $100000
+    - list [ref=f5e23]:
+      - listitem [ref=f5e24]: PAG-732a6a1103d2 · reserva RSV-73d2da38d4a2 · habitación HAB-SINT-102 · $100000 · manual · confirmado
+  - alert [ref=f5e20]

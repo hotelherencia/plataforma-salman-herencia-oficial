@@ -1,0 +1,38 @@
+- generic [ref=f4e1]:
+  - navigation [ref=f4e2]:
+    - strong [ref=f4e3]: Herencia
+    - link "Habitaciones y tarifas" [ref=f4e4] [cursor=pointer]:
+      - /url: /hotel/habitaciones
+    - link "Oferta" [ref=f4e5] [cursor=pointer]:
+      - /url: /hotel/oferta
+    - link "Reserva" [ref=f4e6] [cursor=pointer]:
+      - /url: /hotel/reserva
+    - link "Pago" [ref=f4e7] [cursor=pointer]:
+      - /url: /hotel/pago
+    - link "Estadía" [ref=f4e8] [cursor=pointer]:
+      - /url: /hotel/estadia
+    - link "Salida" [ref=f4e9] [cursor=pointer]:
+      - /url: /hotel/salida
+    - link "Caja" [ref=f4e10] [cursor=pointer]:
+      - /url: /hotel/caja
+    - generic [ref=f4e11]: Cafetería · Inmobiliaria · Constructora (fuera de V1)
+    - button "Salir" [ref=f4e12]
+  - main [ref=f4e13]:
+    - 'heading "Oferta: disponibilidad y tarifa vigente" [level=1] [ref=f4e14]'
+    - paragraph [ref=f4e15]: Operando como admin (administrador)
+    - generic [ref=f4e16]:
+      - generic [ref=f4e17]:
+        - text: Desde
+        - textbox "Desde" [ref=f4e18]: 2026-11-10
+      - generic [ref=f4e19]:
+        - text: Hasta
+        - textbox "Hasta" [ref=f4e20]: 2026-11-12
+      - generic [ref=f4e21]:
+        - text: Personas
+        - spinbutton "Personas" [ref=f4e22]: "2"
+      - button "Consultar oferta" [active] [ref=f4e23]
+    - paragraph [ref=f4e25]: Oferta emitida 2026-10-28T12:38:58.240143 · vigente 15 minutos
+    - list [ref=f4e26]:
+      - listitem [ref=f4e27]: HAB-SINT-102 (doble) — $50000/noche · total $100000 · politica del manual §9 pendiente; oferta informativa
+      - listitem [ref=f4e28]: HAB-SINT-103 (doble) — $50000/noche · total $100000 · politica del manual §9 pendiente; oferta informativa
+  - alert [ref=f4e24]

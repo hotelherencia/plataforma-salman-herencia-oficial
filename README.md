@@ -62,6 +62,16 @@ Probar: `curl http://127.0.0.1:8080/salud`; `POST /sesion` con
 [docs/arquitectura/spec-api-v1.md](docs/arquitectura/spec-api-v1.md). Pruebas:
 `.venv/bin/python -m unittest discover -s servicio/tests -t .`
 
+**Front (Next.js)** en `front/` — la única variable es `API_BASE_URL`:
+
+```bash
+cd front
+npm install
+API_BASE_URL="http://127.0.0.1:8080" npm run build   # la URL se inlaza al compilar
+# API con ORIGEN_FRONT=http://127.0.0.1:3000 y COOKIE_SEGURA=1
+npm run start                                        # http://127.0.0.1:3000
+```
+
 ## Estado
 
 Decisión del propietario, 2026-10-28: se construye el mínimo de tres artefactos
@@ -73,15 +83,14 @@ constructora siguen fuera de esta versión. Nada desplegado en producción. El
 estado BLOCKED del 2026-10-16 no gobierna ese mínimo. `plataforma/servidor.py`
 no es la API ni el servicio de Railway.
 
-**Construcción (2026-10-28):** el backend real está en `servicio/` — H1
-arranque con regla de empresa, H2 sesión argon2id, H3 reserva persistente con
-constraint de no solape, H4 cobro por el núcleo con entrada/salida/caja, H5
-persistencia tras reinicio y una pasada de maduración (validación de datos,
-expiración de sesiones, freno de fuerza bruta, CORS, cabeceras seguras,
-contrato OpenAPI servido, auditoría de mutaciones), **todo verificado** (39
-pruebas del servicio + 181 del dominio OK; humo real; demo en
-http://127.0.0.1:8080). Faltan: H6 front (aún no hay diseño visual; solo
-contrato), H7 despliegue. El código local es en memoria y sin red: incremento 0 del hotel
+**Construcción (2026-10-28):** backend real en `servicio/` (H1–H5 +
+maduración: validación, seguridad, contrato OpenAPI servido, auditoría;
+39 pruebas + 181 del dominio) y **front en `front/`** (H6: Next.js con login,
+las siete pantallas del hotel, rutas vacías de las otras verticales y la regla
+«API caída → error y nada confirmable», verificado con navegador contra el
+servicio real). Demo local: API en http://127.0.0.1:8080 y front en
+http://127.0.0.1:3000. Falta: H7 despliegue (Railway/Vercel, requiere las
+cuentas). El código local es en memoria y sin red: incremento 0 del hotel
 (17 pruebas OK) e incremento 1 del núcleo y de las cuatro verticales
 (9 + 102 hotel + 19 cafetería + 20 inmobiliaria + 14 constructora, todas OK,
 solo biblioteca estándar; propuesta técnica no ratificada). El 2026-10-28 se

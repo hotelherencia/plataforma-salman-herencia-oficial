@@ -248,6 +248,16 @@ ajena o inexistente responde 403 sin revelar cuál es el caso. Evidencia: 10
 pruebas en `servicio/tests/test_h4.py`, humo real del flujo completo y 181
 del dominio sin roturas.
 
+**H6 del front (2026-10-28, verificado con navegador).** `front/`
+(Next.js, mínimo funcional — no hay diseño visual definido): login contra
+`POST /sesion` (cookie HttpOnly puesta por la API), las siete pantallas del
+hotel leyendo y escribiendo solo por `API_BASE_URL`, rutas de cafetería,
+inmobiliaria y constructora vacías, y la regla dura cumplida: con la API
+apagada el front muestra «La API no está disponible: nada se puede leer ni
+confirmar» y no confirma operación alguna. CORS restringido a
+`ORIGEN_FRONT`; cookie `Secure` activa (Chrome exige `Secure` con
+`SameSite=None`). Verificado con Playwright/Chrome contra el servicio real.
+
 **Maduración y H5 (2026-10-28, verificado).** Validación de los datos que se
 consumen (límites pydantic: montos, capacidades, claves, modos → 422;
 errores de integridad → 409, sin 500). Diseño seguro: sesiones con

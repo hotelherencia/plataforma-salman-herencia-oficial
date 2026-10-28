@@ -1,0 +1,98 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+const BASE = process.env.API_BASE_URL
+
+export class ApiCaida extends Error {}
+
+/** Cliente HTTP del front: solo habla con API_BASE_URL y jamás calcula negocio. */
+export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia } = {}) {
+  const cabeceras = {}
+  let cuerpoSerializado
+  if (cuerpo !== undefined) {
+    cabeceras['Content-Type'] = 'application/json'
+    cuerpoSerializado = JSON.stringify(cuerpo)
+  }
+  if (claveIdempotencia) cabeceras['Idempotency-Key'] = claveIdempotencia
+  let respuesta
+  try {
+    respuesta = await fetch(BASE + ruta, {
+      method: metodo,
+      headers: cabeceras,
+      body: cuerpoSerializado,
+      credentials: 'include',
+    })
+  } catch (error) {
+    throw new ApiCaida('la API no responde')
+  }
+  const texto = await respuesta.text()
+  let datos = {}
+  try {
+    datos = texto ? JSON.parse(texto) : {}
+  } catch {
+    datos = { detalle: texto }
+  }
+  return { estado: respuesta.status, datos }
+}
+
+export function useSesion() {
+  const [sesion, setSesion] = useState({ fase: 'cargando', usuario: null })
+  useEffect(() => {
+    api('/sesion')
+      .then((r) =>
+        setSesion(r.estado === 200 ? { fase: 'ok', usuario: r.datos } : { fase: 'fuera', usuario: null })
+      )
+      .catch(() => setSesion({ fase: 'caida', usuario: null }))
+  }, [])
+  return sesion
+}
+
+/** Marco común: con API caída muestra error y ninguna operación se confirma. */
+export function MarcoHotel({ children, titulo }) {
+  const sesion = useSesion()
+  if (sesion.fase === 'cargando') return <main><p>Cargando…</p></main>
+  if (sesion.fase === 'caida')
+    return (
+      <main>
+        <h1>{titulo}</h1>
+        <p role="alert">La API no está disponible: nada se puede leer ni confirmar.</p>
+      </main>
+    )
+  if (sesion.fase === 'fuera')
+    return (
+      <main>
+        <h1>{titulo}</h1>
+        <p>
+          Sesión cerrada. <a href="/login">Inicia sesión</a>.
+        </p>
+      </main>
+    )
+  return (
+    <main>
+      <h1>{titulo}</h1>
+      <p>
+        Operando como {sesion.usuario.usuario} ({sesion.usuario.rol})
+      </p>
+      {children}
+    </main>
+  )
+}
+
+export function SalidaJson({ datos }) {
+  if (!datos) return null
+  return (
+    <pre style={{ background: '#f4f4f4', padding: '0.75rem', overflowX: 'auto' }}>
+      {JSON.stringify(datos, null, 2)}
+    </pre>
+  )
+}
+
+export function Campo({ etiqueta, ...props }) {
+  return (
+    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+      {etiqueta}{' '}
+      <input style={{ maxWidth: '16rem', width: '100%' }} {...props} />
+    </label>
+  )
+}
