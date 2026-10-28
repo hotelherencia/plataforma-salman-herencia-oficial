@@ -1,4 +1,0 @@
-[     207ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:3000/login:0
-[     260ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/favicon.ico:0
-[   20433ms] [ERROR] Access to fetch at 'http://127.0.0.1:8080/sesion' from origin 'http://127.0.0.1:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:3000/login:0
-[   20434ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8080/sesion:0
