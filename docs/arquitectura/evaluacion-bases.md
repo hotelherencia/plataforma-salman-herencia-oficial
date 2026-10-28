@@ -234,3 +234,16 @@ tarifa aceptada queda congelada en la reserva; la idempotencia por clave
 repite respuesta con el mismo cuerpo y responde 409 con cuerpo distinto.
 Evidencia: 7 pruebas en `servicio/tests/test_h3.py`, humo real y 181 del
 dominio sin roturas.
+
+**H4 de cobro y estadía (2026-10-28, verificado).** `POST
+/hotel/reservas/{id}/pagos`: el efecto lo registra el núcleo (si rechaza, no
+hay pago) y queda durable en `efectos_nucleo`; `modo="manual"` es caja en
+efectivo/transferencia (sin banco ni conciliación) y `modo="pasarela"` sin
+adaptador responde 503 con estado pendiente. `POST .../entrada` exige
+habitación lista; `POST .../salida` liquida con saldo 0 y registra la
+liquidación; `GET /hotel/caja?fecha` lista los pagos del día ligados a
+reserva (rol caja/administrador). La idempotencia por clave ahora cubre toda
+mutación (PUT incluidos): mismo cuerpo repite, otro cuerpo 409. Una reserva
+ajena o inexistente responde 403 sin revelar cuál es el caso. Evidencia: 10
+pruebas en `servicio/tests/test_h4.py`, humo real del flujo completo y 181
+del dominio sin roturas.

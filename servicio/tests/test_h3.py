@@ -53,12 +53,17 @@ class ReservaPersistenteTest(unittest.TestCase):
                 "fecha_hasta": "2027-12-31",
                 "tarifa_noche_clp": monto,
             },
+            headers={"Idempotency-Key": f"tarifa-{habitacion_id}-{monto}"},
         )
-        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.status_code, 201)
         return respuesta
 
     def test_admin_define_habitacion_y_tarifa_y_oferta_muestra_vigencia(self):
-        self.cliente.put("/hotel/habitaciones/HAB-101", json={"tipo": "matrimonial", "capacidad": 2})
+        self.cliente.put(
+            "/hotel/habitaciones/HAB-101",
+            json={"tipo": "matrimonial", "capacidad": 2},
+            headers={"Idempotency-Key": "hab-101"},
+        )
         self.poner_tarifa("HAB-101", 55_000)
         respuesta = self.cliente.get("/hotel/oferta", params={**RANGO, "personas": 2})
         self.assertEqual(respuesta.status_code, 200)
@@ -99,7 +104,12 @@ class ReservaPersistenteTest(unittest.TestCase):
         self.assertEqual(aceptada, 50_000)  # la reserva ya aceptada no cambia
 
     def test_carrera_por_la_ultima_unidad_deja_una_sola_reserva(self):
-        self.cliente.put("/hotel/habitaciones/HAB-ULT-1", json={"tipo": "doble", "capacidad": 2})
+        respuesta = self.cliente.put(
+            "/hotel/habitaciones/HAB-ULT-1",
+            json={"tipo": "doble", "capacidad": 2},
+            headers={"Idempotency-Key": "hab-ult-1"},
+        )
+        self.assertEqual(respuesta.status_code, 200)
         self.poner_tarifa("HAB-ULT-1", 40_000)
         cuerpo = {
             "habitacion_id": "HAB-ULT-1",

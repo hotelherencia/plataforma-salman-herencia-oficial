@@ -109,12 +109,17 @@ def crear_reserva(
     if tarifa is None:
         raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} en {inicio}")
     reserva_id = f"RSV-{uuid.uuid4().hex[:12]}"
+    total = tarifa * (fin - inicio).days
     try:
         with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
             conexion.execute(
                 "INSERT INTO reservas (id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, "
                 "tarifa_noche_aceptada_clp) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa),
+            )
+            conexion.execute(
+                "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
+                (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, f"Alojamiento {(fin - inicio).days} noches", total),
             )
     except ExclusionViolation as error:
         raise SinCupo(f"sin cupo para {habitacion_id} en [{inicio}, {fin})") from error
@@ -125,5 +130,5 @@ def crear_reserva(
         "fin": fin.isoformat(),
         "estado": "confirmada",
         "tarifa_noche_aceptada_clp": tarifa,
-        "total_clp": tarifa * (fin - inicio).days,
+        "total_clp": total,
     }

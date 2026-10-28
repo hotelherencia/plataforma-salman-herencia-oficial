@@ -31,6 +31,7 @@ from .migracion import aplicar_migraciones  # noqa: E402
 from . import seguridad  # noqa: E402
 from . import idempotencia  # noqa: E402
 from . import reservas as reservas_db  # noqa: E402
+from . import cobro  # noqa: E402
 
 NOMBRE_COOKIE_SESION = "sid"
 
@@ -110,6 +111,12 @@ class ReservaIn(BaseModel):
     huesped: HuespedIn
 
 
+class PagoIn(BaseModel):
+    monto_clp: int
+    clave: str
+    modo: str
+
+
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
     aplicacion = aplicacion or construir_aplicacion()
     app = FastAPI(title="plataforma-salman-herencia-api", version="0.1.0")
@@ -184,38 +191,65 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         if sesion.rol != "administrador":
             raise seguridad.ErrorPermiso("solo administrador")
 
+    def _clave_idempotencia_o_400(idempotency_key: str | None) -> str:
+        if not idempotency_key:
+            raise HTTPException(status_code=400, detail="falta la cabecera Idempotency-Key")
+        return idempotency_key
+
     @app.put("/hotel/habitaciones/{habitacion_id}")
     def definir_habitacion(
         habitacion_id: str,
         habitacion: HabitacionIn,
+        idempotency_key: str | None = Header(default=None),
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
-    ) -> dict:
+    ) -> JSONResponse:
         _exigir_admin(sesion)
-        reservas_db.upsert_habitacion(conexion, habitacion_id, habitacion.tipo, habitacion.capacidad)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"habitacion_id": habitacion_id, **json.loads(habitacion.model_dump_json())}
+
+        def operacion() -> tuple[int, dict]:
+            reservas_db.upsert_habitacion(conexion, habitacion_id, habitacion.tipo, habitacion.capacidad)
+            return 200, {"habitacion_id": habitacion_id, "tipo": habitacion.tipo, "capacidad": habitacion.capacidad}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
         conexion.commit()
-        return {"habitacion_id": habitacion_id, "tipo": habitacion.tipo, "capacidad": habitacion.capacidad}
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
     @app.put("/hotel/tarifas")
     def definir_tarifa(
         tarifa: TarifaIn,
+        idempotency_key: str | None = Header(default=None),
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
-    ) -> dict:
+    ) -> JSONResponse:
         _exigir_admin(sesion)
         if tarifa.fecha_hasta <= tarifa.fecha_desde:
             raise HTTPException(status_code=400, detail="fecha_hasta debe ser mayor que fecha_desde")
-        tarifa_id = reservas_db.insertar_tarifa(
-            conexion, tarifa.habitacion_id, tarifa.fecha_desde, tarifa.fecha_hasta, tarifa.tarifa_noche_clp
-        )
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = json.loads(tarifa.model_dump_json())
+
+        def operacion() -> tuple[int, dict]:
+            tarifa_id = reservas_db.insertar_tarifa(
+                conexion, tarifa.habitacion_id, tarifa.fecha_desde, tarifa.fecha_hasta, tarifa.tarifa_noche_clp
+            )
+            return 201, {
+                "tarifa_id": tarifa_id,
+                "habitacion_id": tarifa.habitacion_id,
+                "fecha_desde": tarifa.fecha_desde.isoformat(),
+                "fecha_hasta": tarifa.fecha_hasta.isoformat(),
+                "tarifa_noche_clp": tarifa.tarifa_noche_clp,
+            }
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
         conexion.commit()
-        return {
-            "tarifa_id": tarifa_id,
-            "habitacion_id": tarifa.habitacion_id,
-            "fecha_desde": tarifa.fecha_desde.isoformat(),
-            "fecha_hasta": tarifa.fecha_hasta.isoformat(),
-            "tarifa_noche_clp": tarifa.tarifa_noche_clp,
-        }
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
     @app.get("/hotel/oferta")
     def consultar_oferta(
@@ -268,6 +302,99 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             raise HTTPException(status_code=409, detail=str(error))
         conexion.commit()
         return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    def _exigir_rol(sesion: seguridad.SesionActiva, roles) -> None:
+        if sesion.rol not in roles:
+            raise seguridad.ErrorPermiso("rol no autorizado")
+
+    @app.post("/hotel/reservas/{reserva_id}/pagos")
+    def registrar_pago(
+        reserva_id: str,
+        pago: PagoIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"reserva_id": reserva_id, **json.loads(pago.model_dump_json())}
+
+        def operacion() -> tuple[int, dict]:
+            if pago.modo == "pasarela":
+                return 503, {"error": "pasarela no configurada", "estado": "pendiente"}
+            _exigir_rol(sesion, cobro.ROLES_PAGO_MANUAL)
+            try:
+                return 201, cobro.registrar_pago_manual(
+                    conexion, aplicacion.nucleo, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave
+                )
+            except cobro.PagoRechazadoPorNucleo as error:
+                return 403, {"error": str(error)}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.get("/hotel/caja")
+    def ver_caja(
+        fecha: date,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        _exigir_rol(sesion, cobro.ROLES_CAJA)
+        return cobro.caja_del_dia(conexion, sesion.empresa_id, fecha)
+
+    @app.post("/hotel/reservas/{reserva_id}/entrada")
+    def check_in(
+        reserva_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"reserva_id": reserva_id}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                return 200, cobro.entrada(conexion, sesion.empresa_id, reserva_id)
+            except (cobro.HabitacionNoLista, cobro.TransicionInvalida) as error:
+                return 409, {"error": str(error)}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/hotel/reservas/{reserva_id}/salida")
+    def check_out(
+        reserva_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"reserva_id": reserva_id}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                return 200, cobro.salida(conexion, sesion.empresa_id, reserva_id)
+            except (cobro.SaldoPendiente, cobro.TransicionInvalida) as error:
+                return 409, {"error": str(error)}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.exception_handler(cobro.RecursoAjenoOInexistente)
+    @app.exception_handler(cobro.PagoRechazadoPorNucleo)
+    async def manejar_acceso(_request: Request, _exc: Exception) -> Response:
+        return Response(content='{"error":"acceso denegado"}', status_code=403, media_type="application/json")
 
     @app.exception_handler(reservas_db.SinCupo)
     @app.exception_handler(reservas_db.SinTarifaVigente)
