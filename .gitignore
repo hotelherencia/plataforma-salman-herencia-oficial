@@ -3,3 +3,4 @@
 Untitled
 __pycache__/
 .venv/
+.playwright-mcp/
