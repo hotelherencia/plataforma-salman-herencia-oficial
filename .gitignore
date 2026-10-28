@@ -2,3 +2,4 @@
 .env
 Untitled
 __pycache__/
+.venv/

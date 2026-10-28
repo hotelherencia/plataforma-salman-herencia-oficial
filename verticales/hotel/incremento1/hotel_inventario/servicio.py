@@ -1,7 +1,8 @@
 import itertools
 import threading
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
+from typing import Protocol
 
 from .dominio import (
     ESTADOS_VENDIBLES,
@@ -84,6 +85,40 @@ class CheckInIncompleto(Exception):
 
 
 ROLES_DOCUMENTO = frozenset({"recepcion", "administrador"})
+ROLES_CONFIGURACION = frozenset({"administrador"})
+ROLES_CAJA = frozenset({"caja", "gerencia"})
+ROLES_GERENCIA = frozenset({"gerencia"})
+
+
+@dataclass(frozen=True)
+class CierreDiario:
+    """HU-HOT-02 (propuesta). Ningún pago aparece como conciliado: el modelo no tiene caja ni proveedor bancario."""
+
+    fecha: date
+    pagos: tuple[dict, ...]
+    total_pagos_clp: int
+    pendientes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class IndicadoresDiarios:
+    """HU-HOT-03 (propuesta). Un indicador sin muestra es None; nunca se informa como cero por omisión."""
+
+    fecha: date
+    noches_vendidas: int
+    unidades: int
+    ocupacion: float | None
+    adr_clp: float | None
+    revpar_clp: float | None
+    ingresos_hospedaje_clp: int
+    ingresos_por_canal: str
+    formula: dict
+
+
+class RegistroCobro(Protocol):
+    """Frontera con el núcleo: el efecto de pago lo registra el núcleo, no el hotel."""
+
+    def aplicar_resultado_pago(self, empresa_id: str, clave: str, estado: str, monto_clp: int): ...
 
 
 class ServicioHotelInventario:
@@ -94,6 +129,7 @@ class ServicioHotelInventario:
         empresa: Empresa = EMPRESA_FIJA,
         puertos: PuertosVacios | None = None,
         extras: tuple[ExtraHotel, ...] = (),
+        cobros: RegistroCobro | None = None,
     ) -> None:
         if establecimiento.empresa_id != empresa.id:
             raise ValueError("el establecimiento pertenece a otra empresa")
@@ -109,11 +145,13 @@ class ServicioHotelInventario:
         self._accesos_documento: list[tuple[str, str]] = []
         self._evidencia: list[tuple[str, str, str]] = []
         self._pagos: list[Pago] = []
+        self._fecha_pagos: dict[str, date] = {}
         self._liquidaciones: dict[str, Liquidacion] = {}
         self._pedidos: list[PedidoHabitacion] = []
         self._devoluciones: dict[str, SolicitudDevolucion] = {}
         self._extras: dict[str, ExtraHotel] = {e.id: e for e in extras}
         self._tarifas_aceptadas: dict[str, int] = {}
+        self._tarifas_por_fecha: dict[tuple[str, date], tuple[str, int]] = {}
         self._borradores: list[tuple[str, str]] = []
         self._registro: list[AccionRegistrada] = []
         self._aprobaciones: dict[str, Aprobacion] = {}
@@ -122,6 +160,7 @@ class ServicioHotelInventario:
         self._conversiones_upsell = 0
         self._transferencias: dict[str, TransferenciaHumana] = {}
         self._firmas: dict[str, str] = {}
+        self._cobros = cobros
         # Los puertos quedan guardados y no se invocan: el servicio no habla con
         # PMS, canal, pago ni documento tributario en el incremento 1.
         self._puertos = puertos if puertos is not None else PuertosVacios()
@@ -171,7 +210,7 @@ class ServicioHotelInventario:
             return [
                 OfertaVigente(
                     unidad_id=u.id,
-                    tarifa_noche_clp=u.tarifa_noche_clp,
+                    tarifa_noche_clp=self._tarifa_en_fecha(u.id, inicio),
                     politica_cancelacion=POLITICA_CANCELACION,
                     emitida_en=ahora,
                     vigente_hasta=ahora + VIGENCIA_OFERTA,
@@ -463,6 +502,8 @@ class ServicioHotelInventario:
                 estado=EstadoReserva.CONFIRMADA,
             )
             self._reservas[reserva.id] = reserva
+            # El precio queda fijado al reservar: un cambio posterior de tarifa no lo altera.
+            self._tarifas_aceptadas[reserva.id] = self._tarifa_en_fecha(unidad_id, inicio)
             return ResultadoReserva(confirmada=True, reserva=reserva)
 
     def cambiar_estado_unidad(self, empresa_id: str, unidad_id: str, estado: EstadoUnidad) -> Unidad:
@@ -609,6 +650,36 @@ class ServicioHotelInventario:
             self._tarifas_aceptadas[reserva_id] = propuesta.tarifa_nueva_clp
             return propuesta
 
+    def configurar_tarifa(
+        self, empresa_id: str, rol: str, unidad_id: str, fecha: date, tipo: str, tarifa_clp: int
+    ) -> int:
+        """HU-HOT-01 (propuesta): tarifa de una unidad para una fecha. Solo administrador; cada denegación queda en la evidencia."""
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            if rol not in ROLES_CONFIGURACION:
+                self._evidencia.append(("configuracion", unidad_id, "rol no autorizado"))
+                raise AccesoDenegado("rol no autorizado")
+            if unidad_id not in self._unidades:
+                raise ValueError(UNIDAD_INEXISTENTE)
+            if tarifa_clp <= 0:
+                raise ValueError("la tarifa debe ser positiva")
+            clave = (unidad_id, fecha)
+            if clave in self._tarifas_por_fecha:
+                raise ValueError("tarifa superpuesta: ya existe una tarifa para esa unidad y fecha")
+            self._tarifas_por_fecha[clave] = (tipo, tarifa_clp)
+            return tarifa_clp
+
+    def tarifa_vigente(self, empresa_id: str, unidad_id: str, fecha: date) -> int:
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            return self._tarifa_en_fecha(unidad_id, fecha)
+
+    def _tarifa_en_fecha(self, unidad_id: str, fecha: date) -> int:
+        configurada = self._tarifas_por_fecha.get((unidad_id, fecha))
+        if configurada is not None:
+            return configurada[1]
+        return self._unidades[unidad_id].tarifa_noche_clp
+
     def _tarifa_de_reserva(self, reserva_id: str) -> int:
         reserva = self._reservas[reserva_id]
         unidad = self._unidades[reserva.unidad_id]
@@ -676,7 +747,13 @@ class ServicioHotelInventario:
             return self._asentar(reserva_id, TipoCargo.CARGO, concepto, monto_clp)
 
     def registrar_pago(
-        self, empresa_id: str, reserva_id: str, monto_clp: int, clave: str | None = None
+        self,
+        empresa_id: str,
+        reserva_id: str,
+        monto_clp: int,
+        clave: str | None = None,
+        estado: str = "pendiente",
+        fecha: date | None = None,
     ) -> Pago:
         self._exigir_empresa(empresa_id)
         if monto_clp <= 0:
@@ -690,8 +767,81 @@ class ServicioHotelInventario:
                 if existente is not None:
                     return existente
             pago = Pago(id=self._nuevo_id("PGO"), reserva_id=reserva_id, monto_clp=monto_clp, clave=clave)
+            if self._cobros is not None:
+                # El núcleo es quien registra el efecto; si lo rechaza, el hotel no guarda el pago.
+                self._cobros.aplicar_resultado_pago(self._empresa.id, f"{reserva_id}:{clave or pago.id}", estado, monto_clp)
             self._pagos.append(pago)
+            if fecha is not None:
+                self._fecha_pagos[pago.id] = fecha
             return pago
+
+    def cierre_diario(self, empresa_id: str, rol: str, fecha: date) -> CierreDiario:
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            if rol not in ROLES_CAJA:
+                self._evidencia.append(("cierre_diario", fecha.isoformat(), "rol no autorizado"))
+                raise AccesoDenegado("rol no autorizado")
+            del_dia = [p for p in self._pagos if self._fecha_pagos.get(p.id) == fecha]
+            sin_fecha = sum(1 for p in self._pagos if p.id not in self._fecha_pagos)
+            pendientes = [
+                "documento tributario: no emitido (puerto sin configurar)",
+                "caja: el modelo no registra cajas",
+                "conciliación bancaria: no disponible (sin proveedor bancario)",
+                "devoluciones: sin fecha en el modelo, no entran en el cierre",
+            ]
+            if sin_fecha:
+                pendientes.append(f"{sin_fecha} pagos sin fecha no entran en el cierre")
+            return CierreDiario(
+                fecha=fecha,
+                pagos=tuple(
+                    {
+                        "pago_id": p.id,
+                        "reserva_id": p.reserva_id,
+                        "monto_clp": p.monto_clp,
+                        "documento": "no emitido: puerto de documento tributario no configurado",
+                        "caja": "sin caja en el modelo",
+                        "conciliado": False,
+                    }
+                    for p in del_dia
+                ),
+                total_pagos_clp=sum(p.monto_clp for p in del_dia),
+                pendientes=tuple(pendientes),
+            )
+
+    def indicadores_diarios(self, empresa_id: str, rol: str, fecha: date) -> IndicadoresDiarios:
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            if rol not in ROLES_GERENCIA:
+                self._evidencia.append(("indicadores", fecha.isoformat(), "rol no autorizado"))
+                raise AccesoDenegado("rol no autorizado")
+            noches = [
+                c
+                for c in self._cargos
+                if c.tipo is TipoCargo.CARGO and c.referencia == f"noche:{fecha.isoformat()}"
+            ]
+            revertidas = {c.referencia for c in self._cargos if c.tipo is TipoCargo.REVERSO}
+            vendidas = [c for c in noches if c.id not in revertidas]
+            ingresos = sum(c.monto_clp for c in vendidas)
+            cantidad = len(vendidas)
+            unidades = len(self._unidades)
+            return IndicadoresDiarios(
+                fecha=fecha,
+                noches_vendidas=cantidad,
+                unidades=unidades,
+                ocupacion=cantidad / unidades if unidades else None,
+                adr_clp=ingresos / cantidad if cantidad else None,
+                revpar_clp=ingresos / unidades if unidades else None,
+                ingresos_hospedaje_clp=ingresos,
+                ingresos_por_canal="no disponible: el modelo no registra canal de origen",
+                formula={
+                    "ocupacion": "noches vendidas / unidades del establecimiento",
+                    "adr": "ingresos de hospedaje netos / noches vendidas",
+                    "revpar": "ingresos de hospedaje netos / unidades del establecimiento",
+                    "periodo": fecha.isoformat(),
+                    "fuente": "cargos de noche (referencia noche:<fecha>) y reversos",
+                    "responsable": "gerencia",
+                },
+            )
 
     def pagos(self, empresa_id: str, reserva_id: str) -> tuple[Pago, ...]:
         self._exigir_empresa(empresa_id)

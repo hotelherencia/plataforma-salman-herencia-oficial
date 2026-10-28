@@ -1,3 +1,64 @@
+# Dictamen: ¿plataforma? — 2026-10-28 (leído del código, no del documento viejo)
+
+Criterio: una plataforma es un **sistema** con frente, API y núcleo
+compartido. Veredicto a la fecha: **no es una plataforma** — son cinco
+bibliotecas de dominio en memoria, cada una con su propia empresa, más un
+destino escrito (Vercel/Railway) donde no hay proyecto. Las siete filas del
+criterio, cada una con ruta de código o con «no existe»:
+
+1. **Front que una persona abra y que solo hable con la API propia** → *no
+   existe*. No hay `package.json` ni aplicación web en el árbol
+   (`find . -name package.json` → vacío, 2026-10-28).
+2. **API HTTP que autentique la empresa en cada request** → *no existe*.
+   `docs/definicion-herencia/contratos/openapi.yaml` se declara «Especificación
+   de API, no servicio desplegado» (líneas 4–9), con servidor ficticio
+   `herencia-api.example.invalid` y `x-specification-status:
+   PROPOSED_NOT_IMPLEMENTED`. Ningún proceso HTTP en el código.
+3. **Proceso backend que cargue el núcleo y el hotel en el mismo servicio** →
+   *no existe*. Los cinco módulos (`core/incremento1/nucleo`,
+   `verticales/{hotel,cafeteria,inmobiliaria,constructora}/incremento1/*`) se
+   invocan solo desde sus `tests/`; sin empaquetado ni servicio.
+4. **Una sola puerta de empresa (la vertical usa la del núcleo)** → *no existe*.
+   Cinco `EMPRESA_FIJA` y cinco `class AccesoDenegado`, una por módulo
+   (`core/incremento1/nucleo/empresa.py:11`,
+   `verticales/hotel/incremento1/hotel_inventario/empresa.py:9` y equivalentes
+   en cafeteria, inmobiliaria y constructora). Ninguna vertical importa
+   `nucleo`: búsqueda de imports en `core/` y `verticales/` — el único enlace
+   es `verticales/hotel/incremento1/tests/test_cobro_nucleo.py`, una prueba.
+5. **Cobro y documento solo por el núcleo; el hotel no guarda un pago que el
+   núcleo no aceptó** → *no existe como sistema*. El hotel guarda `pagos` en su
+   lista (`hotel_inventario/servicio.py`, `_pagos`); el punto de inyección
+   `cobros: RegistroCobro` (`servicio.py:90–93,138`) existe y el servicio no
+   guarda el pago si el cobrador rechaza — pero ese cobrador real nunca está
+   conectado: solo lo ejercen pruebas. El núcleo no tiene puertos de pago,
+   documento ni comunicación (`core/incremento1/nucleo/servicio.py` solo tiene
+   `Conector` con `placeholder=True`).
+6. **Estado que sobreviva al reinicio (caja y conciliación)** → *no existe*.
+   Toda la persistencia es memoria de proceso; terminada la corrida no queda
+   caja ni conciliación.
+7. **Sistemas externos solo detrás de puertos que respondan «no configurado»**
+   → *parcial*. Puertos del hotel (`hotel_inventario/puertos.py`: PMS, canal,
+   pago, documento) responden «no configurado» sin simular éxito; el núcleo no
+   tiene puertos que cerrar.
+
+**Stack**: tres descripciones, ninguna corriendo — (a) hecho: Python 3 solo
+biblioteca estándar; (b) `specs/*/plan.md`: Python/FastAPI/Next.js/PostgreSQL,
+propuesta no aprobada; (c)
+`docs/definicion-herencia/sdd/ADR-001-stack-propuesto.md`:
+TypeScript/Next.js 16/Node 24/PostgreSQL 17, estado PROPUESTA (25-10-2026).
+
+**Hueco frente al manual**: el recorrido mínimo (configurar habitación y
+tarifa → consultar y reservar → cobrar y confirmar → estadía → salida → caja
+y conciliación) tiene en código consultar, reservar, operar y salir en
+memoria; no configura tarifas (son constantes), no cobra por el núcleo y no
+hay por dónde entrarle una persona.
+
+*Estas siete filas describen el repositorio antes del corte del proceso. El
+estado actual (tras el corte `plataforma/` del mismo día) está en la tabla
+«Dictamen de plataforma — 2026-10-28», más abajo en este documento.*
+
+---
+
 # Evaluación de la definición contra el manual — 2026-10-27
 
 Criterio del manual de comprensión (27-10-2026, Mijaíl y Cristóbal): la primera
@@ -86,7 +147,9 @@ conciliación trazables.
     FR-003): prometida; el puerto de canal del hotel no se invoca y no hay
     channel manager.
 
-## Hueco de stack (qué falta para tener un front, una API y un servicio)
+## Hueco de stack
+
+La decisión del 2026-10-28 (`spec-front-vercel.md`, `spec-api.md`, `spec-backend-railway.md`) elige runtime, framework y PostgreSQL 17. Los puntos 1 a 4 de abajo describen el árbol al 2026-10-27 y ya no frenan esa construcción. `plataforma/servidor.py` no los cierra.
 
 1. Front: falta la aplicación web (rutas `/hotel`, `/cafeteria`,
    `/inmobiliaria`, `/constructora`, login y sesión) y todo runtime que la
@@ -107,3 +170,67 @@ conciliación trazables.
    «no configurado» solo existe en las verticales.
 7. Caja y conciliación: falta lectura bancaria y cierre de caja persistente; el
    ledger del núcleo es en memoria y el hotel no lo usa.
+
+## Dictamen de plataforma — 2026-10-28 (leído del código)
+
+Este dictamen sustituye, para las filas 2, 3 y 4, la evaluación de la sección
+«Hueco de stack» del 2026-10-27, que ya no describe el repositorio. Las rutas
+son del árbol de trabajo. «Cumplida en código» significa que una prueba lo
+ejerce; no significa que esté desplegado ni que exista persistencia.
+
+| # | Criterio | Estado | Ruta y evidencia | Límite |
+|---|---|---|---|---|
+| 1 | Front que una persona abre y que solo habla con la API propia | **No existe** | `find . -name package.json` devuelve 0; no hay aplicación web | Fila del siguiente corte |
+| 2 | API HTTP que autentica la empresa en cada request | **Cumplida en código** | `plataforma/servidor.py` (`Manejador._empresa`, `do_GET`, `do_POST`); 401 sin token o con token desconocido (`plataforma/tests/test_api_hotel.py`) | Token sintético en código; no es la identidad del núcleo (FR-001 de specs/000-core, sin implementar) |
+| 3 | Proceso backend que carga núcleo y hotel en el mismo servicio | **Cumplida en código** | `plataforma/servidor.py` (`construir_aplicacion` crea `Nucleo` y `ServicioHotelInventario` en el mismo proceso); arranque `python3 -m plataforma.servidor --puerto 8080` | Un solo módulo de vertical; sin empaquetado ni configuración por entorno |
+| 4 | Una sola puerta de empresa: la vertical usa la del núcleo | **Cumplida en el proceso; residual en el código** | `construir_hotel` pasa `empresa=nucleo.empresa` y rechaza establecimientos de otra empresa (prueba `test_establecimiento_de_otra_empresa_no_se_carga`) | `verticales/hotel/incremento1/hotel_inventario/empresa.py` conserva su `EMPRESA_FIJA` como valor por defecto para sus pruebas aisladas; las otras cuatro verticales siguen con su copia |
+| 5 | Cobro y documento solo por el núcleo | **Cobro: cumplida en código. Documento: no existe** | `ServicioHotelInventario.registrar_pago` llama a `cobros` (el núcleo) y no guarda si el núcleo rechaza; prueba HTTP `test_si_el_nucleo_rechaza_el_cobro_el_hotel_no_lo_guarda`. El núcleo no tiene puerto de documento | Con `cobros` omitido el hotel sigue cobrando solo (compatibilidad de las pruebas del incremento 1) |
+| 6 | Estado que sobrevive al reinicio (caja y conciliación) | **No existe** | Todo vive en memoria; reservas, pagos y efectos se pierden al reiniciar el proceso | Siguiente corte |
+| 7 | Sistemas externos solo detrás de puertos «no configurado» | **Cumplida en código** | `hotel_inventario/puertos.py` (`NO_CONFIGURADO`); `test_puertos_no_invocados.py` comprueba que el flujo no los invoca; el proceso no llama a ningún sistema externo | Sin adaptadores; el núcleo no tiene puertos de pago, documento ni comunicación |
+
+**Dictamen:** hay una plataforma mínima ejecutable en un proceso (filas 2, 3 y
+una parte de la 4), con un único punto de cobro que es el núcleo. **No hay
+plataforma completa:** falta el front (1), falta la persistencia (6) y la
+emisión documental no existe (5). La fila 4 queda cumplida en el proceso, no
+en el código de cada vertical.
+
+**Stack — decisión del propietario, 2026-10-28.** Esta decisión prevalece sobre
+el párrafo anterior y sobre la sección «Hueco de stack». El mínimo es front
+Next.js en Vercel, API según `spec-api.md`, backend Python/FastAPI/PostgreSQL 17
+en Railway. `plataforma/servidor.py` no cumple esas especificaciones: un token
+en código no es la sesión, y la memoria del proceso no es PostgreSQL. ADR-001
+sigue en propuesta en lo que junta front y API en un solo Next.js.
+
+**Siguiente corte:** crear los tres artefactos de `spec-front-vercel.md`,
+`spec-api.md` y `spec-backend-railway.md`. El hotel es el primer módulo. No
+contar `plataforma/servidor.py` como fila cumplida.
+
+**Avance del corte (2026-10-28) — H1 verificado.** El backend real está en
+`servicio/` (FastAPI + psycopg v3 + uvicorn; configuración solo por variables
+de entorno; migraciones SQL numeradas en `servicio/migraciones/`): arranca con
+núcleo y hotel de la misma empresa, rechaza el arranque si el hotel trae otra
+(`ErrorArranque` → `SystemExit`) y responde `/salud` 200. Evidencia: 6 pruebas
+OK en `servicio/tests/test_h1.py`, humo real del proceso y las 181 pruebas del
+dominio sin roturas; arranque con `.venv/bin/python -m servicio`. Gobiernan
+las specs V1 (`spec-api-v1.md`, `spec-backend-v1.md`, `spec-front-v1.md`) y el
+backlog de construcción vive en `backlog/v1/`.
+
+**H2 de sesión (2026-10-28, verificado).** `POST/DELETE/GET /sesion` sobre
+PostgreSQL local (16; el 17 llega con Railway): clave solo como hash argon2id,
+administrador inicial desde variables de entorno al arrancar (ningún SQL con
+credenciales), cookie `sid` HttpOnly/SameSite=None (Secure solo si
+`COOKIE_SEGURA=1`), sesión server-side revocable; 401 sin sesión o con clave
+mala; la regla 403 de empresa ajena se resuelve antes que cualquier consulta
+de existencia. Evidencia: 7 pruebas en `servicio/tests/test_h2.py`, humo real
+contra la base y 181 del dominio sin roturas.
+
+**H3 de reserva persistente (2026-10-28, verificado).** Habitaciones, tarifas
+y reservas viven en PostgreSQL: `PUT /hotel/habitaciones/{id}` y
+`PUT /hotel/tarifas` solo administrador; `GET /hotel/oferta` con vigencia de
+15 minutos; `POST /hotel/reservas` transaccional con constraint de exclusión
+`reservas_sin_solape` (btree_gist) — la carrera de 100 requests sobre la
+última unidad dejó 1 reserva y 99 con 409, sin sobreventa en la base; la
+tarifa aceptada queda congelada en la reserva; la idempotencia por clave
+repite respuesta con el mismo cuerpo y responde 409 con cuerpo distinto.
+Evidencia: 7 pruebas en `servicio/tests/test_h3.py`, humo real y 181 del
+dominio sin roturas.

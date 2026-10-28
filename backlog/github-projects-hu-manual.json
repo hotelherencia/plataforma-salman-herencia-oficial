@@ -1,0 +1,44 @@
+[
+  {
+    "id": "002-hotel-reservas-concierge/HU-HOT-01",
+    "title": "[Historia] 002-hotel-reservas-concierge/HU-HOT-01 — Configurar habitación y tarifa (HU-HOT-01)",
+    "body": "**Fuente:** `Manual_Maestro_Conceptual_Grupo_Salman_V1.docx` (V1.0, 27-10-2026) §3, §9 y §10, vía `backlog/hotel/historias-manual-maestro.md` (cola 2026-10-27); satisface FR-001 de `specs/002-hotel-reservas-concierge/spec.md`. Clase de evidencia: REQUISITO PROPUESTO (no construida ni ratificada).\n\n**Como / quiero / para:** Como administrador del hotel, quiero dar de alta las 17 habitaciones, sus tipos, tarifas por fecha y políticas, para que el motor de reservas opere sobre datos autorizados.\n\n**Por qué existe:** el Manual §10 exige como primer paso del resultado mínimo que «un usuario autorizado configura habitaciones y tarifas», y el §3 requiere que el motor consulte «disponibilidad real, tarifas, ocupación permitida, restricciones y políticas».\n\n**Criterio de aceptación:** Dado un usuario administrador autenticado, cuando configura las habitaciones con tipo y tarifa vigente para una fecha, entonces el inventario queda consultable por el motor con tarifa y política visibles; dado un usuario sin rol administrador, cuando intenta configurar, entonces es denegado y el intento queda auditado.\n\n**Excepciones:** usuario sin permiso (solo rol administrador; denegación auditada); tarifas superpuestas para la misma fecha y tipo (rechazo con motivo); modificación con reservas existentes (no altera el precio ya aceptado por un huésped).\n\n**Depende de:** ninguna; es la primera de la cola del Manual.\n\n**Regla definitiva (pendiente):** temporadas, tarifas 2027, mínimos de estadía, anticipos y descuentos son decisión del Manual §9 (políticas 2027): no codificar la cifra ni el proveedor; la historia existe y la regla queda pendiente.\n\n**Fuera de alcance:** implementación, despliegue, integraciones externas, pagos o envíos reales.\n",
+    "tipo": "Historia",
+    "estado": "Propuesta",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": [],
+    "etiquetas": ["historia", "hotel", "manual-maestro", "propuesta"],
+    "fuente": "Manual_Maestro_Conceptual_Grupo_Salman_V1.docx §3/§9/§10; backlog/hotel/historias-manual-maestro.md"
+  },
+  {
+    "id": "002-hotel-reservas-concierge/HU-HOT-02",
+    "title": "[Historia] 002-hotel-reservas-concierge/HU-HOT-02 — Conciliación y cierre financiero diario (HU-HOT-02)",
+    "body": "**Fuente:** `Manual_Maestro_Conceptual_Grupo_Salman_V1.docx` (V1.0, 27-10-2026) §3 (cierre financiero), §12 y §10, vía `backlog/hotel/historias-manual-maestro.md` (cola 2026-10-27); alineada con SC-004 de `specs/002-hotel-reservas-concierge/spec.md`. Clase de evidencia: REQUISITO PROPUESTO (no construida ni ratificada).\n\n**Como / quiero / para:** Como caja y gerencia, quiero cerrar el día relacionando cada pago con su reserva, documento, caja y movimiento, para que el ciclo termine con reportes verificables.\n\n**Por qué existe:** Manual §3 (cierre financiero): «cada pago debe poder relacionarse con reserva, documento, caja, movimiento bancario y conciliación; cancelaciones, devoluciones, no-show y ajustes deben dejar evidencia»; Manual §10: «caja y conciliación presentan trazabilidad».\n\n**Criterio de aceptación:** Dado un día con reservas pagadas, una cancelación con devolución parcial y un cobro duplicado corregido, cuando caja cierra el día, entonces cada pago queda relacionado con reserva, documento y caja, y las diferencias quedan como ajustes con evidencia y autorización.\n\n**Excepciones:** pago duplicado (un solo efecto); diferencia de caja (ajuste con evidencia y autorización, no borrado); devolución parcial (separada de cancelación y liquidación); canal caído (pagos y eventos pendientes, nunca declarados conciliados); usuario sin permiso (solo caja/gerencia).\n\n**Depende de:** 002-hotel-reservas-concierge/H2 (US-HOT-002, check-out y liquidación).\n\n**Regla definitiva (pendiente):** la integración contable y el proveedor bancario o pasarela son decisión del Manual §9: no codificar el proveedor; la historia existe y la regla queda pendiente.\n\n**Fuera de alcance:** implementación, despliegue, integraciones externas, pagos o envíos reales.\n",
+    "tipo": "Historia",
+    "estado": "Propuesta",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": ["002-hotel-reservas-concierge/H2"],
+    "etiquetas": ["historia", "hotel", "manual-maestro", "propuesta"],
+    "fuente": "Manual_Maestro_Conceptual_Grupo_Salman_V1.docx §3/§12; backlog/hotel/historias-manual-maestro.md"
+  },
+  {
+    "id": "002-hotel-reservas-concierge/HU-HOT-03",
+    "title": "[Historia] 002-hotel-reservas-concierge/HU-HOT-03 — Indicador mínimo de gerencia (HU-HOT-03)",
+    "body": "**Fuente:** `Manual_Maestro_Conceptual_Grupo_Salman_V1.docx` (V1.0, 27-10-2026) §4 (indicadores y control) y §10, vía `backlog/hotel/historias-manual-maestro.md` (cola 2026-10-27). Clase de evidencia: REQUISITO PROPUESTO (no construida ni ratificada).\n\n**Como / quiero / para:** Como gerencia, quiero consultar al cierre del día los indicadores mínimos (ocupación, ADR, RevPAR e ingresos por canal), para dirigir la operación con datos verificables.\n\n**Por qué existe:** Manual §4: «ocupación, ADR, RevPAR, ingresos por canal, cancelaciones…; cada indicador necesita fórmula, periodo, fuente y responsable»; Manual §10: «gerencia consulta indicadores».\n\n**Criterio de aceptación:** Dado el cierre diario completado, cuando gerencia consulta los indicadores del día, entonces ve ocupación, ADR y RevPAR con fórmula, periodo, fuente y responsable declarados.\n\n**Excepciones:** día con datos incompletos (el indicador declara su fórmula, periodo y fuente, y no informa éxito sin muestra); usuario sin permiso (solo gerencia).\n\n**Depende de:** 002-hotel-reservas-concierge/HU-HOT-02 (conciliación y cierre financiero diario).\n\n**Regla definitiva (pendiente):** las fórmulas base se construyen; los objetivos numéricos se ratifican con la gerencia y no se inventan (los SC de la spec son objetivos propuestos, no medidos). El resto de indicadores del Manual §4 (costos, margen, productividad, alertas) queda para la lista posterior.\n\n**Fuera de alcance:** implementación, despliegue, integraciones externas, pagos o envíos reales.\n",
+    "tipo": "Historia",
+    "estado": "Propuesta",
+    "prioridad": "P1",
+    "vertical": "hotel",
+    "iteracion": "",
+    "padre": "002-hotel-reservas-concierge",
+    "depende_de": ["002-hotel-reservas-concierge/HU-HOT-02"],
+    "etiquetas": ["historia", "hotel", "manual-maestro", "propuesta"],
+    "fuente": "Manual_Maestro_Conceptual_Grupo_Salman_V1.docx §4; backlog/hotel/historias-manual-maestro.md"
+  }
+]

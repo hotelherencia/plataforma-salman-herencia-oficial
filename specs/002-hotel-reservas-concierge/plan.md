@@ -1,12 +1,12 @@
 # Plan propuesto — Hotel
 
-Feature `002-hotel-reservas-concierge` · 2026-10-16 · **BLOCKED**. Entrada: [spec.md](spec.md).
+Feature `002-hotel-reservas-concierge` · 2026-10-16 · **EN CONSTRUCCIÓN** como primer módulo de [spec-api.md](../../docs/arquitectura/spec-api.md) (decisión del propietario, 2026-10-28). Entrada: [spec.md](spec.md).
 
 ## Resumen y contexto técnico
 
 Comparar PMS existente con PMS nuevo; preferir evaluar channel manager autorizado antes de conectores directos. Servicio a habitación consume interfaz de pedidos opcional.
 
-La base Python 3.12/FastAPI, Next.js, PostgreSQL 16 y Redis figura como propuesta en CAF §6, HOT §6 e INM §6; no hay benchmark, repositorio previo, presupuesto ni decisión aprobada. No fijar versiones ni desplegar antes de ADR-003. Claude Agent SDK también es candidato, no dependencia seleccionada. Se propone web responsive y adaptadores por proveedor; hosting, residencia, modelo LLM, colas y almacenamiento quedan pendientes. Las escalas de las fuentes son supuestos, no dimensionamiento validado.
+La base Python 3.12/FastAPI, Next.js, PostgreSQL 16 y Redis figura como propuesta en CAF §6, HOT §6 e INM §6. Decisión del propietario, 2026-10-28, para el mínimo: front Next.js en Vercel, API según `docs/arquitectura/spec-api.md`, backend Python/FastAPI/PostgreSQL 17 en Railway. Redis no entra en ese mínimo. No desplegar a producción ni conectar Booking, Airbnb ni pasarela. Las escalas de las fuentes siguen siendo supuestos, no dimensionamiento validado.
 
 ## Constitution Check
 

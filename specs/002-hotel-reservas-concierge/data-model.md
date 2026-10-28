@@ -1,6 +1,6 @@
 # Modelo conceptual — Hotel
 
-Estado: **DRAFT** dentro de feature BLOCKED. No es esquema SQL ni migración.
+Estado: **DRAFT**. La feature está en construcción como primer módulo de la API (`docs/arquitectura/spec-api.md`, 2026-10-28). Este archivo sigue sin ser el esquema SQL de PostgreSQL 17 hasta que el servicio de Railway lo fije.
 
 ## Entidades y relaciones
 

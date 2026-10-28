@@ -1,6 +1,6 @@
 # Contratos lógicos propuestos — Hotel
 
-No hay OpenAPI ni endpoints inventados. Este documento fija obligaciones derivadas de los FR para elaborar contratos técnicos tras resolver decisiones.
+Las obligaciones de esta lista siguen vigentes. El contrato de construcción de esta versión es `docs/arquitectura/spec-api.md` (decisión del propietario, 2026-10-28): diez operaciones del hotel, servidas por el backend de Railway. Este archivo no las sustituye ni las prohíbe. Booking, Airbnb, pasarela y DTE siguen sin adaptador.
 
 ## Sobre común, errores y compatibilidad
 

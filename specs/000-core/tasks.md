@@ -1,6 +1,6 @@
 # Tareas — Core transversal
 
-**Estado: BLOCKED**. Tareas ejecutables de aclaración/diseño; no constituyen backlog de implementación aprobado. Identificadores locales a `000-core`. Dependencias en orden, sin paralelismo supuesto.
+**Estado: EN CONSTRUCCIÓN** del mínimo front / API / backend (decisión del propietario, 2026-10-28). Las tareas T004–T007 siguen abiertas y no se marcan Hechas por esta decisión. Identificadores locales a `000-core`. Dependencias en orden, sin paralelismo supuesto.
 
 - [x] T001 Inventariar fuente, separar alcance y preservar IDs. Evidencia: spec.md y trazabilidad global.
 - [x] T002 Derivar modelo conceptual, amenazas y catálogo de aceptación. Evidencia: data-model.md, plan.md y acceptance.md. Esto no equivale a aprobación.
@@ -18,7 +18,7 @@ No se incluye implementar T008 ni tareas de despliegue. Crear tareas de implemen
 - [ ] T102 Validar con usuarios las reglas nuevas de FR-010/FR-011, sus datos y excepciones. Depende de T003/T004 y no sustituye sus respuestas. Salida: reglas aprobadas o cambios rechazados con motivo.
 - [ ] T103 Precisar casos AC-US-CORE con muestras, permisos, errores y conectores por plan; revisar contratos/modelo. Depende de T102/T005. Salida: fixtures autorizados y matriz de casos esperados, antes de código.
 - [ ] T104 Evaluar en demo autorizada las observaciones que faltan, mediante REA solo cuando disponible; conservar evidencia y límites. Depende de Q-REA-01/02 y T103. No cerrar afirmaciones de runtime con documentación.
-- [ ] T105 Ejecutar análisis de consistencia oficial al contar con Spec Kit y consolidar backlog por historia ratificada. Depende de T103 y Q-TOOL-01. No iniciar desarrollo dentro de esta misión.
+- [ ] T105 Ejecutar análisis de consistencia oficial al contar con Spec Kit y consolidar backlog por historia ratificada. Depende de T103 y Q-TOOL-01. No sustituye el mínimo de `docs/arquitectura/spec-backend-railway.md`.
 
 ## Preparación derivada de investigación adicional
 

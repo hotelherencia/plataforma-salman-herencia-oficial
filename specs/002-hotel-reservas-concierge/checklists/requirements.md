@@ -12,7 +12,7 @@
 - [ ] Verificación oficial de Spec Kit ejecutada en entorno instalado.
 - [ ] Feature lista para implementación.
 
-Estado **BLOCKED**: Q-HOT-01: PMS actual y fuente de inventario; Q-HOT-02: acceso OTA/channel manager; Q-HOT-03: habitaciones, cancelación, anticipos, datos de registro y autonomía. La completitud de archivos no implica preparación de producto.
+Estado **EN CONSTRUCCIÓN** del mínimo de `docs/arquitectura/spec-api.md` (decisión del propietario, 2026-10-28). Q-HOT-01/02/03 quedaron registradas el 2026-10-27 y ya no frenan ese mínimo. Q-HOT-02 no autoriza Booking ni Airbnb. La completitud de archivos no implica producto desplegado.
 
 ## Revisión competitiva
 

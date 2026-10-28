@@ -1,6 +1,6 @@
 # Especificación — Core transversal
 
-Feature: `000-core`. Fecha: 2026-10-16. Estado: **BLOCKED** para implementación.
+Feature: `000-core`. Fecha: 2026-10-16. Estado: **EN CONSTRUCCIÓN** del mínimo front / API / backend (decisión del propietario, 2026-10-28; `docs/arquitectura/spec-backend-railway.md`). El BLOCKED del 2026-10-16 no gobierna ese mínimo. Pasarelas, DTE y producción siguen sin autorización.
 Fuente: requisitos transversales de CAF §1, HOT §3 e INM §3 y encargo del cliente. Todos los FR y SC son **REQUISITOS PROPUESTOS**, pendientes de ratificación. Los resultados numéricos son objetivos; no se han medido.
 
 ## Problema, actores y límites
@@ -248,4 +248,4 @@ Como responsable de integraciones y aprobador, quiero declarar efectos externos 
 
 ### Bloqueos adicionales de la profundización
 
-Q-CORE-04: ver [decisiones pendientes](../../docs/investigacion-competitiva/decisiones-pendientes.md). Son reglas para ratificar, no respuestas inferidas del mercado. Las historias permanecen propuestas y la feature **BLOCKED** para implementar.
+Q-CORE-04: ver [decisiones pendientes](../../docs/investigacion-competitiva/decisiones-pendientes.md). Son reglas para ratificar, no respuestas inferidas del mercado. Las historias permanecen propuestas. La feature ya no está BLOCKED para el mínimo de `docs/arquitectura/spec-backend-railway.md` (decisión del propietario, 2026-10-28). Q-CORE-04 no autoriza pasarela, DTE ni producción.

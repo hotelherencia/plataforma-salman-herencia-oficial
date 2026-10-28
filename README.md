@@ -14,6 +14,11 @@ verticales de negocio. La vertical hotel es solo una de las cuatro.
   concierge).
 - `specs/003-inmobiliaria-comercial/` y `specs/004-constructora-obra/` —
   verticales inmobiliaria y constructora.
+- `servicio/` — proceso real de la plataforma (spec-backend-v1): FastAPI +
+  PostgreSQL 17. Arranque: `.venv/bin/python -m servicio` (configuración solo
+  por variables de entorno; dependencias en `servicio/requirements.txt`).
+  Su prueba de arranque: `servicio/tests/test_h1.py`. El prototipo
+  `plataforma/` queda obsoleto con este servicio.
 - `backlog/` — índice y carga de los 150 ítems del backlog, plan vertical del
   hotel, hojas de decisiones, actas (firma del hotel y cierre de la definición
   heredada) y nota de depuración del árbol.
@@ -30,24 +35,65 @@ verticales de negocio. La vertical hotel es solo una de las cuatro.
   `docs/archivo-no-construccion/` (notas de análisis) y
   `docs/historial-consolidacion.md` (README histórico).
 
+## Cómo correr en local (desarrollo)
+
+Dirección local por defecto: **http://127.0.0.1:8080** (cámbiala con
+`SERVICIO_PUERTO`/`SERVICIO_HOST`). Todo es configuración por variables de
+entorno; el repositorio no lleva `.env`.
+
+```bash
+# 1) Base de datos local (una sola vez)
+sudo -u postgres createuser -P plataforma     # clave sintética de desarrollo
+sudo -u postgres createdb -O plataforma plataforma
+
+# 2) Dependencias del servicio (una sola vez)
+python3 -m venv .venv
+.venv/bin/pip install -r servicio/requirements.txt
+
+# 3) Arrancar el servicio
+export DATABASE_URL="postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma"
+export ADMIN_USUARIO=admin
+export ADMIN_CLAVE="clave-admin-sintetica"
+.venv/bin/python -m servicio
+```
+
+Probar: `curl http://127.0.0.1:8080/salud`; `POST /sesion` con
+`{"usuario","clave"}` abre sesión (cookie `sid`); las demás operaciones en
+[docs/arquitectura/spec-api-v1.md](docs/arquitectura/spec-api-v1.md). Pruebas:
+`.venv/bin/python -m unittest discover -s servicio/tests -t .`
+
 ## Estado
 
-Cinco features **BLOCKED** para implementación (decisiones del propietario
-pendientes: ver `backlog/hotel/acta-para-firmar.md`). Nada implementado en
-producción. El código local es en memoria y sin red: incremento 0 del hotel
+Decisión del propietario, 2026-10-28: se construye el mínimo de tres artefactos
+(front en Vercel, API y backend en Railway; hotel como primer módulo). Specs
+que gobiernan: `docs/arquitectura/spec-front-v1.md`,
+`docs/arquitectura/spec-api-v1.md` y `docs/arquitectura/spec-backend-v1.md`
+(las versiones sin `-v1` quedaron sustituidas). Cafetería, inmobiliaria y
+constructora siguen fuera de esta versión. Nada desplegado en producción. El
+estado BLOCKED del 2026-10-16 no gobierna ese mínimo. `plataforma/servidor.py`
+no es la API ni el servicio de Railway.
+
+**Construcción (2026-10-28):** el backend real está en `servicio/` — H1
+arranque con regla de empresa, H2 sesión argon2id y H3 reserva persistente con
+constraint de no solape, **verificados** (20 pruebas del servicio + 181 del
+dominio OK; humo real contra PostgreSQL local). Faltan: H4 cobro por el núcleo
+e idempotencia, H5 persistencia tras reinicio, H6 front (aún no hay diseño
+visual; solo contrato), H7 despliegue. El código local es en memoria y sin red: incremento 0 del hotel
 (17 pruebas OK) e incremento 1 del núcleo y de las cuatro verticales
 (9 + 102 hotel + 19 cafetería + 20 inmobiliaria + 14 constructora, todas OK,
-solo biblioteca estándar; propuesta técnica no ratificada). GitHub: repositorio
-privado
+solo biblioteca estándar; propuesta técnica no ratificada). El 2026-10-28 se
+reparó el import de `datetime` en `verticales/hotel/incremento1` que impedía
+ejecutar sus 102 pruebas; las 6 baterías se reejecutaron OK (181 pruebas).
+GitHub: repositorio privado
 `hotelherencia/plataforma-salman-herencia-oficial` y Project n.º 2 «Project
-Plataforma Hotel Herencia» con los 155 ítems cargados (estado fechado del
-tablero en `backlog/indice.md`, actualizado el 2026-10-27: 133 Bloqueada,
-22 Hecha; Esfuerzo solo en tareas hoja del hotel).
+Plataforma Hotel Herencia» con 255 ítems (2026-10-28): corpus documental
+cerrado, 16 decisiones del propietario abiertas y el backlog de construcción
+V1 en `backlog/v1/` — 211 Done, 28 Todo, 16 Decisión humana.
 
 ## Reglas y validación
 
-Ver `AGENTS.md` (documentación de negocio en castellano; no implementar ni
-desplegar sin orden aprobada). Control documental:
+Ver `AGENTS.md` (documentación de negocio en castellano; construcción autorizada
+del mínimo front / API / backend, sin datos productivos ni pasarelas). Control documental:
 `python3 scripts/validar_documentacion.py` (hoy no arranca por falta heredada de
 `docs/auditorias/originales-sha256.json`; condición conocida, no introducida por
 esta estructura).

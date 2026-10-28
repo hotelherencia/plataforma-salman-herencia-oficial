@@ -7,6 +7,14 @@ bloques separados, **hecho de código** (verificado, con pruebas) y **destino**
 hay proyectos en Vercel ni en Railway todavía, ni cobros, ni emisiones, ni
 llamadas a sistemas externos.
 
+**Actualización 2026-10-28:** el «destino» de esta sección queda sustituido
+como especificación gobernante por las tres specs V1:
+[spec-front-v1.md](spec-front-v1.md), [spec-api-v1.md](spec-api-v1.md) y
+[spec-backend-v1.md](spec-backend-v1.md) (front Vercel, contrato API, backend
+Railway con FastAPI y PostgreSQL 17). Lo que sigue se conserva como histórico
+del contraste; el estado por filas está en
+[evaluacion-bases.md](evaluacion-bases.md).
+
 ## 1. Hecho de código (verificado el 2026-10-27)
 
 Cinco módulos Python en memoria, solo biblioteca estándar, sin UI ni red:
@@ -44,8 +52,14 @@ Propiedades comprobadas del código:
   copia paralela con su propia empresa fija. Tampoco lo forma
   `verticales/hotel/incremento0`, la prueba aislada anterior (17 pruebas OK).
 
-Consecuencia: hoy **no hay front, no hay API (borde HTTP) y no hay proceso
+Consecuencia (2026-10-27): hoy **no hay front, no hay API (borde HTTP) y no hay proceso
 backend**. Esas palabras nombran el destino, no un artefacto existente.
+
+**Actualización 2026-10-28 (decisión del propietario).** El mínimo a construir es
+el front en Vercel, la API y el backend en Railway:
+`spec-front-vercel.md`, `spec-api.md`, `spec-backend-railway.md`.
+`plataforma/servidor.py` es un proceso de biblioteca estándar en memoria; no es
+la API ni el servicio de Railway, y no cumple esas tres especificaciones.
 
 ## 2. Destino (propuesta)
 
@@ -102,26 +116,21 @@ hoy; **línea punteada** = enlace que falta o destino propuesto.
 
 | Capa | Opción | Decisión | Motivo (del repositorio) | Límite de esta elección |
 |---|---|---|---|---|
-| Front | **Vercel** | **se usa (destino)** | Una sola aplicación para Herencia con cuatro módulos de vertical: el front es un artefacto desplegable único y sin estado de negocio; encaja con «un solo front, cuatro verticales». | Solo fija dónde vivirá el artefacto. No elige runtime ni framework, no crea el proyecto, no despliega nada. |
-| API + Backend | **Railway** | **se usa (destino)** | Un solo servicio core+verticales con puertos vacíos: Railway alojaría el proceso único y sus variables de entorno; no se inventa un segundo backend por vertical. | Solo fija dónde vivirá el artefacto. Sin runtime, sin persistencia, sin proyecto creado. |
+| Front | **Vercel** | **se construye** | Una sola aplicación para Herencia. En esta versión la pantalla es `/hotel`; las otras tres rutas quedan vacías. | Next.js. Spec: `spec-front-vercel.md`. Sin despliegue a producción en este corte. |
+| API | contrato | **se construye** | Diez operaciones del hotel, sesión por cookie, idempotencia. | Spec: `spec-api.md`. No es el OpenAPI heredado ni `plataforma/servidor.py`. |
+| Backend | **Railway** | **se construye** | Un proceso con núcleo y hotel. | Python, FastAPI, PostgreSQL 17. Spec: `spec-backend-railway.md`. Sin pasarela ni OTA. |
 
-**Artefactos**: el **front** viviría en Vercel
-(`plataforma-salman-herencia-front`). El **servicio único core+verticales**
-viviría en Railway (`plataforma-salman-herencia-api`). Ninguno existe en
-ninguna de las dos plataformas: esta decisión solo fija dónde viviría cada
-artefacto. Un alojamiento sin runtime ni base de datos no alcanza para
-crearlos.
+**Artefactos**: el front es `plataforma-salman-herencia-front` en Vercel. El
+servicio es `plataforma-salman-herencia-api` en Railway. La decisión del
+2026-10-28 fija runtime, framework y base de datos de ese mínimo. Ninguno de
+los dos proyectos está creado todavía.
 
 ## 5. Lo que sigue sin elegir
 
-- **Runtime y framework** del servicio y del front: se fijan al iniciar el
-  primer T-IMP; los módulos en memoria de hoy son la especificación ejecutable
-  del dominio.
-- **Motor de base de datos**: decisión aparte; no es sinónimo de Q-CORE-03.
-  Hoy no hay persistencia seleccionada.
-- **Q-CORE-03** (specs/000-core/spec.md): solo responsables de datos,
-  retención, recuperación (RPO/RTO), presupuesto y autonomía. No elige motor
-  de base de datos.
+- **Adaptadores reales** de pasarela, DTE, Booking, Airbnb y WhatsApp: siguen
+  en «no configurado». Elegirlos no es parte de este mínimo.
+- **Redis, worker y colas**: fuera de este mínimo.
+- **Q-CORE-03** sigue pendiente para retención, recuperación (RPO/RTO), presupuesto y autonomía. No anula PostgreSQL 17, ya elegido para el servicio de Railway.
 - **Adaptadores de puertos**: PMS (Q-HOT-01 evalúa exportación), channel
   manager (Q-HOT-02), pasarela de pago y proveedor DTE (Q-CORE-02),
   SII/DTE y WhatsApp Business. Todos siguen como puertos «no configurado».

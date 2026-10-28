@@ -1,6 +1,6 @@
 # Especificación — Hotel
 
-Feature: `002-hotel-reservas-concierge`. Fecha: 2026-10-16. Estado: **BLOCKED** para implementación.
+Feature: `002-hotel-reservas-concierge`. Fecha: 2026-10-16. Estado: **EN CONSTRUCCIÓN** como primer módulo del mínimo front / API / backend (decisión del propietario, 2026-10-28; `docs/arquitectura/spec-api.md`). El BLOCKED del 2026-10-16 no gobierna ese mínimo. Booking, Airbnb, pasarela y producción siguen sin autorización.
 Fuente: HOT §2–5; copia conservada en docs/originales. Todos los FR y SC son **REQUISITOS PROPUESTOS**, pendientes de ratificación. Los resultados numéricos son objetivos; no se han medido.
 
 ## Problema, actores y límites
@@ -456,7 +456,7 @@ Como huésped y responsable de recepción, quiero concierge: separar conversaci�
 
 ### Bloqueos adicionales de la profundización
 
-Q-HOT-04/05/06: ver [decisiones pendientes](../../docs/investigacion-competitiva/decisiones-pendientes.md). Son reglas para ratificar, no respuestas inferidas del mercado. Las historias permanecen propuestas y la feature **BLOCKED** para implementar.
+Q-HOT-04/05/06: ver [decisiones pendientes](../../docs/investigacion-competitiva/decisiones-pendientes.md). Son reglas para ratificar, no respuestas inferidas del mercado. Las historias permanecen propuestas. La feature ya no está BLOCKED para el mínimo de `docs/arquitectura/spec-api.md` (decisión del propietario, 2026-10-28). Q-HOT-04/05/06 no autoriza canal, pasarela ni producción.
 
 
 Nota de protocolo: acuse de recepción y aceptación/aplicación se separan conceptualmente, pero el punto de acuse debe respetar el contrato real del canal. El ID de notificación externo se usa solo si el proveedor lo define; sin él, la clave/huella y recuperación requieren investigación, sin inventar campos ni deduplicar todos los cambios por ID de reserva.

@@ -2,7 +2,9 @@
 ## Especificaciones funcionales y técnicas V1.0
 **Destinatarios: equipo de Mikhail y Cristóbal. Propietario funcional: Ricardo Salman. Fecha:25 de octubre de 2026.**
 
-Estado: ESPECIFICACIONES DESARROLLADAS PARA REVISIÓN. No es otro prompt ni una aplicación implementada. La construcción con IA/agentes y SDD fue acordada; no estan aprobados automáticamente stack,proveedores,precios,políticas,datos reales ni producción.
+Estado de esta entrega (2026-10-25): ESPECIFICACIONES DESARROLLADAS PARA REVISIÓN. No es otro prompt ni una aplicación implementada. Proveedores, precios, políticas, datos reales y producción no quedaron aprobados por esta entrega.
+
+Nota del 2026-10-28 (decisión del propietario, prevalece para construir): el mínimo front en Vercel, API y backend en Railway está especificado en `docs/arquitectura/spec-front-vercel.md`, `docs/arquitectura/spec-api.md` y `docs/arquitectura/spec-backend-railway.md`. Esta nota no aprueba pasarelas, OTA ni datos productivos.
 
 ## Lectura y uso
 1. Leer Documento_Maestro_Herencia_V1_0.docx y maestro/M01..M24.md. El Word es vista legible del maestro; el ZIP contiene el detalle contractual completo.

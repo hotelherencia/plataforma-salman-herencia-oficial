@@ -1,6 +1,6 @@
 # Modelo conceptual — Core transversal
 
-Estado: **DRAFT** dentro de feature BLOCKED. No es esquema SQL ni migración.
+Estado: **DRAFT**. La feature está en construcción del mínimo Railway (`docs/arquitectura/spec-backend-railway.md`, 2026-10-28). Este archivo sigue sin ser el esquema SQL de PostgreSQL 17 hasta que ese servicio lo fije.
 
 ## Entidades y relaciones
 

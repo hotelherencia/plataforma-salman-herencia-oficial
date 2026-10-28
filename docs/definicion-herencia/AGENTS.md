@@ -1,6 +1,8 @@
 # Reglas para agentes del proyecto
 
-Primero leer 00_ENTREGA.md, maestro/M01.md, maestro/M17.md, sdd/constitucion.md y la feature activa. Esta entrega desarrolla especificaciones: no autoriza construcción, gastos o producción por si sola. Para implementar hace falta orden aprobada.
+La construcción de la plataforma la rige el `AGENTS.md` de la raíz (decisión del propietario, 2026-10-28): front en Vercel, API y backend en Railway. Este archivo rige solo la definición heredada de `docs/definicion-herencia/`.
+
+Primero leer 00_ENTREGA.md, maestro/M01.md, maestro/M17.md, sdd/constitucion.md y la feature activa. Esta carpeta es la definición heredada: no autoriza gastos ni producción por sí sola. No llama a Webpay, Booking, Airbnb, SII ni WhatsApp.
 
 Mantener IDs 153 originales. Elegir feature por directorio manifiesto y por mecanismo comprobado de la versión de Spec Kit instalada; una rama Git no garantiza contexto de feature. No inventar comandos de integración ni usar contexto de otro repositorio. Código del Grupo Salman separado de VinculaTerritorio.
 

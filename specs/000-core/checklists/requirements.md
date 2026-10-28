@@ -12,7 +12,7 @@
 - [ ] Verificación oficial de Spec Kit ejecutada en entorno instalado.
 - [ ] Feature lista para implementación.
 
-Estado **BLOCKED**: Q-CORE-01: empresas, roles y autorización entre empresas; Q-CORE-02: tratamiento fiscal y proveedor DTE por contribuyente; Q-CORE-03: responsables de datos, retención, recuperación, presupuesto y autonomía. La completitud de archivos no implica preparación de producto.
+Estado **EN CONSTRUCCIÓN** del mínimo de `docs/arquitectura/spec-backend-railway.md` (decisión del propietario, 2026-10-28). Q-CORE-01/02/03 quedaron registradas el 2026-10-27 y ya no frenan ese mínimo. Q-CORE-02 no autoriza proveedor DTE ni pasarela. La completitud de archivos no implica producto desplegado.
 
 ## Revisión competitiva
 

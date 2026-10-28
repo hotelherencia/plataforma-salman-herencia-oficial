@@ -1,6 +1,6 @@
 # Contratos lógicos propuestos — Core transversal
 
-No hay OpenAPI ni endpoints inventados. Este documento fija obligaciones derivadas de los FR para elaborar contratos técnicos tras resolver decisiones.
+Las obligaciones de esta lista siguen vigentes. Identidad, empresa, pago y auditoría de esta versión se implementan dentro del servicio de `docs/arquitectura/spec-backend-railway.md` (decisión del propietario, 2026-10-28). Este archivo no prohíbe esa API. Pasarela y DTE siguen sin adaptador.
 
 ## Sobre común, errores y compatibilidad
 

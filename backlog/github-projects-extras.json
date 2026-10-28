@@ -1,0 +1,392 @@
+{
+  "fecha": "2026-10-28",
+  "project": "hotelherencia/projects/2",
+  "origen": "Issues creados en el repo tras la carga inicial de 150 (numeración 151–205); evidencia: pruebas locales de los incrementos en memoria, 181 pruebas OK el 2026-10-28.",
+  "items": [
+    {
+      "numero": 151,
+      "titulo": "Incremento 1 — inventario local, estados de unidad y cuenta",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/151",
+      "estado_board": "Done",
+      "grupo": "hotel-incremento"
+    },
+    {
+      "numero": 152,
+      "titulo": "Incremento 2 — estadía local: entrada, noche y salida",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/152",
+      "estado_board": "Done",
+      "grupo": "hotel-incremento"
+    },
+    {
+      "numero": 153,
+      "titulo": "Bucle 3 — housekeeping: limpieza y preparación para check-in",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/153",
+      "estado_board": "Done",
+      "grupo": "hotel-incremento"
+    },
+    {
+      "numero": 154,
+      "titulo": "AT-006 — check-in con documento faltante",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/154",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 155,
+      "titulo": "AT-009 — cuenta: anticipos, liquidación e idempotencia",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/155",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 156,
+      "titulo": "AT-007 — servicio a habitación sobre la interfaz de cafetería",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/156",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 157,
+      "titulo": "AC-US-HOT-001-03 — devolución solo con operación financiera autorizada y confirmada",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/157",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 158,
+      "titulo": "AC-US-HOT-002-03 — extras con reglas de cantidad visibles",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/158",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 159,
+      "titulo": "AC-US-HOT-001-04 — previsualizar cambio de tarifa sin aplicar sin aceptación",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/159",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 160,
+      "titulo": "AT-001 — oferta con tarifa, política y vigencia",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/160",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 161,
+      "titulo": "AT-005 — cien intentos concurrentes: máximo una confirmación local",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/161",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 162,
+      "titulo": "AT-008 — mantenimiento impide asignación aunque termine limpieza; cierre autorizado habilita",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/162",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 163,
+      "titulo": "AT-010 — huésped autenticado consulta; ajena denegada; cambio queda borrador y escala",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/163",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 164,
+      "titulo": "AT-011 — acción fuera de política denegada; parámetros modificados invalidan la aprobación",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/164",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 165,
+      "titulo": "AT-012 — upsell con link controlado y conversión solo con pago confirmado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/165",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 166,
+      "titulo": "AT-013 — registro de acciones con fuente, regla, actor y resultado; sin documento del huésped",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/166",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 167,
+      "titulo": "AT-014 — proyección pública de solo lectura sin datos de huésped",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/167",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 168,
+      "titulo": "AT-015 — el flujo hotelero no depende de otras verticales",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/168",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 169,
+      "titulo": "AT-017 — oferta sin vigencia: pendiente sin cupo y transferencia humana registrada",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/169",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 170,
+      "titulo": "AT-018 — cancelar reserva pagada retiene el dinero; otro tenant denegado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/170",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 171,
+      "titulo": "AT-019 — extras con reglas de cantidad; otro tenant denegado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/171",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 172,
+      "titulo": "ADV-001 — cien intentos sobre la última habitación: una sola confirmación",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/172",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 173,
+      "titulo": "AC-US-HOT-001-01 — última unidad y cien intentos: máximo una con cupo",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/173",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 174,
+      "titulo": "AC-US-HOT-001-02 — sucia hoy, vendible en fecha futura",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/174",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 175,
+      "titulo": "AC-US-HOT-001-05 — reintento del cambio: consulta estado, sin segundo cargo",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/175",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 176,
+      "titulo": "AC-US-HOT-002-01 — limpia con mantenimiento abierto bloquea el check-in",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/176",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 177,
+      "titulo": "AC-US-HOT-002-02 — limpieza completa solo cambia preparación; otras fechas intactas",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/177",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 178,
+      "titulo": "AC-US-HOT-002-04 — cargo sin entrega no informa servicio entregado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/178",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 179,
+      "titulo": "AC-US-HOT-002-05 — doble respuesta del conector: una comanda y un cargo",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/179",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 180,
+      "titulo": "AC-US-HOT-003-01 — cancelación: deriva con resumen mínimo; no cancela ni resuelve",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/180",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 181,
+      "titulo": "AC-US-HOT-003-02 — en atención humana no hay acción autónoma ni segunda respuesta",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/181",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 182,
+      "titulo": "AC-US-HOT-003-03 — cancelar y devolver: prepara contexto y escala sin ejecutar",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/182",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 183,
+      "titulo": "AC-US-HOT-003-04 — mismo hecho tres veces: una sola notificación",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/183",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 184,
+      "titulo": "AC-US-HOT-003-05 — link de respuesta no cuenta como reserva pagada sin evidencia",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/184",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 185,
+      "titulo": "AT-008 — FR-008 completo: tarea de mantención vinculada al cierre autorizado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/185",
+      "estado_board": "Done",
+      "grupo": "hotel-aceptacion"
+    },
+    {
+      "numero": 186,
+      "titulo": "AT-001 — cafetería: QR activo abre la carta; revocado o modificado no accede",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/186",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 187,
+      "titulo": "AT-002 — cafetería: editar lo enviado a cocina exige flujo autorizado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/187",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 188,
+      "titulo": "AT-003 — cafetería: una sola comanda con mesa, hora y estado",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/188",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 189,
+      "titulo": "AT-004 — cafetería: dos cobros concurrentes no consumen dos veces el saldo",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/189",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 190,
+      "titulo": "AT-007 — cafetería: gasto con líneas erróneas es borrador; solo el aprobador valida",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/190",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 191,
+      "titulo": "AT-008 — cafetería: receta versionada mueve cada insumo una sola vez",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/191",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 192,
+      "titulo": "AT-009 — cafetería: margen con costos conocidos; ausente no es cero",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/192",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 193,
+      "titulo": "AT-011 — cafetería: propuesta de compra exige aprobación y expira a 48 h",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/193",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 194,
+      "titulo": "AT-012 — cafetería: anulación sobre umbral alerta sin sanción automática",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/194",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 195,
+      "titulo": "AT-015 — cafetería: reparto 10000/3 = 3333,3333,3334 con residuo a la última",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/195",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 196,
+      "titulo": "AT-016 — cafetería: mismo hecho no duplica alertas; caducada no compra",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/196",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 197,
+      "titulo": "ADV-001 — cafetería: dos personas pagan el mismo ítem, una sola imputación",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/197",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 198,
+      "titulo": "AC-US-CAF-001-01 — cafetería: residuo a última parte y comanda única",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/198",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 199,
+      "titulo": "AC-US-CAF-001-02 — cafetería: la parte pagada conserva monto y evidencia",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/199",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 200,
+      "titulo": "AC-US-CAF-002-01 — cafetería: receta sin costo marca margen no calculable",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/200",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 201,
+      "titulo": "AC-US-CAF-003-01 — cafetería: alerta ya emitida se identifica sin nueva acción",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/201",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 202,
+      "titulo": "AC-US-CAF-003-02 — cafetería: propuesta vencida se bloquea y exige revisión",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/202",
+      "estado_board": "Done",
+      "grupo": "vertical-cafeteria"
+    },
+    {
+      "numero": 203,
+      "titulo": "000-core — incremento 1: AC-US-CORE-001/002/003 en memoria (núcleo local)",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/203",
+      "estado_board": "Done",
+      "grupo": "vertical-incremento"
+    },
+    {
+      "numero": 204,
+      "titulo": "003-inmobiliaria — incremento 1: cola local drenada",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/204",
+      "estado_board": "Done",
+      "grupo": "vertical-incremento"
+    },
+    {
+      "numero": 205,
+      "titulo": "004-constructora — incremento 1: cola local drenada",
+      "url": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/205",
+      "estado_board": "Done",
+      "grupo": "vertical-incremento"
+    }
+  ]
+}

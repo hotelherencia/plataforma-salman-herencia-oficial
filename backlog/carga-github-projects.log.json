@@ -1,7 +1,7 @@
 {
   "repo": "hotelherencia/plataforma-salman-herencia-oficial",
   "project": "hotelherencia/projects/2",
-  "items": 150,
+  "items": 155,
   "decision_humana": [
     "000-core/T003",
     "000-core/H1/T-DEC",
@@ -172,6 +172,13 @@
     "004-constructora-obra/H4/T-DEC": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/147",
     "004-constructora-obra/H4/T-DIS": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/148",
     "004-constructora-obra/H4/T-ACC": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/149",
-    "004-constructora-obra/H4/T-IMP": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/150"
-  }
+    "004-constructora-obra/H4/T-IMP": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/150",
+    "001-cafeteria-mesas-pos/T201": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/206",
+    "001-cafeteria-mesas-pos/T202": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/207",
+    "001-cafeteria-mesas-pos/T203": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/208",
+    "001-cafeteria-mesas-pos/T204": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/209",
+    "001-cafeteria-mesas-pos/T205": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/210"
+  },
+  "actualizado": "2026-10-28",
+  "nota": "Reconciliación 2026-10-28: se crean los 5 issues que faltaban del corpus (T201-T205 de 001, #206-#210) y se corrigen 47 estados del tablero a la evidencia de specs/*/tasks.md. Las HU-HOT-01/02/03 (#211-#213) viven en backlog/github-projects-hu-manual.json y los 55 extras (#151-#205) en backlog/github-projects-extras.json."
 }

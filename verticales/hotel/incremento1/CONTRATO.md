@@ -32,6 +32,24 @@ Fecha: 2026-10-27. **PROPUESTA TÉCNICA** (no ratificada). Contrato del módulo
   segundo cargo; propuesta obsoleta o de otra reserva se rechaza.
 - Cancelación: una sola por reserva (`ReservaNoCancelable` en segundo intento).
 
+## Cobro y frontera con el núcleo (PROPUESTA, código en memoria)
+
+- `ServicioHotelInventario(..., cobros=...)` recibe opcionalmente un colaborador
+  con `aplicar_resultado_pago(empresa_id, clave, estado, monto_clp)`, el mismo
+  de `core/incremento1/nucleo`. Tipado como protocolo; el hotel no importa el núcleo.
+- Con `cobros` informado, `registrar_pago` llama al núcleo con la clave
+  `"{reserva_id}:{clave}"` (o `"{reserva_id}:{id del pago}"` sin clave) y con el
+  `estado` indicado (por defecto `"pendiente"`). Si el núcleo rechaza, el hotel no
+  guarda el pago. Un reintento con la misma clave no vuelve a llamar al núcleo.
+- Sin `cobros` el comportamiento es el de antes (compatibilidad de las pruebas de
+  incremento 1). Prueba: `tests/test_cobro_nucleo.py`, que falla si se quita la llamada.
+- No se invoca el puerto de pago. `estado="autorizado"` solo debe usarse con
+  confirmación externa; esta vertical no la tiene.
+- **Decisiones abiertas:** (1) que `cobros` sea obligatorio en el servicio de
+  producción; (2) el estado con el que se registra un cobro en recepción
+  (efectivo o transferencia sin pasarela); (3) si la clave del núcleo debe ser
+  global por empresa en lugar de por reserva.
+
 ## Errores (excepciones)
 
 `AccesoDenegado` · `CheckInNoPermitido` (hora, mantenimiento, unidad no preparada) ·
