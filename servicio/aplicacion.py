@@ -7,6 +7,7 @@ el administrador inicial desde variables de entorno (spec-api-v1).
 """
 import json
 import sys
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -18,9 +19,9 @@ for _ruta in (RAIZ / "core" / "incremento1", RAIZ / "verticales" / "hotel" / "in
         sys.path.insert(0, _s)
 
 import psycopg  # noqa: E402
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response  # noqa: E402
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad  # noqa: E402
 from hotel_inventario.servicio import ServicioHotelInventario  # noqa: E402
@@ -88,33 +89,33 @@ class Credenciales(BaseModel):
 
 
 class HabitacionIn(BaseModel):
-    tipo: str
-    capacidad: int
+    tipo: str = Field(min_length=1, max_length=50)
+    capacidad: int = Field(gt=0, le=30)
 
 
 class TarifaIn(BaseModel):
-    habitacion_id: str
+    habitacion_id: str = Field(min_length=1, max_length=50)
     fecha_desde: date
     fecha_hasta: date
-    tarifa_noche_clp: int
+    tarifa_noche_clp: int = Field(gt=0, le=100_000_000)
 
 
 class HuespedIn(BaseModel):
-    nombre: str
-    documento: str | None = None
+    nombre: str = Field(min_length=1, max_length=200)
+    documento: str | None = Field(default=None, max_length=50)
 
 
 class ReservaIn(BaseModel):
-    habitacion_id: str
+    habitacion_id: str = Field(min_length=1, max_length=50)
     inicio: date
     fin: date
     huesped: HuespedIn
 
 
 class PagoIn(BaseModel):
-    monto_clp: int
-    clave: str
-    modo: str
+    monto_clp: int = Field(gt=0, le=1_000_000_000)
+    clave: str = Field(min_length=1, max_length=100)
+    modo: str = Field(pattern="^(manual|pasarela)$")
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
@@ -125,6 +126,26 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     if configuracion is not None and configuracion.database_url:
         _preparar_base_de_datos(configuracion, aplicacion)
         app.state.database_url = configuracion.database_url
+    app.state.freno_logins = seguridad.FrenoDeLogins()
+
+    if configuracion is not None and configuracion.origen_front:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[configuracion.origen_front],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+    @app.middleware("http")
+    async def cabeceras_seguras(request, call_next):
+        respuesta = await call_next(request)
+        respuesta.headers["X-Content-Type-Options"] = "nosniff"
+        respuesta.headers["X-Frame-Options"] = "DENY"
+        respuesta.headers["Referrer-Policy"] = "no-referrer"
+        return respuesta
 
     @app.get("/salud")
     def salud() -> dict:
@@ -160,12 +181,30 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         return sesion
 
     @app.post("/sesion")
-    def abrir_sesion(credenciales: Credenciales, response: Response, conexion=Depends(_conexion)) -> dict:
+    def abrir_sesion(
+        credenciales: Credenciales,
+        response: Response,
+        request: Request,
+        conexion=Depends(_conexion),
+    ) -> dict:
+        ip = request.client.host if request.client else "desconocida"
+        freno: seguridad.FrenoDeLogins = app.state.freno_logins
+        if freno.bloqueado(ip, credenciales.usuario, time.time()):
+            raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
         auth = seguridad.autenticar(conexion, credenciales.usuario, credenciales.clave)
         if auth is None:
+            freno.registrar_fallo(ip, credenciales.usuario, time.time())
+            seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "rechazado")
+            conexion.commit()
             raise HTTPException(status_code=401, detail="credenciales inválidas")
+        freno.reiniciar(ip, credenciales.usuario)
         usuario_id, empresa_id, rol = auth
-        sid = seguridad.crear_sesion(conexion, usuario_id, empresa_id)
+        config = app.state.configuracion
+        sid = seguridad.crear_sesion(
+            conexion, usuario_id, empresa_id,
+            horas_vigencia=config.session_horas if config else 12,
+        )
+        seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "ok")
         conexion.commit()
         _fijar_cookie(response, sid)
         return {"usuario": credenciales.usuario, "rol": rol, "empresa_id": empresa_id}
@@ -255,7 +294,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     def consultar_oferta(
         inicio: date,
         fin: date,
-        personas: int,
+        personas: int = Query(gt=0, le=30),
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
     ) -> dict:
@@ -292,6 +331,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 return 409, {"error": str(error)}
             except reservas_db.SinTarifaVigente as error:
                 return 409, {"error": str(error)}
+            seguridad.auditar(conexion, sesion.nombre, "reserva", creada["reserva_id"], "confirmada")
             return 201, creada
 
         try:
@@ -323,11 +363,14 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 return 503, {"error": "pasarela no configurada", "estado": "pendiente"}
             _exigir_rol(sesion, cobro.ROLES_PAGO_MANUAL)
             try:
-                return 201, cobro.registrar_pago_manual(
+                registrado = cobro.registrar_pago_manual(
                     conexion, aplicacion.nucleo, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave
                 )
             except cobro.PagoRechazadoPorNucleo as error:
+                seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "rechazado-nucleo")
                 return 403, {"error": str(error)}
+            seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "confirmado")
+            return 201, registrado
 
         try:
             codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
@@ -357,9 +400,11 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
         def operacion() -> tuple[int, dict]:
             try:
-                return 200, cobro.entrada(conexion, sesion.empresa_id, reserva_id)
+                ingreso = cobro.entrada(conexion, sesion.empresa_id, reserva_id)
             except (cobro.HabitacionNoLista, cobro.TransicionInvalida) as error:
                 return 409, {"error": str(error)}
+            seguridad.auditar(conexion, sesion.nombre, "entrada", reserva_id, "en_estadia")
+            return 200, ingreso
 
         try:
             codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
@@ -380,9 +425,11 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
         def operacion() -> tuple[int, dict]:
             try:
-                return 200, cobro.salida(conexion, sesion.empresa_id, reserva_id)
+                liquidada = cobro.salida(conexion, sesion.empresa_id, reserva_id)
             except (cobro.SaldoPendiente, cobro.TransicionInvalida) as error:
                 return 409, {"error": str(error)}
+            seguridad.auditar(conexion, sesion.nombre, "salida", reserva_id, "liquidada")
+            return 200, liquidada
 
         try:
             codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
@@ -395,6 +442,10 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     @app.exception_handler(cobro.PagoRechazadoPorNucleo)
     async def manejar_acceso(_request: Request, _exc: Exception) -> Response:
         return Response(content='{"error":"acceso denegado"}', status_code=403, media_type="application/json")
+
+    @app.exception_handler(psycopg.IntegrityError)
+    async def manejar_integridad(_request: Request, _exc: psycopg.IntegrityError) -> Response:
+        return Response(content='{"error":"conflicto de integridad"}', status_code=409, media_type="application/json")
 
     @app.exception_handler(reservas_db.SinCupo)
     @app.exception_handler(reservas_db.SinTarifaVigente)

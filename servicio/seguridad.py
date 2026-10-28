@@ -6,6 +6,8 @@
 - La regla 403 se resuelve antes que cualquier existencia: una sesión de otra
   empresa recibe el mismo rechazo con o sin recurso.
 """
+import threading
+import time
 import uuid
 from dataclasses import dataclass
 
@@ -75,11 +77,11 @@ def autenticar(conexion: psycopg.Connection, nombre: str, clave: str) -> tuple[s
     return fila[0], fila[1], fila[2]
 
 
-def crear_sesion(conexion: psycopg.Connection, usuario_id: str, empresa_id: str) -> str:
+def crear_sesion(conexion: psycopg.Connection, usuario_id: str, empresa_id: str, horas_vigencia: int = 12) -> str:
     sid = uuid.uuid4().hex
     conexion.execute(
-        "INSERT INTO sesiones (id, usuario_id, empresa_id) VALUES (%s, %s, %s)",
-        (sid, usuario_id, empresa_id),
+        "INSERT INTO sesiones (id, usuario_id, empresa_id, expira_en) VALUES (%s, %s, %s, now() + (%s || ' hours')::interval)",
+        (sid, usuario_id, empresa_id, str(horas_vigencia)),
     )
     return sid
 
@@ -88,12 +90,43 @@ def obtener_sesion_activa(conexion: psycopg.Connection, sid: str) -> SesionActiv
     fila = conexion.execute(
         "SELECT s.id, s.usuario_id, s.empresa_id, u.rol, u.nombre "
         "FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id "
-        "WHERE s.id = %s AND s.revocada_en IS NULL",
+        "WHERE s.id = %s AND s.revocada_en IS NULL AND (s.expira_en IS NULL OR s.expira_en > now())",
         (sid,),
     ).fetchone()
     if fila is None:
         return None
     return SesionActiva(sid=fila[0], usuario_id=fila[1], empresa_id=fila[2], rol=fila[3], nombre=fila[4])
+
+
+def auditar(conexion: psycopg.Connection, actor: str, accion: str, recurso: str, resultado: str) -> None:
+    conexion.execute(
+        "INSERT INTO auditoria (id, actor, accion, recurso, resultado) VALUES (%s, %s, %s, %s, %s)",
+        (f"AUD-{uuid.uuid4().hex[:12]}", actor, accion, recurso, resultado),
+    )
+
+
+class FrenoDeLogins:
+    """Freno de fuerza bruta en memoria por proceso: 5 fallos en 5 minutos bloquean 5 minutos."""
+
+    def __init__(self, max_intentos: int = 5, ventana_segundos: int = 300) -> None:
+        self._max = max_intentos
+        self._ventana = ventana_segundos
+        self._fallos: dict[tuple[str, str], list[float]] = {}
+        self._cerrojo = threading.Lock()
+
+    def bloqueado(self, ip: str, usuario: str, ahora: float) -> bool:
+        with self._cerrojo:
+            fallos = [t for t in self._fallos.get((ip, usuario), []) if ahora - t < self._ventana]
+            self._fallos[(ip, usuario)] = fallos
+            return len(fallos) >= self._max
+
+    def registrar_fallo(self, ip: str, usuario: str, ahora: float) -> None:
+        with self._cerrojo:
+            self._fallos.setdefault((ip, usuario), []).append(ahora)
+
+    def reiniciar(self, ip: str, usuario: str) -> None:
+        with self._cerrojo:
+            self._fallos.pop((ip, usuario), None)
 
 
 def revocar_sesion(conexion: psycopg.Connection, sid: str) -> None:

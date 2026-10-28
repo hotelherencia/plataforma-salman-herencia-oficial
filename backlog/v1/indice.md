@@ -11,9 +11,9 @@ El corpus documental de ciclos previos queda cerrado en el tablero (ver
 
 ## Épicas y hitos
 
-- [Lista] P1 `v1-api` — Contrato API → `v1-api/h1` publicar el OpenAPI 3.1 servido por el backend.
-- [Lista] P1 `v1-back` — Backend Railway → **`h1` Hecha 2026-10-28** (6 pruebas `servicio/tests/test_h1.py`, humo `/salud` 200, 181 de dominio OK) · **`h2` Hecha 2026-10-28** (7 pruebas `servicio/tests/test_h2.py`, humo con PostgreSQL 16 local OK) · **`h3` Hecha 2026-10-28** (7 pruebas `servicio/tests/test_h3.py`: carrera 100→1, tarifa congelada, oferta con vigencia, idempotencia) · **`h4` Hecha 2026-10-28** (10 pruebas `servicio/tests/test_h4.py`: cobro por el núcleo, 503 pasarela, caja, entrada/salida; idempotencia en toda mutación) · `h5` persistencia tras reinicio.
-- [Lista] P1 `v1-front` — Front Vercel → `h6a` esqueleto y login · `h6b` siete pantallas · `h6c` reglas duras y error sin API.
+- [Hecha 2026-10-28] P1 `v1-api` — Contrato API → **`h1` Hecha**: el OpenAPI 3.1 servido por el backend (`/openapi.json`) cubre las 10 operaciones; prueba de contrato en `test_h5_maduracion.py`.
+- [Lista] P1 `v1-back` — Backend Railway → **H1–H5 Hechas 2026-10-28** (arranque, sesión, reserva persistente, cobro por el núcleo, maduración con validación/seguridad/auditoría y prueba de reinicio real; 39 pruebas del servicio + 181 del dominio).
+- [Lista] P1 `v1-front` — Front Vercel → `h6a` esqueleto y login · `h6b` siete pantallas · `h6c` reglas duras y error sin API. **Siguiente.**
 - [Lista] P2 `v1-desp` — Despliegue H7 → verificar cuentas, push (derogación solo H7), Railway, Vercel.
 
 Criterio de aceptación de cada hito: las pruebas citadas en su historia, con

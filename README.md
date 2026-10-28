@@ -75,11 +75,13 @@ no es la API ni el servicio de Railway.
 
 **Construcción (2026-10-28):** el backend real está en `servicio/` — H1
 arranque con regla de empresa, H2 sesión argon2id, H3 reserva persistente con
-constraint de no solape, H4 cobro por el núcleo con entrada/salida/caja,
-**verificados** (30 pruebas del servicio + 181 del dominio OK; humo real
-contra PostgreSQL local; demo en http://127.0.0.1:8080). Faltan: H5
-persistencia tras reinicio (prueba dedicada), H6 front (aún no hay diseño
-visual; solo contrato), H7 despliegue. El código local es en memoria y sin red: incremento 0 del hotel
+constraint de no solape, H4 cobro por el núcleo con entrada/salida/caja, H5
+persistencia tras reinicio y una pasada de maduración (validación de datos,
+expiración de sesiones, freno de fuerza bruta, CORS, cabeceras seguras,
+contrato OpenAPI servido, auditoría de mutaciones), **todo verificado** (39
+pruebas del servicio + 181 del dominio OK; humo real; demo en
+http://127.0.0.1:8080). Faltan: H6 front (aún no hay diseño visual; solo
+contrato), H7 despliegue. El código local es en memoria y sin red: incremento 0 del hotel
 (17 pruebas OK) e incremento 1 del núcleo y de las cuatro verticales
 (9 + 102 hotel + 19 cafetería + 20 inmobiliaria + 14 constructora, todas OK,
 solo biblioteca estándar; propuesta técnica no ratificada). El 2026-10-28 se

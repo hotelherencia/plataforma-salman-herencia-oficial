@@ -12,6 +12,7 @@ class Configuracion:
     origen_front: str | None
     admin_usuario: str | None
     admin_clave: str | None
+    session_horas: int = 12
 
 
 def cargar_desde_entorno() -> Configuracion:
@@ -23,4 +24,5 @@ def cargar_desde_entorno() -> Configuracion:
         origen_front=os.environ.get("ORIGEN_FRONT"),
         admin_usuario=os.environ.get("ADMIN_USUARIO"),
         admin_clave=os.environ.get("ADMIN_CLAVE"),
+        session_horas=int(os.environ.get("SESSION_HORAS", "12")),
     )

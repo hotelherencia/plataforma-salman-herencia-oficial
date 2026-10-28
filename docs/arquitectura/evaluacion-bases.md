@@ -247,3 +247,16 @@ mutación (PUT incluidos): mismo cuerpo repite, otro cuerpo 409. Una reserva
 ajena o inexistente responde 403 sin revelar cuál es el caso. Evidencia: 10
 pruebas en `servicio/tests/test_h4.py`, humo real del flujo completo y 181
 del dominio sin roturas.
+
+**Maduración y H5 (2026-10-28, verificado).** Validación de los datos que se
+consumen (límites pydantic: montos, capacidades, claves, modos → 422;
+errores de integridad → 409, sin 500). Diseño seguro: sesiones con
+expiración (`SESSION_HORAS`, por defecto 12), freno de fuerza bruta en login
+(5 fallos en 5 minutos → 429, por IP y usuario), CORS restringido a
+`ORIGEN_FRONT`, cabeceras `X-Content-Type-Options`/`X-Frame-Options`/
+`Referrer-Policy`. Contrato: `/openapi.json` (OpenAPI 3.1 servido por el
+backend) verificado contra las 10 operaciones. Imputación: tabla `auditoria`
+con actor, acción, recurso y resultado en reserva, pago, entrada, salida y
+login. H5: prueba de reinicio real — el proceso A registra reserva y pago,
+se termina, el proceso B (misma base) lee la caja del día y la ocupación.
+Backend maduro: 39 pruebas del servicio y 181 del dominio en verde.
