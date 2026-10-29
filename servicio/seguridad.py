@@ -15,6 +15,8 @@ import psycopg
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 
+from . import totp
+
 _HASHER = PasswordHasher(type=Type.ID)
 
 
@@ -68,13 +70,36 @@ def asegurar_admin_inicial(
     crear_usuario(conexion, empresa_id=empresa_id, nombre=admin_usuario, rol="administrador", clave=admin_clave)
 
 
-def autenticar(conexion: psycopg.Connection, nombre: str, clave: str) -> tuple[str, str, str] | None:
+def autenticar(conexion: psycopg.Connection, nombre: str, clave: str) -> tuple[str, str, str, bool] | None:
     fila = conexion.execute(
-        "SELECT id, empresa_id, rol, clave_hash FROM usuarios WHERE nombre = %s", (nombre,)
+        "SELECT id, empresa_id, rol, clave_hash, totp_activado FROM usuarios WHERE nombre = %s", (nombre,)
     ).fetchone()
     if fila is None or not verificar_clave(fila[3], clave):
         return None
-    return fila[0], fila[1], fila[2]
+    return fila[0], fila[1], fila[2], fila[4]
+
+
+def buscar_usuario_por_email(conexion: psycopg.Connection, email: str) -> tuple[str, str, str, str] | None:
+    """Identidad vinculada a Google: (id, empresa_id, rol, nombre) o None."""
+    fila = conexion.execute(
+        "SELECT id, empresa_id, rol, nombre FROM usuarios WHERE email = %s", (email,)
+    ).fetchone()
+    if fila is None:
+        return None
+    return fila[0], fila[1], fila[2], fila[3]
+
+
+def vincular_email(conexion: psycopg.Connection, nombre: str, email: str) -> None:
+    """Asigna el email al usuario (arranque, desde ADMIN_EMAIL). No pisa a otro dueño."""
+    dueno = conexion.execute(
+        "SELECT nombre FROM usuarios WHERE email = %s", (email,)
+    ).fetchone()
+    if dueno is not None and dueno[0] != nombre:
+        return
+    conexion.execute(
+        "UPDATE usuarios SET email = %s WHERE nombre = %s AND email IS DISTINCT FROM %s",
+        (email, nombre, email),
+    )
 
 
 def crear_sesion(conexion: psycopg.Connection, usuario_id: str, empresa_id: str, horas_vigencia: int = 12) -> str:
@@ -84,6 +109,34 @@ def crear_sesion(conexion: psycopg.Connection, usuario_id: str, empresa_id: str,
         (sid, usuario_id, empresa_id, str(horas_vigencia)),
     )
     return sid
+
+
+def iniciar_alta_totp(conexion: psycopg.Connection, usuario_id: str) -> str:
+    """Genera el secreto TOTP y lo guarda pendiente: no activa nada todavía."""
+    secreto = totp.generar_secreto()
+    conexion.execute(
+        "UPDATE usuarios SET totp_secreto = %s, totp_activado = FALSE WHERE id = %s",
+        (secreto, usuario_id),
+    )
+    return secreto
+
+
+def secreto_totp(conexion: psycopg.Connection, usuario_id: str) -> str | None:
+    fila = conexion.execute(
+        "SELECT totp_secreto FROM usuarios WHERE id = %s", (usuario_id,)
+    ).fetchone()
+    return fila[0] if fila else None
+
+
+def activar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
+    conexion.execute("UPDATE usuarios SET totp_activado = TRUE WHERE id = %s", (usuario_id,))
+
+
+def desactivar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
+    conexion.execute(
+        "UPDATE usuarios SET totp_activado = FALSE, totp_secreto = NULL WHERE id = %s",
+        (usuario_id,),
+    )
 
 
 def obtener_sesion_activa(conexion: psycopg.Connection, sid: str) -> SesionActiva | None:

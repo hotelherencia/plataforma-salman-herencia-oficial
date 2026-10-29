@@ -27,11 +27,13 @@ export default function SalidaPage() {
 
   return (
     <MarcoHotel titulo="Check-out (salida y liquidación)">
-      <form onSubmit={checkOut}>
-        <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
-        <button type="submit">Liquidar cuenta</button>
-      </form>
-      {error && <p role="alert">{error}</p>}
+      <section className="tarjeta">
+        <form className="formulario" onSubmit={checkOut}>
+          <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+          <button type="submit" className="boton-primario">Liquidar cuenta</button>
+        </form>
+      </section>
+      {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>
   )

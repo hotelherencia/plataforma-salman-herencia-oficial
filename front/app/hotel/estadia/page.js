@@ -27,11 +27,13 @@ export default function Estadia() {
 
   return (
     <MarcoHotel titulo="Check-in (entrada a la estadía)">
-      <form onSubmit={checkIn}>
-        <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
-        <button type="submit">Registrar entrada</button>
-      </form>
-      {error && <p role="alert">{error}</p>}
+      <section className="tarjeta">
+        <form className="formulario" onSubmit={checkIn}>
+          <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+          <button type="submit" className="boton-primario">Registrar entrada</button>
+        </form>
+      </section>
+      {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>
   )

@@ -1,6 +1,30 @@
-"""Configuración del servicio: solo variables de entorno, nunca un .env en el repo."""
+"""Configuración del servicio: variables de entorno, nunca un .env en el repo.
+
+El .env local (ignorado por git) se carga si existe, con stdlib y sin
+imprimir valores: las variables ya presentes en el entorno del proceso
+mandan sobre las del archivo. Los secretos viven ahí o en las variables del
+despliegue (Railway/Vercel), jamás en el código.
+"""
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+def _cargar_env(archivo: Path = RAIZ / ".env") -> None:
+    """Define en os.environ las claves del .env que aún no existan."""
+    if not archivo.is_file():
+        return
+    for linea in archivo.read_text(encoding="utf-8").splitlines():
+        linea = linea.strip()
+        if not linea or linea.startswith("#") or "=" not in linea:
+            continue
+        clave, valor = linea.split("=", 1)
+        clave = clave.strip()
+        valor = valor.strip().strip('"').strip("'")
+        if clave and clave not in os.environ:
+            os.environ[clave] = valor
 
 
 @dataclass(frozen=True)
@@ -13,9 +37,14 @@ class Configuracion:
     admin_usuario: str | None
     admin_clave: str | None
     session_horas: int = 12
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    admin_email: str | None = None
+    front_url: str = "http://localhost:3000"
 
 
 def cargar_desde_entorno() -> Configuracion:
+    _cargar_env()
     return Configuracion(
         host=os.environ.get("SERVICIO_HOST", "127.0.0.1"),
         puerto=int(os.environ.get("SERVICIO_PUERTO", "8080")),
@@ -25,4 +54,8 @@ def cargar_desde_entorno() -> Configuracion:
         admin_usuario=os.environ.get("ADMIN_USUARIO"),
         admin_clave=os.environ.get("ADMIN_CLAVE"),
         session_horas=int(os.environ.get("SESSION_HORAS", "12")),
+        google_client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+        google_client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+        admin_email=os.environ.get("ADMIN_EMAIL"),
+        front_url=os.environ.get("FRONT_URL", "http://localhost:3000"),
     )

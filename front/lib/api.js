@@ -6,6 +6,11 @@ const BASE = process.env.API_BASE_URL
 
 export class ApiCaida extends Error {}
 
+/** URL absoluta de la API para recursos binarios (imágenes, descargas). */
+export function urlApi(ruta) {
+  return BASE + ruta
+}
+
 /** Cliente HTTP del front: solo habla con API_BASE_URL y jamás calcula negocio. */
 export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia } = {}) {
   const cabeceras = {}
@@ -51,17 +56,24 @@ export function useSesion() {
 /** Marco común: con API caída muestra error y ninguna operación se confirma. */
 export function MarcoHotel({ children, titulo }) {
   const sesion = useSesion()
-  if (sesion.fase === 'cargando') return <main><p>Cargando…</p></main>
+  if (sesion.fase === 'cargando')
+    return (
+      <main className="pagina">
+        <p className="estado">Cargando…</p>
+      </main>
+    )
   if (sesion.fase === 'caida')
     return (
-      <main>
+      <main className="pagina">
         <h1>{titulo}</h1>
-        <p role="alert">La API no está disponible: nada se puede leer ni confirmar.</p>
+        <p role="alert" className="alerta">
+          La API no está disponible: nada se puede leer ni confirmar.
+        </p>
       </main>
     )
   if (sesion.fase === 'fuera')
     return (
-      <main>
+      <main className="pagina">
         <h1>{titulo}</h1>
         <p>
           Sesión cerrada. <a href="/login">Inicia sesión</a>.
@@ -69,11 +81,13 @@ export function MarcoHotel({ children, titulo }) {
       </main>
     )
   return (
-    <main>
-      <h1>{titulo}</h1>
-      <p>
-        Operando como {sesion.usuario.usuario} ({sesion.usuario.rol})
-      </p>
+    <main className="pagina">
+      <header className="pagina-cabecera">
+        <h1>{titulo}</h1>
+        <p className="operador">
+          Operando como {sesion.usuario.usuario} · {sesion.usuario.rol}
+        </p>
+      </header>
       {children}
     </main>
   )
@@ -81,18 +95,25 @@ export function MarcoHotel({ children, titulo }) {
 
 export function SalidaJson({ datos }) {
   if (!datos) return null
-  return (
-    <pre style={{ background: '#f4f4f4', padding: '0.75rem', overflowX: 'auto' }}>
-      {JSON.stringify(datos, null, 2)}
-    </pre>
-  )
+  return <pre className="json-panel">{JSON.stringify(datos, null, 2)}</pre>
 }
 
 export function Campo({ etiqueta, ...props }) {
   return (
-    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-      {etiqueta}{' '}
-      <input style={{ maxWidth: '16rem', width: '100%' }} {...props} />
+    <label className="campo">
+      <span className="campo-etiqueta">{etiqueta}</span>
+      <input className="entrada" {...props} />
+    </label>
+  )
+}
+
+export function CampoSelect({ etiqueta, children, ...props }) {
+  return (
+    <label className="campo">
+      <span className="campo-etiqueta">{etiqueta}</span>
+      <select className="entrada" {...props}>
+        {children}
+      </select>
     </label>
   )
 }

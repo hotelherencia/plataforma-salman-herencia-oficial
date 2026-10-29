@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo } from '../../../lib/api'
+import { api, MarcoHotel, SalidaJson, Campo, CampoSelect } from '../../../lib/api'
 
 export default function Pago() {
   const [campos, setCampos] = useState({
@@ -38,22 +38,21 @@ export default function Pago() {
 
   return (
     <MarcoHotel titulo="Pago">
-      <form onSubmit={cobrar}>
-        <Campo etiqueta="Reserva" value={campos.reserva_id} onChange={(e) => setCampos({ ...campos, reserva_id: e.target.value })} />
-        <Campo etiqueta="Monto (CLP)" type="number" value={campos.monto_clp} onChange={(e) => setCampos({ ...campos, monto_clp: e.target.value })} />
-        <Campo etiqueta="Clave del cobro" value={campos.clave} onChange={(e) => setCampos({ ...campos, clave: e.target.value })} />
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Modo{' '}
-          <select value={campos.modo} onChange={(e) => setCampos({ ...campos, modo: e.target.value })}>
+      <section className="tarjeta">
+        <form className="formulario" onSubmit={cobrar}>
+          <Campo etiqueta="Reserva" value={campos.reserva_id} onChange={(e) => setCampos({ ...campos, reserva_id: e.target.value })} />
+          <Campo etiqueta="Monto (CLP)" type="number" value={campos.monto_clp} onChange={(e) => setCampos({ ...campos, monto_clp: e.target.value })} />
+          <Campo etiqueta="Clave del cobro" value={campos.clave} onChange={(e) => setCampos({ ...campos, clave: e.target.value })} />
+          <CampoSelect etiqueta="Modo" value={campos.modo} onChange={(e) => setCampos({ ...campos, modo: e.target.value })}>
             <option value="manual">Manual de caja (efectivo/transferencia)</option>
             <option value="pasarela">Pasarela (no configurada)</option>
-          </select>
-        </label>
-        <button type="submit">Registrar pago</button>
-      </form>
-      {clave && <p>Clave de idempotencia: {clave}</p>}
-      {aviso503 && <p role="alert">La pasarela no está configurada: nada quedó marcado como cobrado.</p>}
-      {error && <p role="alert">{error}</p>}
+          </CampoSelect>
+          <button type="submit" className="boton-primario">Registrar pago</button>
+        </form>
+      </section>
+      {clave && <p className="nota-clave">Clave de idempotencia: <code>{clave}</code></p>}
+      {aviso503 && <p role="alert" className="alerta">La pasarela no está configurada: nada quedó marcado como cobrado.</p>}
+      {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>
   )

@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { api } from '../lib/api'
 
 const ENLACES = [
@@ -13,6 +15,8 @@ const ENLACES = [
 ]
 
 export default function BarraNav() {
+  const ruta = usePathname()
+
   async function salir() {
     try {
       await api('/sesion', { metodo: 'DELETE' })
@@ -22,13 +26,37 @@ export default function BarraNav() {
   }
 
   return (
-    <nav style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.95rem' }}>
-      <strong>Herencia</strong>
-      {ENLACES.map(([ruta, nombre]) => (
-        <a key={ruta} href={ruta}>{nombre}</a>
-      ))}
-      <span style={{ color: '#999' }}>Cafetería · Inmobiliaria · Constructora (fuera de V1)</span>
-      <button onClick={salir} style={{ marginLeft: 'auto' }}>Salir</button>
-    </nav>
+    <aside className="barra">
+      <div className="marca">
+        <span className="marca-punto" />
+        <span>
+          Herencia
+          <span className="marca-sub">Grupo Salman · Hotel</span>
+        </span>
+      </div>
+      <nav className="nav">
+        {ENLACES.map(([href, nombre]) => (
+          <Link
+            key={href}
+            href={href}
+            className={ruta === href ? 'nav-enlace activo' : 'nav-enlace'}
+          >
+            {nombre}
+          </Link>
+        ))}
+      </nav>
+      <Link
+        href="/cuenta"
+        className={ruta === '/cuenta' ? 'nav-enlace nav-cuenta activo' : 'nav-enlace nav-cuenta'}
+      >
+        Mi cuenta
+      </Link>
+      <div className="barra-pie">
+        <p className="barra-modulos">
+          Cafetería · Inmobiliaria · Constructora — fuera de V1
+        </p>
+        <button onClick={salir} className="boton-salir">Cerrar sesión</button>
+      </div>
+    </aside>
   )
 }

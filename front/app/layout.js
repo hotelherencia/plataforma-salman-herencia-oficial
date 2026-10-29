@@ -1,4 +1,5 @@
-import BarraNav from './barra.jsx'
+import './globals.css'
+import Lienzo from './lienzo.jsx'
 
 export const metadata = {
   title: 'Plataforma Herencia',
@@ -8,9 +9,8 @@ export const metadata = {
 export default function Layout({ children }) {
   return (
     <html lang="es">
-      <body style={{ fontFamily: 'system-ui, sans-serif', margin: '1.5rem auto', maxWidth: '46rem', padding: '0 1rem' }}>
-        <BarraNav />
-        {children}
+      <body>
+        <Lienzo>{children}</Lienzo>
       </body>
     </html>
   )

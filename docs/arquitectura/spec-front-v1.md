@@ -29,6 +29,18 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 6. `/hotel/salida` — liquidación de la cuenta.
 7. `/hotel/caja` — pagos del día ligados a reserva.
 
+## Rutas de cuenta
+
+- `/login` — con la cuenta en doble factor, el flujo pide después el código
+  del autenticador (DECISIÓN, 2026-10-29: ver spec-api-v1, «Segundo factor
+  TOTP»). Debajo del formulario (que no se toca), botón **«Entrar con
+  Google»** que navega a `GET /auth/google` (redirección, no `fetch`) y se
+  muestra solo si `GET /auth/google/estado` responde `configurado: true`
+  (DECISIÓN, 2026-10-29, ver spec-api-v1, «Login con Google»); la misma
+  pantalla anuncia `?error=cuenta_sin_vinculo` y `?error=acceso_denegado`.
+- `/cuenta` — alta y baja del segundo factor (Google Authenticator): genera
+  el secreto, muestra la clave de configuración y confirma con un código.
+
 ## Criterio de aceptación
 
 1. **Con la API apagada, el front muestra error y no confirma una reserva.**

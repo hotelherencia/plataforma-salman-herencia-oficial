@@ -24,24 +24,46 @@ export default function Caja() {
 
   return (
     <MarcoHotel titulo="Caja del día">
-      <form onSubmit={consultar}>
-        <Campo etiqueta="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-        <button type="submit">Ver caja</button>
-      </form>
-      {error && <p role="alert">{error}</p>}
+      <section className="tarjeta">
+        <form className="formulario" onSubmit={consultar}>
+          <Campo etiqueta="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <button type="submit" className="boton-primario">Ver caja</button>
+        </form>
+      </section>
+      {error && <p role="alert" className="alerta">{error}</p>}
       {caja && (
         <>
-          <p>
+          <p className="resumen">
             Total del día: <strong>${caja.total_clp}</strong>
           </p>
-          <ul>
-            {caja.pagos.map((p) => (
-              <li key={p.pago_id}>
-                {p.pago_id} · reserva {p.reserva_id} · habitación {p.habitacion_id} · ${p.monto_clp} · {p.modo} · {p.estado}
-              </li>
-            ))}
-          </ul>
-          {caja.pagos.length === 0 && <p>Sin pagos registrados en esta fecha.</p>}
+          {caja.pagos.length > 0 ? (
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Pago</th>
+                  <th>Reserva</th>
+                  <th>Habitación</th>
+                  <th>Monto</th>
+                  <th>Modo</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {caja.pagos.map((p) => (
+                  <tr key={p.pago_id}>
+                    <td>{p.pago_id}</td>
+                    <td>{p.reserva_id}</td>
+                    <td>{p.habitacion_id}</td>
+                    <td>${p.monto_clp}</td>
+                    <td>{p.modo}</td>
+                    <td>{p.estado}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="estado">Sin pagos registrados en esta fecha.</p>
+          )}
         </>
       )}
     </MarcoHotel>

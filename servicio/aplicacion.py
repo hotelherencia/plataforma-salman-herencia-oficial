@@ -20,7 +20,7 @@ for _ruta in (RAIZ / "core" / "incremento1", RAIZ / "verticales" / "hotel" / "in
 
 import psycopg  # noqa: E402
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad  # noqa: E402
@@ -31,8 +31,11 @@ from .configuracion import Configuracion, cargar_desde_entorno  # noqa: E402
 from .migracion import aplicar_migraciones  # noqa: E402
 from . import seguridad  # noqa: E402
 from . import idempotencia  # noqa: E402
+from . import google_oidc  # noqa: E402
 from . import reservas as reservas_db  # noqa: E402
 from . import cobro  # noqa: E402
+from . import totp  # noqa: E402
+from . import totp_qr  # noqa: E402
 
 NOMBRE_COOKIE_SESION = "sid"
 
@@ -75,6 +78,8 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
                 admin_usuario=config.admin_usuario,
                 admin_clave=config.admin_clave,
             )
+            if config.admin_email and config.admin_usuario:
+                seguridad.vincular_email(conexion, config.admin_usuario, config.admin_email)
             reservas_db.sembrar_habitaciones(conexion)
             conexion.commit()
     except RuntimeError as error:
@@ -86,6 +91,11 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
 class Credenciales(BaseModel):
     usuario: str
     clave: str
+    totp: str | None = Field(default=None, min_length=6, max_length=10)
+
+
+class CodigoTotpIn(BaseModel):
+    codigo: str = Field(min_length=6, max_length=10)
 
 
 class HabitacionIn(BaseModel):
@@ -127,6 +137,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         _preparar_base_de_datos(configuracion, aplicacion)
         app.state.database_url = configuracion.database_url
     app.state.freno_logins = seguridad.FrenoDeLogins()
+    app.state.estados_oauth = google_oidc.EstadosOAuth()
 
     if configuracion is not None and configuracion.origen_front:
         from fastapi.middleware.cors import CORSMiddleware
@@ -201,8 +212,19 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             conexion.commit()
             raise HTTPException(status_code=401, detail="credenciales inválidas")
         freno.reiniciar(ip, credenciales.usuario)
-        usuario_id, empresa_id, rol = auth
+        usuario_id, empresa_id, rol, totp_activado = auth
         config = app.state.configuracion
+        if totp_activado:
+            secreto = seguridad.secreto_totp(conexion, usuario_id)
+            if not credenciales.totp:
+                seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "falta codigo 2fa")
+                conexion.commit()
+                raise HTTPException(status_code=401, detail="codigo_totp_requerido")
+            if secreto is None or not totp.verificar(secreto, credenciales.totp):
+                freno.registrar_fallo(ip, credenciales.usuario, time.time())
+                seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado")
+                conexion.commit()
+                raise HTTPException(status_code=401, detail="código 2FA inválido")
         sid = seguridad.crear_sesion(
             conexion, usuario_id, empresa_id,
             horas_vigencia=config.session_horas if config else 12,
@@ -210,7 +232,12 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "ok")
         conexion.commit()
         _fijar_cookie(response, sid)
-        return {"usuario": credenciales.usuario, "rol": rol, "empresa_id": empresa_id}
+        return {
+            "usuario": credenciales.usuario,
+            "rol": rol,
+            "empresa_id": empresa_id,
+            "totp_activado": totp_activado,
+        }
 
     @app.delete("/sesion")
     def cerrar_sesion(request: Request, response: Response, conexion=Depends(_conexion)) -> dict:
@@ -226,8 +253,126 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         return {"estado": "cerrada"}
 
     @app.get("/sesion")
-    def ver_sesion(sesion: seguridad.SesionActiva = Depends(_requerir_sesion)) -> dict:
-        return {"usuario": sesion.nombre, "rol": sesion.rol, "empresa_id": sesion.empresa_id}
+    def ver_sesion(sesion: seguridad.SesionActiva = Depends(_requerir_sesion), conexion=Depends(_conexion)) -> dict:
+        (totp_activado,) = conexion.execute(
+            "SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)
+        ).fetchone()
+        return {
+            "usuario": sesion.nombre,
+            "rol": sesion.rol,
+            "empresa_id": sesion.empresa_id,
+            "totp_activado": totp_activado,
+        }
+
+    # --- Login con Google (OAuth 2.0 / OIDC): adaptador opcional (spec-api-v1).
+    # DECISIÓN 2026-10-29: sustituye al par usuario/clave + TOTP para la
+    # identidad vinculada; no lleva freno de fuerza bruta ni aprovisionamiento.
+
+    @app.get("/auth/google/estado")
+    def estado_login_google() -> dict:
+        return {"configurado": google_oidc.configurado(app.state.configuracion)}
+
+    @app.get("/auth/google")
+    def iniciar_login_google() -> Response:
+        config = app.state.configuracion
+        if not google_oidc.configurado(config):
+            raise HTTPException(status_code=503, detail="no configurado")
+        estado = app.state.estados_oauth.nuevo()
+        url = google_oidc.url_de_consentimiento(config.google_client_id, estado)
+        return RedirectResponse(url, status_code=302)
+
+    @app.get("/auth/google/callback")
+    def callback_login_google(
+        state: str | None = None,
+        code: str | None = None,
+        error: str | None = None,
+        conexion=Depends(_conexion),
+    ) -> Response:
+        config = app.state.configuracion
+        if not google_oidc.configurado(config):
+            raise HTTPException(status_code=503, detail="no configurado")
+        front = config.front_url
+        if error is not None:
+            return RedirectResponse(f"{front}/login?error=acceso_denegado", status_code=302)
+        if state is None or not app.state.estados_oauth.tomar(state):
+            raise HTTPException(status_code=400, detail="state inválido o expirado")
+        if code is None:
+            raise HTTPException(status_code=400, detail="falta el código de autorización")
+        try:
+            tokens = google_oidc.intercambiar_codigo(code, config.google_client_id, config.google_client_secret)
+            claims = google_oidc.verificar_id_token(tokens["id_token"], config.google_client_id)
+        except (google_oidc.ErrorGoogleOidc, KeyError) as fallo:
+            raise HTTPException(status_code=502, detail="fallo al validar la identidad con Google") from fallo
+        email = claims["email"]
+        usuario = seguridad.buscar_usuario_por_email(conexion, email)
+        if usuario is None:
+            seguridad.auditar(conexion, email, "login", "/auth/google/callback", "sin vinculo")
+            conexion.commit()
+            return RedirectResponse(f"{front}/login?error=cuenta_sin_vinculo", status_code=302)
+        usuario_id, empresa_id, _rol, nombre = usuario
+        sid = seguridad.crear_sesion(
+            conexion, usuario_id, empresa_id,
+            horas_vigencia=config.session_horas,
+        )
+        seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "ok")
+        conexion.commit()
+        destino = RedirectResponse(front, status_code=302)
+        _fijar_cookie(destino, sid)
+        return destino
+
+    @app.post("/cuenta/2fa")
+    def iniciar_2fa(
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        """Genera el secreto TOTP pendiente: la cuenta queda igual hasta confirmar."""
+        secreto = seguridad.iniciar_alta_totp(conexion, sesion.usuario_id)
+        seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "alta iniciada")
+        conexion.commit()
+        return {
+            "secreto": secreto,
+            "uri": totp.uri_de_alta(secreto, sesion.nombre),
+        }
+
+    @app.post("/cuenta/2fa/activar")
+    def activar_2fa(
+        cuerpo: CodigoTotpIn,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        secreto = seguridad.secreto_totp(conexion, sesion.usuario_id)
+        if secreto is None:
+            raise HTTPException(status_code=400, detail="no hay alta de 2FA en curso")
+        if not totp.verificar(secreto, cuerpo.codigo):
+            seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa/activar", "rechazado")
+            conexion.commit()
+            raise HTTPException(status_code=400, detail="código 2FA inválido")
+        seguridad.activar_totp(conexion, sesion.usuario_id)
+        seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa/activar", "activado")
+        conexion.commit()
+        return {"estado": "activado"}
+
+    @app.get("/cuenta/2fa/qr")
+    def qr_2fa(
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> Response:
+        """QR (SVG) del secreto vigente: escaneable por Google Authenticator."""
+        secreto = seguridad.secreto_totp(conexion, sesion.usuario_id)
+        if secreto is None:
+            raise HTTPException(status_code=400, detail="no hay secreto 2FA; inicia el alta con POST /cuenta/2fa")
+        svg = totp_qr.uri_a_svg(totp.uri_de_alta(secreto, sesion.nombre))
+        return Response(content=svg, media_type="image/svg+xml")
+
+    @app.delete("/cuenta/2fa")
+    def desactivar_2fa(
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        seguridad.desactivar_totp(conexion, sesion.usuario_id)
+        seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "desactivado")
+        conexion.commit()
+        return {"estado": "desactivado"}
 
     def _exigir_admin(sesion: seguridad.SesionActiva) -> None:
         if sesion.rol != "administrador":
