@@ -1,0 +1,13 @@
+# Configuración de despliegue para Railway (H7).
+# El build usa Nixpacks (requirements.txt en la raíz); el arranque delega en
+# el mismo entrypoint local: `python -m servicio` (uvicorn según Configuracion,
+# host/puerto por variables SERVICIO_HOST/SERVICIO_PUERTO).
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "python -m servicio"
+healthcheckPath = "/salud"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

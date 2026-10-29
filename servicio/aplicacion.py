@@ -278,7 +278,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         if not google_oidc.configurado(config):
             raise HTTPException(status_code=503, detail="no configurado")
         estado = app.state.estados_oauth.nuevo()
-        url = google_oidc.url_de_consentimiento(config.google_client_id, estado)
+        url = google_oidc.url_de_consentimiento(config.google_client_id, estado, config.google_redirect_uri)
         return RedirectResponse(url, status_code=302)
 
     @app.get("/auth/google/callback")
@@ -299,7 +299,9 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         if code is None:
             raise HTTPException(status_code=400, detail="falta el código de autorización")
         try:
-            tokens = google_oidc.intercambiar_codigo(code, config.google_client_id, config.google_client_secret)
+            tokens = google_oidc.intercambiar_codigo(
+                code, config.google_client_id, config.google_client_secret, config.google_redirect_uri
+            )
             claims = google_oidc.verificar_id_token(tokens["id_token"], config.google_client_id)
         except (google_oidc.ErrorGoogleOidc, KeyError) as fallo:
             raise HTTPException(status_code=502, detail="fallo al validar la identidad con Google") from fallo

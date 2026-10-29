@@ -69,10 +69,10 @@ def configurado(config) -> bool:
     return bool(config and config.google_client_id and config.google_client_secret)
 
 
-def url_de_consentimiento(client_id: str, estado: str) -> str:
+def url_de_consentimiento(client_id: str, estado: str, redirect_uri: str = REDIRECT_URI) -> str:
     consulta = urllib.parse.urlencode({
         "client_id": client_id,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": ALCANCE,
         "state": estado,
@@ -80,13 +80,13 @@ def url_de_consentimiento(client_id: str, estado: str) -> str:
     return f"{URL_AUTORIZACION}?{consulta}"
 
 
-def intercambiar_codigo(code: str, client_id: str, client_secret: str) -> dict:
+def intercambiar_codigo(code: str, client_id: str, client_secret: str, redirect_uri: str = REDIRECT_URI) -> dict:
     """POST application/x-www-form-urlencoded al endpoint token de Google."""
     cuerpo = urllib.parse.urlencode({
         "code": code,
         "client_id": client_id,
         "client_secret": client_secret,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }).encode("utf-8")
     try:

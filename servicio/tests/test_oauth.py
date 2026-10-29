@@ -29,6 +29,7 @@ EMAIL_ADMIN = "admin@herencia.cl"
 CLIENT_ID = "cliente-id-de-prueba"
 CLIENT_SECRET = "secreto-de-prueba"
 FRONT = "http://localhost:3000"
+REDIRECT_URI_ESPERADA = "http://localhost:8080/auth/google/callback"
 
 # Clave RSA de prueba (solo tests; nunca comunica con Google).
 N = 136585530483841161549938144051128753564061253337663055522586637208463884019640116907878956151585133373458444840978472297433773589824876194257625163196873155635802260941215775119641954246251051934957827860730276974964886934557923196227422000117141027826407543723080688245901787217268826630022591230758830114877
@@ -152,6 +153,21 @@ class GoogleOauthHttpTest(unittest.TestCase):
         estado = consulta["state"][0]
         self.assertTrue(estado)
 
+    def test_redirect_uri_configurable_por_entorno(self):
+        config = Configuracion(
+            host="127.0.0.1", puerto=0, database_url=URL_TEST, cookie_segura=False,
+            origen_front=None, admin_usuario=ADMIN[0], admin_clave=ADMIN[1],
+            google_client_id=CLIENT_ID, google_client_secret=CLIENT_SECRET,
+            google_redirect_uri="https://api.ejemplo.cl/auth/google/callback",
+            front_url=FRONT,
+        )
+        app = crear_app(configuracion=config)
+        cliente = TestClient(app)
+        r = cliente.get("/auth/google", follow_redirects=False)
+        self.assertEqual(r.status_code, 302)
+        consulta = parse_qs(urlparse(r.headers["location"]).query)
+        self.assertEqual(consulta["redirect_uri"], ["https://api.ejemplo.cl/auth/google/callback"])
+
     def test_flujo_completo_crea_sesion_y_auditoria(self):
         estado = self.estado_fresco()
         token = id_token_de(**claims_google())
@@ -164,7 +180,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
             )
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.headers["location"], FRONT)
-        cambio.assert_called_once_with("codigo-de-prueba", CLIENT_ID, CLIENT_SECRET)
+        cambio.assert_called_once_with("codigo-de-prueba", CLIENT_ID, CLIENT_SECRET, REDIRECT_URI_ESPERADA)
         sid = r.cookies.get("sid")
         self.assertTrue(sid)
         # misma maquinaria que POST /sesion: la cookie abre /sesion

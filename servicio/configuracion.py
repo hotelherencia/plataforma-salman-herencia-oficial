@@ -39,6 +39,7 @@ class Configuracion:
     session_horas: int = 12
     google_client_id: str | None = None
     google_client_secret: str | None = None
+    google_redirect_uri: str = "http://localhost:8080/auth/google/callback"
     admin_email: str | None = None
     front_url: str = "http://localhost:3000"
 
@@ -56,6 +57,7 @@ def cargar_desde_entorno() -> Configuracion:
         session_horas=int(os.environ.get("SESSION_HORAS", "12")),
         google_client_id=os.environ.get("GOOGLE_CLIENT_ID"),
         google_client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+        google_redirect_uri=os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8080/auth/google/callback"),
         admin_email=os.environ.get("ADMIN_EMAIL"),
         front_url=os.environ.get("FRONT_URL", "http://localhost:3000"),
     )
