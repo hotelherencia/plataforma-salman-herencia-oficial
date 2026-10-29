@@ -50,7 +50,8 @@ class SesionHttpTest(unittest.TestCase):
         self.assertIn("HttpOnly", cookie)
         atributos = {parte.strip() for parte in cookie.split(";")}
         self.assertNotIn("Secure", atributos)  # COOKIE_SEGURA=0 en local
-        self.assertIn("samesite=none", {a.lower() for a in atributos})
+        # sin Secure el navegador rechaza SameSite=None: en local es Lax (spec-api-v1)
+        self.assertIn("samesite=lax", {a.lower() for a in atributos})
         # el id de sesión vive en PostgreSQL, no en el valor de la cookie firmado por el cliente
         sid = respuesta.cookies.get("sid")
         with psycopg.connect(URL_TEST) as conexion:

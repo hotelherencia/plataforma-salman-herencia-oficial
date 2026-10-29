@@ -162,12 +162,15 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
     def _fijar_cookie(response: Response, sid: str) -> None:
         config = app.state.configuracion
+        segura = config.cookie_segura if config else False
+        # spec-api-v1: en producción (Secure) SameSite=None para Vercel↔Railway;
+        # en local sin Secure el navegador rechaza SameSite=None: se usa Lax.
         response.set_cookie(
             NOMBRE_COOKIE_SESION,
             sid,
             httponly=True,
-            secure=config.cookie_segura if config else False,
-            samesite="none",
+            secure=segura,
+            samesite="none" if segura else "lax",
             path="/",
         )
 
