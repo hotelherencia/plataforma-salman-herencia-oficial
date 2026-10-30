@@ -48,7 +48,7 @@ def cargar_desde_entorno() -> Configuracion:
     _cargar_env()
     return Configuracion(
         host=os.environ.get("SERVICIO_HOST", "127.0.0.1"),
-        puerto=int(os.environ.get("SERVICIO_PUERTO", "8080")),
+        puerto=int(os.environ.get("SERVICIO_PUERTO") or os.environ.get("PORT") or "8080"),
         database_url=os.environ.get("DATABASE_URL"),
         cookie_segura=os.environ.get("COOKIE_SEGURA", "0") == "1",
         origen_front=os.environ.get("ORIGEN_FRONT"),

@@ -1,7 +1,8 @@
 # Runbook H7 — despliegue Railway + Vercel
 
-**Estado:** REQUISITO PROPUESTO, 2026-10-29. Preparación local hecha
-(`GOOGLE_REDIRECT_URI` configurable, `runtime.txt`, `railway.toml`).
+**Estado:** REQUISITO PROPUESTO, 2026-10-29 (actualizado 2026-10-30). Preparación
+local hecha (`GOOGLE_REDIRECT_URI` configurable, `runtime.txt`, `railway.toml`,
+reserva de `$PORT` con `SERVICIO_PUERTO` como prioridad).
 **Bloqueante:** cuentas Railway y Vercel del propietario (H7/T1); sin ellas
 no hay despliegue. Este documento no toca DNS ni `hotelherencia.cl`.
 
@@ -35,7 +36,7 @@ no hay despliegue. Este documento no toca DNS ni `hotelherencia.cl`.
    | `ORIGEN_FRONT` | misma URL del front (CORS) |
    | `COOKIE_SEGURA` | `1` (cookie Secure + SameSite=None entre orígenes) |
    | `SERVICIO_HOST` | `0.0.0.0` |
-   | `SERVICIO_PUERTO` | el puerto que exponga Railway (o `$PORT` del entorno) |
+   | `SERVICIO_PUERTO` | opcional: el código reserva `$PORT` (Railway lo inyecta); `SERVICIO_PUERTO` manda si se define |
 
 4. **Login con Google en producción**: en Cloud Console, agregar la URI
    `GOOGLE_REDIRECT_URI` productiva al cliente web (la local sigue para dev)

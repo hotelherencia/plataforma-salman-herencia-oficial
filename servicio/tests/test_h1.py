@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -11,7 +12,7 @@ from servicio.aplicacion import (
     crear_app,
     main,
 )
-from servicio.configuracion import Configuracion
+from servicio.configuracion import Configuracion, cargar_desde_entorno
 from servicio.migracion import DIRECTORIO_MIGRACIONES
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad
@@ -53,6 +54,26 @@ class ArranqueTest(unittest.TestCase):
         app = aplicacion_modulo.crear_app(aplicacion_modulo.construir_aplicacion(otra))
         self.assertEqual(app.state.aplicacion.hotel.empresa.id, "EMP-SEGUNDA")
         self.assertEqual(app.state.aplicacion.nucleo.empresa.id, "EMP-SEGUNDA")
+
+
+class ConfiguracionPuertoTest(unittest.TestCase):
+    """El puerto se resuelve SERVICIO_PUERTO > PORT > 8080 sobre el entorno
+    del proceso; el cargador de .env se anula para aislar el escenario."""
+
+    def test_puerto_default_8080(self):
+        with patch("servicio.configuracion._cargar_env"), patch.dict(os.environ, {}, clear=True):
+            config = cargar_desde_entorno()
+        self.assertEqual(config.puerto, 8080)
+
+    def test_puerto_desde_PORT_cuando_no_hay_SERVICIO_PUERTO(self):
+        with patch("servicio.configuracion._cargar_env"), patch.dict(os.environ, {"PORT": "5896"}, clear=True):
+            config = cargar_desde_entorno()
+        self.assertEqual(config.puerto, 5896)
+
+    def test_SERVICIO_PUERTO_manda_sobre_PORT(self):
+        with patch("servicio.configuracion._cargar_env"), patch.dict(os.environ, {"PORT": "5896", "SERVICIO_PUERTO": "8080"}, clear=True):
+            config = cargar_desde_entorno()
+        self.assertEqual(config.puerto, 8080)
 
 
 class MigracionesTest(unittest.TestCase):

@@ -25,7 +25,8 @@ arranque). Solo biblioteca estándar + estas dependencias declaradas en
   arranque** si el hotel trae otra empresa (regla ya probada en código:
   `construir_hotel`).
 - Configuración solo por variables de entorno (`DATABASE_URL`, flags de
-  cookie, puerto). **El repositorio no lleva `.env`**.
+  cookie, puerto `SERVICIO_PUERTO` con reserva de `$PORT` para Railway).
+  **El repositorio no lleva `.env`**.
 - `GET /salud` (sin autenticar) responde 200 con estado y versión.
 
 ## Persistencia
