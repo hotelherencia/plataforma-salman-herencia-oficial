@@ -22,6 +22,14 @@ esta versión.
   específica.
 - **El repositorio no lleva `.env`.** Secretos y `DATABASE_URL` viven en
   variables del despliegue (Railway/Vercel).
+- **Antes de desplegar o diagnosticar, revisar siempre la configuración
+  efectiva** (orden del propietario, 2026-10-30): las claves que lee
+  `servicio/configuracion.py` (`cargar_desde_entorno`) se reconcilian contra
+  `.env` local y contra las variables del despliegue — mismas claves, valores
+  del entorno que corresponda (`GOOGLE_REDIRECT_URI`, `DATABASE_URL`,
+  `FRONT_URL`/`ORIGEN_FRONT` difieren entre local y producción). El agente no
+  lee valores de `.env` (política de secretos): reconcilia claves y presencia,
+  jamás contenido, y nunca los copia tal cual al despliegue.
 - **La especificación se cumple con hechos, no con prosa:** cada pieza se
   acepta con pruebas que la ejercen (HTTP contra el contrato, persistencia
   tras reinicio, reglas de sesión e idempotencia).

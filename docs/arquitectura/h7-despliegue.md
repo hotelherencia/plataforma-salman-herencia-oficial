@@ -121,6 +121,29 @@ raíz.
 - Pendiente menor: decidir si la siembra de `HAB-SINT-101..103` al arrancar tiene
   sentido en producción (hoy `sembrar_habitaciones` sigue corriendo).
 
+## H7/T5 — Revisión de configuración (regla permanente, 2026-10-30)
+
+Pedido del propietario: revisar siempre la configuración efectiva contra
+`.env` antes de desplegar o diagnosticar. Auditoría del 2026-10-30
+(presencia, no valores):
+
+- `.env` local define: `DATABASE_URL`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `ADMIN_USUARIO`, `ADMIN_CLAVE`, `ADMIN_EMAIL`,
+  `ORIGEN_FRONT`, `COOKIE_SEGURA=1`, `SESSION_HORAS=12`. `GOOGLE_REDIRECT_URI`
+  y `FRONT_URL` siguen apuntando a `localhost`.
+- GitHub Actions: sin secrets ni variables. Proyecto Vercel canónico: sin
+  variables configuradas (pendiente según decisión T4/T4b).
+- Valores que deben cambiar en producción respecto de `.env` local:
+  `DATABASE_URL` (la del proveedor elegido), `GOOGLE_REDIRECT_URI`
+  (`https://<dominio>/auth/google/callback` en T4; `.../api/auth/...` en T4b
+  y hay que registrarla en Cloud Console), `FRONT_URL`/`ORIGEN_FRONT` (URL de
+  Vercel; sin efecto en T4b) y `SERVICIO_HOST=0.0.0.0` en Railway (T4).
+  `ADMIN_*` y `GOOGLE_CLIENT_*` pueden reutilizarse; la clave del admin
+  inicial conviene rotarla tras el primer login en producción.
+- Observación local (sin verificar): con `COOKIE_SEGURA=1` sobre
+  `http://localhost` el navegador puede rechazar la cookie (Secure sin https);
+  si el login local falla tras ese cambio, probar con `COOKIE_SEGURA=0`.
+
 ## Aceptación de H7
 
 Las tres piezas juntas: front de Vercel leyendo solo `API_BASE_URL`, contrato
