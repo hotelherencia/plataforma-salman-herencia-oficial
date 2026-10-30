@@ -153,9 +153,12 @@ Pedido del propietario: revisar siempre la configuración efectiva contra
 ## H7/T4c — Backend en Vercel (decisión operativa, 2026-10-30, a ratificar)
 
 Con el token del equipo (vive en `.env`, se usa sourced, nunca en el repo) se
-inspeccionó `dev-2ddb`: cuatro proyectos — `plataforma-salman-herencia-oficial`
-(canónico: Next.js, root `front/`), `-ag24` (FastAPI), `-3lgt` (sirve el front:
-duplicado) y `plataforma-salman-herencia` (duplicado con Vercel Authentication).
+inspeccionó `dev-2ddb`. **Topología final (limpieza hecha el 2026-10-30):** dos
+proyectos — `plataforma-salman-herencia-oficial` (front: Next.js, root
+`front/`) y `plataforma-salman-herencia-oficial-ag24` (API/backend: FastAPI,
+root = raíz del repo). Se eliminaron los duplicados `-3lgt`,
+`plataforma-salman-herencia` y el proyecto fantasma
+`cherrera0001s-projects/plataforma-salman-herencia-oficial-main`.
 
 Decisión operativa: backend en Vercel en `-ag24` (forma T4 con API en Vercel
 en lugar de Railway, porque no requiere cuentas nuevas):
@@ -189,9 +192,7 @@ Pendiente del propietario: registrar la URI de redirección productiva en
 Google Cloud Console (sin eso el login con Google falla en el consentimiento);
 aprovisionar PostgreSQL externo y fijar `DATABASE_URL` en `-ag24`; **rotar
 `VERCEL_TOKEN` y la clave de aplicación de Gmail** (se expusieron en chat el
-2026-10-30) y regenerar `ADMIN_CLAVE` en producción; eliminar proyectos
-duplicados (`-3lgt`, `plataforma-salman-herencia` y el fantasma de
-`cherrera0001s-projects`).
+2026-10-30) y regenerar `ADMIN_CLAVE` en producción.
 
 ## Aceptación de H7
 
