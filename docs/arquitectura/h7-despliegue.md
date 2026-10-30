@@ -60,7 +60,7 @@ no hay despliegue. Este documento no toca DNS ni `hotelherencia.cl`.
 Preparación local hecha, pendiente de confirmación del propietario porque
 **sustituye a H7/T3 (Railway)**: un solo proyecto Vercel con dos *services*
 (`vercel.json` en la raíz): `front` (Next.js) y `servicio` (FastAPI,
-`entrypoint: api/index.py`). El rewrite `/api/(.*)` expone la API
+`entrypoint: api_vercel:app`). El rewrite `/api/(.*)` expone la API
 bajo el mismo dominio; el front se compila con `API_BASE_URL=/api` y las
 llamadas del navegador son mismo-origen (sin CORS; cookie `Secure` con
 `SameSite=None` sigue sirviendo). El entrypoint quita el prefijo `/api` antes
@@ -76,19 +76,16 @@ Verificado en local (2026-10-30): entrypoint sirve `/api/salud` y
 `/api/auth/google/estado`; build del front con `API_BASE_URL=/api`; suite
 commiteada del servicio 42/42 contra una base fresca.
 
-**Primer build en Vercel (2026-10-30, commit `4905942`): falló con
-`FASTAPI_ENTRYPOINT_NOT_FOUND`.** El build de Vercel no toma el
-`entrypoint` declarado dentro de `services` del `vercel.json`: exige el
-`app` en una ruta convencional (`api/index.py`, `main.py`, `app.py`, …) o
-en `tool.vercel.entrypoint` de `pyproject.toml`, en formato `modulo:variable`
-(lo indica el propio mensaje del build: `entrypoint = "api_vercel:app"`).
-Corrección aplicada el mismo día: `api/index.py` en la raíz reexporta
-`servicio.api_vercel.app` y `pyproject.toml` fija `[tool.vercel].entrypoint =
-"api.index:app"`. Para builds cuya raíz es `servicio/` (proyecto `-ag24`)
-existe `servicio/pyproject.toml` con `entrypoint = "api_vercel:app"`;
-`api_vercel.py` se auto-inserta la raíz del repo en `sys.path`. Los dos
-`pyproject.toml` solo traen la tabla `[tool.vercel]`: no afectan a pip ni a
-Railway (sigue instalando desde `requirements.txt` de la raíz).
+**Builds en Vercel (2026-10-30).** El de `4905942` falló con
+`FASTAPI_ENTRYPOINT_NOT_FOUND`: el CLI no lee el `entrypoint` de `services`
+en `vercel.json`. El de `478306a` (15:14) volvió a fallar: `pyproject.toml`
+tenía `entrypoint = "api/index.py"`, una ruta, y el CLI 65.4.0 solo acepta
+`modulo:variable`. El mensaje pidió `[tool.vercel] entrypoint = "api_vercel:app"`.
+Corrección: `api_vercel.py` en la raíz reexporta `servicio.api_vercel.app` y
+el `pyproject.toml` de la raíz declara esa clave. Si la raíz del proyecto es
+`servicio/` (`-ag24`), `servicio/pyproject.toml` declara lo mismo y
+`servicio/api_vercel.py` inserta la raíz del repo en `sys.path`. Ninguno de
+los dos `pyproject.toml` afecta a pip ni a Railway.
 
 **Despliegue real (2026-10-30, tarde) — regla del autor y estado actual.**
 
@@ -117,7 +114,7 @@ Railway (sigue instalando desde `requirements.txt` de la raíz).
   **T4** (front en Vercel + API en Railway → `API_BASE_URL=https://<railway>`,
   ver H7/T3) o **T4b** (todo en Vercel → reconfigurar el proyecto canónico para
   que construya desde la raíz del repo, donde `vercel.json` con `services` +
-  `api/index.py` + `pyproject.toml` gobiernan; entonces `API_BASE_URL=/api` y
+  `api_vercel:app` en `pyproject.toml` gobiernan; entonces `API_BASE_URL=/api` y
   `DATABASE_URL` de PostgreSQL externo — sin él el servicio arranca en memoria y
   no persiste —, más `ADMIN_USUARIO`/`ADMIN_CLAVE`/`ADMIN_EMAIL` y
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` en el dashboard).
@@ -146,6 +143,12 @@ Pedido del propietario: revisar siempre la configuración efectiva contra
 - Observación local (sin verificar): con `COOKIE_SEGURA=1` sobre
   `http://localhost` el navegador puede rechazar la cookie (Secure sin https);
   si el login local falla tras ese cambio, probar con `COOKIE_SEGURA=0`.
+- Acelerador (2026-10-30): `scripts/mapear_variables_despliegue.py` lee el
+  `.env` en la máquina del propietario y imprime los pares CLAVE=valor listos
+  para el dashboard (marca lo que parece local). El agente no lo ejecuta sobre
+  el `.env` real (política de secretos); lo corre el propietario:
+  `python scripts/mapear_variables_despliegue.py t4b --dominio https://<dominio>`
+  o `... t4 --railway https://<api> --front https://<front>`.
 
 ## Aceptación de H7
 
