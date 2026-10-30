@@ -187,7 +187,16 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         }
 
     def _conexion() -> Iterator[psycopg.Connection]:
-        with psycopg.connect(app.state.database_url) as conexion:
+        # Sin DATABASE_URL en el arranque no hay `app.state.database_url`: se
+        # responde 503 «no configurado» (convención de puertos de AGENTS.md) en
+        # vez de un 500 por AttributeError (visto en Vercel el 2026-10-30).
+        database_url = getattr(app.state, "database_url", None)
+        if not database_url:
+            raise HTTPException(
+                status_code=503,
+                detail="base de datos no configurada: fija DATABASE_URL en el despliegue",
+            )
+        with psycopg.connect(database_url) as conexion:
             yield conexion
 
     def _fijar_cookie(response: Response, sid: str) -> None:

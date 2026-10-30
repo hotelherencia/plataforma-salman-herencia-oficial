@@ -177,8 +177,10 @@ en lugar de Railway, porque no requiere cuentas nuevas):
   `GOOGLE_CLIENT_SECRET`,
   `GOOGLE_REDIRECT_URI=https://plataforma-salman-herencia-oficial-delta.vercel.app/auth/google/callback`,
   `COOKIE_SEGURA=1`, `SESSION_HORAS=12` y `ORIGEN_FRONT`/`FRONT_URL` = URL
-  del front canónico. Falta `DATABASE_URL` externo (ver H7/T5): sin él el
-  API productivo corre en memoria y pierde estado en cada cold start.
+  del front canónico. Falta `DATABASE_URL` externo (ver H7/T5): sin él los
+  endpoints con persistencia responden **503 «base de datos no
+  configurada»** (fix del 2026-10-30 en `_conexion`; antes era un 500 por
+  `AttributeError`), y con él el API persiste de verdad.
 - Front canónico: `API_BASE_URL` (build) =
   `https://plataforma-salman-herencia-oficial-delta.vercel.app`; exige
   rebuild, se dispara con el push.
