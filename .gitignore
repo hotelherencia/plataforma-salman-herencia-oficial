@@ -8,3 +8,9 @@ __pycache__/
 # Config MCP local del usuario (puede contener la clave de 21st.dev):
 # el repositorio no versiona secretos (AGENTS.md).
 .cursor/mcp.json
+
+# Artefactos de despliegue/experimentos locales (nunca versionar)
+.vercel/
+.vercel-*/
+.respaldo-*/
+*.respaldo-*
