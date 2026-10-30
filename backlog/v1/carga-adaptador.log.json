@@ -1,0 +1,36 @@
+{
+  "repo": "hotelherencia/plataforma-salman-herencia-oficial",
+  "project": "hotelherencia/projects/2",
+  "milestone": "adaptador-dominio",
+  "items": 12,
+  "issues": {
+    "ADP-0": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/263",
+    "ADP-1": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/264",
+    "ADP-2": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/265",
+    "ADP-3": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/266",
+    "ADP-4": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/267",
+    "ADP-5": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/268",
+    "ADP-6": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/269",
+    "ADP-7": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/270",
+    "ADP-8": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/271",
+    "ADP-9": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/272",
+    "ADP-10": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/273",
+    "ADP-11": "https://github.com/hotelherencia/plataforma-salman-herencia-oficial/issues/274"
+  },
+  "en_project": [
+    "ADP-0",
+    "ADP-1",
+    "ADP-10",
+    "ADP-11",
+    "ADP-2",
+    "ADP-3",
+    "ADP-4",
+    "ADP-5",
+    "ADP-6",
+    "ADP-7",
+    "ADP-8",
+    "ADP-9"
+  ],
+  "pendiente_project": [],
+  "nota": "con permiso de escritura en el Project, re-ejecutar: python scripts/cargar_github_projects_adaptador.py"
+}
