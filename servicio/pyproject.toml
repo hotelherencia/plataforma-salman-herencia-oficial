@@ -1,0 +1,7 @@
+# Entrypoint para builds de Vercel cuya raíz es `servicio/` (proyecto
+# duplicado -ag24 y similares): el preset FastAPI no toma el `entrypoint`
+# declarado en `services` del vercel.json raíz y exige `modulo:variable`
+# (lo indica el propio mensaje del build). `api_vercel.py` se auto-inserta
+# la raíz del repo en sys.path, así que `servicio.aplicacion` resuelve igual.
+[tool.vercel]
+entrypoint = "api_vercel:app"

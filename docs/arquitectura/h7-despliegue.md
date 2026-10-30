@@ -80,12 +80,15 @@ commiteada del servicio 42/42 contra una base fresca.
 `FASTAPI_ENTRYPOINT_NOT_FOUND`.** El build de Vercel no toma el
 `entrypoint` declarado dentro de `services` del `vercel.json`: exige el
 `app` en una ruta convencional (`api/index.py`, `main.py`, `app.py`, …) o
-en `tool.vercel.entrypoint` de `pyproject.toml`. Corrección aplicada el
-mismo día: `api/index.py` en la raíz reexporta `servicio.api_vercel.app` y
-`pyproject.toml` fija `[tool.vercel].entrypoint = "api/index.py"` (las tres
-vías de descubrimiento apuntan al mismo `app`). El `pyproject.toml` no
-afecta a pip ni a Railway: sigue instalando desde `requirements.txt` de la
-raíz.
+en `tool.vercel.entrypoint` de `pyproject.toml`, en formato `modulo:variable`
+(lo indica el propio mensaje del build: `entrypoint = "api_vercel:app"`).
+Corrección aplicada el mismo día: `api/index.py` en la raíz reexporta
+`servicio.api_vercel.app` y `pyproject.toml` fija `[tool.vercel].entrypoint =
+"api.index:app"`. Para builds cuya raíz es `servicio/` (proyecto `-ag24`)
+existe `servicio/pyproject.toml` con `entrypoint = "api_vercel:app"`;
+`api_vercel.py` se auto-inserta la raíz del repo en `sys.path`. Los dos
+`pyproject.toml` solo traen la tabla `[tool.vercel]`: no afectan a pip ni a
+Railway (sigue instalando desde `requirements.txt` de la raíz).
 
 **Despliegue real (2026-10-30, tarde) — regla del autor y estado actual.**
 
