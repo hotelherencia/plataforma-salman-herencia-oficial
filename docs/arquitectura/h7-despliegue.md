@@ -160,12 +160,18 @@ duplicado) y `plataforma-salman-herencia` (duplicado con Vercel Authentication).
 Decisión operativa: backend en Vercel en `-ag24` (forma T4 con API en Vercel
 en lugar de Railway, porque no requiere cuentas nuevas):
 
-- `-ag24` quedó con `rootDirectory` = raíz del repo. Antes era `servicio/` y
-  el build compilaba pero la función respondía 500: el bundle no incluía
-  `core/` (que `servicio` importa). Framework FastAPI, entrypoint
-  `api.index:app` (pyproject de la raíz). URL del API:
-  `https://plataforma-salman-herencia-oficial-delta.vercel.app` (rutas
-  directas `/salud`, …; el wrapper también acepta prefijo `/api`).
+- `-ag24` quedó con `rootDirectory` = raíz del repo (antes `servicio/`, cuyo
+  bundle no incluía `core/` → 500). Confirmado: el `vercel.json` de la raíz
+  SÍ se honra — el front sirve en `/` y el API en `/api/*` (servicio
+  FastAPI). Entrypoint `api.index:app` (pyproject de la raíz); `api_vercel:app`
+  solo resuelve con raíz `servicio/` (servicio/pyproject.toml), no desde la
+  raíz. Con un pyproject presente el build instala dependencias desde
+  `[project].dependencies`: sin esa tabla la función falla en runtime con
+  `ModuleNotFoundError` (psycopg, 2026-10-30); ambos pyproject la llevan.
+  Además el equipo tenía Vercel Authentication (`all_except_custom_domains`)
+  y había que desactivarlo en `-ag24` para exponer el API. URL pública:
+  `https://plataforma-salman-herencia-oficial-delta.vercel.app` (rutas del
+  API bajo `/api/…`; el wrapper también acepta rutas directas).
 - Variables de producción fijadas en `-ag24` (vía API REST, 201):
   `ADMIN_USUARIO`, `ADMIN_CLAVE`, `ADMIN_EMAIL`, `GOOGLE_CLIENT_ID`,
   `GOOGLE_CLIENT_SECRET`,

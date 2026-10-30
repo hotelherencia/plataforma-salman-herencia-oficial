@@ -3,5 +3,20 @@
 # declarado en `services` del vercel.json raíz y exige `modulo:variable`
 # (lo indica el propio mensaje del build). `api_vercel.py` se auto-inserta
 # la raíz del repo en sys.path, así que `servicio.aplicacion` resuelve igual.
+#
+# [project]: mismo motivo que el pyproject de la raíz — con pyproject
+# presente, el build instala las dependencias desde esta tabla.
+[project]
+name = "plataforma-salman-herencia-servicio"
+version = "0.1.0"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "psycopg[binary]",
+    "argon2-cffi",
+    "httpx",
+    "qrcode",
+]
+
 [tool.vercel]
 entrypoint = "api_vercel:app"

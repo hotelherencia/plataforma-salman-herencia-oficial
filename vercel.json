@@ -8,7 +8,7 @@
     "servicio": {
       "root": ".",
       "framework": "fastapi",
-      "entrypoint": "api/index.py"
+      "entrypoint": "api.index:app"
     }
   },
   "rewrites": [
