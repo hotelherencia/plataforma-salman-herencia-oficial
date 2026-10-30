@@ -150,6 +150,41 @@ Pedido del propietario: revisar siempre la configuración efectiva contra
   `python scripts/mapear_variables_despliegue.py t4b --dominio https://<dominio>`
   o `... t4 --railway https://<api> --front https://<front>`.
 
+## H7/T4c — Backend en Vercel (decisión operativa, 2026-10-30, a ratificar)
+
+Con el token del equipo (vive en `.env`, se usa sourced, nunca en el repo) se
+inspeccionó `dev-2ddb`: cuatro proyectos — `plataforma-salman-herencia-oficial`
+(canónico: Next.js, root `front/`), `-ag24` (FastAPI), `-3lgt` (sirve el front:
+duplicado) y `plataforma-salman-herencia` (duplicado con Vercel Authentication).
+
+Decisión operativa: backend en Vercel en `-ag24` (forma T4 con API en Vercel
+en lugar de Railway, porque no requiere cuentas nuevas):
+
+- `-ag24` quedó con `rootDirectory` = raíz del repo. Antes era `servicio/` y
+  el build compilaba pero la función respondía 500: el bundle no incluía
+  `core/` (que `servicio` importa). Framework FastAPI, entrypoint
+  `api.index:app` (pyproject de la raíz). URL del API:
+  `https://plataforma-salman-herencia-oficial-delta.vercel.app` (rutas
+  directas `/salud`, …; el wrapper también acepta prefijo `/api`).
+- Variables de producción fijadas en `-ag24` (vía API REST, 201):
+  `ADMIN_USUARIO`, `ADMIN_CLAVE`, `ADMIN_EMAIL`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`,
+  `GOOGLE_REDIRECT_URI=https://plataforma-salman-herencia-oficial-delta.vercel.app/auth/google/callback`,
+  `COOKIE_SEGURA=1`, `SESSION_HORAS=12` y `ORIGEN_FRONT`/`FRONT_URL` = URL
+  del front canónico. Falta `DATABASE_URL` externo (ver H7/T5): sin él el
+  API productivo corre en memoria y pierde estado en cada cold start.
+- Front canónico: `API_BASE_URL` (build) =
+  `https://plataforma-salman-herencia-oficial-delta.vercel.app`; exige
+  rebuild, se dispara con el push.
+
+Pendiente del propietario: registrar la URI de redirección productiva en
+Google Cloud Console (sin eso el login con Google falla en el consentimiento);
+aprovisionar PostgreSQL externo y fijar `DATABASE_URL` en `-ag24`; **rotar
+`VERCEL_TOKEN` y la clave de aplicación de Gmail** (se expusieron en chat el
+2026-10-30) y regenerar `ADMIN_CLAVE` en producción; eliminar proyectos
+duplicados (`-3lgt`, `plataforma-salman-herencia` y el fantasma de
+`cherrera0001s-projects`).
+
 ## Aceptación de H7
 
 Las tres piezas juntas: front de Vercel leyendo solo `API_BASE_URL`, contrato
