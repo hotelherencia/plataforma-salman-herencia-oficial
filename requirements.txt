@@ -1,0 +1,3 @@
+# Railway (Nixpacks) instala desde la raíz del repositorio; las dependencias
+# reales del servicio viven en servicio/requirements.txt y se fijan allí.
+-r servicio/requirements.txt

@@ -1,0 +1,16 @@
+# Secretos y entornos locales: nunca subir al despliegue.
+.env
+.env.*
+.venv/
+__pycache__/
+*.pyc
+.vercel/
+.playwright-mcp/
+
+# Pesados que el build de Vercel genera o reinstala solo.
+front/node_modules/
+front/.next/
+node_modules/
+
+# Documentación binaria del repo que el build no necesita.
+Manual_Maestro_Conceptual_Grupo_Salman_V1.docx

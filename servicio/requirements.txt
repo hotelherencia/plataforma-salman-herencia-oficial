@@ -3,3 +3,4 @@ uvicorn
 psycopg[binary]
 argon2-cffi
 httpx
+qrcode

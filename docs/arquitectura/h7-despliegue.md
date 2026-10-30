@@ -55,6 +55,45 @@ no hay despliegue. Este documento no toca DNS ni `hotelherencia.cl`.
    (el backend responde `configurado: true`) y entrar completa el circuito
    Vercel ↔ Railway con la cookie cross-site.
 
+## H7/T4b — Variante: todo en Vercel (REQUISITO PROPUESTO, 2026-10-30)
+
+Preparación local hecha, pendiente de confirmación del propietario porque
+**sustituye a H7/T3 (Railway)**: un solo proyecto Vercel con dos *services*
+(`vercel.json` en la raíz): `front` (Next.js) y `servicio` (FastAPI,
+`entrypoint: servicio/api_vercel.py`). El rewrite `/api/(.*)` expone la API
+bajo el mismo dominio; el front se compila con `API_BASE_URL=/api` y las
+llamadas del navegador son mismo-origen (sin CORS; cookie `Secure` con
+`SameSite=None` sigue sirviendo). El entrypoint quita el prefijo `/api` antes
+de enrutar; ninguna ruta del API cambia. `GOOGLE_REDIRECT_URI` sería
+`https://<dominio>/api/auth/google/callback`.
+
+Variables del proyecto (compartidas entre services): las de H7/T3 menos
+`SERVICIO_HOST`/`SERVICIO_PUERTO`/`ORIGEN_FRONT`, más `API_BASE_URL=/api`
+(variable de build del front) y `DATABASE_URL` de PostgreSQL externo
+(Vercel Postgres/Neon/u otro; sin él la variante no arranca).
+
+Verificado en local (2026-10-30): entrypoint sirve `/api/salud` y
+`/api/auth/google/estado`; build del front con `API_BASE_URL=/api`; suite
+commiteada del servicio 42/42 contra una base fresca.
+
+**Primer build en Vercel (2026-10-30, commit `4905942`): falló con
+`FASTAPI_ENTRYPOINT_NOT_FOUND`.** El build de Vercel no toma el
+`entrypoint` declarado dentro de `services` del `vercel.json`: exige el
+`app` en una ruta convencional (`api/index.py`, `main.py`, `app.py`, …) o
+en `tool.vercel.entrypoint` de `pyproject.toml`. Corrección aplicada el
+mismo día: `api/index.py` en la raíz reexporta `servicio.api_vercel.app` y
+`pyproject.toml` fija `[tool.vercel].entrypoint = "api/index.py"` (las tres
+vías de descubrimiento apuntan al mismo `app`). El `pyproject.toml` no
+afecta a pip ni a Railway: sigue instalando desde `requirements.txt` de la
+raíz.
+
+Pendiente al desplegar: variables del proyecto en Vercel (`API_BASE_URL=/api`
+fijada por CLI el 2026-10-30; faltan `DATABASE_URL` de PostgreSQL externo —
+sin él el servicio arranca en memoria y no persiste —, `ADMIN_USUARIO`,
+`ADMIN_CLAVE`, `ADMIN_EMAIL` y `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`),
+y decidir si la siembra de `HAB-SINT-101..103` al arrancar tiene sentido en
+producción (hoy `sembrar_habitaciones` sigue corriendo).
+
 ## Aceptación de H7
 
 Las tres piezas juntas: front de Vercel leyendo solo `API_BASE_URL`, contrato

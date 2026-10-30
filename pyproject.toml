@@ -1,0 +1,6 @@
+# Fija el entrypoint que el preset FastAPI del build de Vercel debe servir.
+# Sin esta clave (o sin api/index.py en la raíz) el build falla con
+# FASTAPI_ENTRYPOINT_NOT_FOUND. La tabla [tool.vercel] no afecta a pip
+# ni a Railway: sigue instalando desde requirements.txt de la raíz.
+[tool.vercel]
+entrypoint = "api/index.py"
