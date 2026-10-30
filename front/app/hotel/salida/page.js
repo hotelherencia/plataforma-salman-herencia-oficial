@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo } from '../../../lib/api'
+import { api, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function SalidaPage() {
   const [reservaId, setReservaId] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
+  const [clave, renovarClave] = useClaveOperacion()
 
   async function checkOut(e) {
     e.preventDefault()
@@ -15,11 +16,14 @@ export default function SalidaPage() {
     try {
       const r = await api(`/hotel/reservas/${reservaId}/salida`, {
         metodo: 'POST',
-        claveIdempotencia: crypto.randomUUID(),
+        claveIdempotencia: clave,
         cuerpo: {},
       })
       if (r.estado >= 400) setError(JSON.stringify(r.datos))
-      else setSalida(r.datos)
+      else {
+        setSalida(r.datos)
+        renovarClave()
+      }
     } catch {
       setError('La API no está disponible')
     }
@@ -33,6 +37,8 @@ export default function SalidaPage() {
           <button type="submit" className="boton-primario">Liquidar cuenta</button>
         </form>
       </section>
+      <p className="nota-clave">Clave de idempotencia (reintenta con la misma para no duplicar): <code>{clave}</code></p>
+      <button onClick={() => { setSalida(null); setError(''); renovarClave() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>

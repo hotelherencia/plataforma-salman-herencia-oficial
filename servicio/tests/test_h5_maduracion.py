@@ -130,9 +130,14 @@ class MaduracionTest(unittest.TestCase):
         self.assertTrue(esquema["openapi"].startswith("3.1"))
         esperadas = {
             "POST": ["/sesion", "/hotel/reservas", "/hotel/reservas/{reserva_id}/pagos",
-                     "/hotel/reservas/{reserva_id}/entrada", "/hotel/reservas/{reserva_id}/salida"],
+                     "/hotel/reservas/{reserva_id}/entrada", "/hotel/reservas/{reserva_id}/salida",
+                     "/hotel/reservas/{reserva_id}/cancelacion", "/hotel/reservas/{reserva_id}/cargos",
+                     "/hotel/habitaciones/{habitacion_id}/limpieza",
+                     "/hotel/habitaciones/{habitacion_id}/mantenimiento",
+                     "/usuarios", "/usuarios/{usuario_id}/clave",
+                     "/usuarios/{usuario_id}/revocacion", "/usuarios/{usuario_id}/baja"],
             "PUT": ["/hotel/habitaciones/{habitacion_id}", "/hotel/tarifas"],
-            "GET": ["/hotel/oferta", "/hotel/caja"],
+            "GET": ["/hotel/oferta", "/hotel/caja", "/hotel/reservas", "/usuarios"],
             "DELETE": ["/sesion"],
         }
         for metodo, rutas in esperadas.items():

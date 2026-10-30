@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo } from '../../../lib/api'
+import { api, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function Reserva() {
   const [campos, setCampos] = useState({
@@ -12,18 +12,16 @@ export default function Reserva() {
   })
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
-  const [clave, setClave] = useState('')
+  const [clave, renovarClave] = useClaveOperacion()
 
   async function confirmar(e) {
     e.preventDefault()
     setError('')
     setSalida(null)
-    const nuevaClave = crypto.randomUUID()
-    setClave(nuevaClave)
     try {
       const r = await api('/hotel/reservas', {
         metodo: 'POST',
-        claveIdempotencia: nuevaClave,
+        claveIdempotencia: clave,
         cuerpo: {
           habitacion_id: campos.habitacion_id,
           inicio: campos.inicio,
@@ -31,11 +29,20 @@ export default function Reserva() {
           huesped: { nombre: campos.nombre },
         },
       })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
-      else setSalida(r.datos)
+      if (r.estado >= 400) setError(JSON.stringify(r.datos)) // 409 incluido: la clave se conserva
+      else {
+        setSalida(r.datos)
+        renovarClave() // 2xx: clave nueva para la operación siguiente
+      }
     } catch {
       setError('La API no está disponible')
     }
+  }
+
+  function nuevaOperacion() {
+    setSalida(null)
+    setError('')
+    renovarClave()
   }
 
   return (
@@ -49,7 +56,8 @@ export default function Reserva() {
           <button type="submit" className="boton-primario">Confirmar reserva</button>
         </form>
       </section>
-      {clave && <p className="nota-clave">Clave de idempotencia (reintenta con la misma para no duplicar): <code>{clave}</code></p>}
+      <p className="nota-clave">Clave de idempotencia (reintenta con la misma para no duplicar): <code>{clave}</code></p>
+      <button onClick={nuevaOperacion} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
       {salida && (

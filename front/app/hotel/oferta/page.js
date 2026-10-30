@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { api, MarcoHotel, Campo } from '../../../lib/api'
+import { CabeceraOferta, TarjetaOferta, OfertaVacia } from '../_componentes/tarjeta-oferta'
 
 export default function Oferta() {
   const [consulta, setConsulta] = useState({ inicio: '2026-11-10', fin: '2026-11-12', personas: '2' })
@@ -39,21 +40,28 @@ export default function Oferta() {
       {error && <p role="alert" className="alerta">{error}</p>}
       {salida && (
         <>
-          <p className="nota-clave">
-            Oferta emitida {salida.emitida_en} · vigente {salida.vigencia_minutos} minutos
-          </p>
-          <ul className="resultados">
-            {salida.oferta.map((item) => (
-              <li key={item.habitacion_id} className="resultado-item">
-                <span className="resultado-id">{item.habitacion_id}</span>
-                <span className="resultado-dato">{item.tipo}</span>
-                <span className="resultado-dato">${item.tarifa_noche_clp}/noche</span>
-                <span className="resultado-precio">total ${item.total_clp}</span>
-                <span className="resultado-dato">{item.politica_cancelacion}</span>
-              </li>
-            ))}
-          </ul>
-          {salida.oferta.length === 0 && <p className="estado">Sin disponibilidad para esas fechas.</p>}
+          <CabeceraOferta
+            cantidad={salida.oferta.length}
+            emitidaEn={salida.emitida_en}
+            vigenciaMinutos={salida.vigencia_minutos}
+          />
+          {salida.oferta.length === 0 ? (
+            <OfertaVacia />
+          ) : (
+            <ul className="oferta-rejilla">
+              {salida.oferta.map((item) => (
+                <TarjetaOferta
+                  key={item.habitacion_id}
+                  habitacionId={item.habitacion_id}
+                  tipo={item.tipo}
+                  tarifaNocheClp={item.tarifa_noche_clp}
+                  totalClp={item.total_clp}
+                  politicaCancelacion={item.politica_cancelacion}
+                  vigenteHasta={item.vigente_hasta}
+                />
+              ))}
+            </ul>
+          )}
         </>
       )}
     </MarcoHotel>

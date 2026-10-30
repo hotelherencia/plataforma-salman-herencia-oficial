@@ -1,12 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo } from '../../../lib/api'
+import { api, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function Estadia() {
   const [reservaId, setReservaId] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
+  const [claveEntrada, renovarClaveEntrada] = useClaveOperacion()
+  const [claveCancela, renovarClaveCancela] = useClaveOperacion()
+  const [claveCargo, renovarClaveCargo] = useClaveOperacion()
+  const [cargo, setCargo] = useState({ reserva_id: '', concepto: 'minibar', monto_clp: '5000' })
 
   async function checkIn(e) {
     e.preventDefault()
@@ -15,23 +19,86 @@ export default function Estadia() {
     try {
       const r = await api(`/hotel/reservas/${reservaId}/entrada`, {
         metodo: 'POST',
-        claveIdempotencia: crypto.randomUUID(),
+        claveIdempotencia: claveEntrada,
         cuerpo: {},
       })
       if (r.estado >= 400) setError(JSON.stringify(r.datos))
-      else setSalida(r.datos)
+      else {
+        setSalida(r.datos)
+        renovarClaveEntrada()
+      }
+    } catch {
+      setError('La API no está disponible')
+    }
+  }
+
+  async function cancelar(e) {
+    e.preventDefault()
+    setError('')
+    setSalida(null)
+    try {
+      const r = await api(`/hotel/reservas/${reservaId}/cancelacion`, {
+        metodo: 'POST',
+        claveIdempotencia: claveCancela,
+        cuerpo: {},
+      })
+      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      else {
+        setSalida(r.datos)
+        renovarClaveCancela()
+      }
+    } catch {
+      setError('La API no está disponible')
+    }
+  }
+
+  async function asentarCargo(e) {
+    e.preventDefault()
+    setError('')
+    setSalida(null)
+    try {
+      const r = await api(`/hotel/reservas/${cargo.reserva_id}/cargos`, {
+        metodo: 'POST',
+        claveIdempotencia: claveCargo,
+        cuerpo: { concepto: cargo.concepto, monto_clp: Number(cargo.monto_clp) },
+      })
+      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      else {
+        setSalida(r.datos)
+        renovarClaveCargo()
+      }
     } catch {
       setError('La API no está disponible')
     }
   }
 
   return (
-    <MarcoHotel titulo="Check-in (entrada a la estadía)">
+    <MarcoHotel titulo="Estadía: entrada, cancelación y cargos">
       <section className="tarjeta">
+        <h2>Check-in (entrada a la estadía)</h2>
         <form className="formulario" onSubmit={checkIn}>
           <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
           <button type="submit" className="boton-primario">Registrar entrada</button>
         </form>
+        <p className="nota-clave">Clave: <code>{claveEntrada}</code></p>
+      </section>
+      <section className="tarjeta">
+        <h2>Cancelar reserva (recepción o administrador)</h2>
+        <form className="formulario" onSubmit={cancelar}>
+          <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+          <button type="submit" className="boton-primario">Cancelar reserva</button>
+        </form>
+        <p className="nota-clave">Clave: <code>{claveCancela}</code></p>
+      </section>
+      <section className="tarjeta">
+        <h2>Asentar cargo (minibar, consumo, extra)</h2>
+        <form className="formulario" onSubmit={asentarCargo}>
+          <Campo etiqueta="Reserva" value={cargo.reserva_id} onChange={(e) => setCargo({ ...cargo, reserva_id: e.target.value })} />
+          <Campo etiqueta="Concepto" value={cargo.concepto} onChange={(e) => setCargo({ ...cargo, concepto: e.target.value })} />
+          <Campo etiqueta="Monto (CLP)" type="number" value={cargo.monto_clp} onChange={(e) => setCargo({ ...cargo, monto_clp: e.target.value })} />
+          <button type="submit" className="boton-primario">Asentar cargo</button>
+        </form>
+        <p className="nota-clave">Clave: <code>{claveCargo}</code></p>
       </section>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />

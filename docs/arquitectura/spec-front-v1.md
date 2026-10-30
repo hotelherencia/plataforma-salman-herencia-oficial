@@ -1,6 +1,8 @@
 # Especificación front V1 — la aplicación en Vercel
 
-**Estado:** REQUISITO PROPUESTO, fechado 2026-10-28. Un solo proyecto,
+**Estado:** REQUISITO PROPUESTO, fechado 2026-10-28; ampliado 2026-10-30
+(rutas `/hotel/reservas` y `/hotel/usuarios`, operaciones de habitación y
+estadía, idempotencia de cliente). Un solo proyecto,
 `plataforma-salman-herencia-front`, **Next.js**, desplegado en **Vercel**.
 Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 `API_BASE_URL` (el servicio de Railway). El hotel es el primer módulo;
@@ -19,15 +21,37 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 
 ## Rutas de esta versión (hotel)
 
-1. `/hotel/habitaciones` — alta y cambio de habitación y tarifa (admin).
+1. `/hotel/habitaciones` — alta y cambio de habitación y tarifa (admin);
+   completar limpieza y abrir o cerrar mantenimiento, cada acción con su
+   clave de idempotencia (2026-10-30).
 2. `/hotel/oferta` — consulta de disponibilidad con tarifa y vencimiento.
-3. `/hotel/reserva` — confirmación con clave de idempotencia visible en el
-   flujo (reintento seguro).
-4. `/hotel/pago` — registro de pago (modo manual de caja; pasarela muestra
+3. `/hotel/reserva` — confirmación con clave de idempotencia estable (ver
+   «Idempotencia en el cliente»).
+4. `/hotel/reservas` — búsqueda de reservas por fecha, estado y texto
+   (2026-10-30).
+5. `/hotel/pago` — registro de pago (modo manual de caja; pasarela muestra
    «no disponible» ante 503).
-5. `/hotel/estadia` — check-in y operación de la estadía.
-6. `/hotel/salida` — liquidación de la cuenta.
-7. `/hotel/caja` — pagos del día ligados a reserva.
+6. `/hotel/estadia` — check-in y operación de la estadía: cancelar y asentar
+   un cargo (2026-10-30).
+7. `/hotel/salida` — liquidación de la cuenta.
+8. `/hotel/caja` — pagos del día ligados a reserva.
+9. `/hotel/usuarios` — alta, cambio de clave, revocación y baja de usuarios;
+   visible para administrador (2026-10-30).
+
+## Idempotencia en el cliente
+
+DECISIÓN (2026-10-30, orden del propietario): en `reserva`, `pago`,
+`habitaciones`, `estadia` y `salida` la clave de idempotencia nace al montar
+el formulario (`useState` con inicializador perezoso, `crypto.randomUUID()`)
+y es la que se envía en cada submit: «reintenta con la misma para no
+duplicar» es literalmente cierto. Se muestra antes del primer envío. Un error
+de red o un 4xx/5xx **no** la cambia; una respuesta 2xx la reemplaza por una
+clave nueva para la operación siguiente. `habitaciones` tiene dos formularios
+(alta y tarifa): cada uno lleva su clave. El único otro modo de acuñar una
+clave antes del 2xx es un botón «Nueva operación». Si el usuario cambia el
+cuerpo y reintenta con la clave vieja, la API responde 409 y la pantalla lo
+muestra sin acuñar una clave en silencio. El front no calcula tarifa, cupo
+ni saldo.
 
 ## Rutas de cuenta
 
@@ -44,8 +68,8 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 ## Criterio de aceptación
 
 1. **Con la API apagada, el front muestra error y no confirma una reserva.**
-2. Con la API encendida, las siete pantallas leen y escriben solo por
-   `API_BASE_URL`.
+2. Con la API encendida, las **nueve** pantallas hoteleras leen y escriben solo
+   por `API_BASE_URL`.
 3. No hay secretos ni tokens en el repositorio del front; la única variable
    de entorno es `API_BASE_URL`.
 4. Ninguna pantalla replica lógica del contrato (precios, cupos, efectos).

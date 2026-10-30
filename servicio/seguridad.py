@@ -72,7 +72,9 @@ def asegurar_admin_inicial(
 
 def autenticar(conexion: psycopg.Connection, nombre: str, clave: str) -> tuple[str, str, str, bool] | None:
     fila = conexion.execute(
-        "SELECT id, empresa_id, rol, clave_hash, totp_activado FROM usuarios WHERE nombre = %s", (nombre,)
+        "SELECT id, empresa_id, rol, clave_hash, totp_activado FROM usuarios "
+        "WHERE nombre = %s AND activo = true",
+        (nombre,),
     ).fetchone()
     if fila is None or not verificar_clave(fila[3], clave):
         return None
@@ -186,6 +188,53 @@ def revocar_sesion(conexion: psycopg.Connection, sid: str) -> None:
     conexion.execute(
         "UPDATE sesiones SET revocada_en = now() WHERE id = %s AND revocada_en IS NULL", (sid,)
     )
+
+
+def revocar_sesiones_de_usuario(conexion: psycopg.Connection, usuario_id: str) -> int:
+    """Revoca todas las sesiones vivas del usuario; devuelve cuántas cayeron."""
+    return conexion.execute(
+        "UPDATE sesiones SET revocada_en = now() WHERE usuario_id = %s AND revocada_en IS NULL",
+        (usuario_id,),
+    ).rowcount
+
+
+def listar_usuarios(conexion: psycopg.Connection, empresa_id: str) -> list[dict]:
+    """Gestión de usuarios (spec-api-v1): jamás devuelve clave_hash."""
+    filas = conexion.execute(
+        "SELECT id, nombre, rol, activo FROM usuarios WHERE empresa_id = %s ORDER BY nombre",
+        (empresa_id,),
+    ).fetchall()
+    return [{"id": f[0], "nombre": f[1], "rol": f[2], "activo": f[3]} for f in filas]
+
+
+def buscar_usuario_en_empresa(conexion: psycopg.Connection, empresa_id: str, usuario_id: str):
+    fila = conexion.execute(
+        "SELECT id, nombre, rol, activo FROM usuarios WHERE id = %s AND empresa_id = %s",
+        (usuario_id, empresa_id),
+    ).fetchone()
+    if fila is None:
+        raise ErrorPermiso("acceso denegado")  # 403 sin revelar existencia
+    return fila
+
+
+def cambiar_clave(conexion: psycopg.Connection, usuario_id: str, clave_nueva: str) -> None:
+    conexion.execute(
+        "UPDATE usuarios SET clave_hash = %s WHERE id = %s",
+        (hashear_clave(clave_nueva), usuario_id),
+    )
+
+
+def contar_administradores_activos(conexion: psycopg.Connection, empresa_id: str) -> int:
+    (n,) = conexion.execute(
+        "SELECT count(*) FROM usuarios WHERE empresa_id = %s AND rol = 'administrador' AND activo = true",
+        (empresa_id,),
+    ).fetchone()
+    return n
+
+
+def dar_de_baja(conexion: psycopg.Connection, usuario_id: str) -> None:
+    conexion.execute("UPDATE usuarios SET activo = false WHERE id = %s", (usuario_id,))
+    revocar_sesiones_de_usuario(conexion, usuario_id)
 
 
 def exigir_misma_empresa(sesion: SesionActiva, empresa_recurso: str) -> None:

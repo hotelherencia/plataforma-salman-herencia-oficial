@@ -31,19 +31,28 @@ arranque). Solo biblioteca estándar + estas dependencias declaradas en
 
 ## Persistencia
 
-PostgreSQL guarda: `usuarios`, `sesiones`, `habitaciones`, `tarifas`,
-`reservas`, `cargos`, `pagos`, `efectos_nucleo`, `claves_idempotencia`,
-`liquidaciones`. Reglas:
+PostgreSQL guarda: `usuarios` (con `activo` y `UNIQUE (empresa_id, nombre)`),
+`sesiones`, `habitaciones` (con `estado_operativo`, `estado_preparación` y
+`mantenimiento`), `tarifas`, `reservas`, `cargos` (con `tipo` `cargo|reverso`
+y `referencia` nullable), `pagos`, `efectos_nucleo`, `claves_idempotencia`,
+`liquidaciones` y `tareas_operativas` (limpieza y mantenimiento, durable al
+reinicio). Reglas:
 
-- Reserva confirmada: constraint de **no solape** por (unidad, fechas); la
-  confirmación es transaccional (la carrera por la última unidad la gana una
-  sola, la otra recibe 409).
+- Reserva confirmada o en estadía: constraint de **no solape** por (unidad,
+  fechas); la confirmación es transaccional (la carrera por la última unidad
+  la gana una sola, la otra recibe 409). `cancelada` y `finalizada` sueltan el
+  rango.
+- HECHO DOCUMENTADO (dominio): los cargos son inmutables; una corrección es un
+  asiento `reverso` de monto positivo que referencia al cargo original. La
+  salida y cualquier saldo suman cargo menos reverso.
 - Tarifa aceptada en reserva queda congelada: cambiar `tarifas` no altera el
   precio de reservas existentes.
 - Pago: el efecto lo registra el núcleo; la fila `pagos` es la proyección de
   lectura. El servicio no marca cobrado nada que el núcleo no aceptó.
+- `huesped_documento` solo sale en las respuestas para roles `recepcion` o
+  `administrador` (HECHO DOCUMENTADO: `ROLES_DOCUMENTO` del dominio).
 - **Al reiniciar el servicio, una reserva confirmada y un pago siguen ahí**
-  (fila 6 del dictamen).
+  (fila 6 del dictamen); las tareas operativas también.
 
 ## Puertos y sistemas externos
 
@@ -54,7 +63,8 @@ núcleo. En esta versión responden **«no configurado»** y la API traduce eso 
 ## Criterio de aceptación
 
 1. `GET /salud` responde en el despliegue de Railway.
-2. Las diez operaciones de spec-api-v1 pasan contra PostgreSQL.
+2. Las **26 operaciones** de spec-api-v1 (contrato ampliado 2026-10-30) pasan
+   contra PostgreSQL.
 3. Una segunda llamada con la misma clave de idempotencia no crea un segundo
    efecto; con otro cuerpo responde 409.
 4. Reinicio del proceso: reserva y pago persisten.

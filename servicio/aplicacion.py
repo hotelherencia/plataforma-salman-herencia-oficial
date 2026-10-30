@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad  # noqa: E402
-from hotel_inventario.servicio import ServicioHotelInventario  # noqa: E402
+from hotel_inventario.servicio import ROLES_DOCUMENTO, ServicioHotelInventario  # noqa: E402
 from nucleo.servicio import Nucleo  # noqa: E402
 
 from .configuracion import Configuracion, cargar_desde_entorno  # noqa: E402
@@ -128,6 +128,25 @@ class PagoIn(BaseModel):
     modo: str = Field(pattern="^(manual|pasarela)$")
 
 
+class UsuarioIn(BaseModel):
+    nombre: str = Field(min_length=1, max_length=100)
+    rol: str = Field(pattern="^(administrador|recepcion|caja)$")
+    clave: str = Field(min_length=6, max_length=200)
+
+
+class ClaveIn(BaseModel):
+    clave: str = Field(min_length=6, max_length=200)
+
+
+class MantenimientoIn(BaseModel):
+    abierto: bool
+
+
+class CargoIn(BaseModel):
+    concepto: str = Field(min_length=1, max_length=200)
+    monto_clp: int = Field(gt=0, le=1_000_000_000)
+
+
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
     aplicacion = aplicacion or construir_aplicacion()
     app = FastAPI(title="plataforma-salman-herencia-api", version="0.1.0")
@@ -144,7 +163,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=[configuracion.origen_front],
+            allow_origins=configuracion.origen_front.split(","),
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
@@ -580,6 +599,264 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 return 409, {"error": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "salida", reserva_id, "liquidada")
             return 200, liquidada
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    # --- Maduración de la operación (spec-api-v1, 2026-10-30) ---
+
+    @app.get("/hotel/reservas")
+    def buscar_reservas_hotel(
+        fecha: date | None = None,
+        estado: str | None = None,
+        texto: str | None = None,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        if estado is not None and estado not in reservas_db.ESTADOS_VALIDOS:
+            raise HTTPException(status_code=422, detail="estado inválido")
+        items = reservas_db.buscar_reservas(
+            conexion,
+            empresa_id=sesion.empresa_id,
+            fecha=fecha,
+            estado=estado,
+            texto=texto,
+            ver_documento=sesion.rol in ROLES_DOCUMENTO,
+        )
+        return {"reservas": items, "total": len(items)}
+
+    @app.get("/usuarios")
+    def listar_usuarios(
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        _exigir_admin(sesion)
+        return {"usuarios": seguridad.listar_usuarios(conexion, sesion.empresa_id)}
+
+    @app.post("/usuarios")
+    def alta_usuario(
+        usuario: UsuarioIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_admin(sesion)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = json.loads(usuario.model_dump_json())
+
+        def operacion() -> tuple[int, dict]:
+            existe = conexion.execute(
+                "SELECT 1 FROM usuarios WHERE empresa_id = %s AND nombre = %s",
+                (sesion.empresa_id, usuario.nombre),
+            ).fetchone()
+            if existe is not None:
+                return 409, {"error": "nombre de usuario ya existe en la empresa"}
+            usuario_id = seguridad.crear_usuario(
+                conexion, sesion.empresa_id, usuario.nombre, usuario.rol, usuario.clave
+            )
+            seguridad.auditar(conexion, sesion.nombre, "usuario", usuario_id, "creado")
+            return 201, {"id": usuario_id, "nombre": usuario.nombre, "rol": usuario.rol, "activo": True}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/usuarios/{usuario_id}/clave")
+    def cambiar_clave_usuario(
+        usuario_id: str,
+        cuerpo_clave: ClaveIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        if sesion.rol != "administrador" and sesion.usuario_id != usuario_id:
+            raise HTTPException(status_code=403, detail="acceso denegado")
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_clave.model_dump_json())}
+
+        def operacion() -> tuple[int, dict]:
+            seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
+            seguridad.cambiar_clave(conexion, usuario_id, cuerpo_clave.clave)
+            seguridad.auditar(conexion, sesion.nombre, "usuario-clave", usuario_id, "cambiada")
+            return 200, {"id": usuario_id, "estado": "clave actualizada"}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/usuarios/{usuario_id}/revocacion")
+    def revocar_usuario(
+        usuario_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_admin(sesion)
+        if usuario_id == sesion.usuario_id:
+            raise HTTPException(status_code=409, detail="para cerrar tu sesión usa DELETE /sesion")
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"usuario_id": usuario_id, "operacion": "revocacion"}
+
+        def operacion() -> tuple[int, dict]:
+            seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
+            revocadas = seguridad.revocar_sesiones_de_usuario(conexion, usuario_id)
+            seguridad.auditar(conexion, sesion.nombre, "usuario-revocacion", usuario_id, f"{revocadas} sesiones")
+            return 200, {"id": usuario_id, "sesiones_revocadas": revocadas}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/usuarios/{usuario_id}/baja")
+    def baja_usuario(
+        usuario_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_admin(sesion)
+        if usuario_id == sesion.usuario_id:
+            raise HTTPException(status_code=409, detail="no puedes darte de baja a ti mismo")
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"usuario_id": usuario_id, "operacion": "baja"}
+
+        def operacion() -> tuple[int, dict]:
+            _id, _nombre, rol, activo = seguridad.buscar_usuario_en_empresa(
+                conexion, sesion.empresa_id, usuario_id
+            )
+            if not activo:
+                return 409, {"error": "el usuario ya está de baja"}
+            if rol == "administrador" and seguridad.contar_administradores_activos(
+                conexion, sesion.empresa_id
+            ) <= 1:
+                return 409, {"error": "no se puede dar de baja al último administrador activo"}
+            seguridad.dar_de_baja(conexion, usuario_id)
+            seguridad.auditar(conexion, sesion.nombre, "usuario-baja", usuario_id, "de baja")
+            return 200, {"id": usuario_id, "activo": False}
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/hotel/habitaciones/{habitacion_id}/limpieza")
+    def completar_limpieza_habitacion(
+        habitacion_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, cobro.ROLES_LIMPIEZA)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"habitacion_id": habitacion_id, "operacion": "limpieza"}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = cobro.completar_limpieza(conexion, habitacion_id)
+            except cobro.RecursoAjenoOInexistente as error:
+                raise seguridad.ErrorPermiso(str(error)) from error
+            seguridad.auditar(conexion, sesion.nombre, "limpieza", habitacion_id, "completada")
+            return 200, resultado
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/hotel/habitaciones/{habitacion_id}/mantenimiento")
+    def fijar_mantenimiento_habitacion(
+        habitacion_id: str,
+        cuerpo_mantenimiento: MantenimientoIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, cobro.ROLES_MANTENIMIENTO)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"habitacion_id": habitacion_id, **json.loads(cuerpo_mantenimiento.model_dump_json())}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = cobro.fijar_mantenimiento(conexion, habitacion_id, cuerpo_mantenimiento.abierto)
+            except cobro.RecursoAjenoOInexistente as error:
+                raise seguridad.ErrorPermiso(str(error)) from error
+            seguridad.auditar(
+                conexion, sesion.nombre, "mantenimiento", habitacion_id,
+                "abierto" if cuerpo_mantenimiento.abierto else "cerrado",
+            )
+            return 200, resultado
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/hotel/reservas/{reserva_id}/cancelacion")
+    def cancelar_reserva(
+        reserva_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, cobro.ROLES_CANCELACION)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"reserva_id": reserva_id, "operacion": "cancelacion"}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = cobro.cancelar(conexion, sesion.empresa_id, reserva_id, datetime.now())
+            except cobro.TransicionInvalida as error:
+                return 409, {"error": str(error)}
+            seguridad.auditar(conexion, sesion.nombre, "cancelacion", reserva_id, "cancelada")
+            return 200, resultado
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/hotel/reservas/{reserva_id}/cargos")
+    def asentar_cargo_reserva(
+        reserva_id: str,
+        cargo: CargoIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, cobro.ROLES_CARGO)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"reserva_id": reserva_id, **json.loads(cargo.model_dump_json())}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = cobro.asentar_cargo(
+                    conexion, sesion.empresa_id, reserva_id, cargo.concepto, cargo.monto_clp
+                )
+            except cobro.TransicionInvalida as error:
+                return 409, {"error": str(error)}
+            seguridad.auditar(conexion, sesion.nombre, "cargo", f"{reserva_id}:{resultado['cargo_id']}", "asentado")
+            return 201, resultado
 
         try:
             codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)

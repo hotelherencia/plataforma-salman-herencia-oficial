@@ -2,20 +2,36 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { api } from '../lib/api'
+import { api, useSesion } from '../lib/api'
 
-const ENLACES = [
+/**
+ * Marco de PLATAFORMA (capa Herencia): marca, empresa de la sesión y
+ * selector de módulos. El módulo Hotel es el único operable; cafetería,
+ * inmobiliaria y constructora están nombradas y cerradas en esta versión —
+ * sin formularios ni fetch propio.
+ * Presentación adaptada de «Dashboard Sidebar» de @arunjdass (21st.dev,
+ * id 14941): navegación por grupos con rótulo, estado activo por borde y
+ * sesión/cierre abajo. Vocabulario de esta capa: plataforma, módulo, sesión.
+ */
+
+const OPERACION_HOTEL = [
   ['/hotel/habitaciones', 'Habitaciones y tarifas'],
   ['/hotel/oferta', 'Oferta'],
   ['/hotel/reserva', 'Reserva'],
+  ['/hotel/reservas', 'Reservas'],
   ['/hotel/pago', 'Pago'],
   ['/hotel/estadia', 'Estadía'],
   ['/hotel/salida', 'Salida'],
   ['/hotel/caja', 'Caja'],
+  ['/hotel/usuarios', 'Usuarios'],
 ]
+
+const MODULOS_CERRADOS = ['Cafetería', 'Inmobiliaria', 'Constructora']
 
 export default function BarraNav() {
   const ruta = usePathname()
+  const sesion = useSesion()
+  const enHotel = ruta.startsWith('/hotel')
 
   async function salir() {
     try {
@@ -31,20 +47,46 @@ export default function BarraNav() {
         <span className="marca-punto" />
         <span>
           Herencia
-          <span className="marca-sub">Grupo Salman · Hotel</span>
+          <span className="marca-sub">Grupo Salman · Plataforma</span>
         </span>
       </div>
+
+      {sesion.fase === 'ok' && (
+        <p className="barra-empresa" title="Empresa de la sesión">
+          {sesion.usuario.empresa_id}
+        </p>
+      )}
+
       <nav className="nav">
-        {ENLACES.map(([href, nombre]) => (
-          <Link
-            key={href}
-            href={href}
-            className={ruta === href ? 'nav-enlace activo' : 'nav-enlace'}
-          >
+        <p className="nav-rotulo">Módulos</p>
+        <Link href="/" className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
+          Inicio
+        </Link>
+        <Link href="/hotel/oferta" className={enHotel ? 'nav-enlace activo' : 'nav-enlace'}>
+          Hotel
+        </Link>
+        {MODULOS_CERRADOS.map((nombre) => (
+          <span key={nombre} className="nav-cerrado" aria-disabled="true" title="Nombrada · no operable en esta versión">
             {nombre}
-          </Link>
+          </span>
         ))}
+
+        {enHotel && (
+          <>
+            <p className="nav-rotulo">Hotel · operación</p>
+            {OPERACION_HOTEL.map(([href, nombre]) => (
+              <Link
+                key={href}
+                href={href}
+                className={ruta === href ? 'nav-enlace activo' : 'nav-enlace'}
+              >
+                {nombre}
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
+
       <Link
         href="/cuenta"
         className={ruta === '/cuenta' ? 'nav-enlace nav-cuenta activo' : 'nav-enlace nav-cuenta'}
@@ -52,9 +94,6 @@ export default function BarraNav() {
         Mi cuenta
       </Link>
       <div className="barra-pie">
-        <p className="barra-modulos">
-          Cafetería · Inmobiliaria · Constructora — fuera de V1
-        </p>
         <button onClick={salir} className="boton-salir">Cerrar sesión</button>
       </div>
     </aside>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo, CampoSelect } from '../../../lib/api'
+import { api, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
 
 export default function Pago() {
   const [campos, setCampos] = useState({
@@ -13,24 +13,25 @@ export default function Pago() {
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
   const [aviso503, setAviso503] = useState(false)
-  const [clave, setClave] = useState('')
+  const [clave, renovarClave] = useClaveOperacion()
 
   async function cobrar(e) {
     e.preventDefault()
     setError('')
     setSalida(null)
     setAviso503(false)
-    const nuevaClave = crypto.randomUUID()
-    setClave(nuevaClave)
     try {
       const r = await api(`/hotel/reservas/${campos.reserva_id}/pagos`, {
         metodo: 'POST',
-        claveIdempotencia: nuevaClave,
+        claveIdempotencia: clave,
         cuerpo: { monto_clp: Number(campos.monto_clp), clave: campos.clave, modo: campos.modo },
       })
       if (r.estado === 503) setAviso503(true)
       if (r.estado >= 400) setError(JSON.stringify(r.datos))
-      else setSalida(r.datos)
+      else {
+        setSalida(r.datos)
+        renovarClave()
+      }
     } catch {
       setError('La API no está disponible')
     }
@@ -50,7 +51,8 @@ export default function Pago() {
           <button type="submit" className="boton-primario">Registrar pago</button>
         </form>
       </section>
-      {clave && <p className="nota-clave">Clave de idempotencia: <code>{clave}</code></p>}
+      <p className="nota-clave">Clave de idempotencia (reintenta con la misma para no duplicar): <code>{clave}</code></p>
+      <button onClick={() => { setSalida(null); setError(''); setAviso503(false); renovarClave() }} className="boton-secundario">Nueva operación</button>
       {aviso503 && <p role="alert" className="alerta">La pasarela no está configurada: nada quedó marcado como cobrado.</p>}
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />

@@ -53,6 +53,19 @@ export function useSesion() {
   return sesion
 }
 
+/**
+ * Clave de idempotencia estable (spec-front-v1 «Idempotencia en el cliente»):
+ * nace al montar el formulario, se muestra antes del primer envío, sobrevive
+ * errores de red y 4xx/5xx, y solo se reemplaza tras un 2xx (o con
+ * «Nueva operación»). Si el usuario cambia el cuerpo y reintenta con la clave
+ * vieja, la API responde 409 y la clave se conserva: no se acuña en silencio.
+ */
+export function useClaveOperacion() {
+  const [clave, setClave] = useState(() => crypto.randomUUID())
+  const renovar = () => setClave(crypto.randomUUID())
+  return [clave, renovar]
+}
+
 /** Marco común: con API caída muestra error y ninguna operación se confirma. */
 export function MarcoHotel({ children, titulo }) {
   const sesion = useSesion()

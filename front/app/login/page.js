@@ -35,7 +35,7 @@ export default function Login() {
       }
       const r = await api('/sesion', { metodo: 'POST', cuerpo })
       if (r.estado === 200) {
-        window.location.href = '/hotel/oferta'
+        window.location.href = '/'
         return
       }
       if (r.estado === 401 && r.datos?.detail === 'codigo_totp_requerido') {
@@ -55,7 +55,7 @@ export default function Login() {
       <form className="tarjeta login-tarjeta formulario" onSubmit={entrar}>
         <h1 className="login-marca">Plataforma Herencia</h1>
         <p className="login-subtitulo">
-          {fase === 'totp' ? 'Doble factor · código del autenticador' : 'Acceso · Módulo hotel'}
+          {fase === 'totp' ? 'Doble factor · código del autenticador' : 'Acceso · Plataforma Herencia'}
         </p>
         {fase === 'clave' ? (
           <>

@@ -13,7 +13,14 @@ from psycopg.errors import ExclusionViolation
 
 VIGENCIA_OFERTA = timedelta(minutes=15)
 ESTABLECIMIENTO_SINTETICO = "EST-SINT-001"
-POLITICA_CANCELACION = "politica del manual §9 pendiente; oferta informativa"
+# HECHO DOCUMENTADO: texto de hotel_inventario.servicio.POLITICA_CANCELACION
+# (LIMITE_CANCELACION_GRATUITA 48 h, HORA_LLEGADA 15:00).
+POLITICA_CANCELACION = (
+    "cancelación gratuita hasta 48 horas antes de la llegada; "
+    "después se carga la primera noche"
+)
+ESTADOS_VALIDOS = ("confirmada", "en_estadia", "finalizada", "cancelada")
+ESTADOS_QUE_OCUPAN_CUPO = ("confirmada", "en_estadia")
 
 
 class SinCupo(Exception):
@@ -64,7 +71,7 @@ def tarifa_vigente(conexion: psycopg.Connection, habitacion_id: str, fecha: date
 
 def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> bool:
     fila = conexion.execute(
-        "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado = 'confirmada' "
+        "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado IN ('confirmada', 'en_estadia') "
         "AND daterange(inicio, fin, '[)') && daterange(%s, %s, '[)')",
         (habitacion_id, inicio, fin),
     ).fetchone()
@@ -72,8 +79,12 @@ def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: 
 
 
 def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int, ahora: datetime) -> dict:
+    # HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): ocupada y sucia se venden
+    # en otras fechas; mantenimiento, bloqueada y fuera_de_servicio quedan fuera.
     unidades = conexion.execute(
-        "SELECT id, tipo, capacidad FROM habitaciones WHERE capacidad >= %s AND estado_operativo = 'disponible' ORDER BY id",
+        "SELECT id, tipo, capacidad FROM habitaciones WHERE capacidad >= %s "
+        "AND mantenimiento = false AND estado_operativo NOT IN ('bloqueada', 'fuera_de_servicio') "
+        "ORDER BY id",
         (personas,),
     ).fetchall()
     noches = (fin - inicio).days
@@ -93,6 +104,50 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
             }
         )
     return {"oferta": items, "emitida_en": ahora.isoformat(), "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60}
+
+
+def buscar_reservas(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    fecha: date | None = None,
+    estado: str | None = None,
+    texto: str | None = None,
+    ver_documento: bool = False,
+) -> list[dict]:
+    """Búsqueda de reservas de la empresa (spec-api-v1): filtros opcionales con
+    AND, orden por inicio, id. huesped_documento solo para ROLES_DOCUMENTO."""
+    consulta = (
+        "SELECT id, habitacion_id, inicio, fin, huesped_nombre, estado, "
+        "tarifa_noche_aceptada_clp, huesped_documento FROM reservas WHERE empresa_id = %s"
+    )
+    parametros: list = [empresa_id]
+    if fecha is not None:
+        consulta += " AND inicio <= %s AND fin > %s"
+        parametros += [fecha, fecha]
+    if estado is not None:
+        consulta += " AND estado = %s"
+        parametros.append(estado)
+    if texto:
+        patron = f"%{texto}%"
+        consulta += " AND (id ILIKE %s OR huesped_nombre ILIKE %s OR huesped_documento ILIKE %s OR habitacion_id ILIKE %s)"
+        parametros += [patron, patron, patron, patron]
+    consulta += " ORDER BY inicio, id"
+    filas = conexion.execute(consulta, parametros).fetchall()
+    items = []
+    for fila in filas:
+        item = {
+            "reserva_id": fila[0],
+            "habitacion_id": fila[1],
+            "inicio": fila[2].isoformat(),
+            "fin": fila[3].isoformat(),
+            "huesped_nombre": fila[4],
+            "estado": fila[5],
+            "tarifa_noche_aceptada_clp": fila[6],
+        }
+        if ver_documento:
+            item["huesped_documento"] = fila[7]
+        items.append(item)
+    return items
 
 
 def crear_reserva(
