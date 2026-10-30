@@ -194,6 +194,39 @@ aprovisionar PostgreSQL externo y fijar `DATABASE_URL` en `-ag24`; **rotar
 `VERCEL_TOKEN` y la clave de aplicación de Gmail** (se expusieron en chat el
 2026-10-30) y regenerar `ADMIN_CLAVE` en producción.
 
+## Cierre del día 2026-10-30
+
+Avances del día (HECHO DOCUMENTADO):
+
+- **H7 operativo:** front y API/backend desplegados en Vercel (equipo
+  `dev-2ddb`); topología final de dos proyectos tras limpiar duplicados
+  (`-3lgt`, `plataforma-salman-herencia` y el fantasma de
+  `cherrera0001s-projects`). Cada push a `main` reconstruye ambos.
+- **Identidad Git obligatoria** `hotelherenciacl@gmail.com` forzada por
+  `includeIf` (`hasconfig` por URL del remoto) en Windows y WSL — regla
+  Hobby de Vercel: solo despliega el autor dueño del proyecto.
+- **Lecciones del build de Vercel:** entrypoint en formato `modulo:variable`
+  bajo `[tool.vercel]`; con un `pyproject.toml` presente las dependencias se
+  instalan desde `[project]` (sin ella, `ModuleNotFoundError` en runtime);
+  el `vercel.json` con `services` sí se honra (front en `/`, API en `/api/*`);
+  ojo con Vercel Authentication del equipo; sin `DATABASE_URL`, `_conexion`
+  responde 503 (era 500).
+- **Variables de producción** fijadas vía API REST en el proyecto API (11,
+  incluidas `GOOGLE_CLIENT_*`) y en el front (`API_BASE_URL` con prefijo
+  `/api`); Google OAuth `configurado:true` en producción.
+- **Adaptador del dominio hotel a PostgreSQL** y backlog ADP versionados
+  (`6c54ff9`, trabajo en curso del propietario; suite del servicio: 110 OK y
+  21 fallos preexistentes en `test_preh7_seguridad.py`).
+
+Verificado en producción el 2026-10-30: front 200; `/api/salud` 200;
+`/api/auth/google/estado` → `configurado:true`; `/api/sesion` → 503 claro
+«base de datos no configurada»; builds en verde por push (dos contextos).
+
+Pendiente al cierre: `DATABASE_URL` externo (Neon/Vercel Postgres); registrar
+el redirect de Google en Cloud Console; rotación de secretos expuestos en
+chat; ratificación del propietario de la decisión «API en Vercel en lugar de
+Railway» (H7/T4c).
+
 ## Aceptación de H7
 
 Las tres piezas juntas: front de Vercel leyendo solo `API_BASE_URL`, contrato

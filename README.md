@@ -79,9 +79,34 @@ Decisión del propietario, 2026-10-28: se construye el mínimo de tres artefacto
 que gobiernan: `docs/arquitectura/spec-front-v1.md`,
 `docs/arquitectura/spec-api-v1.md` y `docs/arquitectura/spec-backend-v1.md`
 (las versiones sin `-v1` quedaron sustituidas). Cafetería, inmobiliaria y
-constructora siguen fuera de esta versión. Nada desplegado en producción. El
-estado BLOCKED del 2026-10-16 no gobierna ese mínimo. `plataforma/servidor.py`
+constructora siguen fuera de esta versión. En producción desde el 2026-10-30
+(H7, ver «Desplegado en producción» más abajo). El estado BLOCKED del
+2026-10-16 no gobierna ese mínimo. `plataforma/servidor.py`
 no es la API ni el servicio de Railway.
+
+**Desplegado en producción (2026-10-30, H7):** dos servicios en Vercel,
+equipo `dev-2ddb`, conectados a este repo — cada push a `main` reconstruye
+ambos (requiere autor del commit `hotelherenciacl@gmail.com`, regla Hobby):
+
+| Servicio | Proyecto | URL pública |
+|---|---|---|
+| Front (Next.js, root `front/`) | `plataforma-salman-herencia-oficial` | https://plataforma-salman-herencia-oficial.vercel.app |
+| API/backend (FastAPI, root repo, `api.index:app`) | `plataforma-salman-herencia-oficial-ag24` | https://plataforma-salman-herencia-oficial-delta.vercel.app/api |
+
+Verificado en producción: front sirviendo; `/api/salud` → 200; Google OAuth
+`configurado:true` (botón en `/login`); los endpoints con persistencia
+responden 503 «base de datos no configurada» hasta que exista `DATABASE_URL`
+externa. El plan original de backend en Railway quedó sustituido por API en
+Vercel (decisión operativa a ratificar del propietario). Runbook con las
+lecciones del build (entrypoint `modulo:variable` en `[tool.vercel]`,
+dependencias en `[project]`, Vercel Authentication, regla del autor) en
+`docs/arquitectura/h7-despliegue.md`.
+
+**Pendiente de producción:** PostgreSQL externo (Neon o Vercel Postgres) →
+`DATABASE_URL` en el proyecto API; registrar la URI de redirección de Google
+(`https://plataforma-salman-herencia-oficial-delta.vercel.app/api/auth/google/callback`)
+en Cloud Console; rotar secretos (`VERCEL_TOKEN`, clave de aplicación Gmail,
+`ADMIN_CLAVE` productiva).
 
 **Construcción (2026-10-28):** backend real en `servicio/` (H1–H5 +
 maduración: validación, seguridad, contrato OpenAPI servido, auditoría;
@@ -89,8 +114,8 @@ maduración: validación, seguridad, contrato OpenAPI servido, auditoría;
 las siete pantallas del hotel, rutas vacías de las otras verticales y la regla
 «API caída → error y nada confirmable», verificado con navegador contra el
 servicio real). Demo local: API en http://127.0.0.1:8080 y front en
-http://127.0.0.1:3000. Falta: H7 despliegue (Railway/Vercel, requiere las
-cuentas). El código local es en memoria y sin red: incremento 0 del hotel
+http://127.0.0.1:3000. H7 resuelto el 2026-10-30 (ver «Desplegado en
+producción» más arriba). El código local es en memoria y sin red: incremento 0 del hotel
 (17 pruebas OK) e incremento 1 del núcleo y de las cuatro verticales
 (9 + 102 hotel + 19 cafetería + 20 inmobiliaria + 14 constructora, todas OK,
 solo biblioteca estándar; propuesta técnica no ratificada). El 2026-10-28 se
