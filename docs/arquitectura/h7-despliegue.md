@@ -60,7 +60,7 @@ no hay despliegue. Este documento no toca DNS ni `hotelherencia.cl`.
 Preparación local hecha, pendiente de confirmación del propietario porque
 **sustituye a H7/T3 (Railway)**: un solo proyecto Vercel con dos *services*
 (`vercel.json` en la raíz): `front` (Next.js) y `servicio` (FastAPI,
-`entrypoint: servicio/api_vercel.py`). El rewrite `/api/(.*)` expone la API
+`entrypoint: api/index.py`). El rewrite `/api/(.*)` expone la API
 bajo el mismo dominio; el front se compila con `API_BASE_URL=/api` y las
 llamadas del navegador son mismo-origen (sin CORS; cookie `Secure` con
 `SameSite=None` sigue sirviendo). El entrypoint quita el prefijo `/api` antes
@@ -87,12 +87,39 @@ vías de descubrimiento apuntan al mismo `app`). El `pyproject.toml` no
 afecta a pip ni a Railway: sigue instalando desde `requirements.txt` de la
 raíz.
 
-Pendiente al desplegar: variables del proyecto en Vercel (`API_BASE_URL=/api`
-fijada por CLI el 2026-10-30; faltan `DATABASE_URL` de PostgreSQL externo —
-sin él el servicio arranca en memoria y no persiste —, `ADMIN_USUARIO`,
-`ADMIN_CLAVE`, `ADMIN_EMAIL` y `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`),
-y decidir si la siembra de `HAB-SINT-101..103` al arrancar tiene sentido en
-producción (hoy `sembrar_habitaciones` sigue corriendo).
+**Despliegue real (2026-10-30, tarde) — regla del autor y estado actual.**
+
+- Regla del autor (plan Hobby): el proyecto Vercel solo despliega commits cuyo
+  email de autor se mapee a la cuenta GitHub dueña del proyecto. Comprobado este
+  día: `hotelherenciacl@gmail.com` (cuenta `hotelherencia`) → build OK;
+  `construccion@herencia.local` (sin cuenta GitHub) → bloqueado («commit author
+  email is not valid»); `herrera.jara.cristobal@gmail.com` (cuenta `cherrera0001`,
+  no es la dueña) → bloqueado. El repo quedó con `git config user.email
+  "hotelherenciacl@gmail.com"` (local al repo). Comando para verificar a qué
+  cuenta mapea un email: `gh api repos/hotelherencia/plataforma-salman-herencia-oficial/commits/<sha> --jq '.author.login'`.
+- Tres proyectos Vercel quedaron conectados al mismo repo (cada push dispara los
+  tres; el estado de cada uno se ve rápido con `gh api repos/.../commits/<sha>/status`):
+  1. `dev-2ddb/plataforma-salman-herencia-oficial` — **canónico**. Build de
+     `478306a` completado; el dominio sirve el front (Next da 404 en `/api/*`):
+     el proyecto quedó como front-only (framework Next.js, root `front/`, ajuste
+     del propietario en el dashboard).
+  2. `dev-2ddb/plataforma-salman-herencia-oficial-ag24` — falla. Pendiente:
+     revisar logs (`npx vercel inspect dpl_A2EcuvDYdaibsdqGb6NPzkNwyx53 --logs`
+     con la cuenta dev-2ddb) o eliminar el proyecto.
+  3. `cherrera0001s-projects/plataforma-salman-herencia-oficial-main` — proyecto
+     fantasma creado al linkear localmente (`vercel link`); bloquea pushes y
+     ensucia el estado. Eliminar.
+- `API_BASE_URL=/api` se fijó por CLI por error en el proyecto (3) y fue
+  eliminada el mismo día. La variable correcta depende de la decisión pendiente:
+  **T4** (front en Vercel + API en Railway → `API_BASE_URL=https://<railway>`,
+  ver H7/T3) o **T4b** (todo en Vercel → reconfigurar el proyecto canónico para
+  que construya desde la raíz del repo, donde `vercel.json` con `services` +
+  `api/index.py` + `pyproject.toml` gobiernan; entonces `API_BASE_URL=/api` y
+  `DATABASE_URL` de PostgreSQL externo — sin él el servicio arranca en memoria y
+  no persiste —, más `ADMIN_USUARIO`/`ADMIN_CLAVE`/`ADMIN_EMAIL` y
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` en el dashboard).
+- Pendiente menor: decidir si la siembra de `HAB-SINT-101..103` al arrancar tiene
+  sentido en producción (hoy `sembrar_habitaciones` sigue corriendo).
 
 ## Aceptación de H7
 
