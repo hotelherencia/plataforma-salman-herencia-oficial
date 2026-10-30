@@ -30,6 +30,16 @@ esta versión.
   `FRONT_URL`/`ORIGEN_FRONT` difieren entre local y producción). El agente no
   lee valores de `.env` (política de secretos): reconcilia claves y presencia,
   jamás contenido, y nunca los copia tal cual al despliegue.
+- **Identidad Git obligatoria en los repos de `github.com/hotelherencia`**
+  (orden reiterada del propietario, 2026-10-30): todo commit se hace siempre
+  como `Herencia Construccion <hotelherenciacl@gmail.com>`, porque Vercel
+  (Hobby) bloquea el deployment de cualquier otro autor. La máquina lo
+  garantiza sola: `includeIf` en `~/.gitconfig` de Windows y de WSL
+  (`hasconfig:remote.*.url:https://github.com/hotelherencia/**` →
+  `~/.gitconfig-herencia`). En un entorno nuevo sin esa regla, fijar
+  `git config user.email "hotelherenciacl@gmail.com"` en el clone antes de
+  commitear. `construccion@herencia.local` queda vetado; solo existe en
+  histórico anterior al 2026-10-30 y en un stash local de respaldo.
 - **La especificación se cumple con hechos, no con prosa:** cada pieza se
   acepta con pruebas que la ejercen (HTTP contra el contrato, persistencia
   tras reinicio, reglas de sesión e idempotencia).
