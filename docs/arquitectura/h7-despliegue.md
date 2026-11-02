@@ -249,7 +249,10 @@ en lugar de Railway, porque no requiere cuentas nuevas):
 - Variables de producción fijadas en `-ag24` (vía API REST, 201):
   `ADMIN_USUARIO`, `ADMIN_CLAVE`, `ADMIN_EMAIL`, `GOOGLE_CLIENT_ID`,
   `GOOGLE_CLIENT_SECRET`,
-  `GOOGLE_REDIRECT_URI=https://plataforma-salman-herencia-oficial-delta.vercel.app/auth/google/callback`,
+  `GOOGLE_REDIRECT_URI=https://plataforma-salman-herencia-oficial-delta.vercel.app/api/auth/google/callback`
+  (verificado en producción el 2026-11-02: la app envía a Google la variante
+  con prefijo `/api`; el `redirect_uri_mismatch` se resuelve registrando
+  exactamente esa URI en Cloud Console),
   `COOKIE_SEGURA=1`, `SESSION_HORAS=12` y `ORIGEN_FRONT`/`FRONT_URL` = URL
   del front canónico. Falta `DATABASE_URL` externo (ver H7/T5): sin él los
   endpoints con persistencia responden **503 «base de datos no
