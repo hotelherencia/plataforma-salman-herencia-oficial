@@ -6,6 +6,10 @@ Documentación que no es spec activa ni código. El árbol de construcción vige
 
 ## Contenido
 
+- `funcional/` — **cómo funciona la app en producción** (2026-11-02): piezas y
+  despliegue (`arquitectura.md`), secuencias de uso (`flujos.md`), entidades y
+  reglas de negocio (`dominio.md`). HECHO DOCUMENTADO, verificado contra el
+  sistema desplegado; es la lectura de onboarding.
 - `definicion-herencia/` — especificación SDD V1.0 de Hotel Herencia (Documento
   Maestro M01–M24, 23 paquetes F00–F22, 153 requisitos, 45 decisiones, 306
   casos, 109 entidades). Se conserva porque sus IDs no tienen trazabilidad en
