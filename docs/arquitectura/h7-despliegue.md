@@ -344,6 +344,47 @@ aprovisionar PostgreSQL externo y fijar `DATABASE_URL` en `-ag24`; **rotar
 `VERCEL_TOKEN` y la clave de aplicación de Gmail** (se expusieron en chat el
 2026-10-30) y regenerar `ADMIN_CLAVE` en producción.
 
+## Cierre del día 2026-11-02
+
+HECHO DOCUMENTADO. Día de puesta en producción real de la V1 (18 commits):
+
+- **Backend Railway completo** (orden del propietario, `RAILWAY_TOKEN`): proyecto,
+  PostgreSQL 16 (imagen Railway `postgres-ssl`, volumen, PITR activo por el
+  propietario), servicio conectado al repo con auto-deploy, dominio público,
+  variables (incl. `ADMIN_*` fijados por el propietario vía chat). Issue #254
+  cerrada; login admin 200 con sesión real verificado.
+- **Topología final mismo-origen**: el proyecto API de Vercel (`-ag24`) fue
+  eliminado del equipo; el front consume `/api/*` con rewrite a Railway (adiós
+  CORS y cookies de terceros, que bloqueaban el login en Chrome).
+- **Google OAuth operativo**: la causa del `redirect_uri_mismatch` nunca fue la
+  app — la URI de redirección productiva no estaba registrada en el cliente
+  (la consola tenía solo localhost, un dominio con typo `hotelherrencia` y la
+  de Railway). Se agregó la URI exacta automatizando la consola (método nuevo
+  documentado arriba); el flujo ya llega a la pantalla de cuenta de Google.
+  Prueba final con credenciales reales pendiente del propietario en su
+  navegador (Google rechaza la entrada automatizada).
+- **Seguridad**: freno de logins por usuario (bug real: los proxies de borde
+  rotan la IP; suite 21→20 fallos), CORS estricto, cabeceras, cookie
+  `HttpOnly;Secure;SameSite=None`, validación de campos obligatorios en 6
+  formularios (un ID vacío producía 404 crudos).
+- **Integración front**: capa de interpretación de respuestas
+  (`mensajeDeError`, 404/422/códigos), contrato de errores estandarizado a
+  `{"detail": …}` en 16 respuestas del backend, confirmaciones legibles con
+  detalle plegable y resumen por tipo de operación.
+- **Tablero**: #251 (historia H7) y #217 (épica despliegue) cerradas con
+  evidencia; #275 creada (rotación de secretos); los 12 T-DEC siguen abiertos
+  como «Decisión humana» del propietario.
+- **Documentación nueva**: `docs/funcional/` (arquitectura, flujos, dominio —
+  cómo funciona la app).
+- **Incidente Railway 2026-10-21** contextualizado: revocación de tokens/sesiones
+  (explica el comportamiento del `RAILWAY_TOKEN`: GraphQL sí, CLI no).
+
+Pendiente al cierre: rotación de secretos (#275), prueba de «Entrar con Google»
+en navegador del propietario (posible aviso «app no verificada» → avanzado →
+continuar), corrección del dominio con typo cuando se active
+`plataforma.hotelherencia.cl`, límite de gasto mensual en Railway (dashboard),
+TOTP del admin, y las 12 decisiones Q-* del propietario.
+
 ## Cierre del día 2026-10-30
 
 Avances del día (HECHO DOCUMENTADO):
