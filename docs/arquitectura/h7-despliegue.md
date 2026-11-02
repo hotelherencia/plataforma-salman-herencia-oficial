@@ -50,6 +50,23 @@ API. Estado: proyecto `plataforma-salman-herencia`
   build/start; Nixpacks instala desde `requirements.txt`, que incluye
   `servicio/requirements.txt`). Alternativa sin app: imagen Docker en GHCR
   (decisión del propietario por la exposición del paquete).
+- **Incidente Railway del 2026-10-21 (contexto del token):** Railway tuvo un
+  incidente de plataforma el 2026-10-21 (deploys pausados, workspaces en
+  «Limited Access»; aviso posterior: «fix is out, monitoring» — el mismo que
+  el propietario vio en Vercel). La respuesta al incidente **revocó tokens y
+  sesiones** ([nota de recuperación de Railway](https://station.railway.com/questions/workspace-stuck-on-limited-access-dep-ce16a96e)).
+  Eso explica el comportamiento del `RAILWAY_TOKEN` actual: la GraphQL
+  pública funciona (todo el alta del 2026-11-02 se hizo así), pero `me` y el
+  CLI lo rechazan («Invalid RAILWAY_TOKEN»). No es bloqueante: se opera por
+  API; si algún día se necesita el CLI, crear un token nuevo en el dashboard
+  (los creados tras el incidente deberían tener acceso completo). Nuestro
+  proyecto se creó después del incidente y el deploy de postgres salió
+  SUCCESS: el workspace no está en pausa de deploys. Evaluación de riesgo
+  2026-11-02: sin impacto en datos (BD vacía, creada post-incidente); riesgo
+  npm verificado limpio (front solo depende de next/react/react-dom; el
+  lockfile no contiene chalk/debug/ansi-styles/strip-ansi/wrap-ansi/
+  supports-color); riesgo real vigente: rotación de secretos pendiente del
+  2026-10-30 (VERCEL_TOKEN, clave Gmail, ADMIN_CLAVE productiva).
 - **Variables Railway → Vercel (pendiente del propietario):** Vercel
   (serverless) no entra a la red privada de Railway, así que el PostgreSQL
   necesita TCP proxy público: dashboard → servicio `postgres` → Connect/Data
