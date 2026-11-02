@@ -161,17 +161,25 @@ def auditar(conexion: psycopg.Connection, actor: str, accion: str, recurso: str,
 
 
 class FrenoDeLogins:
-    """Freno de fuerza bruta en memoria por proceso: 5 fallos en 5 minutos bloquean 5 minutos."""
+    """Freno de fuerza bruta en memoria por proceso: 5 fallos en 5 minutos bloquean 5 minutos.
+
+    Doble contador: por (ip, usuario) y por usuario solo (este último
+    sobrevive a proxies de borde que rotan la IP vista por el proceso,
+    test_preh7_seguridad «no depende de la ip»)."""
 
     def __init__(self, max_intentos: int = 5, ventana_segundos: int = 300) -> None:
         self._max = max_intentos
         self._ventana = ventana_segundos
         self._fallos: dict[tuple[str, str], list[float]] = {}
+        self._fallos_usuario: dict[str, list[float]] = {}
         self._cerrojo = threading.Lock()
+
+    def _contar(self, fallos: list[float], ahora: float) -> list[float]:
+        return [t for t in fallos if ahora - t < self._ventana]
 
     def bloqueado(self, ip: str, usuario: str, ahora: float) -> bool:
         with self._cerrojo:
-            fallos = [t for t in self._fallos.get((ip, usuario), []) if ahora - t < self._ventana]
+            fallos = self._contar(self._fallos.get((ip, usuario), []), ahora)
             self._fallos[(ip, usuario)] = fallos
             return len(fallos) >= self._max
 
@@ -182,6 +190,20 @@ class FrenoDeLogins:
     def reiniciar(self, ip: str, usuario: str) -> None:
         with self._cerrojo:
             self._fallos.pop((ip, usuario), None)
+
+    def bloqueado_usuario(self, usuario: str, ahora: float) -> bool:
+        with self._cerrojo:
+            fallos = self._contar(self._fallos_usuario.get(usuario, []), ahora)
+            self._fallos_usuario[usuario] = fallos
+            return len(fallos) >= self._max
+
+    def registrar_fallo_usuario(self, usuario: str, ahora: float) -> None:
+        with self._cerrojo:
+            self._fallos_usuario.setdefault(usuario, []).append(ahora)
+
+    def reiniciar_usuario(self, usuario: str) -> None:
+        with self._cerrojo:
+            self._fallos_usuario.pop(usuario, None)
 
 
 def revocar_sesion(conexion: psycopg.Connection, sid: str) -> None:

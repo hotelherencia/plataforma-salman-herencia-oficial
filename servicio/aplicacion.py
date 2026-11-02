@@ -231,15 +231,18 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     ) -> dict:
         ip = request.client.host if request.client else "desconocida"
         freno: seguridad.FrenoDeLogins = app.state.freno_logins
-        if freno.bloqueado(ip, credenciales.usuario, time.time()):
+        if freno.bloqueado(ip, credenciales.usuario, time.time()) or \
+                freno.bloqueado_usuario(credenciales.usuario, time.time()):
             raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
         auth = seguridad.autenticar(conexion, credenciales.usuario, credenciales.clave)
         if auth is None:
             freno.registrar_fallo(ip, credenciales.usuario, time.time())
+            freno.registrar_fallo_usuario(credenciales.usuario, time.time())
             seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "rechazado")
             conexion.commit()
             raise HTTPException(status_code=401, detail="credenciales inválidas")
         freno.reiniciar(ip, credenciales.usuario)
+        freno.reiniciar_usuario(credenciales.usuario)
         usuario_id, empresa_id, rol, totp_activado = auth
         config = app.state.configuracion
         if totp_activado:
@@ -250,6 +253,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 raise HTTPException(status_code=401, detail="codigo_totp_requerido")
             if secreto is None or not totp.verificar(secreto, credenciales.totp):
                 freno.registrar_fallo(ip, credenciales.usuario, time.time())
+                freno.registrar_fallo_usuario(credenciales.usuario, time.time())
                 seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado")
                 conexion.commit()
                 raise HTTPException(status_code=401, detail="código 2FA inválido")
