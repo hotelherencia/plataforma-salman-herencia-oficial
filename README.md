@@ -106,7 +106,12 @@ dependencias en `[project]`, Vercel Authentication, regla del autor) en
 `DATABASE_URL` en el proyecto API; registrar la URI de redirección de Google
 (`https://plataforma-salman-herencia-oficial-delta.vercel.app/api/auth/google/callback`)
 en Cloud Console; rotar secretos (`VERCEL_TOKEN`, clave de aplicación Gmail,
-`ADMIN_CLAVE` productiva).
+`ADMIN_CLAVE` productiva). **Backend Railway (2026-11-02, orden del
+propietario):** proyecto `plataforma-salman-herencia` creado por API con
+PostgreSQL 16 y dominio `servicio-production-a2d7.up.railway.app`; falta
+conectar el repo GitHub (instalar la app GitHub de Railway en la org) y fijar
+los secretos `ADMIN_*`/`GOOGLE_CLIENT_*` en el servicio (detalle en
+`docs/arquitectura/h7-despliegue.md`).
 
 **Construcción (2026-10-28):** backend real en `servicio/` (H1–H5 +
 maduración: validación, seguridad, contrato OpenAPI servido, auditoría;

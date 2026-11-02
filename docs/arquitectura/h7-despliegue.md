@@ -19,6 +19,40 @@ no hay despliegue. Este documento no toca DNS ni `hotelherencia.cl`.
 
 ## H7/T3 — Backend en Railway
 
+**Creado por API el 2026-11-02 (orden del propietario: «para crear el
+backend y la bd usar RAILWAY_TOKEN»).** El token de `.env` funciona para la
+GraphQL pública (backboard.railway.app/graphql/v2) pero el CLI (`whoami`,
+`link`, `up`) lo rechaza (`me` no autorizado), así que todo el flujo fue por
+API. Estado: proyecto `plataforma-salman-herencia`
+(`1283dc6a-ba9a-4abe-a3c0-af7e0547bd2d`), entorno `production`
+(`6eb18182-6077-4b6c-90c9-893b2bdbb39f`), dominio público del servicio
+`https://servicio-production-a2d7.up.railway.app`.
+
+- Servicio `postgres` (`639f7fc7-f9b2-4781-ac8a-82d2435f1de6`): imagen
+  `postgres:16-alpine`, volumen en `/var/lib/postgresql/data`, deploy
+  SUCCESS. Usuario `plataforma`, base `plataforma`, clave generada en el
+  despliegue (vive solo en Railway).
+- Servicio `servicio` (`44ea5031-b208-4703-a6a4-7728cbab7882`): sin fuente
+  aún. Variables fijadas (las no-secretas): `DATABASE_URL` por referencia
+  interna `postgresql://plataforma:${{postgres.POSTGRES_PASSWORD}}@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`,
+  `COOKIE_SEGURA=1`, `SESSION_HORAS=12`, `SERVICIO_HOST=0.0.0.0`,
+  `FRONT_URL`/`ORIGEN_FRONT` = front canónico de Vercel,
+  `GOOGLE_REDIRECT_URI=https://servicio-production-a2d7.up.railway.app/auth/google/callback`.
+  Pendientes del propietario (secretos, no se copian desde `.env`):
+  `ADMIN_USUARIO`, `ADMIN_CLAVE`, `ADMIN_EMAIL`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET` (ayuda: `scripts/mapear_variables_despliegue.py`).
+- **Bloqueante restante:** conectar el repo GitHub. `serviceConnect` respondió
+  «User does not have access to the repo» porque la app GitHub de Railway no
+  está instalada en la org `hotelherencia`. El propietario la instala desde
+  el dashboard del proyecto (New → GitHub Repo → autorizar) y con
+  `serviceConnect(input: {repo: "hotelherencia/plataforma-salman-herencia-oficial", branch: "main"})`
+  queda auto-deploy en cada push (el `railway.toml` de la raíz gobierna
+  build/start; Nixpacks instala desde `requirements.txt`, que incluye
+  `servicio/requirements.txt`). Alternativa sin app: imagen Docker en GHCR
+  (decisión del propietario por la exposición del paquete).
+
+Flujo original del runbook (referencia, previo a la creación por API):
+
 1. **New Project → Deploy from GitHub** → elegir el repo → servicio único
    (el `railway.toml` define `python -m servicio` y healthcheck `/salud`).
 2. **PostgreSQL**: `New → Database → PostgreSQL`; copiar la URL interna que
