@@ -144,11 +144,26 @@ export function mensajeDeError(datos, estado) {
   return `Error ${estado}`
 }
 
+/** Resumen legible de la confirmación según la forma del payload; null si no
+ *  reconoce la operación (cae en el texto genérico). */
+export function resumenConfirmacion(datos) {
+  if (!datos || typeof datos !== 'object') return null
+  if (datos.habitacion_id && datos.estado_preparacion) {
+    const tareas = typeof datos.tareas_completadas === 'number' ? ` · ${datos.tareas_completadas} tarea(s) de limpieza cerrada(s)` : ''
+    return `Habitación ${datos.habitacion_id}: preparación «${datos.estado_preparacion}»${tareas}`
+  }
+  if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
+  if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`
+  if (datos.usuario) return `Usuario ${datos.usuario}: operación registrada`
+  return null
+}
+
 export function SalidaJson({ datos }) {
   if (!datos) return null
+  const resumen = resumenConfirmacion(datos)
   return (
     <div>
-      <p className="operacion-confirmada">Operación confirmada por el servidor</p>
+      <p className="operacion-confirmada">{resumen || 'Operación confirmada por el servidor'}</p>
       <details className="json-detalle">
         <summary>Ver detalle técnico</summary>
         <pre className="json-panel">{JSON.stringify(datos, null, 2)}</pre>
