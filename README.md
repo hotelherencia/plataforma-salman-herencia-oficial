@@ -114,7 +114,10 @@ en chat 2026-11-02). **Backend Railway (2026-11-02, orden del propietario,
 EN VIVO):** proyecto `plataforma-salman-herencia` creado por API con
 PostgreSQL 16, repo GitHub conectado (auto-deploy en cada push) y secretos
 `ADMIN_*` fijados (detalle en
-`docs/arquitectura/h7-despliegue.md`).
+`docs/arquitectura/h7-despliegue.md`). **PITR activado el 2026-11-02**
+(Backups → Enable PITR por el propietario): bucket `Postgres-PITR` (US West),
+`WAL_ARCHIVE_*` fijadas y pgBackRest archivando — full semanal + diferencial
+diaria, retención ~4 semanas.
 
 **Construcción (2026-10-28):** backend real en `servicio/` (H1–H5 +
 maduración: validación, seguridad, contrato OpenAPI servido, auditoría;
