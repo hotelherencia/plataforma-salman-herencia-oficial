@@ -104,10 +104,10 @@ en Railway, sustituido el 2026-10-30 por API en Vercel, quedó **restablecido
 el 2026-11-02** (orden del propietario). Runbook con las lecciones en
 `docs/arquitectura/h7-despliegue.md`.
 
-**Pendiente de producción:** registrar la URI de redirección de Google del
-backend Railway (`https://servicio-production-a2d7.up.railway.app/auth/google/callback`)
-en Cloud Console y fijar `ADMIN_EMAIL`/`GOOGLE_CLIENT_*` en el servicio
-(hoy `configurado:false`: el login con usuario/clave sí funciona); activar
+**Pendiente de producción:** login con Google habilitado el 2026-11-02
+(`configurado:true` en el backend Railway; URI de redirección registrada en
+Cloud Console y consentimiento de Google validado de punta a punta — falta
+solo la prueba en navegador del propietario); activar
 PITR en el servicio `postgres` (Backups → Enable PITR); rotar secretos
 (`VERCEL_TOKEN`, clave de aplicación Gmail, `ADMIN_CLAVE` productiva — expuesta
 en chat 2026-11-02). **Backend Railway (2026-11-02, orden del propietario,
