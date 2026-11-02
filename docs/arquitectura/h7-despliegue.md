@@ -217,6 +217,42 @@ los dos `pyproject.toml` afecta a pip ni a Railway.
 
 ## H7/T5 — Revisión de configuración (regla permanente, 2026-10-30)
 
+**Método probado el 2026-11-02 para operar la consola de Google cuando el
+propietario no logra alinearse en la UI** (HECHO DOCUMENTADO, pedido del
+propietario): Google Cloud SDK (`winget install Google.CloudSDK`) +
+`gcloud auth login` para sesión con alcance cloud-platform; las APIs de
+administración de clientes OAuth están apagadas (IAP OAuth Admin APIs
+retiradas en 2026 y exigen organización), así que la edición del cliente se
+hace **automatizando el navegador**: Playwright para Python en Windows
+(`pip install playwright` + `playwright install chromium`; con Google el
+login hay que usar `channel="chrome"` —el Chromium de Playwright es
+rechazado como «navegador no seguro»—, `launch_persistent_context` para
+conservar la sesión entre pasos y credenciales leídas desde `.env` dentro
+del proceso, jamás impresas). El propietario completa el sign-in si Google
+lo exige; el agente hace el resto (reconocer la página con volcado de
+botones/enlaces y capturas, luego editar-guardar).
+
+**Caso resuelto con este método (2026-11-02): el `redirect_uri_mismatch` del
+login con Google.** La causa nunca fue la app: el cliente «Plataforma Herencia
+Login» (`1093725761252-…`) tenía como URIs de redirección solo
+`localhost:8080/…`, un dominio personalizado con typo (`plataforma.
+hotelherrencia.cl/…`, doble r) y la del backend Railway — la URI que la app
+envía en producción (`…vercel.app/api/auth/google/callback`) **nunca** estaba
+registrada (los «orígenes de JavaScript» sí incluían el dominio del front, lo
+que confundía la revisión manual). Las pruebas con `curl` daban 302 porque ese
+cliente sin sesión solo pasa validación sintáctica; el navegador con sesión de
+Google sí atraviesa la política y fallaba. Se agregó la URI exacta desde la
+propia consola (la UI nueva de Google Auth Platform es un formulario editable
+en línea: sección «URIs de redireccionamiento autorizados», botón «Agregar
+URI»; ojo, los campos son `input[type=text]` y el foco hace scroll del valor
+largo — verificar `input_value()` antes de guardar). Tras el guardado, el
+authorize devuelve la pantalla de cuenta de Google. El último paso (ingresar
+la contraseña de Google) lo bloquea Google ante automatización
+(`/v3/signin/rejected`) — lo completa el humano en su navegador. La consola
+advierte: la configuración puede tardar de 5 minutos a algunas horas en
+aplicarse. Pendiente decisión del propietario: corregir el dominio con typo
+cuando active `plataforma.hotelherencia.cl`.
+
 **Auditoría de seguridad y E2E en producción (2026-11-02, commit `8780cc0`):**
 rate limit de login roto en producción — los proxies de borde de Railway rotan
 la IP vista y el contador en memoria por (ip, usuario) nunca llegaba a 5 (14
