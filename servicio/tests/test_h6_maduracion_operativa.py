@@ -391,12 +391,12 @@ class MaduracionOperativaTest(unittest.TestCase):
         sin_doc = self.reservar("HAB-SINT-103", P1, P3, "Elías", documento=None, clave="r-sd")
         respuesta = self.entrada(sin_doc, "ent-sd")
         self.assertEqual(respuesta.status_code, 409)
-        self.assertIn("documento", respuesta.json()["error"])
+        self.assertIn("documento", respuesta.json()["detail"])
         # llegada futura: aún no es hora (inicio en fecha futura)
         futura = self.reservar("HAB-SINT-103", FUTURO, FUTURO_FIN, "Fito", clave="r-fu")
         respuesta = self.entrada(futura, "ent-fu")
         self.assertEqual(respuesta.status_code, 409)
-        self.assertIn("hora de llegada", respuesta.json()["error"])
+        self.assertIn("hora de llegada", respuesta.json()["detail"])
 
     # ---- 5. cancelación (decide el dominio, sin reversos) ----
 

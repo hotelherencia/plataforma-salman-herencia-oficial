@@ -117,6 +117,7 @@ export function mensajeDeError(datos, estado) {
     }
     return traducciones[detalle] || detalle
   }
+  if (typeof datos?.error === 'string') return datos.error
   if (Array.isArray(detalle))
     return detalle
       .map((d) => {

@@ -510,9 +510,9 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                     huesped_documento=reserva.huesped.documento,
                 )
             except reservas_db.SinCupo as error:
-                return 409, {"error": str(error)}
+                return 409, {"detail": str(error)}
             except reservas_db.SinTarifaVigente as error:
-                return 409, {"error": str(error)}
+                return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "reserva", creada["reserva_id"], "confirmada")
             return 201, creada
 
@@ -542,7 +542,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
         def operacion() -> tuple[int, dict]:
             if pago.modo == "pasarela":
-                return 503, {"error": "pasarela no configurada", "estado": "pendiente"}
+                return 503, {"detail": "pasarela no configurada", "estado": "pendiente"}
             _exigir_rol(sesion, cobro.ROLES_PAGO_MANUAL)
             try:
                 registrado = cobro.registrar_pago_manual(
@@ -550,7 +550,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 )
             except cobro.PagoRechazadoPorNucleo as error:
                 seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "rechazado-nucleo")
-                return 403, {"error": str(error)}
+                return 403, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "confirmado")
             return 201, registrado
 
@@ -584,7 +584,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             try:
                 ingreso = cobro.entrada(conexion, sesion.empresa_id, reserva_id)
             except (cobro.HabitacionNoLista, cobro.TransicionInvalida) as error:
-                return 409, {"error": str(error)}
+                return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "entrada", reserva_id, "en_estadia")
             return 200, ingreso
 
@@ -609,7 +609,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             try:
                 liquidada = cobro.salida(conexion, sesion.empresa_id, reserva_id)
             except (cobro.SaldoPendiente, cobro.TransicionInvalida) as error:
-                return 409, {"error": str(error)}
+                return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "salida", reserva_id, "liquidada")
             return 200, liquidada
 
@@ -667,7 +667,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 (sesion.empresa_id, usuario.nombre),
             ).fetchone()
             if existe is not None:
-                return 409, {"error": "nombre de usuario ya existe en la empresa"}
+                return 409, {"detail": "nombre de usuario ya existe en la empresa"}
             usuario_id = seguridad.crear_usuario(
                 conexion, sesion.empresa_id, usuario.nombre, usuario.rol, usuario.clave
             )
@@ -751,11 +751,11 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 conexion, sesion.empresa_id, usuario_id
             )
             if not activo:
-                return 409, {"error": "el usuario ya está de baja"}
+                return 409, {"detail": "el usuario ya está de baja"}
             if rol == "administrador" and seguridad.contar_administradores_activos(
                 conexion, sesion.empresa_id
             ) <= 1:
-                return 409, {"error": "no se puede dar de baja al último administrador activo"}
+                return 409, {"detail": "no se puede dar de baja al último administrador activo"}
             seguridad.dar_de_baja(conexion, usuario_id)
             seguridad.auditar(conexion, sesion.nombre, "usuario-baja", usuario_id, "de baja")
             return 200, {"id": usuario_id, "activo": False}
@@ -838,7 +838,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             try:
                 resultado = cobro.cancelar(conexion, sesion.empresa_id, reserva_id, datetime.now())
             except cobro.TransicionInvalida as error:
-                return 409, {"error": str(error)}
+                return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "cancelacion", reserva_id, "cancelada")
             return 200, resultado
 
@@ -867,7 +867,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                     conexion, sesion.empresa_id, reserva_id, cargo.concepto, cargo.monto_clp
                 )
             except cobro.TransicionInvalida as error:
-                return 409, {"error": str(error)}
+                return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "cargo", f"{reserva_id}:{resultado['cargo_id']}", "asentado")
             return 201, resultado
 
@@ -881,25 +881,25 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     @app.exception_handler(cobro.RecursoAjenoOInexistente)
     @app.exception_handler(cobro.PagoRechazadoPorNucleo)
     async def manejar_acceso(_request: Request, _exc: Exception) -> Response:
-        return Response(content='{"error":"acceso denegado"}', status_code=403, media_type="application/json")
+        return Response(content='{"detail":"acceso denegado"}', status_code=403, media_type="application/json")
 
     @app.exception_handler(psycopg.IntegrityError)
     async def manejar_integridad(_request: Request, _exc: psycopg.IntegrityError) -> Response:
-        return Response(content='{"error":"conflicto de integridad"}', status_code=409, media_type="application/json")
+        return Response(content='{"detail":"conflicto de integridad"}', status_code=409, media_type="application/json")
 
     @app.exception_handler(reservas_db.SinCupo)
     @app.exception_handler(reservas_db.SinTarifaVigente)
     async def manejar_conflictos(_request: Request, exc: Exception) -> Response:
-        return Response(content=json.dumps({"error": str(exc)}, ensure_ascii=False), status_code=409, media_type="application/json")
+        return Response(content=json.dumps({"detail": str(exc)}, ensure_ascii=False), status_code=409, media_type="application/json")
 
     @app.exception_handler(idempotencia.ConflictoIdempotencia)
     async def manejar_conflicto_idempotencia(_request: Request, exc: idempotencia.ConflictoIdempotencia) -> Response:
-        return Response(content=json.dumps({"error": str(exc)}, ensure_ascii=False), status_code=409, media_type="application/json")
+        return Response(content=json.dumps({"detail": str(exc)}, ensure_ascii=False), status_code=409, media_type="application/json")
 
     @app.exception_handler(seguridad.ErrorPermiso)
     async def manejar_permiso(_request: Request, _exc: seguridad.ErrorPermiso) -> Response:
         return Response(
-            content='{"error":"acceso denegado"}',
+            content='{"detail":"acceso denegado"}',
             status_code=403,
             media_type="application/json",
         )
