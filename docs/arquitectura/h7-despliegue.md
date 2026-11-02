@@ -50,6 +50,16 @@ API. Estado: proyecto `plataforma-salman-herencia`
   build/start; Nixpacks instala desde `requirements.txt`, que incluye
   `servicio/requirements.txt`). Alternativa sin app: imagen Docker en GHCR
   (decisión del propietario por la exposición del paquete).
+- **Variables Railway → Vercel (pendiente del propietario):** Vercel
+  (serverless) no entra a la red privada de Railway, así que el PostgreSQL
+  necesita TCP proxy público: dashboard → servicio `postgres` → Connect/Data
+  → «Public network» → agregar proxy TCP del puerto 5432 (la API pública solo
+  expone `tcpProxyDelete`, no la creación). Con el host:port público, el
+  propietario rescata la URL de conexión del mismo panel y la entrega al
+  agente, que la fija como `DATABASE_URL` del proyecto Vercel `-ag24` vía API
+  REST (sin reimprimirla) y verifica que `/api/sesion` deja de responder 503
+  «base de datos no configurada». Las demás variables de `-ag24`
+  (`ADMIN_*`, `GOOGLE_CLIENT_*`, etc.) siguen fijadas desde el 2026-10-30.
 
 Flujo original del runbook (referencia, previo a la creación por API):
 
