@@ -1,3 +1,7 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "rewrites": [
+    { "source": "/api", "destination": "https://servicio-production-a2d7.up.railway.app/" },
+    { "source": "/api/:path*", "destination": "https://servicio-production-a2d7.up.railway.app/:path*" }
+  ]
 }
