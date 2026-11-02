@@ -52,8 +52,18 @@ API. Estado: proyecto `plataforma-salman-herencia`
   Backups del servicio («Enable PITR»; crea el bucket, fija `WAL_ARCHIVE_*`
   y redeploya; el CLI `railway postgres pitr enable` no es usable con el
   token actual). Costo PITR: storage del bucket + egress (comprimido).
-- Servicio `servicio` (`44ea5031-b208-4703-a6a4-7728cbab7882`): sin fuente
-  aún. Variables fijadas (las no-secretas): `DATABASE_URL` por referencia
+- Servicio `servicio` (`44ea5031-b208-4703-a6a4-7728cbab7882`): **conectado al
+  repo GitHub el 2026-11-02** (`serviceConnect` repo
+  `hotelherencia/plataforma-salman-herencia-oficial`, rama `main`; la app
+  GitHub de Railway quedó instalada en la org pese al aviso de «Sign ups are
+  currently disabled», una página transitoria del flujo). Auto-deploy en cada
+  push. La conexión a PostgreSQL quedó verificada por logs (el primer deploy
+  crasheó por un bug del agente: tras recrear el clúster con superusuario
+  `postgres`, el `DATABASE_URL` siguió con el usuario viejo `plataforma`;
+  corregido). El deploy actual se frena a propósito («la tabla usuarios está
+  vacía y faltan ADMIN_USUARIO/ADMIN_CLAVE»): arrancará en cuanto el
+  propietario fije los secretos. Variables fijadas (las no-secretas):
+  `DATABASE_URL` por referencia
   interna `postgresql://postgres:${{postgres.POSTGRES_PASSWORD}}@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`
   `COOKIE_SEGURA=1`, `SESSION_HORAS=12`, `SERVICIO_HOST=0.0.0.0`,
   `FRONT_URL`/`ORIGEN_FRONT` = front canónico de Vercel,
