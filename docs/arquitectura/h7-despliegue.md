@@ -29,9 +29,19 @@ API. Estado: proyecto `plataforma-salman-herencia`
 `https://servicio-production-a2d7.up.railway.app`.
 
 - Servicio `postgres` (`639f7fc7-f9b2-4781-ac8a-82d2435f1de6`): imagen
-  `postgres:16-alpine`, volumen en `/var/lib/postgresql/data`, deploy
-  SUCCESS. Usuario `plataforma`, base `plataforma`, clave generada en el
-  despliegue (vive solo en Railway).
+  `ghcr.io/railwayapp-templates/postgres-ssl:16` (la imagen propia de
+  Railway, migrada el 2026-11-02 desde `postgres:16-alpine` para habilitar
+  PITR según su indicación; ojo: la referencia corta `postgres-ssl:16` NO la
+  resuelve el builder — hay que usar la ruta GHCR completa). Volumen nuevo
+  tras el cambio (el volumen inicial se eliminó: estaba vacío y el cambio
+  alpine→Debian choca permisos uid 70/999; hoy sin datos que migrar).
+  Deploy SUCCESS. Usuario `plataforma`, base `plataforma`, clave generada en
+  el despliegue (vive solo en Railway). **`btree_gist` (usado por la
+  migración 0003) es extensión contrib estándar y está presente.** PITR aún
+  no está activado: todavía falta el click del propietario en la pestaña
+  Backups del servicio («Enable PITR»; crea el bucket, fija `WAL_ARCHIVE_*`
+  y redeploya; el CLI `railway postgres pitr enable` no es usable con el
+  token actual). Costo PITR: storage del bucket + egress (comprimido).
 - Servicio `servicio` (`44ea5031-b208-4703-a6a4-7728cbab7882`): sin fuente
   aún. Variables fijadas (las no-secretas): `DATABASE_URL` por referencia
   interna `postgresql://plataforma:${{postgres.POSTGRES_PASSWORD}}@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`,
