@@ -217,6 +217,23 @@ los dos `pyproject.toml` afecta a pip ni a Railway.
 
 ## H7/T5 — Revisión de configuración (regla permanente, 2026-10-30)
 
+**Auditoría de seguridad y E2E en producción (2026-11-02, commit `8780cc0`):**
+rate limit de login roto en producción — los proxies de borde de Railway rotan
+la IP vista y el contador en memoria por (ip, usuario) nunca llegaba a 5 (14
+intentos sin 429). Fix: `FrenoDeLogins` ganó contador por usuario
+(`bloqueado_usuario`/`registrar_fallo_usuario`/`reiniciar_usuario`), cableado
+en `POST /sesion`; la prueba `test_freno_por_usuario_no_depende_de_la_ip` pasa
+y la suite bajó de 21 a 20 fallos (resto preexistente del adaptador ADP).
+Batería E2E en vivo verificada: freno 401×5→429; cookie `sid` con
+`HttpOnly; SameSite=none; Secure`; CORS solo con origen del front (preflight y
+con credenciales); cabeceras `nosniff`/`DENY`/`no-referrer`; 401 en endpoints
+protegidos sin sesión; circuito autenticado 200 en `/sesion`, `/hotel/oferta`
+(con params), `/hotel/caja?fecha`, `/hotel/reservas`, `/usuarios`,
+`/auth/google/estado`. Límite del freno: en memoria por proceso (reinicia con
+redeploy; ventana 5 min). Hardening pendiente (propietario): límite de gasto
+mensual en Railway (Usage/Billing), TOTP del admin (`POST /cuenta/2fa`),
+rotación de secretos.
+
 Pedido del propietario: revisar siempre la configuración efectiva contra
 `.env` antes de desplegar o diagnosticar. Auditoría del 2026-10-30
 (presencia, no valores):
