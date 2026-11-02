@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, Campo, CampoSelect } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect } from '../../../lib/api'
 import { ListaReservas, ReservasVacias } from '../_componentes/lista-reservas'
 
 export default function Reservas() {
@@ -19,7 +19,7 @@ export default function Reservas() {
     if (filtros.texto) params.set('texto', filtros.texto)
     try {
       const r = await api(`/hotel/reservas?${params}`)
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setResultado(r.datos)
     } catch {
       setError('La API no está disponible')

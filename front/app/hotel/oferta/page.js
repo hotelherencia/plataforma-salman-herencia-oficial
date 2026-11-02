@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, Campo } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, Campo } from '../../../lib/api'
 import { CabeceraOferta, TarjetaOferta, OfertaVacia } from '../_componentes/tarjeta-oferta'
 
 export default function Oferta() {
@@ -20,7 +20,7 @@ export default function Oferta() {
         personas: consulta.personas,
       })
       const r = await api(`/hotel/oferta?${params}`)
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setSalida(r.datos)
     } catch {
       setError('La API no está disponible')

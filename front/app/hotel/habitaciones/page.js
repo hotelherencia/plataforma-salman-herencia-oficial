@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
 
 export default function Habitaciones() {
   const [hab, setHab] = useState({ habitacion_id: 'HAB-101', tipo: 'doble', capacidad: '2' })
@@ -26,7 +26,7 @@ export default function Habitaciones() {
     setSalida(null)
     try {
       const r = await api(ruta, { metodo: 'PUT', cuerpo, claveIdempotencia: clave })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         alExito()
@@ -42,7 +42,7 @@ export default function Habitaciones() {
     setSalida(null)
     try {
       const r = await api(ruta, { metodo: 'POST', cuerpo, claveIdempotencia: clave })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         alExito()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, Campo } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, Campo } from '../../../lib/api'
 
 export default function Caja() {
   const hoy = new Date().toISOString().slice(0, 10)
@@ -15,7 +15,7 @@ export default function Caja() {
     setCaja(null)
     try {
       const r = await api(`/hotel/caja?fecha=${fecha}`)
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setCaja(r.datos)
     } catch {
       setError('La API no está disponible')

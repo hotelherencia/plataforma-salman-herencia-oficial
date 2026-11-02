@@ -106,9 +106,44 @@ export function MarcoHotel({ children, titulo }) {
   )
 }
 
+/** Interpreta el cuerpo de error de la API en texto legible. Los `detail` de
+ *  negocio ya vienen en español; los códigos técnicos se traducen y las
+ *  validaciones 422 (detail como arreglo) se listan en línea. */
+export function mensajeDeError(datos, estado) {
+  const detalle = datos && datos.detail
+  if (typeof detalle === 'string') {
+    const traducciones = {
+      codigo_totp_requerido: 'Ingresa el código del autenticador.',
+    }
+    return traducciones[detalle] || detalle
+  }
+  if (Array.isArray(detalle))
+    return detalle
+      .map((d) => {
+        if (!d || typeof d !== 'object') return String(d)
+        const campo = Array.isArray(d.loc) && d.loc.length > 1 ? `${d.loc[d.loc.length - 1]}: ` : ''
+        return `${campo}${d.msg || JSON.stringify(d)}`
+      })
+      .join(' · ')
+  if (estado === 401) return 'Sesión expirada. Inicia sesión de nuevo.'
+  if (estado === 403) return 'Sin permisos para esta operación.'
+  if (estado === 429) return 'Demasiados intentos. Espera unos minutos.'
+  if (estado === 503) return 'Servicio no configurado en el servidor.'
+  if (estado >= 500) return 'Error interno del servidor. Intenta más tarde.'
+  return `Error ${estado}`
+}
+
 export function SalidaJson({ datos }) {
   if (!datos) return null
-  return <pre className="json-panel">{JSON.stringify(datos, null, 2)}</pre>
+  return (
+    <div>
+      <p className="operacion-confirmada">Operación confirmada por el servidor</p>
+      <details className="json-detalle">
+        <summary>Ver detalle técnico</summary>
+        <pre className="json-panel">{JSON.stringify(datos, null, 2)}</pre>
+      </details>
+    </div>
+  )
 }
 
 export function Campo({ etiqueta, ...props }) {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 
 export default function Usuarios() {
   const sesion = useSesion()
@@ -22,7 +22,7 @@ export default function Usuarios() {
     setSalida(null)
     try {
       const r = await api(ruta, { metodo: 'POST', cuerpo, claveIdempotencia: clave })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         alExito()

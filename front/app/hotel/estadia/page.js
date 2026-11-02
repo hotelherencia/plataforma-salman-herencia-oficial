@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function Estadia() {
   const [reservaId, setReservaId] = useState('')
@@ -22,7 +22,7 @@ export default function Estadia() {
         claveIdempotencia: claveEntrada,
         cuerpo: {},
       })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         renovarClaveEntrada()
@@ -42,7 +42,7 @@ export default function Estadia() {
         claveIdempotencia: claveCancela,
         cuerpo: {},
       })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         renovarClaveCancela()
@@ -62,7 +62,7 @@ export default function Estadia() {
         claveIdempotencia: claveCargo,
         cuerpo: { concepto: cargo.concepto, monto_clp: Number(cargo.monto_clp) },
       })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         renovarClaveCargo()

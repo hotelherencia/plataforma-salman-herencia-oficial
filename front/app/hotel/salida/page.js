@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function SalidaPage() {
   const [reservaId, setReservaId] = useState('')
@@ -19,7 +19,7 @@ export default function SalidaPage() {
         claveIdempotencia: clave,
         cuerpo: {},
       })
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         renovarClave()

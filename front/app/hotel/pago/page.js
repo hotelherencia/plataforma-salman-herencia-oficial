@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
 
 export default function Pago() {
   const [campos, setCampos] = useState({
@@ -27,7 +27,7 @@ export default function Pago() {
         cuerpo: { monto_clp: Number(campos.monto_clp), clave: campos.clave, modo: campos.modo },
       })
       if (r.estado === 503) setAviso503(true)
-      if (r.estado >= 400) setError(JSON.stringify(r.datos))
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
         renovarClave()
