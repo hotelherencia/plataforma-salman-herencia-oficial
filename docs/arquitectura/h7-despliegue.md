@@ -35,8 +35,18 @@ API. Estado: proyecto `plataforma-salman-herencia`
   resuelve el builder — hay que usar la ruta GHCR completa). Volumen nuevo
   tras el cambio (el volumen inicial se eliminó: estaba vacío y el cambio
   alpine→Debian choca permisos uid 70/999; hoy sin datos que migrar).
-  Deploy SUCCESS. Usuario `plataforma`, base `plataforma`, clave generada en
-  el despliegue (vive solo en Railway). **`btree_gist` (usado por la
+  Deploy SUCCESS. Usuario `postgres` (el tooling de Railway — healthchecks,
+  pgBackRest — exige el rol `postgres`; con `plataforma` como superusuario
+  fallaban), base `plataforma`, clave generada en el despliegue (vive solo en
+  Railway). Ajustes aplicados el 2026-11-02 tras los logs del propietario:
+  `PGDATA=/var/lib/postgresql/data/pgdata` (el volumen montado directo trae
+  `lost+found` y `initdb` se niega; patrón canónico de la template de
+  Railway), y `RAILWAY_VOLUME_NAME`/`RAILWAY_VOLUME_MOUNT_PATH` fijadas a
+  mano porque la inyección automática no llegaba al contenedor («volume not
+  mounted to the correct path»). Volumen actual `75840ee6-…` (nombre
+  `postgres-volume-wDFr`). Queda un `FATAL: role "root" does not exist`
+  cosmético de una sonda interna; la base acepta conexiones. El `DATABASE_URL`
+  del servicio `servicio` referencia `postgres@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`. **`btree_gist` (usado por la
   migración 0003) es extensión contrib estándar y está presente.** PITR aún
   no está activado: todavía falta el click del propietario en la pestaña
   Backups del servicio («Enable PITR»; crea el bucket, fija `WAL_ARCHIVE_*`
@@ -44,7 +54,7 @@ API. Estado: proyecto `plataforma-salman-herencia`
   token actual). Costo PITR: storage del bucket + egress (comprimido).
 - Servicio `servicio` (`44ea5031-b208-4703-a6a4-7728cbab7882`): sin fuente
   aún. Variables fijadas (las no-secretas): `DATABASE_URL` por referencia
-  interna `postgresql://plataforma:${{postgres.POSTGRES_PASSWORD}}@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`,
+  interna `postgresql://postgres:${{postgres.POSTGRES_PASSWORD}}@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`
   `COOKIE_SEGURA=1`, `SESSION_HORAS=12`, `SERVICIO_HOST=0.0.0.0`,
   `FRONT_URL`/`ORIGEN_FRONT` = front canónico de Vercel,
   `GOOGLE_REDIRECT_URI=https://servicio-production-a2d7.up.railway.app/auth/google/callback`.
