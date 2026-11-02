@@ -57,12 +57,15 @@ API. Estado: proyecto `plataforma-salman-herencia`
   `hotelherencia/plataforma-salman-herencia-oficial`, rama `main`; la app
   GitHub de Railway quedó instalada en la org pese al aviso de «Sign ups are
   currently disabled», una página transitoria del flujo). Auto-deploy en cada
-  push. La conexión a PostgreSQL quedó verificada por logs (el primer deploy
-  crasheó por un bug del agente: tras recrear el clúster con superusuario
-  `postgres`, el `DATABASE_URL` siguió con el usuario viejo `plataforma`;
-  corregido). El deploy actual se frena a propósito («la tabla usuarios está
-  vacía y faltan ADMIN_USUARIO/ADMIN_CLAVE»): arrancará en cuanto el
-  propietario fije los secretos. Variables fijadas (las no-secretas):
+  push. **Backend EN VIVO el 2026-11-02** (deploy `251205a6`): migraciones
+  corridas, admin sembrado desde env, `/salud` → 200
+  (`{"estado":"ok","nucleo":"cargado","hotel":"cargado"}`) y `POST /sesion`
+  con el admin → 200 con cookie `sid` contra el PostgreSQL Railway — circuito
+  completo API↔BD por red privada. Incidentes de la puesta en marcha: primer
+  deploy con `DATABASE_URL` de usuario viejo tras recrear el clúster
+  (corregido); freno de arranque por `ADMIN_*` ausentes (resuelto al fijarlos);
+  un deploy quedó en NEEDS_APPROVAL por la política post-incidente
+  (`deploymentApprove` por API). Variables fijadas (las no-secretas):
   `DATABASE_URL` por referencia
   interna `postgresql://postgres:${{postgres.POSTGRES_PASSWORD}}@${{postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/plataforma`
   `COOKIE_SEGURA=1`, `SESSION_HORAS=12`, `SERVICIO_HOST=0.0.0.0`,
