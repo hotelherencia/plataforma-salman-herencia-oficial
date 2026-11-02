@@ -106,10 +106,20 @@ export function MarcoHotel({ children, titulo }) {
   )
 }
 
+/** Devuelve un mensaje si falta algún campo obligatorio, o null si está completo.
+ *  Evita llamar a la API con identificadores vacíos (404 crudos). */
+export function camposFaltantes(pares) {
+  const faltan = pares
+    .filter(([valor]) => valor === undefined || valor === null || String(valor).trim() === '')
+    .map(([, etiqueta]) => etiqueta)
+  return faltan.length ? `Falta completar: ${faltan.join(', ')}.` : null
+}
+
 /** Interpreta el cuerpo de error de la API en texto legible. Los `detail` de
  *  negocio ya vienen en español; los códigos técnicos se traducen y las
  *  validaciones 422 (detail como arreglo) se listan en línea. */
 export function mensajeDeError(datos, estado) {
+  if (estado === 404) return 'No existe ese recurso: revisa el identificador ingresado.'
   const detalle = datos && datos.detail
   if (typeof detalle === 'string') {
     const traducciones = {

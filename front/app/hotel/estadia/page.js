@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function Estadia() {
   const [reservaId, setReservaId] = useState('')
@@ -16,6 +16,8 @@ export default function Estadia() {
     e.preventDefault()
     setError('')
     setSalida(null)
+    const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
+    if (falta) { setError(falta); return }
     try {
       const r = await api(`/hotel/reservas/${reservaId}/entrada`, {
         metodo: 'POST',
@@ -36,6 +38,8 @@ export default function Estadia() {
     e.preventDefault()
     setError('')
     setSalida(null)
+    const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
+    if (falta) { setError(falta); return }
     try {
       const r = await api(`/hotel/reservas/${reservaId}/cancelacion`, {
         metodo: 'POST',
@@ -56,6 +60,8 @@ export default function Estadia() {
     e.preventDefault()
     setError('')
     setSalida(null)
+    const falta = camposFaltantes([[cargo.reserva_id, 'ID de la reserva'], [cargo.monto_clp, 'Monto CLP']])
+    if (falta) { setError(falta); return }
     try {
       const r = await api(`/hotel/reservas/${cargo.reserva_id}/cargos`, {
         metodo: 'POST',

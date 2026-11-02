@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function SalidaPage() {
   const [reservaId, setReservaId] = useState('')
@@ -13,6 +13,8 @@ export default function SalidaPage() {
     e.preventDefault()
     setError('')
     setSalida(null)
+    const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
+    if (falta) { setError(falta); return }
     try {
       const r = await api(`/hotel/reservas/${reservaId}/salida`, {
         metodo: 'POST',

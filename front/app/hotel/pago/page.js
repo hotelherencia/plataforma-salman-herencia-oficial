@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
 
 export default function Pago() {
   const [campos, setCampos] = useState({
@@ -20,6 +20,8 @@ export default function Pago() {
     setError('')
     setSalida(null)
     setAviso503(false)
+    const falta = camposFaltantes([[campos.reserva_id, 'ID de la reserva'], [campos.monto_clp, 'Monto CLP']])
+    if (falta) { setError(falta); return }
     try {
       const r = await api(`/hotel/reservas/${campos.reserva_id}/pagos`, {
         metodo: 'POST',
