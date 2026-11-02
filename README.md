@@ -95,19 +95,21 @@ servicios en Vercel, equipo `dev-2ddb`, conectados a este repo — cada push a
 | API/backend (FastAPI, root repo, `api.index:app`) | `plataforma-salman-herencia-oficial-ag24` | (eliminado del equipo el 2026-11-02) |
 
 El proyecto API de Vercel (`-ag24`) fue eliminado del equipo el 2026-11-02;
-**el front consume desde entonces el backend Railway** (variable
-`API_BASE_URL` = `https://servicio-production-a2d7.up.railway.app`, verificada
-en el bundle de producción): circuito front (Vercel) → API (Railway) →
-PostgreSQL (Railway, red privada). Verificado: front 200, `/salud` → 200 y
-login usuario/clave → 200 con sesión persistente. El plan original de backend
-en Railway, sustituido el 2026-10-30 por API en Vercel, quedó **restablecido
-el 2026-11-02** (orden del propietario). Runbook con las lecciones en
-`docs/arquitectura/h7-despliegue.md`.
+**el front consume el backend Railway mismo-origen** (2026-11-02 noche:
+rewrite `/api/(.*)` del front en Vercel hacia `servicio-production-a2d7.up.railway.app`;
+`API_BASE_URL=/api`). Adiós CORS y cookies cross-site (Chrome venía
+rechazando la cookie `sid` de terceros): la cookie queda first-party en
+`plataforma-salman-herencia-oficial.vercel.app`. Verificado en producción:
+`/api/salud` → 200 por el proxy, `/api/auth/google/estado` →
+`configurado:true` y `POST /api/sesion` mismo-origen → 200. El plan original
+de backend en Railway, sustituido el 2026-10-30 por API en Vercel, quedó
+**restablecido el 2026-11-02** (orden del propietario). Runbook con las
+lecciones en `docs/arquitectura/h7-despliegue.md`.
 
-**Pendiente de producción:** login con Google habilitado el 2026-11-02
-(`configurado:true` en el backend Railway; URI de redirección registrada en
-Cloud Console y consentimiento de Google validado de punta a punta — falta
-solo la prueba en navegador del propietario); activar
+**Pendiente de producción:** registrar la URI de redirección de Google
+**mismo-origen** (`https://plataforma-salman-herencia-oficial.vercel.app/api/auth/google/callback`)
+en Cloud Console — el backend ya la envía (2026-11-02 noche, tras el rewrite
+`/api`); sin ella el login con Google vuelve a dar 400; activar
 PITR en el servicio `postgres` (Backups → Enable PITR); rotar secretos
 (`VERCEL_TOKEN`, clave de aplicación Gmail, `ADMIN_CLAVE` productiva — expuesta
 en chat 2026-11-02). **Backend Railway (2026-11-02, orden del propietario,
