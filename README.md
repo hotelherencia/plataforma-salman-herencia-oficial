@@ -84,33 +84,36 @@ constructora siguen fuera de esta versión. En producción desde el 2026-10-30
 2026-10-16 no gobierna ese mínimo. `plataforma/servidor.py`
 no es la API ni el servicio de Railway.
 
-**Desplegado en producción (2026-10-30, H7):** dos servicios en Vercel,
-equipo `dev-2ddb`, conectados a este repo — cada push a `main` reconstruye
-ambos (requiere autor del commit `hotelherenciacl@gmail.com`, regla Hobby):
+**Desplegado en producción (2026-10-30, H7; actualizado 2026-11-02):** dos
+servicios en Vercel, equipo `dev-2ddb`, conectados a este repo — cada push a
+`main` reconstruye ambos (requiere autor del commit
+`hotelherenciacl@gmail.com`, regla Hobby):
 
 | Servicio | Proyecto | URL pública |
 |---|---|---|
 | Front (Next.js, root `front/`) | `plataforma-salman-herencia-oficial` | https://plataforma-salman-herencia-oficial.vercel.app |
-| API/backend (FastAPI, root repo, `api.index:app`) | `plataforma-salman-herencia-oficial-ag24` | https://plataforma-salman-herencia-oficial-delta.vercel.app/api |
+| API/backend (FastAPI, root repo, `api.index:app`) | `plataforma-salman-herencia-oficial-ag24` | (eliminado del equipo el 2026-11-02) |
 
-Verificado en producción: front sirviendo; `/api/salud` → 200; Google OAuth
-`configurado:true` (botón en `/login`); los endpoints con persistencia
-responden 503 «base de datos no configurada» hasta que exista `DATABASE_URL`
-externa. El plan original de backend en Railway quedó sustituido por API en
-Vercel (decisión operativa a ratificar del propietario). Runbook con las
-lecciones del build (entrypoint `modulo:variable` en `[tool.vercel]`,
-dependencias en `[project]`, Vercel Authentication, regla del autor) en
+El proyecto API de Vercel (`-ag24`) fue eliminado del equipo el 2026-11-02;
+**el front consume desde entonces el backend Railway** (variable
+`API_BASE_URL` = `https://servicio-production-a2d7.up.railway.app`, verificada
+en el bundle de producción): circuito front (Vercel) → API (Railway) →
+PostgreSQL (Railway, red privada). Verificado: front 200, `/salud` → 200 y
+login usuario/clave → 200 con sesión persistente. El plan original de backend
+en Railway, sustituido el 2026-10-30 por API en Vercel, quedó **restablecido
+el 2026-11-02** (orden del propietario). Runbook con las lecciones en
 `docs/arquitectura/h7-despliegue.md`.
 
-**Pendiente de producción:** PostgreSQL externo (Neon o Vercel Postgres) →
-`DATABASE_URL` en el proyecto API; registrar la URI de redirección de Google
-(`https://plataforma-salman-herencia-oficial-delta.vercel.app/api/auth/google/callback`)
-en Cloud Console; rotar secretos (`VERCEL_TOKEN`, clave de aplicación Gmail,
-`ADMIN_CLAVE` productiva). **Backend Railway (2026-11-02, orden del
-propietario):** proyecto `plataforma-salman-herencia` creado por API con
-PostgreSQL 16 y dominio `servicio-production-a2d7.up.railway.app`; falta
-conectar el repo GitHub (instalar la app GitHub de Railway en la org) y fijar
-los secretos `ADMIN_*`/`GOOGLE_CLIENT_*` en el servicio (detalle en
+**Pendiente de producción:** registrar la URI de redirección de Google del
+backend Railway (`https://servicio-production-a2d7.up.railway.app/auth/google/callback`)
+en Cloud Console y fijar `ADMIN_EMAIL`/`GOOGLE_CLIENT_*` en el servicio
+(hoy `configurado:false`: el login con usuario/clave sí funciona); activar
+PITR en el servicio `postgres` (Backups → Enable PITR); rotar secretos
+(`VERCEL_TOKEN`, clave de aplicación Gmail, `ADMIN_CLAVE` productiva — expuesta
+en chat 2026-11-02). **Backend Railway (2026-11-02, orden del propietario,
+EN VIVO):** proyecto `plataforma-salman-herencia` creado por API con
+PostgreSQL 16, repo GitHub conectado (auto-deploy en cada push) y secretos
+`ADMIN_*` fijados (detalle en
 `docs/arquitectura/h7-despliegue.md`).
 
 **Construcción (2026-10-28):** backend real en `servicio/` (H1–H5 +
