@@ -14,7 +14,7 @@
     "flujo": "alta duplicada no sobrescribe (If-None-Match)",
     "rol": "administrador",
     "esperado": "alerta «ya existe»; tipo y capacidad intactos",
-    "observado": "la habitación HAB-mw1a8ngg-M ya existe",
+    "observado": "la habitación HAB-mw1bcuvg-M ya existe",
     "estado": "APROBADO"
   },
   {
@@ -32,7 +32,7 @@
     "flujo": "editar tipo y capacidad con reserva previa",
     "rol": "administrador",
     "esperado": "cambio aplicado y auditado; reserva intacta",
-    "observado": "Habitación HAB-mw1a8ngg-M: tipo doble → suite · capacidad 2 → 3",
+    "observado": "Habitación HAB-mw1bcuvg-M: tipo doble → suite · capacidad 2 → 3",
     "estado": "APROBADO"
   },
   {
@@ -50,7 +50,7 @@
     "flujo": "retiro bloqueado por reserva vigente",
     "rol": "administrador",
     "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
-    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-d86594e27060",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-536f23694a9b",
     "estado": "APROBADO"
   },
   {
@@ -113,7 +113,7 @@
     "flujo": "cada noche «disponible» coincide con la oferta de esa noche",
     "rol": "caja",
     "esperado": "consistencia total ocupación ↔ oferta en 10 noches",
-    "observado": "1140 celdas consistentes con la oferta",
+    "observado": "1420 celdas consistentes con la oferta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "panel coincide con un recuento independiente",
     "rol": "administrador",
     "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
-    "observado": "en_casa 0, llegadas 0, noches 56, ocupación reservada 4.5 %",
+    "observado": "en_casa 0, llegadas 0, noches 62, ocupación reservada 4.0 %",
     "estado": "APROBADO"
   },
   {
@@ -149,7 +149,7 @@
     "flujo": "filtro por tipo de habitación recalcula el panel",
     "rol": "administrador",
     "esperado": "las tarjetas cambian al filtrar por un tipo existente",
-    "observado": "sin filtro 114 → solo «simple» 16",
+    "observado": "sin filtro 142 → solo «simple» 20",
     "estado": "APROBADO"
   }
 ]

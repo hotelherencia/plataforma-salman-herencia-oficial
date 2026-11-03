@@ -80,7 +80,7 @@ export default function DetalleReserva() {
                 {SIGUIENTE_PASO[reserva.estado].map(([href, texto], i) => (
                   <span key={href}>
                     {i > 0 && ' · '}
-                    <Link href={href}>{texto}</Link>
+                    <Link href={`${href}?reserva_id=${reserva.reserva_id}`}>{texto}</Link>
                   </span>
                 ))}
               </p>
@@ -107,7 +107,7 @@ export default function DetalleReserva() {
               Saldo = cargos − reversos − pagos confirmados, calculado por el servidor. La salida solo procede con saldo 0.
             </p>
             <h3 className="subtitulo">Cargos y reversos</h3>
-            <table className="tabla">
+            <div className="tabla-contenedor"><table className="tabla">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -126,12 +126,12 @@ export default function DetalleReserva() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
             <h3 className="subtitulo">Pagos</h3>
             {reserva.pagos.length === 0 ? (
               <p className="estado">Sin pagos.</p>
             ) : (
-              <table className="tabla">
+              <div className="tabla-contenedor"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -150,7 +150,7 @@ export default function DetalleReserva() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
             {reserva.liquidacion && (
               <p className="nota-clave">

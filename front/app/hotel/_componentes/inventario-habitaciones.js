@@ -30,16 +30,16 @@ export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiar
   return (
     <>
       <p className="reservas-total">{habitaciones.length} habitación(es)</p>
-      <ul className="reservas-lista">
-        <li className="inventario-encabezado" aria-hidden="true">
-          <span>Habitación</span>
-          <span>Tipo</span>
-          <span>Cap.</span>
-          <span>Estado</span>
-          <span>Preparación</span>
-          <span>Mantenimiento</span>
-          <span>Tarifa hoy</span>
-          <span>Acciones</span>
+      <ul className="reservas-lista" role="table">
+        <li className="inventario-encabezado" role="row">
+          <span role="columnheader">Habitación</span>
+          <span role="columnheader">Tipo</span>
+          <span role="columnheader">Cap.</span>
+          <span role="columnheader">Estado</span>
+          <span role="columnheader">Preparación</span>
+          <span role="columnheader">Mantenimiento</span>
+          <span role="columnheader">Tarifa hoy</span>
+          <span role="columnheader">Acciones</span>
         </li>
         {habitaciones.map((h) => (
           <FilaHabitacion
@@ -59,27 +59,27 @@ export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiar
 export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento, alLimpiar, alCambiarMantenimiento }) {
   const hayLimpiezaPendiente = h.limpieza_pendiente || h.estado_preparacion === 'sucia'
   return (
-    <li className="inventario-fila">
-      <span className="reserva-id">
+    <li className="inventario-fila" role="row">
+      <span role="cell" className="reserva-id">
         <Link href={`/hotel/habitaciones/${h.habitacion_id}`} title="Abrir ficha: datos, tarifas, reservas e historial">
           {h.habitacion_id}
         </Link>
       </span>
-      <span className="reserva-celda">{h.tipo}</span>
-      <span className="reserva-celda">{h.capacidad}</span>
-      <span className={`reserva-estado estado-${h.estado_operativo}`}>
+      <span role="cell" className="reserva-celda">{h.tipo}</span>
+      <span role="cell" className="reserva-celda">{h.capacidad}</span>
+      <span role="cell" className={`reserva-estado estado-${h.estado_operativo}`}>
         {ETIQUETA_OPERATIVO[h.estado_operativo] || h.estado_operativo}
       </span>
-      <span className={`reserva-estado preparacion-${h.estado_preparacion}`}>
+      <span role="cell" className={`reserva-estado preparacion-${h.estado_preparacion}`}>
         {ETIQUETA_PREPARACION[h.estado_preparacion] || h.estado_preparacion}
       </span>
-      <span className={`reserva-estado ${h.mantenimiento ? 'estado-cancelada' : 'estado-finalizada'}`}>
+      <span role="cell" className={`reserva-estado ${h.mantenimiento ? 'estado-cancelada' : 'estado-finalizada'}`}>
         {h.mantenimiento ? 'en mantenimiento' : 'activa'}
       </span>
-      <span className="reserva-tarifa">
+      <span role="cell" className="reserva-tarifa">
         {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'sin tarifa hoy'}
       </span>
-      <span className="inventario-acciones">
+      <span role="cell" className="inventario-acciones">
         <Link href={`/hotel/habitaciones/${h.habitacion_id}`} className="boton-fantasma">
           Ficha
         </Link>

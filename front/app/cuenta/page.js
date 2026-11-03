@@ -84,6 +84,8 @@ export default function Cuenta() {
   }
 
   async function desactivar() {
+    // V1-ISSUE-36: las acciones destructivas piden confirmación explícita.
+    if (!window.confirm('¿Desactivar el doble factor? El acceso quedará solo con usuario y clave.')) return
     setError('')
     setExito('')
     try {

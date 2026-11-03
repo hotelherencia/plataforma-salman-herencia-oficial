@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
 
 function claveDeCobro() {
@@ -10,6 +10,12 @@ function claveDeCobro() {
 }
 
 export default function Pago() {
+
+    // V1-ISSUE-35: precarga del detalle de reserva («Siguiente paso»).
+    useEffect(() => {
+      const r = new URLSearchParams(window.location.search).get('reserva_id')
+      if (r) setCampos((c) => ({ ...c, reserva_id: r }))
+    }, [])
   const [campos, setCampos] = useState({
     reserva_id: '',
     monto_clp: '100000',

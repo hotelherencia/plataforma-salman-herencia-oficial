@@ -246,7 +246,7 @@ export default function FichaHabitacion() {
             {ficha.tarifas.length === 0 ? (
               <p className="estado">Sin tarifas: la habitación no se ofrece.</p>
             ) : (
-              <table className="tabla">
+              <div className="tabla-contenedor"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Desde</th>
@@ -267,7 +267,7 @@ export default function FichaHabitacion() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
 
@@ -276,7 +276,7 @@ export default function FichaHabitacion() {
             {ficha.reservas.length === 0 ? (
               <p className="estado">Sin reservas.</p>
             ) : (
-              <table className="tabla">
+              <div className="tabla-contenedor"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Reserva</th>
@@ -303,7 +303,7 @@ export default function FichaHabitacion() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
 
@@ -312,7 +312,7 @@ export default function FichaHabitacion() {
             {ficha.tareas.length === 0 ? (
               <p className="estado">Sin tareas registradas.</p>
             ) : (
-              <table className="tabla">
+              <div className="tabla-contenedor"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Tipo</th>
@@ -331,7 +331,7 @@ export default function FichaHabitacion() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
 
@@ -341,7 +341,7 @@ export default function FichaHabitacion() {
               {ficha.auditoria.length === 0 ? (
                 <p className="estado">Sin cambios registrados.</p>
               ) : (
-                <table className="tabla">
+                <div className="tabla-contenedor"><table className="tabla">
                   <thead>
                     <tr>
                       <th>Cuándo</th>
@@ -360,7 +360,7 @@ export default function FichaHabitacion() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </section>
           )}

@@ -58,6 +58,8 @@ export default function Oferta() {
                   totalClp={item.total_clp}
                   politicaCancelacion={item.politica_cancelacion}
                   vigenteHasta={item.vigente_hasta}
+                  inicio={consulta.inicio}
+                  fin={consulta.fin}
                 />
               ))}
             </ul>

@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 /**
  * Capa del módulo Hotel — oferta (pura, sin fetch): recibe solo props y
  * dibuja la respuesta de GET /hotel/oferta tal cual la envía la API — no
@@ -58,7 +60,7 @@ export function CabeceraOferta({ emitidaEn, vigenciaMinutos, cantidad }) {
   )
 }
 
-export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, politicaCancelacion, vigenteHasta }) {
+export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, politicaCancelacion, vigenteHasta, inicio, fin }) {
   return (
     <li className="ficha-oferta">
       <div className="ficha-oferta-cabecera">
@@ -83,6 +85,12 @@ export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, po
           <span className="ficha-campo-valor ficha-validez">vigente hasta {vigenteHasta}</span>
         </div>
       </div>
+      <Link
+        className="boton-primario ficha-oferta-accion"
+        href={`/hotel/reserva?habitacion_id=${encodeURIComponent(habitacionId)}&inicio=${encodeURIComponent(inicio || '')}&fin=${encodeURIComponent(fin || '')}`}
+      >
+        Reservar estas noches
+      </Link>
     </li>
   )
 }

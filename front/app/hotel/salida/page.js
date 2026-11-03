@@ -1,9 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function SalidaPage() {
+
+    // V1-ISSUE-35: precarga del detalle de reserva («Siguiente paso»).
+    useEffect(() => {
+      const r = new URLSearchParams(window.location.search).get('reserva_id')
+      if (r) setReservaId(r)
+    }, [])
   const [reservaId, setReservaId] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')

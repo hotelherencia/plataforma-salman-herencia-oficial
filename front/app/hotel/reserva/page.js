@@ -1,16 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function Reserva() {
+  // V1-ISSUE-35: sin defaults inválidos; si viene de la oferta u otra
+  // pantalla, la query precarga habitación y fechas.
   const [campos, setCampos] = useState({
-    habitacion_id: 'HAB-SINT-102',
-    inicio: '2026-12-10',
-    fin: '2026-12-12',
-    nombre: 'Huésped Web',
+    habitacion_id: '',
+    inicio: '',
+    fin: '',
+    nombre: '',
     documento: '',
   })
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setCampos((c) => ({
+      ...c,
+      habitacion_id: params.get('habitacion_id') || c.habitacion_id,
+      inicio: params.get('inicio') || c.inicio,
+      fin: params.get('fin') || c.fin,
+    }))
+  }, [])
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
   const [clave, renovarClave] = useClaveOperacion()

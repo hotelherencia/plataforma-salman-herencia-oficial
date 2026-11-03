@@ -719,6 +719,62 @@ try {
     return `GET /sesion = ${sesiones} en la carga del panel`
   })
 
+  // ===== R. Precarga entre pantallas y reflujo de fichas (V1-ISSUE-35/34) =====
+  await caso('PRE-01', '/hotel/oferta', 'oferta → reserva → detalle → pago con campos precargados', 'recepcion', 'sin copiar/pegar IDs: la query precarga y el «Siguiente paso» también', async () => {
+    const ctx = await contextoRol('recepcion')
+    const page = await ctx.newPage()
+    await loginUi(page, 'recepcion_e2e', 'RecepE2e123')
+    await page.goto(`${FRONT}/hotel/oferta`)
+    await page.waitForTimeout(1800)
+    await page.getByRole('button', { name: 'Consultar oferta' }).click()
+    await page.waitForTimeout(2000)
+    const reservar = page.getByRole('link', { name: 'Reservar estas noches' }).first()
+    if ((await reservar.count()) === 0) throw new Error('la oferta no ofrece «Reservar estas noches»')
+    await reservar.click()
+    await page.waitForTimeout(1800)
+    const pre = await page.evaluate(() => ({
+      url: location.pathname + location.search,
+      habitacion: document.querySelectorAll('input')[0]?.value,
+      desde: document.querySelectorAll('input')[1]?.value,
+    }))
+    if (!pre.url.includes('/hotel/reserva') || !pre.habitacion || !pre.desde) throw new Error(`no precargó: ${JSON.stringify(pre)}`)
+    await page.getByRole('textbox', { name: 'Huésped' }).fill('Flujo Precargado')
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    await page.waitForTimeout(2000)
+    const rid = JSON.parse(await page.evaluate(() => document.querySelector('.json-panel')?.textContent || '{}')).reserva_id
+    if (!rid) throw new Error('no se confirmó la reserva precargada')
+    await page.goto(`${FRONT}/hotel/reservas/${rid}`)
+    await page.waitForTimeout(1800)
+    const enlacePago = page.getByRole('link', { name: 'Registrar pago' }).first()
+    if ((await enlacePago.count()) === 0) throw new Error('sin «Siguiente paso» al pago')
+    const href = await enlacePago.getAttribute('href')
+    if (!href.includes(`reserva_id=${rid}`)) throw new Error(`el enlace no lleva la reserva: ${href}`)
+    await enlacePago.click()
+    await page.waitForTimeout(1800)
+    const reservaPre = await page.evaluate(() => [...document.querySelectorAll('input')].map((i) => i.value).find((v) => v.startsWith('RSV-')))
+    await ctx.close()
+    if (reservaPre !== rid) throw new Error(`el pago no nació con la reserva precargada: ${reservaPre}`)
+    return `flujo completo precargado (${rid})`
+  })
+  await caso('MOV-02', '/hotel/habitaciones/[id]', 'fichas y oferta sin desborde de documento a 320px', 'administrador', 'scrollWidth ≤ innerWidth en ficha, detalle y oferta', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 320, height: 568 } })
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    const rutas = [`/hotel/habitaciones/${HAB_A}`, '/hotel/oferta']
+    const rid = (await api('GET', '/hotel/reservas', { cookie: cookieAdmin })).datos.reservas[0]?.reserva_id
+    if (rid) rutas.push(`/hotel/reservas/${rid}`)
+    const malas = []
+    for (const ruta of rutas) {
+      await page.goto(`${FRONT}${ruta}`)
+      await page.waitForTimeout(1800)
+      const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+      if (m.sw > m.iw) malas.push(`${ruta}: ${m.sw}>${m.iw}`)
+    }
+    await ctx.close()
+    if (malas.length) throw new Error(malas.join(' | '))
+    return `${rutas.length} rutas sin desborde a 320px`
+  })
+
   // ===== Q. Navegación móvil y accesibilidad responsive (issues #276–#280) =====
   await caso('MUX-01', '/hotel/panel', 'menú móvil: panel con todas las opciones, activo único y visible', 'administrador', 'menú abre, «Ocupación» navega y cierra, un solo activo', async () => {
     const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 375, height: 667 } })

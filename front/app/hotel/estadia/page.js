@@ -1,10 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 
 export default function Estadia() {
   const sesion = useSesion()
+
+    // V1-ISSUE-35: precarga del detalle de reserva («Siguiente paso»).
+    useEffect(() => {
+      const r = new URLSearchParams(window.location.search).get('reserva_id')
+      if (r) setReservaId(r)
+    }, [])
   const [reservaId, setReservaId] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
@@ -12,6 +18,7 @@ export default function Estadia() {
   const [claveCancela, renovarClaveCancela] = useClaveOperacion()
   const [claveCargo, renovarClaveCargo] = useClaveOperacion()
   const [cargo, setCargo] = useState({ reserva_id: '', concepto: 'minibar', monto_clp: '5000' })
+  const [enviando, setEnviando] = useState(false)
 
   // spec-api-v1: la cancelación la ejecutan recepción o administrador. La
   // acción se oculta a otros roles (la API igual la rechazaría con 403).
@@ -20,6 +27,7 @@ export default function Estadia() {
 
   async function checkIn(e) {
     e.preventDefault()
+    setEnviando(true)
     setError('')
     setSalida(null)
     const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
@@ -40,11 +48,15 @@ export default function Estadia() {
       }
     } catch {
       setError('La API no está disponible')
+    } finally {
+      setEnviando(false)
     }
   }
 
   async function cancelar(e) {
     e.preventDefault()
+    setEnviando(true)
+    if (!window.confirm('¿Cancelar esta reserva? Se reversan los cargos sin pagar y, fuera de plazo, se carga la primera noche.')) return
     setError('')
     setSalida(null)
     const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
@@ -65,11 +77,14 @@ export default function Estadia() {
       }
     } catch {
       setError('La API no está disponible')
+    } finally {
+      setEnviando(false)
     }
   }
 
   async function asentarCargo(e) {
     e.preventDefault()
+    setEnviando(true)
     setError('')
     setSalida(null)
     const falta = camposFaltantes([[cargo.reserva_id, 'ID de la reserva'], [cargo.monto_clp, 'Monto CLP']])
@@ -90,6 +105,8 @@ export default function Estadia() {
       }
     } catch {
       setError('La API no está disponible')
+    } finally {
+      setEnviando(false)
     }
   }
 
@@ -99,7 +116,7 @@ export default function Estadia() {
         <h2>Check-in (entrada a la estadía)</h2>
         <form className="formulario" onSubmit={checkIn}>
           <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
-          <button type="submit" className="boton-primario">Registrar entrada</button>
+          <button type="submit" className="boton-primario" disabled={enviando}>{enviando ? "Procesando…" : "Registrar entrada"}</button>
         </form>
         <p className="nota-clave">Clave: <code>{claveEntrada}</code></p>
       </section>
@@ -108,7 +125,7 @@ export default function Estadia() {
           <h2>Cancelar reserva (recepción o administrador)</h2>
           <form className="formulario" onSubmit={cancelar}>
             <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
-            <button type="submit" className="boton-primario">Cancelar reserva</button>
+            <button type="submit" className="boton-primario" disabled={enviando}>{enviando ? "Procesando…" : "Cancelar reserva"}</button>
           </form>
           <p className="nota-clave">Clave: <code>{claveCancela}</code></p>
         </section>
@@ -119,7 +136,7 @@ export default function Estadia() {
           <Campo etiqueta="Reserva" value={cargo.reserva_id} onChange={(e) => setCargo({ ...cargo, reserva_id: e.target.value })} />
           <Campo etiqueta="Concepto" value={cargo.concepto} onChange={(e) => setCargo({ ...cargo, concepto: e.target.value })} />
           <Campo etiqueta="Monto (CLP)" type="number" value={cargo.monto_clp} onChange={(e) => setCargo({ ...cargo, monto_clp: e.target.value })} />
-          <button type="submit" className="boton-primario">Asentar cargo</button>
+          <button type="submit" className="boton-primario" disabled={enviando}>{enviando ? "Procesando…" : "Asentar cargo"}</button>
         </form>
         <p className="nota-clave">Clave: <code>{claveCargo}</code></p>
       </section>

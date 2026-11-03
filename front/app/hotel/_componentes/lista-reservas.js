@@ -23,7 +23,7 @@ export function ListaReservas({ reservas, total }) {
   return (
     <>
       <p className="reservas-total">{total} reserva(s) encontrada(s)</p>
-      <ul className="reservas-lista">
+      <ul className="reservas-lista" role="table">
         <EncabezadoReservas />
         {reservas.map((r) => (
           <FilaReserva key={r.reserva_id} reserva={r} />
@@ -35,34 +35,34 @@ export function ListaReservas({ reservas, total }) {
 
 export function EncabezadoReservas() {
   return (
-    <li className="reserva-encabezado" aria-hidden="true">
-      <span>Reserva</span>
-      <span>Huésped</span>
-      <span>Habitación</span>
-      <span>Fechas</span>
-      <span>Estado</span>
-      <span>Tarifa</span>
+    <li className="reserva-encabezado" role="row">
+      <span role="columnheader">Reserva</span>
+      <span role="columnheader">Huésped</span>
+      <span role="columnheader">Habitación</span>
+      <span role="columnheader">Fechas</span>
+      <span role="columnheader">Estado</span>
+      <span role="columnheader">Tarifa</span>
     </li>
   )
 }
 
 export function FilaReserva({ reserva }) {
   return (
-    <li className="reserva-fila">
-      <span className="reserva-id">
+    <li className="reserva-fila" role="row">
+      <span role="cell" className="reserva-id">
         <Link href={`/hotel/reservas/${reserva.reserva_id}`} title="Ver detalle y cuenta">
           {reserva.reserva_id}
         </Link>
       </span>
-      <span className="reserva-huesped">{reserva.huesped_nombre}</span>
-      <span className="reserva-celda">{reserva.habitacion_id}</span>
-      <span className="reserva-celda reserva-fechas">{reserva.inicio} → {reserva.fin}</span>
-      <span className={`reserva-estado estado-${reserva.estado}`}>
+      <span role="cell" className="reserva-huesped">{reserva.huesped_nombre}</span>
+      <span role="cell" className="reserva-celda">{reserva.habitacion_id}</span>
+      <span role="cell" className="reserva-celda reserva-fechas">{reserva.inicio} → {reserva.fin}</span>
+      <span role="cell" className={`reserva-estado estado-${reserva.estado}`}>
         {ETIQUETA_ESTADO[reserva.estado] || reserva.estado}
       </span>
-      <span className="reserva-tarifa">${reserva.tarifa_noche_aceptada_clp}/noche</span>
+      <span role="cell" className="reserva-tarifa">${reserva.tarifa_noche_aceptada_clp}/noche</span>
       {reserva.huesped_documento && (
-        <span className="reserva-documento">doc. {reserva.huesped_documento}</span>
+        <span role="cell" className="reserva-documento">doc. {reserva.huesped_documento}</span>
       )}
     </li>
   )

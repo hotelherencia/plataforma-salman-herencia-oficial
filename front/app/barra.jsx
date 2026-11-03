@@ -96,7 +96,7 @@ export default function BarraNav() {
 
         <nav className="nav" aria-label="Navegación principal">
           <p className="nav-rotulo">Módulos</p>
-          <Link href="/" className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
+          <Link href="/" aria-current={ruta === '/' ? 'page' : undefined} className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
             Inicio
           </Link>
           <Link
@@ -115,7 +115,7 @@ export default function BarraNav() {
             <>
               <p className="nav-rotulo">Hotel · operación</p>
               {OPERACION_HOTEL.map(([href, nombre]) => (
-                <Link key={href} href={href} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
+                <Link key={href} href={href} aria-current={esActivo(ruta, href) ? 'page' : undefined} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
                   {nombre}
                 </Link>
               ))}
@@ -171,7 +171,7 @@ export default function BarraNav() {
               <>
                 <p className="nav-rotulo">Hotel · operación</p>
                 {OPERACION_HOTEL.map(([href, nombre]) => (
-                  <Link key={href} href={href} onClick={cerrar} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
+                  <Link key={href} href={href} onClick={cerrar} aria-current={esActivo(ruta, href) ? 'page' : undefined} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
                     {nombre}
                   </Link>
                 ))}

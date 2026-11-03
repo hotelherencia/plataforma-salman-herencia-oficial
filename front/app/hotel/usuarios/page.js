@@ -11,6 +11,7 @@ export default function Usuarios() {
   const [revocacionId, setRevocacionId] = useState('')
   const [bajaId, setBajaId] = useState('')
   const [salida, setSalida] = useState(null)
+  const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [usuarios, setUsuarios] = useState(null)
   const [claveAlta, renovarClaveAlta] = useClaveOperacion()
@@ -36,6 +37,7 @@ export default function Usuarios() {
 
   async function postear(ruta, cuerpo, clave, alExito, e) {
     e.preventDefault()
+    setEnviando(true)
     setError('')
     setSalida(null)
     try {
@@ -50,6 +52,8 @@ export default function Usuarios() {
       }
     } catch {
       setError('La API no está disponible')
+    } finally {
+      setEnviando(false)
     }
   }
 
@@ -107,7 +111,7 @@ export default function Usuarios() {
         <h2>Revocación de sesiones (sobre otro usuario)</h2>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${revocacionId}/revocacion`, {}, claveRevocacion, renovarClaveRevocacion, e)}>
           <Campo etiqueta="Usuario (id)" value={revocacionId} onChange={(e) => setRevocacionId(e.target.value)} />
-          <button type="submit" className="boton-primario">Revocar sesiones</button>
+          <button type="submit" className="boton-primario" disabled={enviando} onClick={(e) => { if (!window.confirm('¿Revocar todas las sesiones de este usuario? Deberá iniciar sesión de nuevo.')) e.preventDefault() }}>Revocar sesiones</button>
         </form>
         <p className="nota-clave">Clave: <code>{claveRevocacion}</code></p>
       </section>
@@ -115,7 +119,7 @@ export default function Usuarios() {
         <h2>Baja de usuario (sobre otro usuario)</h2>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${bajaId}/baja`, {}, claveBaja, renovarClaveBaja, e)}>
           <Campo etiqueta="Usuario (id)" value={bajaId} onChange={(e) => setBajaId(e.target.value)} />
-          <button type="submit" className="boton-primario">Dar de baja</button>
+          <button type="submit" className="boton-primario" disabled={enviando} onClick={(e) => { if (!window.confirm('¿Dar de baja este usuario? Queda inactivo y sin acceso.')) e.preventDefault() }}>Dar de baja</button>
         </form>
         <p className="nota-clave">Clave: <code>{claveBaja}</code></p>
       </section>

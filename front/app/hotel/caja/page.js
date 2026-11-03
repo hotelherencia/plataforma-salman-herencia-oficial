@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
+import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
 
 export default function Caja() {
   const sesion = useSesion()
@@ -45,7 +45,7 @@ export default function Caja() {
       {caja && (
         <>
           <p className="resumen">
-            Total del día: <strong>${caja.total_clp}</strong>
+            Total del día: <strong>{clp(caja.total_clp)}</strong>
           </p>
           {caja.pagos.length > 0 ? (
             <div className="tabla-contenedor">

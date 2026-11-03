@@ -805,7 +805,7 @@ a.boton-primario {
   padding: 0;
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
 }
 
 .ficha-oferta {
@@ -1549,4 +1549,41 @@ a.boton-primario {
 .ocupacion-resumen {
   font-size: 0.7rem;
   color: var(--tinta-suave);
+}
+
+/* V1-ISSUE-36 — accesibilidad práctica */
+/* Objetivos táctiles y controles ≥44px de alto */
+.boton-primario,
+.boton-secundario,
+.boton-fantasma,
+.boton-salir,
+.boton-menu,
+.entrada {
+  min-height: 44px;
+}
+
+@media (min-width: 861px) {
+  .nav-enlace {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Foco visible y consistente en teclado */
+:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+/* Movimiento reducido respetado */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
