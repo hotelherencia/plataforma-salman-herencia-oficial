@@ -55,3 +55,25 @@ navegador; formularios del front visibles para roles que el contrato rechaza;
 hidratación bloqueada en `next dev` con HMR caído; procedimiento de
 aprobación de deploys Railway (NEEDS_APPROVAL); `e2e-resultados.json`
 versionado que envejece.
+
+## Operación del hotel — mantenedor, consulta, ocupación e indicadores (2026-11-03)
+
+Orden del propietario: completar el flujo operativo para entender el negocio
+y gestionar habitaciones sin ambigüedad. Spec gobernante nueva:
+`docs/arquitectura/spec-hotel-operacion-v1.md` (flujos por rol, métricas con
+fórmula/unidad/fuente/limitaciones, criterios CA-*); spec-api-v1 pasa a 32
+operaciones. **Cambio de alcance:** el panel operativo entra a V1; los
+indicadores financieros de HU-HOT-03 siguen fuera. Evidencia y matriz
+requisito → spec → implementación → prueba en
+`capturas/e2e-2026-11-03/INFORME-operacion.md`.
+
+- [Hecha] `v1-oper-01` — mantenedor (alta solo-crear, edición auditada,
+  tarifa append-only con desempate, baja lógica), detalle de reserva con
+  cuenta, búsqueda por periodo, ocupación por noche y panel operativo.
+- [Lista, P1] `v1-issue-07` — check-in/salida sin la regla de fecha/hora ni
+  documento del dominio (hallazgo de la E2E).
+- [Lista, P2] `v1-issue-08..10` — decisiones pendientes del propietario
+  (financieros y rol gerencia; personas/reasignación/tipos; tarifas
+  superpuestas, mantenimiento programado, denominador y auditoría).
+- No cargados a GitHub Projects (sin acciones externas en esta sesión).
+

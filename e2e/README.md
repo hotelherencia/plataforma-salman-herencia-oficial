@@ -42,3 +42,19 @@ anteriores dejan filas en la base sintética; no interfieren.
   con una corrida completa o restaurarlo.
 - `capturas/e2e-AAAA-MM-DD/*.png`: evidencia visual numerada en el orden de
   los casos; la ruta queda registrada en cada corrida que llama a `evidencia`.
+
+## Suite de operación (2026-11-03)
+
+`e2e-operacion.mjs` cubre mantenedor de habitaciones, consulta de reservas,
+ocupación e indicadores (`docs/arquitectura/spec-hotel-operacion-v1.md` §6).
+No toca `e2e.mjs`; mismos requisitos. Resultados en
+`e2e-operacion-resultados.json`, capturas `op-NN-*.png`.
+
+```bash
+FRONT_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:8080 node e2e-operacion.mjs
+```
+
+**Base de pruebas:** la corrida formal debe usar una base dedicada
+(p. ej. `DATABASE_URL_TEST=.../plataforma_test_operacion`) o una desechable
+recién creada: con otra sesión escribiendo en la base compartida, los tests
+fallan por interferencia (deadlocks, sesiones borradas). Ver V1-ISSUE-08.

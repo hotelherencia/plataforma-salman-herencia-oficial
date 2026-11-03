@@ -596,5 +596,71 @@
   "vertical": "transversal",
   "padre": null,
   "depende_de": []
+ },
+ {
+  "id": "v1-oper-01",
+  "title": "[Historia] V1-OPER-01 — Mantenedor de habitaciones, consulta de reservas, ocupación y panel operativo",
+  "body": "Fuente: orden del propietario 2026-11-03; especificación gobernante `docs/arquitectura/spec-hotel-operacion-v1.md` (flujos por rol, métricas con fórmula/unidad/fuente/limitaciones, criterios CA-*). Contrato: spec-api-v1 pasa a 32 operaciones (`GET /hotel/habitaciones/{id}`, `POST /hotel/habitaciones/{id}/servicio`, `GET /hotel/reservas/{id}`, `GET /hotel/ocupacion`, `GET /hotel/indicadores`; `PUT /hotel/habitaciones` con `If-None-Match: *`, `cambios` y auditoría; `GET /hotel/reservas` con periodo y habitación). Migración 0009 (baja lógica `fuera_de_servicio` con motivo/fecha; `tarifas.creado_en` para desempate). Front: rutas `/hotel/panel`, `/hotel/ocupacion`, `/hotel/habitaciones/[id]`, `/hotel/reservas/[id]`. Evidencia: `servicio/tests/test_operacion_mantenedor.py` (18), `e2e/e2e-operacion.mjs` (16/16) e informe `capturas/e2e-2026-11-03/INFORME-operacion.md`. Cambio de alcance: los indicadores HU-HOT-03 estaban fuera de V1; entra solo el panel operativo, los financieros siguen fuera (V1-ISSUE-08).",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-07",
+  "title": "[Issue] V1-ISSUE-07 — Check-in y salida del servicio no aplican la regla de fecha/hora ni de documento del dominio",
+  "body": "Fuente: E2E de operación 2026-11-03 (IND-01, segunda corrida). HECHO: el dominio `ServicioHotelInventario.check_in` rechaza la entrada antes de las 15:00 del día de llegada (`HORA_LLEGADA`) y sin documento del huésped; `servicio/cobro.entrada` no valida fecha ni documento, y `salida` no valida fecha. Consecuencia observada: `e2e/e2e.mjs` (EST-01/SAL-02) hace check-in y liquida hoy una reserva que empieza en 30 días; queda `finalizada` sin noches ocupadas y la habitación pasa por `ocupada`/`sucia` fuera de fecha. El panel lo trata bien (fin efectivo = fecha de liquidación, spec-hotel-operacion-v1 §4.3), pero la operación diverge de la especificación ejecutable. Corregir en `cobro.entrada` (409) y ajustar los casos E2E que entran antes de fecha. DECISIÓN PENDIENTE asociada: ¿se permite salida anticipada y con qué efecto en la cuenta?",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-08",
+  "title": "[Issue] V1-ISSUE-08 — Decisión: indicadores financieros (ADR, RevPAR, ingresos) y rol gerencia",
+  "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §4.4 y §7 (D-ROL-01, D-IND-01, D-IND-02). El dominio calcula ADR/RevPAR con cargos de noche netos y los reserva a `gerencia`, rol que V1 no crea; V1 asienta un cargo único de alojamiento al reservar. Decidir: (1) ¿se crea `gerencia` o los ve `administrador`?; (2) ¿cómo se reconoce el ingreso por noche?; (3) ¿pagos acumulados por periodo, para qué rol y con qué advertencia de no conciliación? Relacionado: la fecha de cancelación no se guarda en `reservas` (solo en `auditoria`) y no existe estado no-show. Hasta decidir, el panel los declara en `no_disponibles`.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-09",
+  "title": "[Issue] V1-ISSUE-09 — Decisión: personas en la reserva, reasignación de habitación y catálogo de tipos",
+  "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §2.1 y §7 (D-HAB-01, D-HAB-02, D-HAB-03). La reserva no guarda cantidad de personas: bajar la capacidad de una habitación no se puede validar contra reservas futuras. No existe reasignar una reserva a otra unidad: retirar una habitación con reservas exige cancelarlas (con la regla de 48 h) y volver a reservar. El tipo es texto libre. Decidir los tres puntos; implementar con migración y prueba.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-10",
+  "title": "[Issue] V1-ISSUE-10 — Decisión: tarifas superpuestas, mantenimiento programado, denominador de ocupación y auditoría por rol",
+  "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §2.5, §4.3, §5 y §7 (D-TAR-01, D-OCU-01, D-IND-03, D-AUD-01). (1) El dominio rechaza una tarifa superpuesta; V1 la acepta y la de inicio más reciente gana (desempate por registro): confirmar o cambiar. (2) Mantenimiento y fuera de servicio son estados actuales sin rango de fechas; ¿mantenimiento programado? (3) Una habitación retirada sigue en el denominador de ocupación (fórmula del dominio). (4) La auditoría de la habitación solo la ve administrador.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-11",
+  "title": "[Issue] V1-ISSUE-11 — Aislar la base de pruebas para que trabajos concurrentes no interfieran",
+  "body": "Fuente: dos sesiones concurrentes sobre el mismo árbol (2026-11-03). HECHO: los tests de servicio usan DATABASE_URL_TEST con default plataforma_test (compartida); con otro cliente escribiendo a la vez se observaron corridas con 1 a 94 fallos (deadlocks TRUNCATE, 401, usuarios borrados a mitad de prueba). Con base dedicada no se reproduce. Ya documentado en e2e/README.md. Pendiente: guard de fail-fast en los setUp (detectar otras conexiones activas a la base de pruebas y abortar con mensaje claro) o default por proceso.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
  }
 ]
