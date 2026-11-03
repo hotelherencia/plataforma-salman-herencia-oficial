@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 
 export default function Estadia() {
+  const sesion = useSesion()
   const [reservaId, setReservaId] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
@@ -11,6 +12,11 @@ export default function Estadia() {
   const [claveCancela, renovarClaveCancela] = useClaveOperacion()
   const [claveCargo, renovarClaveCargo] = useClaveOperacion()
   const [cargo, setCargo] = useState({ reserva_id: '', concepto: 'minibar', monto_clp: '5000' })
+
+  // spec-api-v1: la cancelación la ejecutan recepción o administrador. La
+  // acción se oculta a otros roles (la API igual la rechazaría con 403).
+  const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
+  const puedeCancelar = rol === 'recepcion' || rol === 'administrador'
 
   async function checkIn(e) {
     e.preventDefault()
@@ -88,14 +94,16 @@ export default function Estadia() {
         </form>
         <p className="nota-clave">Clave: <code>{claveEntrada}</code></p>
       </section>
-      <section className="tarjeta">
-        <h2>Cancelar reserva (recepción o administrador)</h2>
-        <form className="formulario" onSubmit={cancelar}>
-          <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
-          <button type="submit" className="boton-primario">Cancelar reserva</button>
-        </form>
-        <p className="nota-clave">Clave: <code>{claveCancela}</code></p>
-      </section>
+      {puedeCancelar && (
+        <section className="tarjeta">
+          <h2>Cancelar reserva (recepción o administrador)</h2>
+          <form className="formulario" onSubmit={cancelar}>
+            <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+            <button type="submit" className="boton-primario">Cancelar reserva</button>
+          </form>
+          <p className="nota-clave">Clave: <code>{claveCancela}</code></p>
+        </section>
+      )}
       <section className="tarjeta">
         <h2>Asentar cargo (minibar, consumo, extra)</h2>
         <form className="formulario" onSubmit={asentarCargo}>

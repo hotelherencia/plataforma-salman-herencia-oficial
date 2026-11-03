@@ -21,6 +21,7 @@
 
 import { chromium } from 'playwright'
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { createHmac } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -124,6 +125,27 @@ async function confirmacion(page) {
   return page.evaluate(() => document.querySelector('.operacion-confirmada')?.textContent || null)
 }
 
+// ---------- TOTP (RFC 6238, SHA-1, 30 s, 6 dígitos) para el alta 2FA en UI ----------
+function base32Decodificar(b32) {
+  const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  const limpio = b32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '')
+  let bits = ''
+  for (const c of limpio) bits += alfabeto.indexOf(c).toString(2).padStart(5, '0')
+  const bytes = []
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2))
+  return Buffer.from(bytes)
+}
+
+function totp(secreto, pasoSegundos = 30, digitos = 6) {
+  const contador = Math.floor(Date.now() / 1000 / pasoSegundos)
+  const buf = Buffer.alloc(8)
+  buf.writeBigUInt64BE(BigInt(contador))
+  const h = createHmac('sha1', base32Decodificar(secreto)).update(buf).digest()
+  const o = h[h.length - 1] & 0xf
+  const codigo = ((h[o] & 0x7f) << 24 | h[o + 1] << 16 | h[o + 2] << 8 | h[o + 3]) % 10 ** digitos
+  return String(codigo).padStart(digitos, '0')
+}
+
 // ---------- suite ----------
 const navegador = await chromium.launch()
 const contextos = {}
@@ -142,6 +164,9 @@ try {
   await api('POST', '/usuarios', { cookie: cookieAdmin, clave: K('e2e-semilla-recepcion'), cuerpo: { nombre: 'recepcion_e2e', rol: 'recepcion', clave: 'RecepE2e123' } })
   await api('POST', '/usuarios', { cookie: cookieAdmin, clave: K('e2e-semilla-caja'), cuerpo: { nombre: 'caja_e2e', rol: 'caja', clave: 'CajaE2e1234' } })
   const HAB_A = `HAB-${RUN}-A`, HAB_B = `HAB-${RUN}-B`, HAB_C = `HAB-${RUN}-C`
+  // Alta por UI: id por corrida (el alta es «solo crear», If-None-Match: *;
+  // spec-hotel-operacion-v1 §2.2). Nace sin tarifa: la usa RES-02.
+  const HAB_NUEVA = `HAB-${RUN}-201`
   for (const [id, tipo, cap, tarifa] of [[HAB_A, 'doble', 2, 50000], [HAB_B, 'simple', 1, 35000], [HAB_C, 'doble', 2, 60000]]) {
     await api('PUT', `/hotel/habitaciones/${id}`, { cookie: cookieAdmin, clave: K(`semilla-${id}`), cuerpo: { tipo, capacidad: cap } })
     await api('PUT', '/hotel/tarifas', { cookie: cookieAdmin, clave: K(`tarifa-${id}`), cuerpo: { habitacion_id: id, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', tarifa_noche_clp: tarifa } })
@@ -230,13 +255,13 @@ try {
     await caso('HAB-02', '/hotel/habitaciones', 'alta desde la UI aparece en el inventario', 'administrador', 'HAB-201 creada y listada', async () => {
       await page.goto(`${FRONT}/hotel/habitaciones`)
       await page.waitForTimeout(1500)
-      await page.getByRole('textbox', { name: 'Habitación' }).first().fill('HAB-201')
-      await page.getByRole('button', { name: 'Guardar habitación' }).click()
+      await page.getByRole('textbox', { name: 'Habitación' }).first().fill(HAB_NUEVA)
+      await page.getByRole('button', { name: 'Dar de alta' }).click()
       await page.waitForTimeout(1800)
       const filas = await page.evaluate(() => [...document.querySelectorAll('.inventario-fila')].map((f) => f.innerText))
-      if (!filas.some((f) => f.includes('HAB-201'))) throw new Error('HAB-201 no aparece en el inventario')
+      if (!filas.some((f) => f.includes(HAB_NUEVA))) throw new Error(`${HAB_NUEVA} no aparece en el inventario`)
       await evidencia(page, 'hab-02-alta')
-      return 'HAB-201 listada tras el alta'
+      return `${HAB_NUEVA} listada tras el alta`
     })
     await caso('HAB-03', '/hotel/habitaciones', 'abrir mantenimiento excluye de la oferta', 'administrador', 'oferta sin HAB-103; al cerrar vuelve', async () => {
       const fila = page.locator('.inventario-fila', { hasText: HAB_C })
@@ -307,7 +332,7 @@ try {
     await caso('RES-02', '/hotel/reserva', 'reserva sin tarifa vigente es rechazada', 'recepcion', '409 con mensaje «sin tarifa vigente»', async () => {
       await page.getByRole('button', { name: 'Nueva operación' }).click()
       await page.waitForTimeout(500)
-      await page.getByRole('textbox', { name: 'Habitación' }).fill('HAB-201')
+      await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_NUEVA)
       await page.getByRole('textbox', { name: 'Desde' }).fill(EN_30_DIAS)
       await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_33_DIAS)
       await page.getByRole('textbox', { name: 'Huésped' }).fill('Sin Tarifa')
@@ -573,6 +598,75 @@ try {
     await page.close()
     if (claveDespues === claveAntes) throw new Error('la clave no rotó tras el 2xx')
     return 'visible y rotada'
+  })
+
+  // ===== N-bis. Doble factor (TOTP) completo en navegador =====
+  {
+    const nombre2fa = `recepcion_2fa_${RUN}`
+    await api('POST', '/usuarios', { cookie: cookieAdmin, clave: K('2fa-alta'), cuerpo: { nombre: nombre2fa, rol: 'recepcion', clave: 'Clave2fa123' } })
+    const ctx = await contextoRol('2fa')
+    const page = await ctx.newPage()
+    await caso('TFA-01', '/cuenta', 'alta del segundo factor y login con TOTP', 'recepcion', 'secreto mostrado, activación con código, login exigiendo totp', async () => {
+      await loginUi(page, nombre2fa, 'Clave2fa123')
+      await page.goto(`${FRONT}/cuenta`)
+      await page.waitForTimeout(1500)
+      await page.getByRole('button', { name: 'Activar doble factor' }).click()
+      await page.waitForTimeout(1800)
+      const secreto = await page.evaluate(() => {
+        const texto = document.querySelector('main')?.innerText || ''
+        const m = texto.match(/Clave manual \(base32\):\s*([A-Z2-7]+)/)
+        return m ? m[1] : null
+      })
+      if (!secreto) throw new Error('no se mostró el secreto base32')
+      await page.getByRole('textbox', { name: /Código de confirmación/i }).fill(totp(secreto))
+      await page.getByRole('button', { name: 'Confirmar y activar' }).click()
+      await page.waitForTimeout(2000)
+      const texto = await textoPrincipal(page)
+      if (!texto.includes('activado')) throw new Error(`no quedó activado: ${texto.slice(0, 160)}`)
+      await evidencia(page, 'tfa-01-activado')
+      // cerrar sesión y entrar de nuevo: ahora exige el código del autenticador
+      await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+      await page.waitForTimeout(1200)
+      await page.goto(`${FRONT}/login`)
+      await page.waitForTimeout(1200)
+      await page.getByRole('textbox', { name: 'Usuario' }).fill(nombre2fa)
+      await page.getByRole('textbox', { name: 'Clave' }).fill('Clave2fa123')
+      await page.getByRole('button', { name: 'Entrar' }).click()
+      await page.waitForTimeout(1800)
+      if (!page.url().includes('/login')) throw new Error(`entró sin 2FA: ${page.url()}`)
+      await page.getByRole('textbox', { name: /Código del autenticador/i }).fill(totp(secreto))
+      await page.getByRole('button', { name: 'Entrar' }).click()
+      await page.waitForTimeout(2000)
+      if (page.url().includes('/login')) throw new Error('no entró con el código TOTP')
+      return '2FA activado y login con código'
+    })
+    await page.close()
+  }
+
+  // ===== P. Acciones ocultas según rol (spec-api-v1) =====
+  await caso('ROL-01', '/hotel/caja', 'recepción no ve la caja del día', 'recepcion', 'aviso de rol, sin formulario', async () => {
+    const ctx = await contextoRol('recepcion')
+    const page = await ctx.newPage()
+    await loginUi(page, 'recepcion_e2e', 'RecepE2e123')
+    await page.goto(`${FRONT}/hotel/caja`)
+    await page.waitForTimeout(1800)
+    const texto = await textoPrincipal(page)
+    await page.close()
+    if (!texto.includes('solo para caja o administrador')) throw new Error(`texto: ${texto.slice(0, 140)}`)
+    if (texto.includes('Ver caja')) throw new Error('muestra el formulario a recepción')
+    return 'formulario oculto y aviso de rol'
+  })
+  await caso('ROL-02', '/hotel/estadia', 'caja no ve la cancelación de reserva', 'caja', 'sin sección «Cancelar reserva»', async () => {
+    const ctx = await contextoRol('caja')
+    const page = await ctx.newPage()
+    await loginUi(page, 'caja_e2e', 'CajaE2e1234')
+    await page.goto(`${FRONT}/hotel/estadia`)
+    await page.waitForTimeout(1800)
+    const texto = await textoPrincipal(page)
+    await page.close()
+    if (texto.includes('Cancelar reserva')) throw new Error('caja ve la cancelación')
+    if (!texto.includes('Check-in')) throw new Error('caja debería ver el check-in')
+    return 'cancelación oculta para caja; check-in visible'
   })
 
   // ===== O. Cierre de sesión =====

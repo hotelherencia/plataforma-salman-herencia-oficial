@@ -1,13 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, Campo } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
 
 export default function Caja() {
+  const sesion = useSesion()
   const hoy = new Date().toISOString().slice(0, 10)
   const [fecha, setFecha] = useState(hoy)
   const [caja, setCaja] = useState(null)
   const [error, setError] = useState('')
+
+  // spec-api-v1: GET /hotel/caja es para caja o administrador.
+  const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
+  if (sesion.fase === 'ok' && rol !== 'caja' && rol !== 'administrador') {
+    return (
+      <MarcoHotel titulo="Caja del día">
+        <p className="estado">La caja del día es solo para caja o administrador.</p>
+      </MarcoHotel>
+    )
+  }
 
   async function consultar(e) {
     e.preventDefault()

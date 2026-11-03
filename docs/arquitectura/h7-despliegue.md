@@ -423,3 +423,40 @@ Railway» (H7/T4c).
 Las tres piezas juntas: front de Vercel leyendo solo `API_BASE_URL`, contrato
 servido por el backend de Railway, persistencia real en su PostgreSQL;
 login usuario/clave+TOTP y login con Google funcionando en producción.
+
+## Operación continua (añadido 2026-11-03, de los issues v1-issue-04/05)
+
+### Aprobación de deploys (Railway, política post-incidente)
+
+Desde el incidente de Railway 2026-10-21, los deploys del servicio quedan en
+estado **NEEDS_APPROVAL**: cada push a `main` genera un despliegue que debe
+**aprobarse a mano** antes de servir. Procedimiento del propietario:
+
+1. Panel Railway → proyecto `plataforma-salman-herencia` → **Deployments**.
+2. El deploy más reciente aparece con el estado pendiente: **Approve** (o
+   «Redeploy» si quedó atascado). Tiempo típico de build: 2–8 min.
+3. Comprobar el despacho: `curl -s https://servicio-production-a2d7.up.railway.app/salud`
+   y, tras una ampliación del contrato,
+   `curl -s -o /dev/null -w "%{http_code}" .../hotel/habitaciones` → **401**
+   (vivo y exigiendo sesión) en vez de 404 (build viejo).
+
+Mientras el deploy no se aprueba, producción sigue sirviendo el build
+anterior: el front nuevo puede llamar endpoints que aún no existen y mostrar
+estados vacíos interinos. Esto no es un fallo: es la aprobación pendiente.
+
+### Diagnóstico: la app «no hace nada» en `next dev`
+
+Si en desarrollo local los formularios parecen muertos (al enviar, la URL
+queda con `?` y nada ocurre), casi siempre es la **hidratación bloqueada**:
+el entorno del desarrollador no deja pasar el WebSocket HMR de Next
+(`ws://127.0.0.1:3000/_next/hmr`) y React no llega a hidratar la página
+(los `useEffect`/`onSubmit` nunca se conectan). No es un defecto de la app:
+así funciona el modo desarrollo tras un proxy que corta `ws://`. Comprobaciones:
+
+- Consola del navegador: errores `WebSocket connection to ... failed`.
+- `http://127.0.0.1:3000/salud` del backend debe responder 200 (la API no es
+  el problema).
+- Contrastar con el **build de producción** (`npm run build && npm run start`):
+  ahí no hay HMR y la hidratación es inmediata. La revisión E2E siempre corre
+  contra el build de producción por esto.
+
