@@ -484,6 +484,16 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             raise HTTPException(status_code=400, detail="fin debe ser mayor que inicio")
         return reservas_db.oferta(conexion, inicio, fin, personas, datetime.now())
 
+    @app.get("/hotel/habitaciones")
+    def listar_habitaciones(
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        """Inventario operativo (spec-api-v1, 2026-11-03): estado, preparación,
+        mantenimiento y tareas pendientes por unidad. Lectura para cualquier
+        rol de la sesión; las mutaciones conservan sus reglas de rol."""
+        return {"habitaciones": reservas_db.listar_habitaciones(conexion)}
+
     @app.post("/hotel/reservas")
     def confirmar_reserva(
         reserva: ReservaIn,

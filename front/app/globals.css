@@ -687,6 +687,15 @@ a.boton-primario {
   color: var(--tinta-suave);
 }
 
+/* Variante para las claves de idempotencia: siguen visibles (spec-front-v1,
+   «se muestra antes del primer envío») pero leídas como metadato técnico. */
+.nota-tecnica {
+  font-size: 0.72rem;
+  color: var(--tinta-suave);
+  opacity: 0.8;
+  margin-top: 0.6rem;
+}
+
 .nota-clave code {
   font-family: var(--mono);
   font-size: 0.78rem;
@@ -919,6 +928,7 @@ a.boton-primario {
   border-radius: var(--radio);
   background: var(--superficie);
   overflow: hidden;
+  overflow-x: auto;
 }
 
 .reserva-encabezado {
@@ -1047,6 +1057,66 @@ a.boton-primario {
 
 .usuario-accion {
   justify-self: end;
+}
+
+/* Inventario de habitaciones (componentes en hotel/_componentes/inventario-habitaciones.js) */
+
+.inventario-encabezado {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 1.2fr) 6rem 3.5rem 8rem 9rem 11rem 8.5rem minmax(11rem, auto);
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  background: var(--papel-suave);
+  border-bottom: 1px solid var(--linea);
+}
+
+.inventario-fila {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 1.2fr) 6rem 3.5rem 8rem 9rem 11rem 8.5rem minmax(11rem, auto);
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.inventario-fila:last-child {
+  border-bottom: none;
+}
+
+.inventario-acciones {
+  justify-self: end;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.preparacion-limpia {
+  background: var(--verde-suave);
+  color: var(--verde-oscuro);
+}
+
+.preparacion-sucia {
+  background: var(--peligro-suave);
+  color: var(--peligro);
+}
+
+.preparacion-inspeccionada {
+  background: var(--acento-suave);
+  color: var(--acento);
+}
+
+.estado-bloqueada,
+.estado-fuera_de_servicio {
+  background: var(--papel-suave);
+  color: var(--tinta-suave);
+  border: 1px solid var(--linea);
 }
 
 .resumen {

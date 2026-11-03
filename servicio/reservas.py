@@ -106,6 +106,36 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
     return {"oferta": items, "emitida_en": ahora.isoformat(), "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60}
 
 
+def listar_habitaciones(conexion: psycopg.Connection) -> list[dict]:
+    """Inventario operativo de las unidades (GET /hotel/habitaciones,
+    spec-api-v1 «Operación de la habitación»): estado operativo, preparación,
+    mantenimiento y tareas pendientes, con la última tarifa configurada como
+    referencia de contexto. Solo lectura, sin reglas de negocio."""
+    filas = conexion.execute(
+        "SELECT h.id, h.tipo, h.capacidad, h.estado_operativo, h.estado_preparacion, h.mantenimiento, "
+        "COALESCE((SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
+        "ORDER BY t.fecha_desde DESC LIMIT 1), 0), "
+        "(SELECT COUNT(*) FROM tareas_operativas ta WHERE ta.habitacion_id = h.id AND ta.estado = 'pendiente'), "
+        "EXISTS(SELECT 1 FROM tareas_operativas ta WHERE ta.habitacion_id = h.id "
+        "AND ta.estado = 'pendiente' AND ta.tipo = 'limpieza') "
+        "FROM habitaciones h ORDER BY h.id"
+    ).fetchall()
+    return [
+        {
+            "habitacion_id": f[0],
+            "tipo": f[1],
+            "capacidad": f[2],
+            "estado_operativo": f[3],
+            "estado_preparacion": f[4],
+            "mantenimiento": f[5],
+            "tarifa_noche_clp": f[6],
+            "tareas_pendientes": f[7],
+            "limpieza_pendiente": f[8],
+        }
+        for f in filas
+    ]
+
+
 def buscar_reservas(
     conexion: psycopg.Connection,
     empresa_id: str,

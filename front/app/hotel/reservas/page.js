@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect } from '../../../lib/api'
+import { useEffect, useState } from 'react'
+import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, useSesion } from '../../../lib/api'
 import { ListaReservas, ReservasVacias } from '../_componentes/lista-reservas'
 
 export default function Reservas() {
+  const sesion = useSesion()
   const [filtros, setFiltros] = useState({ fecha: '', estado: '', texto: '' })
   const [resultado, setResultado] = useState(null)
+  const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
 
   async function buscar(e) {
-    e.preventDefault()
+    if (e) e.preventDefault()
     setError('')
-    setResultado(null)
+    setCargando(true)
     const params = new URLSearchParams()
     if (filtros.fecha) params.set('fecha', filtros.fecha)
     if (filtros.estado) params.set('estado', filtros.estado)
@@ -23,8 +25,16 @@ export default function Reservas() {
       else setResultado(r.datos)
     } catch {
       setError('La API no está disponible')
+    } finally {
+      setCargando(false)
     }
   }
+
+  // Al entrar se listan las reservas de la empresa (sin filtros): la página
+  // nace con datos; el formulario solo acota lo que ya se ve.
+  useEffect(() => {
+    if (sesion.fase === 'ok') buscar(null)
+  }, [sesion.fase])
 
   return (
     <MarcoHotel titulo="Buscar reservas">
@@ -43,6 +53,7 @@ export default function Reservas() {
         </form>
       </section>
       {error && <p role="alert" className="alerta">{error}</p>}
+      {cargando && <p className="estado">Buscando…</p>}
       {resultado &&
         (resultado.reservas.length === 0 ? (
           <ReservasVacias />
