@@ -148,12 +148,25 @@ export function mensajeDeError(datos, estado) {
  *  reconoce la operación (cae en el texto genérico). */
 export function resumenConfirmacion(datos) {
   if (!datos || typeof datos !== 'object') return null
+  if (datos.pago_id) {
+    const monto = typeof datos.monto_clp === 'number' ? ` de $${datos.monto_clp}` : ''
+    return `Pago ${datos.pago_id}${monto}: estado «${datos.estado}»`
+  }
+  if (datos.tarifa_id) {
+    return `Tarifa ${datos.habitacion_id}: $${datos.tarifa_noche_clp}/noche (${datos.fecha_desde} → ${datos.fecha_hasta})`
+  }
   if (datos.habitacion_id && datos.estado_preparacion) {
     const tareas = typeof datos.tareas_completadas === 'number' ? ` · ${datos.tareas_completadas} tarea(s) de limpieza cerrada(s)` : ''
     return `Habitación ${datos.habitacion_id}: preparación «${datos.estado_preparacion}»${tareas}`
   }
+  if (datos.habitacion_id && datos.tipo) {
+    return `Habitación ${datos.habitacion_id}: ${datos.tipo}, capacidad ${datos.capacidad}`
+  }
   if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
   if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`
+  if (typeof datos.sesiones_revocadas === 'number') return `Usuario ${datos.id}: ${datos.sesiones_revocadas} sesión(es) revocada(s)`
+  if (datos.id && datos.estado) return `Usuario ${datos.id}: ${datos.estado}`
+  if (datos.id && datos.nombre) return `Usuario ${datos.nombre} (${datos.id}): rol ${datos.rol}, ${datos.activo ? 'activo' : 'inactivo'}`
   if (datos.usuario) return `Usuario ${datos.usuario}: operación registrada`
   return null
 }

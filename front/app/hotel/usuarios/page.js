@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
+import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
 
 export default function Usuarios() {
   const sesion = useSesion()
@@ -11,10 +12,27 @@ export default function Usuarios() {
   const [bajaId, setBajaId] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
+  const [usuarios, setUsuarios] = useState(null)
   const [claveAlta, renovarClaveAlta] = useClaveOperacion()
   const [claveCambioOp, renovarClaveCambio] = useClaveOperacion()
   const [claveRevocacion, renovarClaveRevocacion] = useClaveOperacion()
   const [claveBaja, renovarClaveBaja] = useClaveOperacion()
+
+  const esAdmin = sesion.fase === 'ok' && sesion.usuario.rol === 'administrador'
+
+  async function cargarUsuarios() {
+    try {
+      const r = await api('/usuarios')
+      if (r.estado === 200) setUsuarios(r.datos.usuarios)
+      else setUsuarios([])
+    } catch {
+      setUsuarios([])
+    }
+  }
+
+  useEffect(() => {
+    if (esAdmin) cargarUsuarios()
+  }, [esAdmin])
 
   async function postear(ruta, cuerpo, clave, alExito, e) {
     e.preventDefault()
@@ -26,10 +44,17 @@ export default function Usuarios() {
       else {
         setSalida(r.datos)
         alExito()
+        cargarUsuarios()
       }
     } catch {
       setError('La API no está disponible')
     }
+  }
+
+  function usarId(id) {
+    setClaveCambio((c) => ({ ...c, id }))
+    setRevocacionId(id)
+    setBajaId(id)
   }
 
   if (sesion.fase === 'ok' && sesion.usuario.rol !== 'administrador') {
@@ -42,6 +67,17 @@ export default function Usuarios() {
 
   return (
     <MarcoHotel titulo="Gestión de usuarios (administrador)">
+      <section className="tarjeta">
+        <h2>Usuarios de la empresa</h2>
+        {usuarios === null ? (
+          <p className="estado">Cargando usuarios…</p>
+        ) : usuarios.length === 0 ? (
+          <UsuariosVacios />
+        ) : (
+          <ListaUsuarios usuarios={usuarios} total={usuarios.length} alElegir={usarId} />
+        )}
+        <p className="nota-clave">«Usar id» copia el identificador en los formularios de cambio de clave, revocación y baja.</p>
+      </section>
       <section className="tarjeta">
         <h2>Alta de usuario</h2>
         <form className="formulario" onSubmit={(e) => postear('/usuarios', alta, claveAlta, renovarClaveAlta, e)}>

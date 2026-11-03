@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { api, urlApi } from '../../lib/api'
 
 export default function Login() {
-  const [credenciales, setCredenciales] = useState({ usuario: 'admin', clave: '', totp: '' })
+  const [credenciales, setCredenciales] = useState({ usuario: '', clave: '', totp: '' })
   const [fase, setFase] = useState('clave')
   const [error, setError] = useState('')
   const [googleDisponible, setGoogleDisponible] = useState(false)
