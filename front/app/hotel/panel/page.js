@@ -185,6 +185,7 @@ export default function Panel() {
                   .join(' · ')}
               </p>
             )}
+            <div className="tabla-contenedor">
             <table className="tabla serie">
               <thead>
                 <tr>
@@ -205,6 +206,7 @@ export default function Panel() {
                 ))}
               </tbody>
             </table>
+            </div>
           </section>
 
           <section className="tarjeta" aria-label="Indicadores no disponibles">

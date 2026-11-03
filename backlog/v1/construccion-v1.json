@@ -677,10 +677,10 @@
  {
   "id": "v1-issue-13",
   "title": "[Issue] V1-ISSUE-13 — Front: renovar la clave de idempotencia tras un rechazo definitivo (4xx)",
-  "body": "Objetivo: que reintentar una acción después de corregir su causa la ejecute. HECHO: idempotencia.ejecutar guarda cualquier respuesta, también los 409; las fichas solo renuevan la clave tras 2xx (front/app/hotel/habitaciones/[id]/page.js enviar()). Caso: retiro → 409 reservas_vigentes → se cancela la reserva → reintento en la misma ficha devuelve el 409 guardado. REQUISITO PROPUESTO (spec-front-v1): tras 4xx de negocio se renueva la clave; tras error de red se conserva. Archivos: front/app/hotel/**/page.js, front/lib/api.js (useClaveOperacion). Riesgo: no renovar ante fallo de red (duplicaría). Criterio/prueba: E2E retiro 409 → cancelar → reintento sin recargar → 200; unittest no aplica (la API ya es correcta).",
+  "body": "Objetivo: que reintentar una acción después de corregir su causa la ejecute. HECHO: idempotencia.ejecutar guarda cualquier respuesta, también los 409; las fichas solo renuevan la clave tras 2xx (front/app/hotel/habitaciones/[id]/page.js enviar()). Caso 1: retiro → 409 reservas_vigentes → se cancela la reserva → reintento en la misma ficha devuelve el 409 guardado. Caso 2 (confirmado en auditoría E2E 2026-11-03): en /hotel/habitaciones (dar de alta HAB-SINT-102 → 409 ya existe → cambiar campo a HAB-201 → 409 «la clave ya fue usada con otro cuerpo») y en /hotel/usuarios (usuario repetido → 409 → cambiar nombre a otro usuario → 409 «la clave ya fue usada con otro cuerpo»); además /hotel/habitaciones, /hotel/habitaciones/[id], /hotel/estadia, /hotel/usuarios y /cuenta carecen del botón «Nueva operación» exigido por spec-front-v1. REQUISITO PROPUESTO (spec-front-v1): tras 4xx de negocio se renueva la clave (o se expone «Nueva operación» en todas las pantallas con mutación); tras error de red se conserva. Archivos: front/app/hotel/**/page.js, front/app/cuenta/page.js, front/lib/api.js (useClaveOperacion). Riesgo: no renovar ante fallo de red (duplicaría). Criterio/prueba: E2E 409 en habitaciones/usuarios/retiro → corregir dato o estado → reintento sin recargar → 200/201; unittest no aplica (la API ya es correcta).",
   "tipo": "Tarea",
   "estado": "Lista",
-  "prioridad": "P2",
+  "prioridad": "P1",
   "vertical": "hotel",
   "padre": null,
   "depende_de": []
@@ -752,5 +752,244 @@
   "vertical": "transversal",
   "padre": null,
   "depende_de": []
+ },
+ {
+  "id": "v1-issue-20",
+  "title": "[Issue] V1-ISSUE-20 — Decisión D-PUB-01: ¿qué reserva puede hacer un visitante desde la landing?",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: hoy la landing solo envía una consulta a Formspree (formulario POST https://formspree.io/f/…: nombre, correo, teléfono, huéspedes 1-8, check-in, check-out, mensaje); no consulta disponibilidad ni tarifa y nada llega a la plataforma. HECHO: la plataforma no tiene superficie pública (todas las rutas /hotel/* exigen sesión interna; /hotel/oferta sin sesión → 401 en producción). DECISIÓN PENDIENTE (propietario), sin la cual no se especifica ni implementa nada del canal: (1) modalidad: solicitud con confirmación humana de recepción, o reserva confirmada en línea por el motor; (2) si es confirmada: garantía o prepago (Q-HOT-03 dice «garantía con tarjeta» pero la pasarela es solo puerto, 503) o confirmación sin garantía; (3) unidad de venta pública: tipo de habitación (la landing muestra «Doble Pequeña» y «Cama Grande») vs habitación concreta (la API vende habitacion_id); correspondencia tipo↔habitaciones; (4) ¿se muestra precio público? ¿total con IVA? (la oferta entrega tarifa_noche_clp y total_clp sin desglose); (5) datos mínimos del huésped y consentimiento/aviso de privacidad (Ley 21.719; hoy ReservaIn solo guarda nombre y documento; la landing pide correo y teléfono); (6) límites: noches máximas (P04 = 30, PROPUESTA_TECNICA) y antelación; (7) política de cancelación visible al visitante (POLITICA_CANCELACION del servicio vs 48 h de Q-HOT-03); (8) qué pasa con el formulario Formspree actual (convive, se retira o se redirige). Duplicados revisados: amplía y reemplaza en V1 a la historia del destino anterior 002-hotel-reservas-concierge/H1 «Reservar y pagar desde la web del hotel» (US-HOT-001, GitHub #63, Bloqueada en el snapshot local; estado actual en GitHub no verificado) y a RES-001/SOC-002 de docs/definicion-herencia/specs/004-reserva-directa (NO APROBADO). No hay otro issue V1 sobre el canal público.",
+  "tipo": "Decisión",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-21",
+  "title": "[Issue] V1-ISSUE-21 — Spec: superficie pública de la API (disponibilidad y solicitud sin sesión interna)",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). REQUISITO PROPUESTO, spec primero (spec-api-v1 nueva sección «Canal público», sin código). Hoy spec-api-v1 solo define rutas con sesión y su regla «nada fuera de la tabla existe». Contenido a especificar según D-PUB-01: rutas bajo prefijo propio (p. ej. /publico/…), sin cookie ni credenciales; empresa fijada por configuración, nunca por parámetro; respuesta sin datos de huéspedes ni ids internos innecesarios; validación (fechas futuras, fin>inicio, personas en rango, noches máximas); CORS: el origen https://hotelherencia.cl solo para estas rutas y sin allow_credentials (hoy ORIGEN_FRONT aplica CORS con credenciales a toda la API y el middleware origin_de_mutaciones devuelve 403 a cualquier Origin ajeno; preflight desde la landing → 400 en producción); límite de abuso por IP/clave y tamaño; idempotencia de la solicitud (clave generada por el navegador, espacio de claves separado del interno, mismo cuerpo → misma respuesta); errores 400/409/422/429 legibles. CA: CA-PUB-01 sin sesión la disponibilidad responde 200 sin datos personales; CA-PUB-02 rutas internas siguen 401 sin sesión; CA-PUB-03 Origin de la landing accede solo a /publico/*, el resto 403; CA-PUB-04 la misma clave y cuerpo no crea dos solicitudes. Pruebas: servicio/tests/test_canal_publico.py (RED antes del código, en el ciclo de v1-issue-22).",
+  "tipo": "Spec",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-20"
+  ]
+ },
+ {
+  "id": "v1-issue-22",
+  "title": "[Issue] V1-ISSUE-22 — Backend: disponibilidad pública y solicitud de reserva persistida (TDD)",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). Implementa v1-issue-21. Disponibilidad pública reutiliza reservas.oferta (misma regla de cupo, tarifa vigente y RES-VENDIBLE; agregada por tipo si D-PUB-01 lo decide); la solicitud se persiste en tabla propia (estado «recibida», origen «landing», datos mínimos decididos) y queda auditada; si D-PUB-01 elige confirmación en línea, crea la reserva por reservas.crear_reserva dentro de la misma transacción con su carrera por la última unidad, nunca una vía paralela. Migración nueva, sin datos reales. CA: CA-PUB-01..04 + CA-PUB-05 sin cupo o sin tarifa → 409 legible y sin solicitud confirmada; CA-PUB-06 dos visitantes por la última unidad → como máximo una confirmación. Pruebas: test_canal_publico.py (unidad + PostgreSQL sintético con exigir_base_libre); regresión completa del servicio.",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-21"
+  ]
+ },
+ {
+  "id": "v1-issue-23",
+  "title": "[Issue] V1-ISSUE-23 — Front: página pública /reservar que recibe fechas y personas desde la landing",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: /hotel/reserva publicado responde 200 a un visitante anónimo pero solo muestra «Sesión cerrada. Inicia sesión»; ninguna página lee parámetros de la URL (no hay useSearchParams) y el formulario interno pide un habitacion_id (por defecto HAB-SINT-102). spec-front-v1 dice «Sin sesión: pantalla de login» y «no existe otra URL que API_BASE_URL»: requiere enmienda de spec-front-v1 antes del código. Alcance: ruta pública fuera de MarcoHotel (sin menú interno), lee inicio/fin/personas de la query y los valida (no confía en ellos), consulta /publico/disponibilidad, muestra lo que el servidor responde (no calcula total), recoge los datos decididos con aviso de privacidad, envía con Idempotency-Key estable que sobrevive errores y se renueva tras 2xx, muestra el número de solicitud o reserva devuelto. CA: CA-PUB-07 deep link con parámetros precarga el formulario; CA-PUB-08 parámetros inválidos → mensaje, sin llamada de mutación; CA-PUB-09 API caída → aviso y nada confirmable. E2E: e2e/e2e-reserva-publica.mjs casos PUB-01 (landing simulada local → /reservar con parámetros → disponibilidad → solicitud → recepción la ve con mismo id, releída por API), PUB-02 sin cupo, PUB-03 doble clic/reintento no duplica, PUB-04 parámetros manipulados, PUB-05 sin sesión no se ve ninguna pantalla interna.",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-22"
+  ]
+ },
+ {
+  "id": "v1-issue-24",
+  "title": "[Issue] V1-ISSUE-24 — Recepción: bandeja de solicitudes públicas y conversión en reserva con origen trazable",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: hoy las consultas de la landing van a Formspree (fuera de la plataforma); recepción no tiene dónde verlas. Alcance (si D-PUB-01 elige solicitud con confirmación humana): listado de solicitudes por estado, ver detalle, convertir en reserva usando POST /hotel/reservas existente (la carrera por la última unidad y RES-VENDIBLE siguen en el servidor), rechazar con motivo; la reserva conserva el id de solicitud y el origen «landing». Roles: recepción y administrador; caja no. CA: CA-PUB-10 solicitud convertida aparece en /hotel/reservas con el mismo precio/fechas aceptados o con la diferencia visible; CA-PUB-11 solicitud ya convertida no se convierte dos veces (409). E2E: PUB-06 en e2e-reserva-publica.mjs (desde el menú de recepción). No notifica al huésped (correo/WhatsApp son puertos sin adaptador).",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-22"
+  ]
+ },
+ {
+  "id": "v1-issue-25",
+  "title": "[Issue] V1-ISSUE-25 — Landing: el CTA «Consultar reserva» lleva al front público con los parámetros",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: los dos «Consultar reserva» y «Hablar con recepcionista» anclan a #contacto de la misma página; el sitio es estático (Apache, assets/js/main.js) y su código NO está en este repositorio (solo se copió su CSS a front/app/globals.css). BLOQUEO: acceso al código y hosting del sitio marketing y autorización para modificarlo y publicarlo. Alcance: enlace HTTPS al front público con inicio, fin y personas (sin datos personales en la URL), mantener o retirar Formspree según D-PUB-01, medir el origen sin identificar al visitante. CA: CA-PUB-12 desde https://hotelherencia.cl el CTA abre /reservar con las fechas elegidas. E2E: PUB-07 contra un despliegue de prueba de la landing (no producción).",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-20",
+   "v1-issue-23"
+  ]
+ },
+ {
+  "id": "v1-issue-26",
+  "title": "[Issue] V1-ISSUE-26 — Producción opera con la empresa sintética: requisito previo para abrir un canal público",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: GET /api/salud del front publicado devuelve empresa EMP-SINTETICA-001. Una reserva pública persistiría hoy en el tenant sintético. Antes de exponer el canal: alta de la empresa real, habitaciones y tarifas reales cargadas por el propietario, política de respaldo y datos personales (Q-CORE-03, Ley 21.719) y orden de despliegue (relacionado con v1-issue-18). Requiere decisión y autorización del propietario; nada se ejecuta en producción sin ella.",
+  "tipo": "Decisión",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-18"
+  ]
+ },
+ {
+  "id": "v1-issue-27",
+  "title": "[Issue] V1-ISSUE-27 — Front: un visitante sin sesión ve el menú interno completo en vez de la pantalla de login",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO (producción): /hotel/reserva sin sesión muestra el menú de operación (Panel, Caja, Usuarios, Mi cuenta, Cerrar sesión) y el texto «Sesión cerrada. Inicia sesión»; no expone datos (la API responde 401), pero contradice spec-front-v1 «Sin sesión: pantalla de login» y revela la estructura interna. Independiente de D-PUB-01. Coordinar con el trabajo en curso sobre front/app/barra.jsx (cambios sin commit de otro proceso al 2026-11-03). CA: sin sesión, toda ruta /hotel/* muestra solo el login (o redirige a /login conservando la ruta de vuelta). E2E: caso AUT-0x en e2e.mjs o archivo propio.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P3",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-28",
+  "title": "[Issue] V1-ISSUE-28 — Decisiones D-AGT-01..06: autonomía, proveedor de modelo, canal, límites, gasto y tono del agente de reservas",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. DECISIÓN PENDIENTE (propietario): D-AGT-01 nivel inicial (propuesta N0 copiloto: borrador verificado que recepción aprueba y envía) y compuerta SC-003 para subir; D-AGT-02 proveedor del modelo, región, retención, datos enviados y aviso al huésped (Ley 21.719) — sin ella no hay adaptador real; D-AGT-03 canal de respuesta de N1; D-AGT-04 límites de N2 (depende de D-PUB-01, v1-issue-20); D-AGT-05 tope de gasto mensual; D-AGT-06 tono e identificación del asistente. Ninguna se inventa.",
+  "tipo": "Decisión",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-29",
+  "title": "[Issue] V1-ISSUE-29 — Agente N0 (TDD): dominio, persistencia y API del copiloto de recepción con modelo guionado",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T010, T020A-C y T030A-C. Enmienda de spec-api-v1 primero; luego RED/GREEN: test_agente_unidad.py (AG-U01..U06: redacción, verificador, validación de decisiones, plantillas con cifras del servidor) y test_agente_servicio.py (AG-S01..S14: borrador igual a /hotel/oferta, sin disponibilidad, dato faltante, recotización 409, inyección escala con 0 reservas, lista cerrada de herramientas, 503 sin adaptador con consulta pendiente, tope de turnos, doble aprobación 409, aislamiento por empresa, agente sin sesión, política solo admin, idempotencia, migración 0010 idempotente). Puerto ModeloLenguaje SinAdaptador/ModeloGuionado; ninguna prueba llama a un proveedor real. HECHO relevante: POST /hotel/reservas no exige rol y usuarios.rol no tiene CHECK; la barrera del agente es la lista de herramientas y la ausencia de sesión. Depende solo de D-AGT-01 (no de D-AGT-02 ni de D-PUB-01).",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-28"
+  ]
+ },
+ {
+  "id": "v1-issue-30",
+  "title": "[Issue] V1-ISSUE-30 — Agente N0: bandeja /hotel/agente en el front y E2E desde el menú",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T040A-C. Ruta /hotel/agente para recepción y administrador (caja no): lista por estado, detalle, borrador con cifras de la herramienta, Aprobar/Editar/Descartar con useClaveOperacion, «Copiar respuesta» (N0 no envía). E2E e2e/e2e-agente.mjs AG-E01..E05 (aprobar con cifras releídas por API, inyección escalada sin reservas, modelo no configurado, caja sin permiso, oferta cambiada) con modelo guionado en servidor local; capturas propias ag-NN-*.png; no tocar resultados E2E ajenos.",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-29"
+  ]
+ },
+ {
+  "id": "v1-issue-31",
+  "title": "[Issue] V1-ISSUE-31 — Agente: adaptador real del modelo y evaluación de 50 casos (compuerta para N1/N2)",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T050A-C, T060, T070. Casos sintéticos (20 claros, 10 sin cupo, 10 ambiguos, 5 inyección, 5 datos sensibles), adaptador según D-AGT-02 con prueba de contrato sobre respuestas grabadas (sin red en CI), ejecución AG-V01 solo con autorización explícita en base sintética aislada; informe SC-003 (≥90 % sin edición de cifras, 0 cifras inventadas, 100 % inyecciones escaladas). N1 exige además D-AGT-03; N2 exige D-PUB-01, v1-issue-22 y D-AGT-04.",
+  "tipo": "Historia",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-28",
+   "v1-issue-29"
+  ]
+ },
+ {
+  "id": "v1-issue-32",
+  "title": "[Issue] V1-ISSUE-32 — Cobro parcial en /hotel/pago no se registra con clave por defecto «cobro-web-1» y devuelve 201 falso positivo",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO: `front/app/hotel/pago/page.js` inicializa `clave: 'cobro-web-1'` y no la rota tras un 201; `servicio/cobro.py` (`registrar_pago_manual`) deduplica en la tabla `pagos` por `(reserva_id, clave)` devolviendo 201 Created con `reintento: true` y los datos del primer pago sin verificar si `monto_clp` cambió. Reproducción: sobre una reserva de $120.000 (`RSV-efc45d0bca56`), registrar un primer abono de $50.000 (201, `PAG-58ac0c3a59b4`) y luego cambiar monto a $70.000 dejando `clave = 'cobro-web-1'`; la API responde 201 con `monto_clp: 50000, reintento: true`, la UI muestra confirmación exitosa, pero el segundo abono no se asienta y el saldo en `/hotel/reservas/{id}` sigue en $70.000 (bloqueando la salida). Criterios de aceptación: (1) en `servicio/cobro.py`, si `(reserva_id, clave)` ya existe en `pagos` con distinto `monto_clp` o `modo`, responder 409 Conflict; si es reintento idéntico, que la UI distinga el reintento; (2) en `front/app/hotel/pago/page.js`, generar/rotar la clave de cobro en cada nueva operación en lugar de fijar el literal estático `'cobro-web-1'`; (3) pruebas en `test_h4.py` y `e2e/e2e.mjs` con dos abonos parciales consecutivos que dejan `saldo_clp = 0`.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-back/h4/t2"
+  ]
+ },
+ {
+  "id": "v1-issue-33",
+  "title": "[Issue] V1-ISSUE-33 — Permitir cambio de clave propia a roles recepción y caja en /cuenta e incluir id de usuario en GET /sesion",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO: `spec-api-v1.md` y `servicio/aplicacion.py:884-905` (`POST /usuarios/{id}/clave`) habilitan el cambio de clave para «el propio usuario o un administrador». Sin embargo: (1) `GET /sesion` (`servicio/aplicacion.py:349-359`) devuelve `{usuario, rol, empresa_id, totp_activado}` sin el `id` (`USR-...`) del usuario; (2) `/hotel/usuarios` (`front/app/hotel/usuarios/page.js:60-66`) bloquea toda la pantalla si `rol !== 'administrador'`; (3) `/cuenta` (`front/app/cuenta/page.js`) solo gestiona 2FA TOTP. Resultado: los operadores con rol `recepcion` o `caja` no pueden cambiar su propia contraseña desde la UI ni conocer su `USR-...`. Criterios de aceptación: (1) `GET /sesion` incluye `id: sesion.usuario_id`; (2) `/cuenta` incorpora formulario de cambio de clave propia usando `useClaveOperacion` y `POST /usuarios/{id}/clave` para cualquier rol autenticado; (3) pruebas en `test_h2.py` y E2E verificando cambio de clave propia por `recepcion` y `caja` y nuevo login con la clave actualizada.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-back/h2/t2"
+  ]
+ },
+ {
+  "id": "v1-issue-34",
+  "title": "[Issue] V1-ISSUE-34 — Eliminar desbordamiento horizontal móvil (320px–430px) en /hotel/habitaciones/[id], /hotel/reservas/[id] y /hotel/oferta",
+  "body": "Auditoría técnica integral 2026-11-03 (complementa V1-FRONT/UX-03 #278 que cubre solo `/hotel/panel`). HECHO medido en Chromium (viewports 320×568, 375×812, 390×844, 430×932): (1) `/hotel/habitaciones/[id]` desborda el documento en 320px–430px (`document.documentElement.scrollWidth = 628px` en 320px) porque sus 4 tablas `.tabla` (tarifas, reservas, tareas, auditoría) no tienen contenedor con `overflow-x: auto`; (2) `/hotel/reservas/[id]` desborda en 320px y 375px (`scrollWidth = 379px`) por sus 2 tablas `.tabla` (cargos y pagos); (3) `/hotel/oferta` con resultados desborda en 320px (`scrollWidth = 360px`) porque `.oferta-rejilla` en `front/app/globals.css:806` define `grid-template-columns: repeat(auto-fill, minmax(340px, 1fr))`. Criterios de aceptación: (1) envolver las 6 tablas `.tabla` de `/hotel/habitaciones/[id]` y `/hotel/reservas/[id]` en `.tabla-contenedor` (`overflow-x: auto`); (2) ajustar `.oferta-rejilla` a `minmax(min(100%, 320px), 1fr)`; (3) verificar con Playwright en 320, 375, 390, 430, 768, 1280 y 1440px que `document.documentElement.scrollWidth <= window.innerWidth` en las 19 rutas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-oper-01"
+  ]
+ },
+ {
+  "id": "v1-issue-35",
+  "title": "[Issue] V1-ISSUE-35 — Precargar reserva_id y habitacion_id/fechas entre pantallas operativas y eliminar defaults inválidos en /hotel/reserva",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO: (1) en `/hotel/reservas/[id]` (`front/app/hotel/reservas/[id]/page.js:21-24`), los enlaces de `SIGUIENTE_PASO` apuntan a `/hotel/estadia`, `/hotel/pago` y `/hotel/salida` sin `?reserva_id=...`, obligando al operador a copiar y pegar manualmente el `RSV-...`; (2) en `/hotel/oferta`, `TarjetaOferta` (`front/app/hotel/_componentes/tarjeta-oferta.js`) no incluye acción para ir a `/hotel/reserva` precargando `habitacion_id`, `inicio` y `fin`; (3) `/hotel/reserva` (`front/app/hotel/reserva/page.js:7-13`) inicia con `habitacion_id: 'HAB-SINT-102'`, `inicio: '2026-12-10'`, `fin: '2026-12-12'`, lo que en una base recién sembrada falla con `409 sin tarifa vigente para HAB-SINT-102 en 2026-12-10`. Criterios de aceptación: (1) `SIGUIENTE_PASO` en `/hotel/reservas/[id]` enlaza con `?reserva_id={id}` y `/hotel/pago`, `/hotel/estadia` y `/hotel/salida` precargan el campo «Reserva»; (2) `TarjetaOferta` permite abrir `/hotel/reserva` con `habitacion_id`, `inicio` y `fin` precargados; (3) prueba E2E del flujo Oferta → Reserva → Ficha → Pago → Estadía → Salida navegando por enlaces sin copiar/pegar IDs.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-oper-01"
+  ]
+ },
+ {
+  "id": "v1-issue-36",
+  "title": "[Issue] V1-ISSUE-36 — Accesibilidad y táctil: blancos >= 44×44 px, semántica de tabla en listados, foco visible, reduced-motion y confirmación en acciones destructivas",
+  "body": "Auditoría técnica integral 2026-11-03. HECHOS medidos en DOM: (1) Blancos táctiles < 44×44 px CSS: `.boton-primario` (41.6px), `.boton-secundario` (35.2px), `.entrada` (41.3px), `.nav-enlace` escritorio (38.8px) y celdas `.noche` en `/hotel/ocupacion` (33.6×32px); (2) `InventarioHabitaciones`, `ListaReservas` y `ListaUsuarios` renderizan datos multi-columna en `<ul>/<li>` con cabecera `<li aria-hidden=\"true\">`, dejando las celdas sin etiquetas de columna para lectores de pantalla; (3) `front/app/globals.css` carece de `@media (prefers-reduced-motion: reduce)` y de `:focus-visible` explícito en botones y enlaces de navegación, y `BarraNav` no asigna `aria-current=\"page\"` al enlace activo; (4) acciones destructivas («Desactivar doble factor» en `/cuenta`, «Cancelar reserva» en `/hotel/estadia`, «Dar de baja» y «Revocar sesiones» en `/hotel/usuarios`) se ejecutan al primer clic sin confirmación y los formularios no deshabilitan el botón `submit` mientras `fetch` está en vuelo. Criterios de aceptación: (1) altura mínima >= 44px en controles interactivos y botones; (2) semántica de tabla accesible (`<table>` o `role=\"table\"`/`role=\"columnheader\"`) sin `aria-hidden=\"true\"` en cabeceras; (3) `aria-current=\"page\"`, `:focus-visible` y `@media (prefers-reduced-motion: reduce)`; (4) confirmación explícita en las 4 acciones destructivas y `disabled` durante envío.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-37",
+  "title": "[Issue] V1-ISSUE-37 — Rendimiento: compartir estado de useSesion() para evitar 2 a 3 llamadas GET /sesion por cada carga de pantalla",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO medido en red (Playwright): cada montaje de `/cuenta`, `/hotel/panel`, `/hotel/ocupacion`, `/hotel/habitaciones`, `/hotel/habitaciones/[id]`, `/hotel/reservas`, `/hotel/reservas/[id]`, `/hotel/estadia`, `/hotel/caja` y `/hotel/usuarios` dispara 3 peticiones concurrentes `GET /sesion` (y 2 en el resto de rutas) porque `BarraNav`, `MarcoHotel` y el componente de página invocan `useSesion()` (`front/lib/api.js:50-68`) sin contexto compartido ni deduplicación en vuelo. Criterios de aceptación: (1) proveer el estado de sesión mediante un `Context` o promesa compartida en `front/lib/api.js` con función de refresco explícito tras login/logout/2FA; (2) verificar en Playwright que cargar cualquier ruta `/hotel/*` o `/cuenta` emite exactamente 1 petición `GET /sesion`.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-38",
+  "title": "[Issue] V1-ISSUE-38 — Guardia de sesión y contenedor .pagina en /cafeteria, /inmobiliaria y /constructora, y formato clp() en /hotel/caja",
+  "body": "Auditoría técnica integral 2026-11-03 (complementa V1-ISSUE-27). HECHO: (1) las rutas `/cafeteria`, `/inmobiliaria` y `/constructora` (`front/app/{cafeteria,inmobiliaria,constructora}/page.js`) renderizan `<main><h1>...</h1></main>` sin clase `.pagina` y sin guardia de sesión, mostrando la barra lateral interna incluso a visitantes anónimos; (2) en `/hotel/caja` (`front/app/hotel/caja/page.js:48`), el encabezado muestra `Total del día: $${caja.total_clp}` sin separador de miles, mientras la tabla usa `clp()`. Criterios de aceptación: (1) `/cafeteria`, `/inmobiliaria` y `/constructora` verifican sesión igual que `/` y aplican `className=\"pagina\"`; (2) `/hotel/caja` usa `clp(caja.total_clp)` en el total del día.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P3",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-27"
+  ]
  }
 ]

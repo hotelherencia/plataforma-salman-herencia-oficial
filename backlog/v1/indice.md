@@ -99,3 +99,34 @@ Gemini 4 Argon vía `agy` sobre copias aisladas) y primer ciclo TDD.
   tarifas en producción; requiere autorización).
 - [Lista, P3] `v1-issue-19` — deuda documental.
 - No cargados a GitHub Projects (sin acciones externas): falta sincronizar.
+
+
+## Revisión landing → plataforma (2026-11-03, noche)
+
+Navegación pública de https://hotelherencia.cl/ y del front publicado, sin
+enviar formularios ni crear datos. Hoy la landing solo envía una consulta a
+Formspree; no existe puente con la plataforma.
+
+- [Bloqueada, P1] `v1-issue-20` — decisión D-PUB-01: qué reserva puede hacer
+  un visitante (modalidad, garantía, unidad de venta, precio, datos, límites).
+- [Bloqueada, P1] `v1-issue-21` — spec de la superficie pública de la API.
+- [Bloqueada, P1] `v1-issue-22` — backend: disponibilidad pública y solicitud.
+- [Bloqueada, P1] `v1-issue-23` — front: página pública `/reservar`.
+- [Bloqueada, P2] `v1-issue-24` — bandeja de solicitudes en recepción.
+- [Bloqueada, P2] `v1-issue-25` — CTA de la landing (código fuera del repo).
+- [Bloqueada, P1] `v1-issue-26` — producción opera con la empresa sintética.
+- [Lista, P3] `v1-issue-27` — sin sesión se ve el menú interno.
+- No cargados a GitHub Projects (sin acciones externas): falta sincronizar.
+
+
+## Agente de reservas (2026-11-03, noche) — spec-kit `specs/005-hotel-agente-reservas/`
+
+Evaluación de mayor capacidad agéntica traducida a SDD/TDD. El agente nunca
+es autoridad: solo llama a herramientas deterministas del servidor y sus
+cifras salen de `reservas.oferta`. Antecedente: `specs/002` historia 3.
+
+- [Bloqueada, P1] `v1-issue-28` — decisiones D-AGT-01..06.
+- [Bloqueada, P1] `v1-issue-29` — N0 copiloto: dominio, persistencia y API (TDD, modelo guionado).
+- [Bloqueada, P1] `v1-issue-30` — N0: bandeja `/hotel/agente` y E2E.
+- [Bloqueada, P2] `v1-issue-31` — adaptador real y evaluación de 50 casos (compuerta N1/N2).
+- No cargados a GitHub Projects (sin acciones externas): falta sincronizar.

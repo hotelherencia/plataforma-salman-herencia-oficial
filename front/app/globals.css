@@ -514,7 +514,9 @@ a {
 
 .formulario {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  /* UX-05: la pista mínima colapsa con texto ampliado (zoom 200%) en vez de
+     desbordar el documento. */
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
   gap: 0.9rem 1.1rem;
 }
 
@@ -688,11 +690,11 @@ a.boton-primario {
 }
 
 /* Variante para las claves de idempotencia: siguen visibles (spec-front-v1,
-   «se muestra antes del primer envío») pero leídas como metadato técnico. */
+   «se muestra antes del primer envío») pero leídas como metadato técnico.
+   UX-04: sin opacidad sobre tinta suave — el ratio queda en ~5.9:1 (AA). */
 .nota-tecnica {
   font-size: 0.72rem;
   color: var(--tinta-suave);
-  opacity: 0.8;
   margin-top: 0.6rem;
 }
 
@@ -929,6 +931,8 @@ a.boton-primario {
   background: var(--superficie);
   overflow: hidden;
   overflow-x: auto;
+  /* UX-05: pista persistente de más columnas a la derecha */
+  box-shadow: inset -1.4rem 0 1.2rem -1.3rem rgba(31, 32, 28, 0.28);
 }
 
 .reserva-encabezado {
@@ -1140,6 +1144,15 @@ a.boton-primario {
   font-variant-numeric: tabular-nums;
 }
 
+/* UX-03/UX-05: contenedor con desplazamiento propio para tablas anchas; la
+   sombra interior derecha es la pista persistente de que hay más columnas. */
+.tabla-contenedor {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radio);
+  box-shadow: inset -1.4rem 0 1.2rem -1.3rem rgba(31, 32, 28, 0.28);
+}
+
 .tabla th,
 .tabla td {
   text-align: left;
@@ -1193,42 +1206,107 @@ a.boton-primario {
 
 /* Pantallas estrechas: la sidebar pasa arriba */
 
+/* Cabecera móvil oculta en escritorio (el aside gobierna); debe preceder al
+   @media (max-width:860px) para que el display:flex de la media prevalezca. */
+.barra-movil {
+  display: none;
+}
+
 @media (max-width: 860px) {
   .aplicacion {
     flex-direction: column;
   }
 
+  /* UX-01/UX-02: la barra lateral cede a la cabecera compacta con panel de menú */
   .barra {
-    width: 100%;
-    height: auto;
-    position: static;
-    padding: 0.9rem 1rem;
-  }
-
-  .marca {
-    margin-bottom: 0.8rem;
-    padding: 0;
-  }
-
-  .nav {
-    flex-direction: row;
-    overflow-x: auto;
-  }
-
-  .nav-enlace {
-    border-left: none;
-    border-bottom: 2px solid transparent;
-    padding: 0.4rem 0.65rem;
-    white-space: nowrap;
-  }
-
-  .nav-enlace.activo {
-    border-bottom-color: var(--acento-suave);
-    border-left-color: transparent;
-  }
-
-  .barra-pie {
     display: none;
+  }
+
+  .barra-movil {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: linear-gradient(160deg, var(--verde), var(--verde-oscuro));
+    padding: 0.8rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .barra-movil .marca {
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .boton-menu {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.45rem 1rem;
+    border: 1px solid rgba(245, 239, 228, 0.45);
+    border-radius: 10px;
+    background: transparent;
+    color: #f5efe4;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .boton-menu:focus-visible {
+    outline: 2px solid var(--acento-suave);
+    outline-offset: 2px;
+  }
+
+  .menu-movil-fondo {
+    position: fixed;
+    inset: 0;
+    background: rgba(31, 32, 28, 0.45);
+    z-index: 40;
+  }
+
+  .menu-movil {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(20rem, 88vw);
+    background: linear-gradient(160deg, var(--verde), var(--verde-oscuro));
+    z-index: 50;
+    transform: translateX(105%);
+    visibility: hidden;
+    transition: transform 0.18s ease-out, visibility 0.18s;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0.9rem;
+    overflow-y: auto;
+  }
+
+  .menu-movil.abierto {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .menu-movil .nav-enlace,
+  .menu-movil .nav-cerrado {
+    border-left-width: 3px;
+    padding: 0.55rem 0.7rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .menu-movil-pie {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(245, 239, 228, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .menu-movil-pie .boton-salir {
+    min-height: 44px;
   }
 
   .contenido {

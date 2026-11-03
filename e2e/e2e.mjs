@@ -684,6 +684,113 @@ try {
     return 'cancelación oculta para caja; check-in visible'
   })
 
+  // ===== Q. Navegación móvil y accesibilidad responsive (issues #276–#280) =====
+  await caso('MUX-01', '/hotel/panel', 'menú móvil: panel con todas las opciones, activo único y visible', 'administrador', 'menú abre, «Ocupación» navega y cierra, un solo activo', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 375, height: 667 } })
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.goto(`${FRONT}/hotel/panel`)
+    await page.waitForTimeout(2000)
+    const salirOculto = await page.evaluate(() => {
+      const pie = document.querySelector('.barra-pie button')
+      return pie ? pie.offsetParent === null : true
+    })
+    await page.getByRole('button', { name: 'Menú' }).click()
+    await page.waitForTimeout(700)
+    const enPanel = await page.evaluate(() => ({
+      enlaces: [...document.querySelectorAll('#menu-movil .nav-enlace')].map((e) => e.textContent.trim()),
+      salirEnMenu: !!document.querySelector('#menu-movil .boton-salir'),
+    }))
+    await evidencia(page, 'mux-01-menu-abierto')
+    await page.getByRole('link', { name: 'Ocupación' }).click()
+    await page.waitForTimeout(1800)
+    const despues = await page.evaluate(() => ({
+      url: location.pathname,
+      menuCerrado: !document.querySelector('#menu-movil')?.classList.contains('abierto'),
+    }))
+    await page.getByRole('button', { name: 'Menú' }).click()
+    await page.waitForTimeout(500)
+    const activosVisibles = await page.evaluate(() => document.querySelectorAll('#menu-movil .activo').length)
+    await ctx.close()
+    if (!enPanel.salirEnMenu) throw new Error('sin «Cerrar sesión» en el menú móvil')
+    if (!enPanel.enlaces.includes('Usuarios') || !enPanel.enlaces.includes('Ocupación')) throw new Error(`faltan opciones: ${enPanel.enlaces.join(',')}`)
+    if (despues.url !== '/hotel/ocupacion' || !despues.menuCerrado) throw new Error(`navegación/cierre falló: ${JSON.stringify(despues)}`)
+    if (activosVisibles !== 1) throw new Error(`activos = ${activosVisibles}, esperado 1`)
+    if (!salirOculto) throw new Error('el pie del aside sigue visible (modo móvil no aplicado)')
+    return `${enPanel.enlaces.length} opciones; activo único; cierra al navegar`
+  })
+  await caso('MUX-02', '/hotel/panel', 'cerrar sesión operativo en móvil (375px)', 'administrador', 'botón visible en el menú; DELETE /sesion y vuelve a /login', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 375, height: 667 } })
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.getByRole('button', { name: 'Menú' }).click()
+    await page.waitForTimeout(600)
+    const objetivo = await page.evaluate(() => {
+      const b = document.querySelector('#menu-movil .boton-salir')
+      const r = b?.getBoundingClientRect()
+      return { existe: !!b, alto: Math.round(r?.height || 0) }
+    })
+    if (!objetivo.existe || objetivo.alto < 44) throw new Error(`objetivo: ${JSON.stringify(objetivo)}`)
+    await page.getByRole('button', { name: 'Cerrar sesión' }).click()
+    await page.waitForTimeout(1800)
+    const url = page.url()
+    await ctx.close()
+    if (!url.includes('/login')) throw new Error(`no volvió a login: ${url}`)
+    return 'sesión cerrada desde móvil, redirección a /login'
+  })
+  await caso('MUX-03', '/hotel/panel', 'reflujo a 320px sin scroll horizontal de documento', 'administrador', 'scrollWidth <= innerWidth', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 320, height: 568 } })
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.goto(`${FRONT}/hotel/panel`)
+    await page.waitForTimeout(2200)
+    const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+    await evidencia(page, 'mux-03-panel-320')
+    await ctx.close()
+    if (m.sw > m.iw) throw new Error(`desborde: scrollWidth ${m.sw} > ${m.iw}`)
+    return `scrollWidth ${m.sw} ≤ ${m.iw}`
+  })
+  await caso('MUX-04', '/hotel/habitaciones', 'contraste de la nota técnica ≥ 4.5:1', 'administrador', 'ratio AA para texto normal', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 1280, height: 720 } })
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.goto(`${FRONT}/hotel/habitaciones`)
+    await page.waitForTimeout(1800)
+    const ratio = await page.evaluate(() => {
+      const el = document.querySelector('.nota-tecnica')
+      if (!el) return null
+      const cs = getComputedStyle(el)
+      const f = (c) => {
+        const m = c.match(/[\d.]+/g).map(Number)
+        return m.length >= 3 ? m.slice(0, 3) : [0, 0, 0]
+      }
+      const fg = f(cs.color)
+      const bg = f(cs.backgroundColor.includes('rgba') && cs.backgroundColor.match(/[\d.]+/g)[3] === '0' ? 'rgb(251,247,240)' : cs.backgroundColor)
+      const lum = (rgb) => {
+        const ch = rgb.map((v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 })
+        return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]
+      }
+      const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x)
+      return (a + 0.05) / (b + 0.05)
+    })
+    await ctx.close()
+    if (!ratio || ratio < 4.5) throw new Error(`ratio ${ratio}`)
+    return `ratio ${ratio.toFixed(2)}:1`
+  })
+  await caso('MUX-05', '/hotel/reserva', 'zoom 200% sin scroll horizontal (formulario)', 'administrador', 'documento sin desborde con texto ampliado', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 390, height: 844 } })
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.goto(`${FRONT}/hotel/reserva`)
+    await page.waitForTimeout(1800)
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })
+    await page.waitForTimeout(400)
+    const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+    await ctx.close()
+    if (m.sw > m.iw) throw new Error(`desborde con zoom: ${m.sw} > ${m.iw}`)
+    return `zoom 200%: scrollWidth ${m.sw} ≤ ${m.iw}`
+  })
+
   // ===== O. Cierre de sesión =====
   await caso('SES-01', '/salida-de-sesion', 'cerrar sesión deja el panel fuera', 'administrador', 'la siguiente lectura pide login', async () => {
     const ctx = await contextoRol('admin')
