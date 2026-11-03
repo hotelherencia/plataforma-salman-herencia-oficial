@@ -31,3 +31,27 @@ el backend en local (H1–H6 sin push ni despliegue, según AGENTS.md).
 - Detalle de la correspondencia vieja→nueva: habitaciones/tarifas (HU-HOT-01)
   → `v1-back/h3` + `v1-front/h6b/t1`; caja (HU-HOT-02) → `v1-back/h4` +
   `v1-front/h6b/t4`; indicadores (HU-HOT-03) fuera de V1.
+
+## Revisión E2E de aceptación — 2026-11-03
+
+Aceptación del módulo hotel en local (datos sintéticos, base `plataforma_e2e`
+desechable, front en build de producción + navegador): **41/41 flujos
+APROBADO, 0 fallos** — matriz en `capturas/e2e-2026-11-03/INFORME.md` y suite
+reproducible en `e2e/` (`cd e2e && npm install && npm run e2e`). Incluye los
+rechazos por rol (administrador/recepción/caja), validaciones, idempotencia y
+verificación de efectos; complementada con API caída (criterio front 1) y
+persistencia tras reinicio (criterio backend 4). Ampliación del contrato ese
+mismo día: `GET /hotel/habitaciones` (inventario operativo; spec-api-v1 pasa a
+27 operaciones). Correcciones que la revisión levantó y ya están integradas:
+regresión PUT→POST en alta/tarifa de habitaciones, reservas que nacía vacía,
+gestión de usuarios sin lista, resumen de confirmación por tipo de operación,
+login con «admin» precargado. Desplegado en producción (Vercel + Railway) y
+verificado: `/hotel/habitaciones` responde 401 anónimo en Railway.
+
+**Issues abiertos para corregir** (alta en `construccion-v1.json`,
+`v1-issue-01..06`): los 20 tests del servicio en rojo heredados de H6/H7
+(P1, incluye seguridad de cookies/CORS); cobertura E2E del alta 2FA en
+navegador; formularios del front visibles para roles que el contrato rechaza;
+hidratación bloqueada en `next dev` con HMR caído; procedimiento de
+aprobación de deploys Railway (NEEDS_APPROVAL); `e2e-resultados.json`
+versionado que envejece.

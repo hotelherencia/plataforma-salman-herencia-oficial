@@ -1,464 +1,600 @@
 [
-  {
-    "id": "v1-api",
-    "title": "[Épica] V1-API — Contrato API (spec-api-v1)",
-    "body": "**Fuente:** `docs/arquitectura/spec-api-v1.md` (gobierna). El contrato entre el front de Vercel y el backend de Railway: 10 operaciones, empresa solo de sesión, idempotencia, 401/403/409/503. Lo sirve el backend; nada fuera de la tabla se publica.",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-back",
-    "title": "[Épica] V1-BACK — Backend en Railway (spec-backend-v1)",
-    "body": "**Fuente:** `docs/arquitectura/spec-backend-v1.md` (gobierna). Un solo servicio FastAPI + PostgreSQL 17. Arranque que carga núcleo y hotel con la misma empresa (rechaza otra). Persistencia real; puertos externos sin adaptador → 503. Hitos H1–H5.",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-front",
-    "title": "[Épica] V1-FRONT — Front en Vercel (spec-front-v1)",
-    "body": "**Fuente:** `docs/arquitectura/spec-front-v1.md` (gobierna). Un solo proyecto Next.js; 7 pantallas del hotel; solo `API_BASE_URL`; cero lógica de negocio; API apagada → error y ninguna reserva confirmada. Hitos H6a–H6c.",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-desp",
-    "title": "[Épica] V1-DESP — Integración y despliegue (H7)",
-    "body": "**Fuente:** decisión del propietario 2026-10-28; `AGENTS.md` (derogación de push solo en H7). Las tres piezas se aceptan juntas. Prerrequisito: cuentas Railway y Vercel (no verificadas desde el repo; no bloquean H1).",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-api/h1",
-    "title": "[Historia] V1-API/H1 — Publicar el contrato ejecutable (OpenAPI 3.1)",
-    "body": "**Como** front y backend, **quiero** el contrato en OpenAPI 3.1 servido por el backend, **para** implementar leyendo solo ese documento. Criterio: las 10 operaciones de spec-api-v1 con sus reglas de sesión, idempotencia y errores; nada fuera de la tabla.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-api",
-    "depende_de": []
-  },
-  {
-    "id": "v1-api/h1/t1",
-    "title": "[Tarea] V1-API/H1/T1 — Redactar OpenAPI 3.1 de las 10 operaciones",
-    "body": "Fuente: spec-api-v1. Documento en `servicio/contrato/` con las 10 rutas, esquemas y reglas 401/403/409/503.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-api/h1",
-    "depende_de": []
-  },
-  {
-    "id": "v1-api/h1/t2",
-    "title": "[Tarea] V1-API/H1/T2 — Servir el contrato y verificar sus rutas",
-    "body": "GET /contrato.yaml devuelve el documento; prueba de contrato recorre las 10 operaciones contra el backend en local.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-api/h1",
-    "depende_de": ["v1-api/h1/t1"]
-  },
-  {
-    "id": "v1-back/h1",
-    "title": "[Historia] V1-BACK/H1 — Servicio con hueso (arranque, /salud, regla de empresa)",
-    "body": "**Como** plataforma, **quiero** un proceso FastAPI que arranca con núcleo y hotel de la misma empresa, **para** tener el primer proceso real. Criterio (prueba H1): arranca con la misma empresa y **no arranca si el hotel trae otra**; GET /salud responde 200.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": []
-  },
-  {
-    "id": "v1-back/h1/t1",
-    "title": "[Tarea] V1-BACK/H1/T1 — Esqueleto FastAPI + psycopg v3 + config por env",
-    "body": "requirements.txt (fastapi, uvicorn, psycopg[binary], argon2-cffi); configuración solo por variables de entorno; sin .env en repo.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": []
-  },
-  {
-    "id": "v1-back/h1/t2",
-    "title": "[Tarea] V1-BACK/H1/T2 — Runner de migraciones SQL numeradas",
-    "body": "Migraciones en `servicio/migraciones/` (0001_*.sql…), ejecutadas por comando; tabla schema_migrations. SQL parametrizado desde el código (nada interpolado).",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": ["v1-back/h1/t1"]
-  },
-  {
-    "id": "v1-back/h1/t3",
-    "title": "[Tarea] V1-BACK/H1/T3 — Arranque con núcleo + hotel y regla de empresa",
-    "body": "construir_aplicacion carga Nucleo y ServicioHotelInventario con empresa=nucleo.empresa; rechaza el arranque con otra empresa (regla ya probada en el prototipo). GET /salud sin autenticar.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": ["v1-back/h1/t1"]
-  },
-  {
-    "id": "v1-back/h1/t4",
-    "title": "[Tarea] V1-BACK/H1/T4 — Prueba de arranque y de rechazo",
-    "body": "Prueba H1: el proceso arranca con núcleo y hotel de la misma empresa; con hotel de otra empresa el proceso no arranca.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": ["v1-back/h1/t3"]
-  },
-  {
-    "id": "v1-back/h2",
-    "title": "[Historia] V1-BACK/H2 — Sesión usuario/clave (argon2id, cookie sid)",
-    "body": "**Como** operador, **quiero** iniciar sesión con usuario y clave y que la empresa salga de la sesión, **para** que nada se autorice por un company_id del cliente. Criterio: clave solo como hash argon2id; admin inicial desde variables de entorno al arrancar (ningún SQL con clave); cookie sid HttpOnly/Secure/SameSite=None; 401 sin sesión; 403 otra empresa sin revelar existencia.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": ["v1-back/h1"]
-  },
-  {
-    "id": "v1-back/h2/t1",
-    "title": "[Tarea] V1-BACK/H2/T1 — Migraciones usuarios y sesiones + admin desde env",
-    "body": "Tablas usuarios (clave argon2id) y sesiones (revocables); el administrador inicial se cree al arrancar leyendo usuario/clave de variables de entorno, nunca de SQL del repo.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h2",
-    "depende_de": ["v1-back/h1/t2"]
-  },
-  {
-    "id": "v1-back/h2/t2",
-    "title": "[Tarea] V1-BACK/H2/T2 — POST /sesion y DELETE /sesion",
-    "body": "Abrir y cerrar sesión; cookie sid puesta por la API; sesión server-side en PostgreSQL.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h2",
-    "depende_de": ["v1-back/h2/t1"]
-  },
-  {
-    "id": "v1-back/h2/t3",
-    "title": "[Tarea] V1-BACK/H2/T3 — Pruebas 401 y 403",
-    "body": "Sin sesión → 401; sesión de otra empresa → 403 sin revelar si el recurso existe.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h2",
-    "depende_de": ["v1-back/h2/t2"]
-  },
-  {
-    "id": "v1-back/h3",
-    "title": "[Historia] V1-BACK/H3 — Reserva persistente (habitaciones, tarifas, oferta, reserva transaccional)",
-    "body": "**Como** huésped y recepción, **quiero** reservar sobre datos que sobreviven al proceso, **para** operar de verdad. Criterio: PUT habitaciones (admin) y PUT tarifas sin alterar reservas aceptadas; GET oferta con vigencia; POST reservas transaccional con constraint de no solape — 100 requests a la última unidad dejan 1 reserva y 409 al resto.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": ["v1-back/h2"]
-  },
-  {
-    "id": "v1-back/h3/t1",
-    "title": "[Tarea] V1-BACK/H3/T1 — Migraciones y endpoints de habitaciones y tarifas",
-    "body": "Tablas habitaciones y tarifas; PUT /hotel/habitaciones/{id} (solo administrador); PUT /hotel/tarifas por fecha, sin cambiar el precio de reservas ya aceptadas.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": ["v1-back/h2/t1"]
-  },
-  {
-    "id": "v1-back/h3/t2",
-    "title": "[Tarea] V1-BACK/H3/T2 — GET /hotel/oferta con vigencia",
-    "body": "Solo disponible, con tarifa vigente y vencimiento de la oferta.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": ["v1-back/h3/t1"]
-  },
-  {
-    "id": "v1-back/h3/t3",
-    "title": "[Tarea] V1-BACK/H3/T3 — POST /hotel/reservas transaccional",
-    "body": "Constraint de no solape por (unidad, fechas) dentro de la transacción de confirmación; la carrera por la última unidad la gana una sola reserva.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": ["v1-back/h3/t1"]
-  },
-  {
-    "id": "v1-back/h3/t4",
-    "title": "[Tarea] V1-BACK/H3/T4 — Prueba de la carrera por la última unidad",
-    "body": "100 requests concurrentes sobre la última unidad: 1 reserva confirmada, 99 con 409; sin sobreventa en la base.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": ["v1-back/h3/t3"]
-  },
-  {
-    "id": "v1-back/h4",
-    "title": "[Historia] V1-BACK/H4 — Cobro por el núcleo, idempotencia y estadía (entrada, salida, caja)",
-    "body": "**Como** caja y recepción, **quiero** cobrar solo con efecto del núcleo y operar la estadía, **para** que el dinero pase por la única puerta. Criterio: idempotencia por clave (replay igual; cuerpo distinto → 409); pago modo manual (efectivo/transferencia que registra recepción/caja/administrador, sin consulta bancaria ni conciliación) con efecto del núcleo; modo pasarela sin adaptador → 503 y nada marcado cobrado; entrada solo con habitación lista; salida liquida la cuenta; caja del día ligada a reserva.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": ["v1-back/h2"]
-  },
-  {
-    "id": "v1-back/h4/t1",
-    "title": "[Tarea] V1-BACK/H4/T1 — Migraciones y middleware de idempotencia",
-    "body": "Tablas claves_idempotencia, pagos y efectos; toda mutación exige Idempotency-Key: misma clave+mismo cuerpo repite respuesta; misma clave+otro cuerpo → 409.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": ["v1-back/h2/t1"]
-  },
-  {
-    "id": "v1-back/h4/t2",
-    "title": "[Tarea] V1-BACK/H4/T2 — POST /hotel/reservas/{id}/pagos por el núcleo",
-    "body": "modo=manual: el efecto lo registra el núcleo (si rechaza, no hay pago); roles recepción/caja/administrador. modo=pasarela sin adaptador → 503 con estado pendiente.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": ["v1-back/h4/t1"]
-  },
-  {
-    "id": "v1-back/h4/t3",
-    "title": "[Tarea] V1-BACK/H4/T3 — Entrada, salida y caja",
-    "body": "POST entrada (check-in solo si la habitación está lista); POST salida (liquida la cuenta); GET /hotel/caja?fecha con pagos ligados a reserva; sin movimiento bancario en esta versión.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": ["v1-back/h4/t1"]
-  },
-  {
-    "id": "v1-back/h4/t4",
-    "title": "[Tarea] V1-BACK/H4/T4 — Pruebas de idempotencia y rechazo del núcleo",
-    "body": "Misma clave de pago no crea un segundo efecto; cuerpo distinto con la misma clave → 409; si el núcleo rechaza el cobro no hay pago guardado.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": ["v1-back/h4/t2", "v1-back/h4/t3"]
-  },
-  {
-    "id": "v1-back/h5",
-    "title": "[Historia] V1-BACK/H5 — Persistencia tras reinicio",
-    "body": "**Como** operación, **quiero** que reserva y pago sobrevivan al reinicio del servicio, **para** que exista caja real. Criterio: cargar, registrar reserva y pago, matar el proceso, levantar: ambos siguen en PostgreSQL (fila 6 del dictamen).",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": ["v1-back/h3", "v1-back/h4"]
-  },
-  {
-    "id": "v1-back/h5/t1",
-    "title": "[Tarea] V1-BACK/H5/T1 — Prueba de reinicio con datos",
-    "body": "Prueba de aceptación: proceso A registra reserva+pago; proceso B (misma base) los ve. Todo lo escrito en H3/H4 debe salir de la memoria y vivir en PostgreSQL.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h5",
-    "depende_de": ["v1-back/h3/t4", "v1-back/h4/t4"]
-  },
-  {
-    "id": "v1-front/h6a",
-    "title": "[Historia] V1-FRONT/H6a — Esqueleto Next.js y login",
-    "body": "**Como** operador, **quiero** entrar con usuario y clave desde el navegador, **para** operar el hotel. Criterio: login contra POST /sesion; la sesión vive en la cookie sid de la API; ningún token en localStorage ni en código.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front",
-    "depende_de": ["v1-api/h1"]
-  },
-  {
-    "id": "v1-front/h6a/t1",
-    "title": "[Tarea] V1-FRONT/H6a/T1 — Proyecto Next.js con login contra la API",
-    "body": "plataforma-salman-herencia-front: login, manejo de cookie, cliente HTTP que solo habla con API_BASE_URL.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6a",
-    "depende_de": []
-  },
-  {
-    "id": "v1-front/h6b",
-    "title": "[Historia] V1-FRONT/H6b — Las siete pantallas del hotel",
-    "body": "**Como** equipo, **queremos** las 7 pantallas del hotel leyendo y escribiendo solo por la API, **para** cumplir spec-front-v1. El front no calcula tarifa, no confirma cupo y no registra pagos.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front",
-    "depende_de": ["v1-front/h6a"]
-  },
-  {
-    "id": "v1-front/h6b/t1",
-    "title": "[Tarea] V1-FRONT/H6b/T1 — /hotel/habitaciones (alta y cambio, admin)",
-    "body": "Pantalla de habitaciones y tarifas contra PUT /hotel/habitaciones/{id} y PUT /hotel/tarifas.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": ["v1-front/h6a/t1"]
-  },
-  {
-    "id": "v1-front/h6b/t2",
-    "title": "[Tarea] V1-FRONT/H6b/T2 — /hotel/oferta y /hotel/reserva",
-    "body": "Consulta de oferta y confirmación con Idempotency-Key visible; reintento seguro sin doble confirmación.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": ["v1-front/h6a/t1"]
-  },
-  {
-    "id": "v1-front/h6b/t3",
-    "title": "[Tarea] V1-FRONT/H6b/T3 — /hotel/pago, /hotel/estadia y /hotel/salida",
-    "body": "Registro de pago (modo manual; ante 503 de pasarela, aviso sin marcar cobrado), operación de estadía y salida con liquidación.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": ["v1-front/h6a/t1"]
-  },
-  {
-    "id": "v1-front/h6b/t4",
-    "title": "[Tarea] V1-FRONT/H6b/T4 — /hotel/caja",
-    "body": "Pagos del día ligados a reserva contra GET /hotel/caja?fecha.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": ["v1-front/h6a/t1"]
-  },
-  {
-    "id": "v1-front/h6c",
-    "title": "[Historia] V1-FRONT/H6c — Reglas duras: rutas vacías, una sola URL y error sin API",
-    "body": "**Como** plataforma, **quiero** que el front dependa por completo de la API, **para** que sin API no se confirme nada. Criterio de aceptación: /cafeteria, /inmobiliaria y /constructora existen vacías; la única variable es API_BASE_URL; con la API apagada el front muestra error y no confirma una reserva.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-front",
-    "depende_de": ["v1-front/h6b"]
-  },
-  {
-    "id": "v1-front/h6c/t1",
-    "title": "[Tarea] V1-FRONT/H6c/T1 — Prueba de front con API apagada",
-    "body": "Prueba: API caída → las pantallas muestran error; ninguna acción confirma efecto local; rutas de otras verticales vacías.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-front/h6c",
-    "depende_de": ["v1-front/h6b/t2"]
-  },
-  {
-    "id": "v1-desp/h7",
-    "title": "[Historia] V1-DESP/H7 — Publicar rama y desplegar Railway y Vercel",
-    "body": "**Como** plataforma, **queremos** las tres piezas aceptadas juntas en producción, **para** tener la V1 real. Criterio: GET /salud responde en el dominio de Railway; las 10 operaciones pasan contra PostgreSQL; el front en Vercel usa ese origen y ningún otro. Solo aquí se deroga la prohibición de push (AGENTS.md).",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp",
-    "depende_de": ["v1-back/h5", "v1-front/h6c"]
-  },
-  {
-    "id": "v1-desp/h7/t1",
-    "title": "[Tarea] V1-DESP/H7/T1 — Verificar cuentas Railway y Vercel",
-    "body": "Prerrequisito: cuentas creadas y accesibles; no están verificadas desde el repositorio y no bloquean H1.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": []
-  },
-  {
-    "id": "v1-desp/h7/t2",
-    "title": "[Tarea] V1-DESP/H7/T2 — Push de la rama de trabajo",
-    "body": "Publicar la rama de la fase V1 (derogación H7 de AGENTS.md).",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": ["v1-desp/h7/t1"]
-  },
-  {
-    "id": "v1-desp/h7/t3",
-    "title": "[Tarea] V1-DESP/H7/T3 — Railway: servicio + PostgreSQL + variables",
-    "body": "Desplegar el servicio con PostgreSQL y variables de entorno (DATABASE_URL, credenciales de admin); /salud responde.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": ["v1-desp/h7/t2", "v1-back/h5"]
-  },
-  {
-    "id": "v1-desp/h7/t4",
-    "title": "[Tarea] V1-DESP/H7/T4 — Vercel: front con API_BASE_URL del servicio",
-    "body": "Desplegar el front con API_BASE_URL apuntando al origen de Railway; aceptación conjunta de las tres piezas.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": ["v1-desp/h7/t2", "v1-front/h6c"]
-  }
+ {
+  "id": "v1-api",
+  "title": "[Épica] V1-API — Contrato API (spec-api-v1)",
+  "body": "**Fuente:** `docs/arquitectura/spec-api-v1.md` (gobierna). El contrato entre el front de Vercel y el backend de Railway: 10 operaciones, empresa solo de sesión, idempotencia, 401/403/409/503. Lo sirve el backend; nada fuera de la tabla se publica.",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-back",
+  "title": "[Épica] V1-BACK — Backend en Railway (spec-backend-v1)",
+  "body": "**Fuente:** `docs/arquitectura/spec-backend-v1.md` (gobierna). Un solo servicio FastAPI + PostgreSQL 17. Arranque que carga núcleo y hotel con la misma empresa (rechaza otra). Persistencia real; puertos externos sin adaptador → 503. Hitos H1–H5.",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-front",
+  "title": "[Épica] V1-FRONT — Front en Vercel (spec-front-v1)",
+  "body": "**Fuente:** `docs/arquitectura/spec-front-v1.md` (gobierna). Un solo proyecto Next.js; 7 pantallas del hotel; solo `API_BASE_URL`; cero lógica de negocio; API apagada → error y ninguna reserva confirmada. Hitos H6a–H6c.",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-desp",
+  "title": "[Épica] V1-DESP — Integración y despliegue (H7)",
+  "body": "**Fuente:** decisión del propietario 2026-10-28; `AGENTS.md` (derogación de push solo en H7). Las tres piezas se aceptan juntas. Prerrequisito: cuentas Railway y Vercel (no verificadas desde el repo; no bloquean H1).",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-api/h1",
+  "title": "[Historia] V1-API/H1 — Publicar el contrato ejecutable (OpenAPI 3.1)",
+  "body": "**Como** front y backend, **quiero** el contrato en OpenAPI 3.1 servido por el backend, **para** implementar leyendo solo ese documento. Criterio: las 10 operaciones de spec-api-v1 con sus reglas de sesión, idempotencia y errores; nada fuera de la tabla.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-api",
+  "depende_de": []
+ },
+ {
+  "id": "v1-api/h1/t1",
+  "title": "[Tarea] V1-API/H1/T1 — Redactar OpenAPI 3.1 de las 10 operaciones",
+  "body": "Fuente: spec-api-v1. Documento en `servicio/contrato/` con las 10 rutas, esquemas y reglas 401/403/409/503.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-api/h1",
+  "depende_de": []
+ },
+ {
+  "id": "v1-api/h1/t2",
+  "title": "[Tarea] V1-API/H1/T2 — Servir el contrato y verificar sus rutas",
+  "body": "GET /contrato.yaml devuelve el documento; prueba de contrato recorre las 10 operaciones contra el backend en local.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-api/h1",
+  "depende_de": [
+   "v1-api/h1/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h1",
+  "title": "[Historia] V1-BACK/H1 — Servicio con hueso (arranque, /salud, regla de empresa)",
+  "body": "**Como** plataforma, **quiero** un proceso FastAPI que arranca con núcleo y hotel de la misma empresa, **para** tener el primer proceso real. Criterio (prueba H1): arranca con la misma empresa y **no arranca si el hotel trae otra**; GET /salud responde 200.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": []
+ },
+ {
+  "id": "v1-back/h1/t1",
+  "title": "[Tarea] V1-BACK/H1/T1 — Esqueleto FastAPI + psycopg v3 + config por env",
+  "body": "requirements.txt (fastapi, uvicorn, psycopg[binary], argon2-cffi); configuración solo por variables de entorno; sin .env en repo.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": []
+ },
+ {
+  "id": "v1-back/h1/t2",
+  "title": "[Tarea] V1-BACK/H1/T2 — Runner de migraciones SQL numeradas",
+  "body": "Migraciones en `servicio/migraciones/` (0001_*.sql…), ejecutadas por comando; tabla schema_migrations. SQL parametrizado desde el código (nada interpolado).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": [
+   "v1-back/h1/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h1/t3",
+  "title": "[Tarea] V1-BACK/H1/T3 — Arranque con núcleo + hotel y regla de empresa",
+  "body": "construir_aplicacion carga Nucleo y ServicioHotelInventario con empresa=nucleo.empresa; rechaza el arranque con otra empresa (regla ya probada en el prototipo). GET /salud sin autenticar.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": [
+   "v1-back/h1/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h1/t4",
+  "title": "[Tarea] V1-BACK/H1/T4 — Prueba de arranque y de rechazo",
+  "body": "Prueba H1: el proceso arranca con núcleo y hotel de la misma empresa; con hotel de otra empresa el proceso no arranca.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": [
+   "v1-back/h1/t3"
+  ]
+ },
+ {
+  "id": "v1-back/h2",
+  "title": "[Historia] V1-BACK/H2 — Sesión usuario/clave (argon2id, cookie sid)",
+  "body": "**Como** operador, **quiero** iniciar sesión con usuario y clave y que la empresa salga de la sesión, **para** que nada se autorice por un company_id del cliente. Criterio: clave solo como hash argon2id; admin inicial desde variables de entorno al arrancar (ningún SQL con clave); cookie sid HttpOnly/Secure/SameSite=None; 401 sin sesión; 403 otra empresa sin revelar existencia.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h1"
+  ]
+ },
+ {
+  "id": "v1-back/h2/t1",
+  "title": "[Tarea] V1-BACK/H2/T1 — Migraciones usuarios y sesiones + admin desde env",
+  "body": "Tablas usuarios (clave argon2id) y sesiones (revocables); el administrador inicial se cree al arrancar leyendo usuario/clave de variables de entorno, nunca de SQL del repo.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h2",
+  "depende_de": [
+   "v1-back/h1/t2"
+  ]
+ },
+ {
+  "id": "v1-back/h2/t2",
+  "title": "[Tarea] V1-BACK/H2/T2 — POST /sesion y DELETE /sesion",
+  "body": "Abrir y cerrar sesión; cookie sid puesta por la API; sesión server-side en PostgreSQL.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h2",
+  "depende_de": [
+   "v1-back/h2/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h2/t3",
+  "title": "[Tarea] V1-BACK/H2/T3 — Pruebas 401 y 403",
+  "body": "Sin sesión → 401; sesión de otra empresa → 403 sin revelar si el recurso existe.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h2",
+  "depende_de": [
+   "v1-back/h2/t2"
+  ]
+ },
+ {
+  "id": "v1-back/h3",
+  "title": "[Historia] V1-BACK/H3 — Reserva persistente (habitaciones, tarifas, oferta, reserva transaccional)",
+  "body": "**Como** huésped y recepción, **quiero** reservar sobre datos que sobreviven al proceso, **para** operar de verdad. Criterio: PUT habitaciones (admin) y PUT tarifas sin alterar reservas aceptadas; GET oferta con vigencia; POST reservas transaccional con constraint de no solape — 100 requests a la última unidad dejan 1 reserva y 409 al resto.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h2"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t1",
+  "title": "[Tarea] V1-BACK/H3/T1 — Migraciones y endpoints de habitaciones y tarifas",
+  "body": "Tablas habitaciones y tarifas; PUT /hotel/habitaciones/{id} (solo administrador); PUT /hotel/tarifas por fecha, sin cambiar el precio de reservas ya aceptadas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h2/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t2",
+  "title": "[Tarea] V1-BACK/H3/T2 — GET /hotel/oferta con vigencia",
+  "body": "Solo disponible, con tarifa vigente y vencimiento de la oferta.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h3/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t3",
+  "title": "[Tarea] V1-BACK/H3/T3 — POST /hotel/reservas transaccional",
+  "body": "Constraint de no solape por (unidad, fechas) dentro de la transacción de confirmación; la carrera por la última unidad la gana una sola reserva.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h3/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t4",
+  "title": "[Tarea] V1-BACK/H3/T4 — Prueba de la carrera por la última unidad",
+  "body": "100 requests concurrentes sobre la última unidad: 1 reserva confirmada, 99 con 409; sin sobreventa en la base.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h3/t3"
+  ]
+ },
+ {
+  "id": "v1-back/h4",
+  "title": "[Historia] V1-BACK/H4 — Cobro por el núcleo, idempotencia y estadía (entrada, salida, caja)",
+  "body": "**Como** caja y recepción, **quiero** cobrar solo con efecto del núcleo y operar la estadía, **para** que el dinero pase por la única puerta. Criterio: idempotencia por clave (replay igual; cuerpo distinto → 409); pago modo manual (efectivo/transferencia que registra recepción/caja/administrador, sin consulta bancaria ni conciliación) con efecto del núcleo; modo pasarela sin adaptador → 503 y nada marcado cobrado; entrada solo con habitación lista; salida liquida la cuenta; caja del día ligada a reserva.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h2"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t1",
+  "title": "[Tarea] V1-BACK/H4/T1 — Migraciones y middleware de idempotencia",
+  "body": "Tablas claves_idempotencia, pagos y efectos; toda mutación exige Idempotency-Key: misma clave+mismo cuerpo repite respuesta; misma clave+otro cuerpo → 409.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h2/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t2",
+  "title": "[Tarea] V1-BACK/H4/T2 — POST /hotel/reservas/{id}/pagos por el núcleo",
+  "body": "modo=manual: el efecto lo registra el núcleo (si rechaza, no hay pago); roles recepción/caja/administrador. modo=pasarela sin adaptador → 503 con estado pendiente.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h4/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t3",
+  "title": "[Tarea] V1-BACK/H4/T3 — Entrada, salida y caja",
+  "body": "POST entrada (check-in solo si la habitación está lista); POST salida (liquida la cuenta); GET /hotel/caja?fecha con pagos ligados a reserva; sin movimiento bancario en esta versión.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h4/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t4",
+  "title": "[Tarea] V1-BACK/H4/T4 — Pruebas de idempotencia y rechazo del núcleo",
+  "body": "Misma clave de pago no crea un segundo efecto; cuerpo distinto con la misma clave → 409; si el núcleo rechaza el cobro no hay pago guardado.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h4/t2",
+   "v1-back/h4/t3"
+  ]
+ },
+ {
+  "id": "v1-back/h5",
+  "title": "[Historia] V1-BACK/H5 — Persistencia tras reinicio",
+  "body": "**Como** operación, **quiero** que reserva y pago sobrevivan al reinicio del servicio, **para** que exista caja real. Criterio: cargar, registrar reserva y pago, matar el proceso, levantar: ambos siguen en PostgreSQL (fila 6 del dictamen).",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h3",
+   "v1-back/h4"
+  ]
+ },
+ {
+  "id": "v1-back/h5/t1",
+  "title": "[Tarea] V1-BACK/H5/T1 — Prueba de reinicio con datos",
+  "body": "Prueba de aceptación: proceso A registra reserva+pago; proceso B (misma base) los ve. Todo lo escrito en H3/H4 debe salir de la memoria y vivir en PostgreSQL.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h5",
+  "depende_de": [
+   "v1-back/h3/t4",
+   "v1-back/h4/t4"
+  ]
+ },
+ {
+  "id": "v1-front/h6a",
+  "title": "[Historia] V1-FRONT/H6a — Esqueleto Next.js y login",
+  "body": "**Como** operador, **quiero** entrar con usuario y clave desde el navegador, **para** operar el hotel. Criterio: login contra POST /sesion; la sesión vive en la cookie sid de la API; ningún token en localStorage ni en código.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front",
+  "depende_de": [
+   "v1-api/h1"
+  ]
+ },
+ {
+  "id": "v1-front/h6a/t1",
+  "title": "[Tarea] V1-FRONT/H6a/T1 — Proyecto Next.js con login contra la API",
+  "body": "plataforma-salman-herencia-front: login, manejo de cookie, cliente HTTP que solo habla con API_BASE_URL.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6a",
+  "depende_de": []
+ },
+ {
+  "id": "v1-front/h6b",
+  "title": "[Historia] V1-FRONT/H6b — Las siete pantallas del hotel",
+  "body": "**Como** equipo, **queremos** las 7 pantallas del hotel leyendo y escribiendo solo por la API, **para** cumplir spec-front-v1. El front no calcula tarifa, no confirma cupo y no registra pagos.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front",
+  "depende_de": [
+   "v1-front/h6a"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t1",
+  "title": "[Tarea] V1-FRONT/H6b/T1 — /hotel/habitaciones (alta y cambio, admin)",
+  "body": "Pantalla de habitaciones y tarifas contra PUT /hotel/habitaciones/{id} y PUT /hotel/tarifas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t2",
+  "title": "[Tarea] V1-FRONT/H6b/T2 — /hotel/oferta y /hotel/reserva",
+  "body": "Consulta de oferta y confirmación con Idempotency-Key visible; reintento seguro sin doble confirmación.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t3",
+  "title": "[Tarea] V1-FRONT/H6b/T3 — /hotel/pago, /hotel/estadia y /hotel/salida",
+  "body": "Registro de pago (modo manual; ante 503 de pasarela, aviso sin marcar cobrado), operación de estadía y salida con liquidación.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t4",
+  "title": "[Tarea] V1-FRONT/H6b/T4 — /hotel/caja",
+  "body": "Pagos del día ligados a reserva contra GET /hotel/caja?fecha.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6c",
+  "title": "[Historia] V1-FRONT/H6c — Reglas duras: rutas vacías, una sola URL y error sin API",
+  "body": "**Como** plataforma, **quiero** que el front dependa por completo de la API, **para** que sin API no se confirme nada. Criterio de aceptación: /cafeteria, /inmobiliaria y /constructora existen vacías; la única variable es API_BASE_URL; con la API apagada el front muestra error y no confirma una reserva.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-front",
+  "depende_de": [
+   "v1-front/h6b"
+  ]
+ },
+ {
+  "id": "v1-front/h6c/t1",
+  "title": "[Tarea] V1-FRONT/H6c/T1 — Prueba de front con API apagada",
+  "body": "Prueba: API caída → las pantallas muestran error; ninguna acción confirma efecto local; rutas de otras verticales vacías.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-front/h6c",
+  "depende_de": [
+   "v1-front/h6b/t2"
+  ]
+ },
+ {
+  "id": "v1-desp/h7",
+  "title": "[Historia] V1-DESP/H7 — Publicar rama y desplegar Railway y Vercel",
+  "body": "**Como** plataforma, **queremos** las tres piezas aceptadas juntas en producción, **para** tener la V1 real. Criterio: GET /salud responde en el dominio de Railway; las 10 operaciones pasan contra PostgreSQL; el front en Vercel usa ese origen y ningún otro. Solo aquí se deroga la prohibición de push (AGENTS.md).",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp",
+  "depende_de": [
+   "v1-back/h5",
+   "v1-front/h6c"
+  ]
+ },
+ {
+  "id": "v1-desp/h7/t1",
+  "title": "[Tarea] V1-DESP/H7/T1 — Verificar cuentas Railway y Vercel",
+  "body": "Prerrequisito: cuentas creadas y accesibles; no están verificadas desde el repositorio y no bloquean H1.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": []
+ },
+ {
+  "id": "v1-desp/h7/t2",
+  "title": "[Tarea] V1-DESP/H7/T2 — Push de la rama de trabajo",
+  "body": "Publicar la rama de la fase V1 (derogación H7 de AGENTS.md).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": [
+   "v1-desp/h7/t1"
+  ]
+ },
+ {
+  "id": "v1-desp/h7/t3",
+  "title": "[Tarea] V1-DESP/H7/T3 — Railway: servicio + PostgreSQL + variables",
+  "body": "Desplegar el servicio con PostgreSQL y variables de entorno (DATABASE_URL, credenciales de admin); /salud responde.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": [
+   "v1-desp/h7/t2",
+   "v1-back/h5"
+  ]
+ },
+ {
+  "id": "v1-desp/h7/t4",
+  "title": "[Tarea] V1-DESP/H7/T4 — Vercel: front con API_BASE_URL del servicio",
+  "body": "Desplegar el front con API_BASE_URL apuntando al origen de Railway; aceptación conjunta de las tres piezas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": [
+   "v1-desp/h7/t2",
+   "v1-front/h6c"
+  ]
+ },
+ {
+  "id": "v1-issue-01",
+  "title": "[Issue] V1-ISSUE-01 — 20 pruebas del servicio en rojo (deuda técnica heredada de H6/H7)",
+  "body": "Fuente: revisión E2E 2026-11-03 (suite e2e/ + unittest). 17 fallos + 3 errores en `servicio/tests`: test_h6_maduracion_operativa (revocación de sesiones, turnover sucia→check-in, listar usuarios solo admin, entrada exige documento/hora, cancelación idempotente, 3 errores de cancelación), test_preh7_seguridad (cookie producción None+Secure, origin con barra final, origin exige cookie segura, origin ajeno rechazado), test_adaptador_dominio (5: propagación del fallo del dominio, sin reglas en el SQL, estado perdura), test_oauth. La revisión E2E funcional pasó 41/41, pero estos tests documentan reglas del contrato (seguridad de cookies/CORS incluida) que hoy no se ejercen en verde. Corregir uno a uno y bajar a 0.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-02",
+  "title": "[Issue] V1-ISSUE-02 — Cobertura E2E del alta del segundo factor (TOTP) desde la interfaz",
+  "body": "Fuente: revisión E2E 2026-11-03. `/cuenta` muestra el estado y genera secreto+URI (verificado), pero la activación con código y el login posterior con 2FA solo se ejercen en `servicio/tests/test_2fa.py`. Ampliar `e2e/e2e.mjs` para completar el ciclo en navegador (generar código TOTP del secreto mostrado, activar, cerrar sesión y entrar con totp).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-03",
+  "title": "[Issue] V1-ISSUE-03 — El front renderiza formularios que el rol vigente no puede ejecutar",
+  "body": "Fuente: revisión E2E 2026-11-03 (matriz CAJ-01, EST-04). La API rechaza bien con 403 según el contrato, pero `/hotel/caja` se muestra completo a recepción y «cancelar reserva» se muestra a caja; el error llega solo tras intentar. Mejora UX: ocultar o deshabilitar acciones no permitidas según el rol de la sesión (patrón ya usado en `/hotel/habitaciones` y `/hotel/usuarios`). No inventar permisos: leer el rol de la sesión y aplicar las mismas reglas del contrato.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-04",
+  "title": "[Issue] V1-ISSUE-04 — Hidratación bloqueada en `next dev` cuando falla el WebSocket HMR",
+  "body": "Fuente: diagnóstico 2026-11-03. En `next dev`, si el entorno del desarrollador bloquea `ws://` (proxy/sandbox), React no hidrata: los formularios hacen submit nativo y la aplicación «no hace nada». En producción no ocurre (sin HMR). Acciones: documentar en el runbook/spec-front y, si se confirma como patrón común, evaluar fallback de hidratación o mensaje de diagnóstico.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-05",
+  "title": "[Issue] V1-ISSUE-05 — Procedimiento de aprobación de deploys Railway (política post-incidente NEEDS_APPROVAL)",
+  "body": "Fuente: despliegue 2026-11-03. Tras el incidente Railway 2026-10-21, los deploys del backend quedan en NEEDS_APPROVAL y requieren aprobación manual en el dashboard (o `deploymentApprove` por API con token). Documentar en `docs/arquitectura/h7-despliegue.md` el paso operativo para el propietario (dónde se aprueba y el tiempo típico), de modo que cada push no parezca «atascado».",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-06",
+  "title": "[Issue] V1-ISSUE-06 — `e2e/e2e-resultados.json` versionado queda obsoleto entre corridas",
+  "body": "Fuente: revisión E2E 2026-11-03. El JSON de resultados se regenera en cada corrida y puede desactualizarse respecto al INFORME. Decidir: regenerarlo siempre junto al informe, o excluirlo del repo y dejarlo como artefacto local (`.gitignore`).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ }
 ]
