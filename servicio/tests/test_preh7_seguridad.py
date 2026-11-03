@@ -10,6 +10,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import ErrorArranque, crear_app
 from servicio.configuracion import Configuracion, cargar_desde_entorno
 
@@ -32,6 +33,7 @@ def app_de_prueba(origen_front=None, cookie_segura=False):
 class PreH7SeguridadTest(unittest.TestCase):
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
                 "reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
@@ -138,6 +140,7 @@ class PreH7SeguridadTest(unittest.TestCase):
 
     def test_usuario_duplicado_rechazado_por_la_base(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             with self.assertRaises(psycopg.IntegrityError):
                 seguridad.crear_usuario(conexion, EMPRESA, ADMIN[0], "recepcion", "otra-clave-sintetica")
 

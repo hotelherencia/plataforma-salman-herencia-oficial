@@ -13,6 +13,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -43,6 +44,7 @@ class MaduracionOperativaTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, tareas_operativas, claves_idempotencia, liquidaciones, efectos_nucleo, "
                 "pagos, cargos, reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
@@ -122,6 +124,7 @@ class MaduracionOperativaTest(unittest.TestCase):
 
     def _cargos_de(self, reserva_id):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             return conexion.execute(
                 "SELECT id, tipo, concepto, monto_clp, referencia FROM cargos WHERE reserva_id = %s",
                 (reserva_id,),
@@ -179,6 +182,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertNotIn("clave_hash", cuerpo)
         self.assertTrue(cuerpo["activo"])
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (hash_guardado,) = conexion.execute(
                 "SELECT clave_hash FROM usuarios WHERE nombre = 'recepcion1'"
             ).fetchone()
@@ -192,6 +196,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         duplicada = self.alta_usuario("recepcion1", "recepcion", "otra-clave", "u-2")
         self.assertEqual(duplicada.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (n,) = conexion.execute("SELECT count(*) FROM usuarios WHERE nombre = 'recepcion1'").fetchone()
         self.assertEqual(n, 1)
         self.assertEqual(self.alta_usuario("limpieza1", "limpieza", "clave-limp", "u-3").status_code, 422)
@@ -211,6 +216,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.alta_usuario("recepcion2", "recepcion", "clave-rec2", "u-2")
         propio = self.cliente_como("recepcion1", "clave-rec")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (uid2,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = 'recepcion2'").fetchone()
             (uid1,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = 'recepcion1'").fetchone()
         respuesta = propio.post(
@@ -233,6 +239,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.alta_usuario("recepcion1", "recepcion", "clave-rec", "u-1")
         cliente = self.cliente_como("recepcion1", "clave-rec")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (uid,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = 'recepcion1'").fetchone()
             (propio,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = 'admin'").fetchone()
         respuesta = self.cliente.post(f"/usuarios/{uid}/revocacion", json={}, headers={"Idempotency-Key": "rev-1"})
@@ -240,6 +247,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertGreaterEqual(respuesta.json()["sesiones_revocadas"], 1)
         self.assertEqual(cliente.get("/sesion").status_code, 401)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (activas,) = conexion.execute(
                 "SELECT count(*) FROM sesiones WHERE usuario_id = %s AND revocada_en IS NULL", (uid,)
             ).fetchone()
@@ -251,6 +259,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.alta_usuario("recepcion1", "recepcion", "clave-rec", "u-1")
         cliente = self.cliente_como("recepcion1", "clave-rec")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (uid,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = 'recepcion1'").fetchone()
             (admin_id,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = 'admin'").fetchone()
         ultimo = self.cliente.post(f"/usuarios/{admin_id}/baja", json={}, headers={"Idempotency-Key": "baja-admin"})
@@ -259,6 +268,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertFalse(respuesta.json()["activo"])
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (activo,) = conexion.execute("SELECT activo FROM usuarios WHERE id = %s", (uid,)).fetchone()
             (activas,) = conexion.execute(
                 "SELECT count(*) FROM sesiones WHERE usuario_id = %s AND revocada_en IS NULL", (uid,)
@@ -280,6 +290,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(self.pagar(rid_a, 200_000, "cob-a", "pag-a").status_code, 201)
         self.assertEqual(self.entrada(rid_a, "ent-a").status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (operativo,) = conexion.execute(
                 "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
             (noches,) = conexion.execute(
@@ -301,6 +312,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         # salida de A (saldo 0): la unidad queda sucia y nace la tarea de limpieza
         self.assertEqual(self.salida(rid_a, "sal-a").status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (operativo, preparacion) = conexion.execute(
                 "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id = 'HAB-SINT-101'"
             ).fetchone()
@@ -322,6 +334,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         # ahora el check-in de C entra
         self.assertEqual(self.entrada(rid_c, "ent-c-2").status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (operativo,) = conexion.execute(
                 "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
         self.assertEqual(operativo, "ocupada")
@@ -343,6 +356,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(abrir.status_code, 200)
         self.assertTrue(abrir.json()["mantenimiento"])
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (flag,) = conexion.execute("SELECT mantenimiento FROM habitaciones WHERE id = 'HAB-SINT-102'").fetchone()
             (tarea,) = conexion.execute(
                 "SELECT id FROM tareas_operativas WHERE habitacion_id = 'HAB-SINT-102' "
@@ -362,6 +376,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         )
         self.assertEqual(cerrar.status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (pendientes,) = conexion.execute(
                 "SELECT count(*) FROM tareas_operativas WHERE habitacion_id = 'HAB-SINT-102' "
                 "AND tipo = 'mantenimiento' AND estado = 'pendiente'"
@@ -414,6 +429,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         tipos = sorted(c[1] for c in cargos)
         self.assertEqual(tipos, ["cargo", "reverso"])
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
         self.assertEqual(estado, "cancelada")
         oferta = self.cliente.get("/hotel/oferta", params={"inicio": FUTURO, "fin": FUTURO_FIN, "personas": 2}
@@ -446,6 +462,7 @@ class MaduracionOperativaTest(unittest.TestCase):
                             "Héctor", clave="r-hec")
         self.assertEqual(self.pagar(rid, 70_000, "cob-hec", "pag-hec").status_code, 201)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (pagos_antes,) = conexion.execute("SELECT count(*) FROM pagos WHERE reserva_id = %s", (rid,)).fetchone()
         respuesta = self.cancelar(rid, "can-hec")
         self.assertEqual(respuesta.status_code, 200)
@@ -453,6 +470,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(respuesta.json()["reembolso"], "no configurado")
         # saldo a favor del huésped (pagado > neto) sin reembolso: los pagos no se tocan
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (pagos_despues,) = conexion.execute("SELECT count(*) FROM pagos WHERE reserva_id = %s", (rid,)).fetchone()
             (neto,) = conexion.execute(
                 "SELECT COALESCE(SUM(CASE WHEN tipo = 'reverso' THEN -monto_clp ELSE monto_clp END), 0) "
@@ -470,6 +488,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(segunda.status_code, 200)
         self.assertEqual(primera.json(), segunda.json())
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (cargos,) = conexion.execute("SELECT count(*) FROM cargos WHERE reserva_id = %s", (rid,)).fetchone()
         # alojamiento + reverso + penalidad (fuera de plazo), sin duplicar
         self.assertEqual(cargos, 3)
@@ -493,6 +512,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(cargo.status_code, 201, cargo.text)
         self.assertEqual(cargo.json()["tipo"], "cargo")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (tipo, concepto, monto) = conexion.execute(
                 "SELECT tipo, concepto, monto_clp FROM cargos WHERE reserva_id = %s AND concepto = 'Minibar'",
                 (rid,),
@@ -558,6 +578,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         )
         self.alta_usuario("recepcion1", "recepcion", "clave-rec", "u-aud")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             filas = conexion.execute("SELECT accion, resultado FROM auditoria").fetchall()
         acciones = {(f[0], f[1]) for f in filas}
         self.assertIn(("cancelacion", "cancelada"), acciones)

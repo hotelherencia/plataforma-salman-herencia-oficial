@@ -37,6 +37,10 @@ class SinTarifaVigente(Exception):
     """409: no hay tarifa para la fecha de inicio."""
 
 
+class HabitacionNoVendible(Exception):
+    """409: la unidad está fuera del cupo (mantenimiento, bloqueada o fuera de servicio)."""
+
+
 class HabitacionYaExiste(Exception):
     """409: alta con If-None-Match: * sobre una habitación existente."""
 
@@ -388,7 +392,13 @@ def crear_reserva(
     huesped_nombre: str,
     huesped_documento: str | None,
 ) -> dict:
-    conexion.execute("SELECT id FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,))
+    # El estado se lee tras el cerrojo: un retiro concurrente y esta reserva se
+    # serializan sobre la fila (spec-hotel-operacion-v1 §2.7, misma regla que la oferta).
+    habitacion = conexion.execute(
+        "SELECT estado_operativo, mantenimiento FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
+    ).fetchone()
+    if habitacion is not None and (habitacion[1] or habitacion[0] in ESTADOS_NO_VENDIBLES):
+        raise HabitacionNoVendible(f"{habitacion_id} está fuera del cupo: no admite reservas nuevas")
     tarifa = tarifa_vigente(conexion, habitacion_id, inicio)
     if tarifa is None:
         raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} en {inicio}")

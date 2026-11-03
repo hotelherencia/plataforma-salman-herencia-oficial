@@ -22,6 +22,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 from servicio.migracion import aplicar_migraciones
@@ -69,6 +70,7 @@ class AdaptadorDominioTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             sembrar(conexion)
         self.cliente = TestClient(self.app)
         self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
@@ -96,6 +98,7 @@ class AdaptadorDominioTest(unittest.TestCase):
             f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-2"})
         self.assertEqual(segunda.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
             (operativo,) = conexion.execute(
                 "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
@@ -104,12 +107,14 @@ class AdaptadorDominioTest(unittest.TestCase):
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid}/salida", json={}, headers={"Idempotency-Key": "sal-x"}).status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
         self.assertEqual(estado, "en_estadia")
         # cancelación en estadía: 409, sin reversos parciales
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid}/cancelacion", json={}, headers={"Idempotency-Key": "can-x"}).status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
             (reversos,) = conexion.execute(
                 "SELECT count(*) FROM cargos WHERE reserva_id = %s AND tipo = 'reverso'", (rid,)).fetchone()
@@ -126,6 +131,7 @@ class AdaptadorDominioTest(unittest.TestCase):
         texto_cobro = open(os.path.join(RAIZ, "servicio/cobro.py"), encoding="utf-8").read()
         self.assertNotIn("timedelta(hours=48)", texto_cobro)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (vigente,) = conexion.execute(
                 "SELECT count(*) FROM pg_constraint WHERE conname = 'reservas_sin_solape'").fetchone()
         self.assertEqual(vigente, 1)
@@ -144,6 +150,7 @@ class AdaptadorDominioTest(unittest.TestCase):
         cliente2 = TestClient(app2)
         cliente2.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (reservas,) = conexion.execute("SELECT count(*) FROM reservas").fetchone()
             (tareas,) = conexion.execute("SELECT count(*) FROM tareas_operativas WHERE estado = 'pendiente'").fetchone()
             (cargos,) = conexion.execute("SELECT count(*) FROM cargos").fetchone()
@@ -152,12 +159,14 @@ class AdaptadorDominioTest(unittest.TestCase):
         respuesta = cliente2.post(f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-2"})
         self.assertEqual(respuesta.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (operativo,) = conexion.execute(
                 "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
         self.assertEqual(operativo, "disponible")  # la salida dejó la unidad sucia, no ocupada
 
     def test_4_arranque_sin_habitaciones_no_oferta_la_semillada(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE tareas_operativas, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
                 "reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
@@ -173,6 +182,7 @@ class AdaptadorDominioTest(unittest.TestCase):
         self.assertNotIn("HAB-SINT-101", ids)
         self.assertEqual(ids, set())
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             sembrar(conexion)
 
 

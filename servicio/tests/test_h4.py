@@ -6,6 +6,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import Aplicacion, construir_aplicacion, crear_app
 from servicio.configuracion import Configuracion
 from nucleo.servicio import AccesoDenegado as AccesoNucleo
@@ -35,6 +36,7 @@ class CobroEstadiaTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
                 "reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
@@ -75,6 +77,7 @@ class CobroEstadiaTest(unittest.TestCase):
         self.assertEqual(cuerpo["estado"], "confirmado")
         self.assertTrue(cuerpo["efecto_nucleo_id"])
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (efectos,) = conexion.execute("SELECT count(*) FROM efectos_nucleo WHERE clave = %s", (f"{rid}:cob-1",)).fetchone()
             (pagos,) = conexion.execute("SELECT count(*) FROM pagos WHERE reserva_id = %s", (rid,)).fetchone()
         self.assertEqual(efectos, 1)
@@ -96,6 +99,7 @@ class CobroEstadiaTest(unittest.TestCase):
         )
         self.assertEqual(respuesta.status_code, 403)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (pagos,) = conexion.execute("SELECT count(*) FROM pagos WHERE reserva_id = %s", (rid,)).fetchone()
             (efectos,) = conexion.execute("SELECT count(*) FROM efectos_nucleo").fetchone()
         self.assertEqual(pagos, 0)
@@ -107,6 +111,7 @@ class CobroEstadiaTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 503)
         self.assertEqual(respuesta.json()["estado"], "pendiente")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (pagos,) = conexion.execute("SELECT count(*) FROM pagos").fetchone()
         self.assertEqual(pagos, 0)
 
@@ -129,6 +134,7 @@ class CobroEstadiaTest(unittest.TestCase):
         )
         self.assertEqual(conflicto.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (pagos,) = conexion.execute("SELECT count(*) FROM pagos WHERE reserva_id = %s", (rid,)).fetchone()
         self.assertEqual(pagos, 1)
 
@@ -145,6 +151,7 @@ class CobroEstadiaTest(unittest.TestCase):
 
     def test_caja_requiere_rol_caja_o_admin(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             seguridad.crear_usuario(conexion, EMPRESA, "recepcion", "recepcion", "clave-rec")
             conexion.commit()
         self.cliente.post("/sesion", json={"usuario": "recepcion", "clave": "clave-rec"})
@@ -154,6 +161,7 @@ class CobroEstadiaTest(unittest.TestCase):
     def test_entrada_exige_habitacion_lista(self):
         rid = self.reservar()
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("UPDATE habitaciones SET estado_preparacion = 'sucia' WHERE id = 'HAB-SINT-101'")
             conexion.commit()
         respuesta = self.cliente.post(
@@ -161,6 +169,7 @@ class CobroEstadiaTest(unittest.TestCase):
         )
         self.assertEqual(respuesta.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("UPDATE habitaciones SET estado_preparacion = 'limpia' WHERE id = 'HAB-SINT-101'")
             conexion.commit()
         respuesta = self.cliente.post(

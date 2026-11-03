@@ -6,6 +6,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad, totp
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -55,6 +56,7 @@ class DosFactoresHttpTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("TRUNCATE sesiones, usuarios RESTART IDENTITY CASCADE")
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, ADMIN[0], ADMIN[1])
             conexion.commit()

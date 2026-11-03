@@ -10,6 +10,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -53,6 +54,7 @@ class InventarioHabitacionesTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             _semilla(conexion)
 
     def _login(self, usuario=ADMIN[0], clave=ADMIN[1]):

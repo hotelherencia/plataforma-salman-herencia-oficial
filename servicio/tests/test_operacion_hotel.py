@@ -13,6 +13,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -35,6 +36,7 @@ class OperacionBaseTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
                 "reservas, tarifas, tareas_operativas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
@@ -99,6 +101,7 @@ class OperacionBaseTest(unittest.TestCase):
 
     def select(self, sql, parametros=()):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             return conexion.execute(sql, parametros).fetchall()
 
 
@@ -170,6 +173,7 @@ class BusquedaReservasTest(OperacionBaseTest):
     def test_sesion_ajena_no_ve_reservas_y_operaciones_403(self):
         rid = self.reservar()
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             seguridad.crear_usuario(conexion, OTRA_EMPRESA, "admin-ajeno", "administrador", "clave-ajena-1")
             conexion.commit()
         ajeno = self.login("admin-ajeno", "clave-ajena-1")

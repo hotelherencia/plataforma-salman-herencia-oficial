@@ -6,6 +6,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -28,6 +29,7 @@ class ReservaPersistenteTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE claves_idempotencia, reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
             )
@@ -77,6 +79,7 @@ class ReservaPersistenteTest(unittest.TestCase):
 
     def test_no_admin_no_define_tarifa_ni_habitacion(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             seguridad.crear_usuario(conexion, EMPRESA, "recepcion", "recepcion", "clave-recepcion")
             conexion.commit()
         self.login("recepcion", "clave-recepcion")
@@ -97,6 +100,7 @@ class ReservaPersistenteTest(unittest.TestCase):
         self.assertEqual(primera.json()["tarifa_noche_aceptada_clp"], 50_000)
         self.poner_tarifa(monto=70_000)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (aceptada,) = conexion.execute(
                 "SELECT tarifa_noche_aceptada_clp FROM reservas WHERE id = %s",
                 (primera.json()["reserva_id"],),
@@ -129,6 +133,7 @@ class ReservaPersistenteTest(unittest.TestCase):
         self.assertEqual(codigos.count(201), 1)
         self.assertEqual(codigos.count(409), 99)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (n,) = conexion.execute(
                 "SELECT count(*) FROM reservas WHERE habitacion_id = 'HAB-ULT-1' AND estado = 'confirmada'"
             ).fetchone()
@@ -150,6 +155,7 @@ class ReservaPersistenteTest(unittest.TestCase):
         conflicto = self.cliente.post("/hotel/reservas", json=otro_cuerpo, headers={"Idempotency-Key": "k-1"})
         self.assertEqual(conflicto.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (n,) = conexion.execute("SELECT count(*) FROM reservas").fetchone()
         self.assertEqual(n, 1)
 

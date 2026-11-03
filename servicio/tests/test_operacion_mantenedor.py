@@ -10,6 +10,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -80,6 +81,7 @@ class BaseOperacion(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             _vaciar(conexion)
             self.semilla(conexion)
         self.admin = self.login(*ADMIN)
@@ -100,6 +102,7 @@ class BaseOperacion(unittest.TestCase):
 
     def sql(self, consulta, parametros=()):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             return conexion.execute(consulta, parametros).fetchall()
 
     def reservar(self, hid, inicio, fin, cliente=None):

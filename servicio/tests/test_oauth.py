@@ -12,6 +12,7 @@ import time
 import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
+from servicio.tests.aislamiento import exigir_base_libre
 
 import psycopg
 from fastapi.testclient import TestClient
@@ -103,6 +104,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("TRUNCATE sesiones, usuarios, auditoria RESTART IDENTITY CASCADE")
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, ADMIN[0], ADMIN[1])
             seguridad.vincular_email(conexion, ADMIN[0], EMAIL_ADMIN)
@@ -186,6 +188,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
         # misma maquinaria que POST /sesion: la cookie abre /sesion
         self.assertEqual(self.cliente.get("/sesion").json()["usuario"], ADMIN[0])
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             filas = conexion.execute(
                 "SELECT actor, accion, recurso, resultado FROM auditoria "
                 "WHERE accion = 'login' AND recurso = '/auth/google/callback'"
@@ -232,6 +235,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
         self.assertEqual(r.headers["location"], f"{FRONT}/login?error=cuenta_sin_vinculo")
         self.assertIsNone(r.cookies.get("sid"))
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (n_sin_vinculo,) = conexion.execute(
                 "SELECT count(*) FROM auditoria WHERE resultado = 'sin vinculo'"
             ).fetchone()
@@ -303,6 +307,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
 
     def test_admin_email_se_vincula_al_arrancar(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("TRUNCATE usuarios RESTART IDENTITY CASCADE")
             conexion.commit()
         config = Configuracion(
@@ -313,6 +318,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
         )
         app = crear_app(configuracion=config)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (email,) = conexion.execute(
                 "SELECT email FROM usuarios WHERE nombre = %s", (ADMIN[0],)
             ).fetchone()

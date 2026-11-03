@@ -693,7 +693,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 )
             except reservas_db.SinCupo as error:
                 return 409, {"detail": str(error)}
-            except reservas_db.SinTarifaVigente as error:
+            except (reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:
                 return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "reserva", creada["reserva_id"], "confirmada")
             return 201, creada

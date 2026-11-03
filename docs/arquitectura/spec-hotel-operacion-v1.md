@@ -121,8 +121,9 @@ D-AUD-01 si otro rol debe verla).
   (3–200 caracteres). Efecto en una transacción: `estado_operativo =
   fuera_de_servicio`, guarda `motivo` y fecha (`fuera_de_servicio_desde`);
   `estado_preparacion` y `mantenimiento` se conservan. La oferta la excluye
-  (HECHO: `oferta` ya excluye `fuera_de_servicio`) y la entrada la rechaza
-  (HECHO: `cobro.entrada`).
+  (HECHO: `oferta` ya excluye `fuera_de_servicio`), la confirmación de una
+  reserva nueva la rechaza (§2.7) y la entrada la rechaza (HECHO:
+  `cobro.entrada`).
 - **Errores:** reservas vigentes → **409** con `reservas_vigentes: [ids]` y
   nada cambia (la reasignación de una reserva a otra unidad no existe en V1:
   DECISIÓN PENDIENTE D-HAB-02; hoy se cancela y se vuelve a reservar); sin
@@ -175,6 +176,36 @@ D-AUD-01 si otro rol debe verla).
   desc; documento solo para `ROLES_DOCUMENTO`); `tareas` (historial);
   `auditoria` solo para administrador (las filas cuyo recurso es la
   habitación). Inexistente → 403.
+
+### 2.7 Regla RES-VENDIBLE — no se confirma una reserva en una unidad fuera del cupo
+
+V1-ISSUE-12. Cierra el hueco por el que una habitación retirada (§2.4) podía
+recibir una reserva nueva sin pasar por la oferta.
+
+- HECHO DOCUMENTADO: el dominio rechaza reservar una unidad no vendible
+  (`ServicioHotelInventario.reservar` → `ESTADO_NO_VENDIBLE`; vendible =
+  `estado in ESTADOS_VENDIBLES and not mantenimiento`). spec-api-v1
+  «Operación de la habitación»: el mantenimiento «saca la unidad del cupo»;
+  la oferta excluye mantenimiento, `bloqueada` y `fuera_de_servicio`.
+- HECHO (hueco, código a 2026-11-03): `POST /hotel/reservas` →
+  `reservas.crear_reserva` bloquea la fila de la habitación pero no mira su
+  estado; solo la oferta filtra. Una solicitud directa confirmaba una reserva
+  en una unidad retirada, que después no podía hacer check-in.
+- REQUISITO PROPUESTO (misma regla que la oferta, sin criterio nuevo):
+  `POST /hotel/reservas` sobre una habitación con mantenimiento abierto o con
+  `estado_operativo` `bloqueada` o `fuera_de_servicio` → **409** `{detail}` y
+  nada cambia (ni reserva, ni cargo, ni auditoría de reserva). La lectura del
+  estado ocurre después del `FOR UPDATE` de la habitación, en la misma
+  transacción, así que un retiro concurrente y una reserva concurrente se
+  serializan: o el retiro ve la reserva (409 `reservas_vigentes`) o la
+  reserva ve el retiro (409).
+- `ocupada` y `sucia` siguen vendibles para otras fechas (HECHO:
+  `ESTADOS_VENDIBLES`); el solape lo decide la base como hasta ahora.
+- Reservas ya existentes no se tocan: la regla rige solo para confirmar.
+- Limitación (D-OCU-01): el estado es el actual, no tiene fechas; igual que
+  la oferta, un mantenimiento abierto hoy impide reservar cualquier fecha.
+- Idempotencia: el 409 queda asociado a su clave como cualquier respuesta
+  (HECHO: `idempotencia.ejecutar`).
 
 ## 3. Consulta y análisis de reservas
 
@@ -320,6 +351,7 @@ Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
 | CA-HAB-04 | Retiro con reserva vigente → 409 con ids; sin reservas vigentes → `fuera_de_servicio`, fuera de la oferta, historial intacto; reincorporar la devuelve | unittest + E2E |
 | CA-HAB-05 | No existe `DELETE` de habitaciones; la base impide borrar una con reservas | unittest |
 | CA-HAB-06 | Recepción y caja reciben 403 en alta, edición, tarifa y servicio; leen inventario y ficha sin auditoría | unittest + E2E |
+| CA-HAB-07 | `POST /hotel/reservas` sobre una habitación fuera de servicio, bloqueada o con mantenimiento abierto → 409 sin reserva, cargo ni auditoría; reincorporada, vuelve a reservarse; retiro y reserva concurrentes nunca dejan una reserva vigente en una unidad retirada (§2.7) | unittest + E2E |
 | CA-RES-01 | Búsqueda por periodo y habitación combina con AND; `hasta ≤ desde` → 422 | unittest + E2E |
 | CA-RES-02 | Detalle de reserva devuelve cuenta con el mismo saldo que exige la salida; caja no ve el documento | unittest + E2E |
 | CA-OCU-01 | Estados por noche según §5, canceladas listadas sin pintar, consistentes con la oferta | unittest + E2E |

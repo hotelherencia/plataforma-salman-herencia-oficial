@@ -11,6 +11,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -34,6 +35,7 @@ class MaduracionTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
                 "reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
@@ -101,6 +103,7 @@ class MaduracionTest(unittest.TestCase):
         self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
         sid = self.cliente.cookies.get("sid")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("UPDATE sesiones SET expira_en = now() - interval '1 second' WHERE id = %s", (sid,))
             conexion.commit()
         self.assertEqual(self.cliente.get("/sesion").status_code, 401)
@@ -113,6 +116,7 @@ class MaduracionTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 429)
         # el contador es por (ip, usuario): otro usuario no hereda el bloqueo
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             seguridad.crear_usuario(conexion, EMPRESA, "caja1", "caja", "clave-caja")
             conexion.commit()
         respuesta = self.cliente.post("/sesion", json={"usuario": "caja1", "clave": "clave-caja"})
@@ -156,6 +160,7 @@ class MaduracionTest(unittest.TestCase):
             headers={"Idempotency-Key": "pag-1"},
         )
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             filas = conexion.execute(
                 "SELECT actor, accion, recurso, resultado FROM auditoria ORDER BY creado_en"
             ).fetchall()
@@ -168,6 +173,7 @@ class MaduracionTest(unittest.TestCase):
 class ReinicioTest(unittest.TestCase):
     def test_reserva_y_pago_sobreviven_al_reinicio_del_proceso(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
                 "reservas, tarifas, sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"

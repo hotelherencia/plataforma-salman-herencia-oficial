@@ -655,9 +655,9 @@
  {
   "id": "v1-issue-11",
   "title": "[Issue] V1-ISSUE-11 — Aislar la base de pruebas para que trabajos concurrentes no interfieran",
-  "body": "Fuente: dos sesiones concurrentes sobre el mismo árbol (2026-11-03). HECHO: los tests de servicio usan DATABASE_URL_TEST con default plataforma_test (compartida); con otro cliente escribiendo a la vez se observaron corridas con 1 a 94 fallos (deadlocks TRUNCATE, 401, usuarios borrados a mitad de prueba). Con base dedicada no se reproduce. Ya documentado en e2e/README.md. Pendiente: guard de fail-fast en los setUp (detectar otras conexiones activas a la base de pruebas y abortar con mensaje claro) o default por proceso.",
+  "body": "Fuente: dos sesiones concurrentes sobre el mismo árbol (2026-11-03). HECHO: los tests de servicio usan DATABASE_URL_TEST con default plataforma_test (compartida); con otro cliente escribiendo a la vez se observaron corridas con 1 a 94 fallos (deadlocks TRUNCATE, 401, usuarios borrados a mitad de prueba). Con base dedicada no se reproduce. Ya documentado en e2e/README.md. Pendiente: guard de fail-fast en los setUp (detectar otras conexiones activas a la base de pruebas y abortar con mensaje claro) o default por proceso.\n\n**Resuelto 2026-11-03:** TDD — servicio/tests/aislamiento.py (exigir_base_libre, falla en setUp si hay otra conexión activa a la base de pruebas), test_aislamiento_pruebas.py (3 pruebas) y guard insertado en los 12 archivos de tests que truncan. Demostrado: con un cliente externo, fail-fast con mensaje claro; suite completa 155/155 en verde.",
   "tipo": "Tarea",
-  "estado": "Lista",
+  "estado": "Hecha",
   "prioridad": "P2",
   "vertical": "transversal",
   "padre": null,

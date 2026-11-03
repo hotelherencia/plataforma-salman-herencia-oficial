@@ -5,6 +5,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import seguridad
+from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -32,6 +33,7 @@ class SesionHttpTest(unittest.TestCase):
 
     def setUp(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("TRUNCATE sesiones, usuarios RESTART IDENTITY CASCADE")
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, ADMIN[0], ADMIN[1])
             conexion.commit()
@@ -55,6 +57,7 @@ class SesionHttpTest(unittest.TestCase):
         # el id de sesión vive en PostgreSQL, no en el valor de la cookie firmado por el cliente
         sid = respuesta.cookies.get("sid")
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             fila = conexion.execute(
                 "SELECT revocada_en FROM sesiones WHERE id = %s", (sid,)
             ).fetchone()
@@ -78,11 +81,13 @@ class SesionHttpTest(unittest.TestCase):
         self.assertEqual(self.cliente.delete("/sesion").status_code, 200)
         self.assertEqual(self.cliente.get("/sesion").status_code, 401)
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             (revocadas,) = conexion.execute("SELECT count(*) FROM sesiones WHERE revocada_en IS NOT NULL").fetchone()
         self.assertEqual(revocadas, 1)
 
     def test_403_empresa_ajena_sin_consultar_existencia(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             seguridad.crear_usuario(conexion, empresa_id="EMP-OTRA", nombre="ajeno", rol="recepcion", clave="clave-ajena")
             conexion.commit()
         respuesta = self.login(usuario="ajeno", clave="clave-ajena")
@@ -99,12 +104,14 @@ class SesionHttpTest(unittest.TestCase):
 
     def test_admin_inicial_se_crea_una_sola_vez_desde_env(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, "otro", "otra-clave")
             (n,) = conexion.execute("SELECT count(*) FROM usuarios").fetchone()
         self.assertEqual(n, 1)  # no duplica ni sobreescribe al primer admin
 
     def test_arranque_falla_si_falta_admin_con_tabla_vacia(self):
         with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
             conexion.execute("TRUNCATE sesiones, usuarios RESTART IDENTITY CASCADE")
             conexion.commit()
         config_sin_admin = Configuracion(
