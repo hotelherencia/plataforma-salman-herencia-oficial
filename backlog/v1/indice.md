@@ -130,3 +130,30 @@ cifras salen de `reservas.oferta`. Antecedente: `specs/002` historia 3.
 - [Bloqueada, P1] `v1-issue-30` — N0: bandeja `/hotel/agente` y E2E.
 - [Bloqueada, P2] `v1-issue-31` — adaptador real y evaluación de 50 casos (compuerta N1/N2).
 - No cargados a GitHub Projects (sin acciones externas): falta sincronizar.
+
+
+## Auditoría técnica integral UI/UX, responsive, accesibilidad, rendimiento e integración (2026-11-03)
+
+Auditoría sobre instancias locales aisladas (`:8097` y `:3017`) en 7 viewports
+(`320px` a `1440px`) y 4 roles (`anonimo`, `administrador`, `recepcion`, `caja`).
+Cargados en GitHub Issues y en `hotelherencia/projects/2`:
+
+- [Lista, P1] `v1-issue-13` (GitHub `#281`, enriquecido) — renovar clave de
+  idempotencia tras 4xx o exponer «Nueva operación» en todas las pantallas con mutación.
+- [Lista, P1] `v1-issue-32` (GitHub `#282`) — cobro parcial en `/hotel/pago`
+  con `clave: 'cobro-web-1'` por defecto devuelve `201` (`reintento: true`) sin
+  registrar el segundo abono.
+- [Lista, P1] `v1-issue-33` (GitHub `#283`) — cambio de clave propia para
+  roles `recepcion` y `caja` en `/cuenta` e inclusión de `id` en `GET /sesion`.
+- [Lista, P2] `v1-issue-34` (GitHub `#284`) — desbordamiento horizontal móvil
+  (`320px–430px`) en `/hotel/habitaciones/[id]`, `/hotel/reservas/[id]` y `/hotel/oferta`.
+- [Lista, P2] `v1-issue-35` (GitHub `#285`) — precarga de `reserva_id` y
+  `habitacion_id`/fechas entre pantallas operativas y eliminación de defaults
+  inválidos en `/hotel/reserva`.
+- [Lista, P2] `v1-issue-36` (GitHub `#286`) — accesibilidad y táctil: blancos
+  `>= 44×44 px`, semántica de tabla en listados, foco visible, `prefers-reduced-motion`
+  y confirmación en acciones destructivas.
+- [Lista, P2] `v1-issue-37` (GitHub `#287`) — rendimiento: compartir estado de
+  `useSesion()` para evitar 2 a 3 llamadas `GET /sesion` por montaje.
+- [Lista, P3] `v1-issue-38` (GitHub `#288`) — guardia de sesión y `.pagina` en
+  `/cafeteria`, `/inmobiliaria` y `/constructora`, y formato `clp()` en `/hotel/caja`.
