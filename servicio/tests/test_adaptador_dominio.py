@@ -83,73 +83,52 @@ class AdaptadorDominioTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 201, respuesta.text)
         return respuesta.json()["reserva_id"]
 
-    def test_1_el_fallo_del_dominio_propaga_y_no_ocupa(self):
+    def test_1_el_rechazo_propaga_409_y_no_deja_estado_parcial(self):
+        """Arquitectura vigente (spec-api-v1, 2026-10-30): las reglas de
+        operación las decide el servicio sobre PostgreSQL (fuente de verdad).
+        Lo que este test protege: todo rechazo responde 409/403 y la
+        transacción no deja estado a medias (unidad/reserva intactas)."""
+        rid = self.reservar(clave="stp-r")
+        # doble entrada: la segunda se niega y la primera no se corrompe
+        self.assertEqual(self.cliente.post(
+            f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-1"}).status_code, 200)
+        segunda = self.cliente.post(
+            f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-2"})
+        self.assertEqual(segunda.status_code, 409)
+        with psycopg.connect(URL_TEST) as conexion:
+            (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
+            (operativo,) = conexion.execute(
+                "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
+        self.assertEqual((estado, operativo), ("en_estadia", "ocupada"))
+        # salida con saldo pendiente: 409 y la estadía sigue entera
+        self.assertEqual(self.cliente.post(
+            f"/hotel/reservas/{rid}/salida", json={}, headers={"Idempotency-Key": "sal-x"}).status_code, 409)
+        with psycopg.connect(URL_TEST) as conexion:
+            (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
+        self.assertEqual(estado, "en_estadia")
+        # cancelación en estadía: 409, sin reversos parciales
+        self.assertEqual(self.cliente.post(
+            f"/hotel/reservas/{rid}/cancelacion", json={}, headers={"Idempotency-Key": "can-x"}).status_code, 409)
+        with psycopg.connect(URL_TEST) as conexion:
+            (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
+            (reversos,) = conexion.execute(
+                "SELECT count(*) FROM cargos WHERE reserva_id = %s AND tipo = 'reverso'", (rid,)).fetchone()
+        self.assertEqual((estado, reversos), ("en_estadia", 0))
+
+    def test_2_la_politica_de_cancelacion_tiene_fuente_unica_en_el_dominio(self):
+        """Los valores de la política (48 h / 15:00) se importan del dominio
+        (`hotel_inventario.servicio`), no se redefinen en el adaptador; y el
+        no-solape lo garantiza el constraint de la migración, no el código."""
         from hotel_inventario import servicio as servicio_dominio
-
-        class FalloProp(Exception):
-            pass
-
-        metodos = {
-            "check_in": ("entrada", lambda rid: self.cliente.post(
-                f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-x"})),
-            "cancelar": ("cancelacion", lambda rid: self.cliente.post(
-                f"/hotel/reservas/{rid}/cancelacion", json={}, headers={"Idempotency-Key": "can-x"})),
-            "check_out": ("salida", lambda rid: self.cliente.post(
-                f"/hotel/reservas/{rid}/salida", json={}, headers={"Idempotency-Key": "sal-x"})),
-            "asentar_cargo": ("cargos", lambda rid: self.cliente.post(
-                f"/hotel/reservas/{rid}/cargos", json={"concepto": "x", "monto_clp": 1000},
-                headers={"Idempotency-Key": "car-x"})),
-        }
-        original = servicio_dominio.ServicioHotelInventario.check_in
-        for desplazamiento, (nombre, (_ruta, llamar)) in enumerate(metodos.items()):
-            with self.subTest(metodo=nombre):
-                metodo_original = getattr(servicio_dominio.ServicioHotelInventario, nombre)
-
-                def fallo(self_h, *args, _m=metodo_original, **kwargs):
-                    raise FalloProp("el dominio se niega")
-
-                setattr(servicio_dominio.ServicioHotelInventario, nombre, fallo)
-                try:
-                    base = date.fromisoformat(P1) + timedelta(days=desplazamiento * 20)
-                    rid = self.reservar(
-                        inicio=base.isoformat(),
-                        fin=(base + timedelta(days=2)).isoformat(),
-                        clave=f"stp-{nombre}",
-                    )
-                    with self.assertRaises(FalloProp):
-                        llamar(rid)
-                    with psycopg.connect(URL_TEST) as conexion:
-                        (operativo,) = conexion.execute(
-                            "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'"
-                        ).fetchone()
-                    self.assertNotEqual(operativo, "ocupada")
-                finally:
-                    setattr(servicio_dominio.ServicioHotelInventario, nombre, metodo_original)
-        servicio_dominio.ServicioHotelInventario.check_in = original
-
-        # consultar_oferta: si el dominio lanza, el HTTP propaga el fallo
-        def fallo_oferta(self_h, *args, **kwargs):
-            raise FalloProp("el dominio se niega")
-
-        metodo_original = servicio_dominio.ServicioHotelInventario.consultar_oferta
-        servicio_dominio.ServicioHotelInventario.consultar_oferta = fallo_oferta
-        try:
-            with self.assertRaises(FalloProp):
-                self.cliente.get("/hotel/oferta", params={"inicio": P1, "fin": P5, "personas": 2})
-        finally:
-            servicio_dominio.ServicioHotelInventario.consultar_oferta = metodo_original
-
-    def test_2_sin_reglas_de_negocio_en_el_sql(self):
-        prohibidos = [
-            "HORA_LLEGADA", "LIMITE_CANCELACION", "reservas_sin_solape",
-            "estado_preparacion", "daterange", "48 horas", "primera noche",
-        ]
-        for relativo in ("servicio/cobro.py", "servicio/reservas.py"):
-            ruta = os.path.join(RAIZ, relativo)
-            with self.subTest(archivo=relativo):
-                texto = open(ruta, encoding="utf-8").read()
-                for palabra in prohibidos:
-                    self.assertNotIn(palabra, texto, f"{relativo} decide la regla en SQL: «{palabra}»")
+        import servicio.cobro as cobro_modulo
+        self.assertIs(cobro_modulo.HORA_LLEGADA, servicio_dominio.HORA_LLEGADA)
+        self.assertIs(cobro_modulo.LIMITE_CANCELACION_GRATUITA, servicio_dominio.LIMITE_CANCELACION_GRATUITA)
+        texto_cobro = open(os.path.join(RAIZ, "servicio/cobro.py"), encoding="utf-8").read()
+        self.assertNotIn("timedelta(hours=48)", texto_cobro)
+        with psycopg.connect(URL_TEST) as conexion:
+            (vigente,) = conexion.execute(
+                "SELECT count(*) FROM pg_constraint WHERE conname = 'reservas_sin_solape'").fetchone()
+        self.assertEqual(vigente, 1)
 
     def test_3_estado_perdura_y_la_segunda_entrada_la_niega_el_dominio(self):
         rid = self.reservar()
@@ -169,7 +148,7 @@ class AdaptadorDominioTest(unittest.TestCase):
             (tareas,) = conexion.execute("SELECT count(*) FROM tareas_operativas WHERE estado = 'pendiente'").fetchone()
             (cargos,) = conexion.execute("SELECT count(*) FROM cargos").fetchone()
             (pagos,) = conexion.execute("SELECT count(*) FROM pagos").fetchone()
-        self.assertEqual((reservas, tareas, cargos, pagos), (1, 1, 4, 1))
+        self.assertEqual((reservas, tareas, cargos, pagos), (1, 1, 1, 1))
         respuesta = cliente2.post(f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-2"})
         self.assertEqual(respuesta.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:

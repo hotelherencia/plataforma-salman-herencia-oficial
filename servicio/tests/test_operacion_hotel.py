@@ -308,18 +308,27 @@ class GestionUsuariosTest(OperacionBaseTest):
 
 class HabitacionOperacionTest(OperacionBaseTest):
     def test_la_prueba_que_decide_el_fallo_de_operacion(self):
-        # Reserva A del 1 al 5 de enero ya en_estadia; reserva B del 5 al 7
-        # confirmada en la misma habitación.
+        # Turnover (DECISIÓN 2026-10-30, fuente check_in del dominio): una
+        # reserva no solapada puede hacer check-in aunque la unidad esté
+        # ocupada por otra estadía. A [1,5) entra; B [5,7) entra después;
+        # C que solapa con B no consigue cupo.
         a = self.reservar(inicio="2027-01-01", fin="2027-01-05", nombre="Estadia A")
         b = self.reservar(inicio="2027-01-05", fin="2027-01-07", nombre="Estadia B")
         self.assertEqual(self.entrada(a).status_code, 200)
         self.assertEqual(
             self.select("SELECT estado_operativo FROM habitaciones WHERE id='HAB-SINT-101'")[0][0], "ocupada")
 
-        # La entrada de B responde 409 mientras A siga en_estadia.
         respuesta = self.entrada(b)
-        self.assertEqual(respuesta.status_code, 409, respuesta.text)
-        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "confirmada")
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        self.assertEqual(respuesta.json()["estado"], "en_estadia")
+
+        solape = self.cliente.post(
+            "/hotel/reservas",
+            json={"habitacion_id": "HAB-SINT-101", "inicio": "2027-01-05", "fin": "2027-01-07",
+                  "huesped": {"nombre": "C"}},
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(solape.status_code, 409, solape.text)
 
         # Salida de A (saldo en cero): finalizada, disponible y sucia, con tarea.
         self.pagar(a, 200_000, "cobro-a")
@@ -332,11 +341,12 @@ class HabitacionOperacionTest(OperacionBaseTest):
             "SELECT tipo, estado FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")
         self.assertEqual(tarea, [("limpieza", "pendiente")])
 
-        # Después de la salida de A, B sigue en 409 porque la preparación quedó sucia.
-        self.assertEqual(self.entrada(b).status_code, 409)
-        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "confirmada")
+        # Mientras la unidad está sucia, una estadía nueva no puede entrar.
+        d = self.reservar(inicio="2027-01-07", fin="2027-01-09", nombre="Estadia D")
+        self.assertEqual(self.entrada(d).status_code, 409)
+        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (d,))[0][0], "confirmada")
 
-        # Después de completar la limpieza, la entrada de B responde 200 y ocupa.
+        # Después de completar la limpieza, la entrada responde 200 y ocupa.
         respuesta = self.cliente.post(
             "/hotel/habitaciones/HAB-SINT-101/limpieza", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
@@ -345,7 +355,7 @@ class HabitacionOperacionTest(OperacionBaseTest):
         pendientes = self.select(
             "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")
         self.assertEqual(pendientes[0][0], 0)
-        respuesta = self.entrada(b)
+        respuesta = self.entrada(d)
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         self.assertEqual(respuesta.json()["estado"], "en_estadia")
         self.assertEqual(

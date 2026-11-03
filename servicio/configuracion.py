@@ -44,6 +44,19 @@ class Configuracion:
     front_url: str = "http://localhost:3000"
 
 
+def _normalizar_origenes(valor: str | None) -> str | None:
+    """ORIGEN_FRONT sin barras finales ni espacios (una vez por origen).
+
+    La barra final cambia la identidad del origen en CORS y en el middleware
+    de mutaciones: «https://front.example/» y «https://front.example» deben
+    ser el mismo origen (test_preh7_seguridad; el redirect de Google del
+    2026-11-02 falló por exactamente esto)."""
+    if not valor:
+        return valor
+    origenes = [o.strip().rstrip("/") for o in valor.split(",") if o.strip()]
+    return ",".join(origenes) if origenes else None
+
+
 def cargar_desde_entorno() -> Configuracion:
     _cargar_env()
     return Configuracion(
@@ -51,7 +64,7 @@ def cargar_desde_entorno() -> Configuracion:
         puerto=int(os.environ.get("SERVICIO_PUERTO") or os.environ.get("PORT") or "8080"),
         database_url=os.environ.get("DATABASE_URL"),
         cookie_segura=os.environ.get("COOKIE_SEGURA", "0") == "1",
-        origen_front=os.environ.get("ORIGEN_FRONT"),
+        origen_front=_normalizar_origenes(os.environ.get("ORIGEN_FRONT")),
         admin_usuario=os.environ.get("ADMIN_USUARIO"),
         admin_clave=os.environ.get("ADMIN_CLAVE"),
         session_horas=int(os.environ.get("SESSION_HORAS", "12")),

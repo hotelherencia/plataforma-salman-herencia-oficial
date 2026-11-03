@@ -169,6 +169,35 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             allow_headers=["*"],
         )
 
+    # spec-api-v1 / test_preh7_seguridad: si el front es de otro sitio
+    # (CORS con credenciales), la cookie debe ser Secure+SameSite=None o el
+    # navegador la rechaza. Se exige COOKIE_SEGURA salvo orígenes locales de
+    # desarrollo (127.0.0.1 / localhost), donde la cookie es Lax sin Secure.
+    _LOCALES = ("127.0.0.1", "localhost", "::1")
+    if configuracion is not None and configuracion.origen_front and not configuracion.cookie_segura:
+        _origenes = [o.strip() for o in configuracion.origen_front.split(",") if o.strip()]
+        if any(not any(local in origen for local in _LOCALES) for origen in _origenes):
+            raise ErrorArranque(
+                "ORIGEN_FRONT ajeno exige COOKIE_SEGURA=1 (cookie SameSite=None requiere Secure)"
+            )
+
+    @app.middleware("http")
+    async def origin_de_mutaciones(request, call_next):
+        # Con orígenes configurados, una mutación con Origin ajeno se rechaza
+        # aunque traiga sesión (defensa en profundidad junto al CORS). Sin
+        # cabecera Origin (curl, server-to-server) la mutación sigue.
+        config = app.state.configuracion
+        if (
+            config is not None
+            and config.origen_front
+            and request.method in ("POST", "PUT", "PATCH", "DELETE")
+        ):
+            permitidos = {o.strip() for o in config.origen_front.split(",") if o.strip()}
+            origin = request.headers.get("origin")
+            if origin and origin not in permitidos:
+                return JSONResponse(status_code=403, content={"detail": "acceso denegado"})
+        return await call_next(request)
+
     @app.middleware("http")
     async def cabeceras_seguras(request, call_next):
         respuesta = await call_next(request)
@@ -207,6 +236,21 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         response.set_cookie(
             NOMBRE_COOKIE_SESION,
             sid,
+            httponly=True,
+            secure=segura,
+            samesite="none" if segura else "lax",
+            path="/",
+        )
+
+    def _borrar_cookie(response: Response) -> None:
+        # El borrado debe repetir los mismos atributos (Secure/SameSite) o el
+        # navegador no elimina la cookie cross-site de producción.
+        config = app.state.configuracion
+        segura = config.cookie_segura if config else False
+        response.set_cookie(
+            NOMBRE_COOKIE_SESION,
+            "",
+            max_age=0,
             httponly=True,
             secure=segura,
             samesite="none" if segura else "lax",
@@ -281,7 +325,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             raise HTTPException(status_code=401, detail="sesión inválida o vencida")
         seguridad.revocar_sesion(conexion, sid)
         conexion.commit()
-        response.set_cookie(NOMBRE_COOKIE_SESION, "", max_age=0, path="/")
+        _borrar_cookie(response)
         return {"estado": "cerrada"}
 
     @app.get("/sesion")

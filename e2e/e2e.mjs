@@ -141,7 +141,8 @@ try {
   cookieAdmin = await loginApi('admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
   await api('POST', '/usuarios', { cookie: cookieAdmin, clave: K('e2e-semilla-recepcion'), cuerpo: { nombre: 'recepcion_e2e', rol: 'recepcion', clave: 'RecepE2e123' } })
   await api('POST', '/usuarios', { cookie: cookieAdmin, clave: K('e2e-semilla-caja'), cuerpo: { nombre: 'caja_e2e', rol: 'caja', clave: 'CajaE2e1234' } })
-  for (const [id, tipo, cap, tarifa] of [['HAB-101', 'doble', 2, 50000], ['HAB-102', 'simple', 1, 35000], ['HAB-103', 'doble', 2, 60000]]) {
+  const HAB_A = `HAB-${RUN}-A`, HAB_B = `HAB-${RUN}-B`, HAB_C = `HAB-${RUN}-C`
+  for (const [id, tipo, cap, tarifa] of [[HAB_A, 'doble', 2, 50000], [HAB_B, 'simple', 1, 35000], [HAB_C, 'doble', 2, 60000]]) {
     await api('PUT', `/hotel/habitaciones/${id}`, { cookie: cookieAdmin, clave: K(`semilla-${id}`), cuerpo: { tipo, capacidad: cap } })
     await api('PUT', '/hotel/tarifas', { cookie: cookieAdmin, clave: K(`tarifa-${id}`), cuerpo: { habitacion_id: id, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', tarifa_noche_clp: tarifa } })
   }
@@ -216,7 +217,7 @@ try {
     const r = await api('GET', '/hotel/habitaciones', { cookie: cookieAdmin })
     if (r.estado !== 200) throw new Error(`${r.estado}`)
     const porId = Object.fromEntries(r.datos.habitaciones.map((h) => [h.habitacion_id, h]))
-    for (const id of ['HAB-101', 'HAB-102', 'HAB-103']) {
+    for (const id of [HAB_A, HAB_B, HAB_C]) {
       if (!porId[id]) throw new Error(`falta ${id}`)
       if (porId[id].tarifa_noche_clp <= 0) throw new Error(`${id} sin tarifa ref.`)
     }
@@ -238,27 +239,27 @@ try {
       return 'HAB-201 listada tras el alta'
     })
     await caso('HAB-03', '/hotel/habitaciones', 'abrir mantenimiento excluye de la oferta', 'administrador', 'oferta sin HAB-103; al cerrar vuelve', async () => {
-      const fila = page.locator('.inventario-fila', { hasText: 'HAB-103' })
+      const fila = page.locator('.inventario-fila', { hasText: HAB_C })
       await fila.getByRole('button', { name: 'Abrir mantenimiento' }).click()
       await page.waitForTimeout(1800)
       let oferta = await api('GET', `/hotel/oferta?inicio=${EN_30_DIAS}&fin=${EN_33_DIAS}&personas=2`, { cookie: cookieAdmin })
       const ids = oferta.datos.oferta.map((u) => u.habitacion_id)
-      if (ids.includes('HAB-103')) throw new Error('HAB-103 sigue en oferta con mantenimiento abierto')
+      if (ids.includes(HAB_C)) throw new Error('HAB-103 sigue en oferta con mantenimiento abierto')
       await fila.getByRole('button', { name: 'Cerrar mantenimiento' }).click()
       await page.waitForTimeout(1800)
       oferta = await api('GET', `/hotel/oferta?inicio=${EN_30_DIAS}&fin=${EN_33_DIAS}&personas=2`, { cookie: cookieAdmin })
-      if (!oferta.datos.oferta.map((u) => u.habitacion_id).includes('HAB-103')) throw new Error('HAB-103 no volvió a la oferta')
+      if (!oferta.datos.oferta.map((u) => u.habitacion_id).includes(HAB_C)) throw new Error('HAB-103 no volvió a la oferta')
       return 'oferta excluye/incluye según mantenimiento'
     })
     await page.close()
   }
   await caso('HAB-04', '/hotel/habitaciones', 'recepción no puede abrir mantenimiento', 'recepcion', '403 «acceso denegado»', async () => {
-    const r = await api('POST', '/hotel/habitaciones/HAB-101/mantenimiento', { cookie: cookieRecepcion, clave: K('e2e-mant-403'), cuerpo: { abierto: true } })
+    const r = await api('POST', `/hotel/habitaciones/${HAB_A}/mantenimiento`, { cookie: cookieRecepcion, clave: K('e2e-mant-403'), cuerpo: { abierto: true } })
     if (r.estado !== 403) throw new Error(`${r.estado}`)
     return '403'
   })
   await caso('HAB-05', '/hotel/habitaciones', 'caja no puede completar limpieza', 'caja', '403 «acceso denegado»', async () => {
-    const r = await api('POST', '/hotel/habitaciones/HAB-101/limpieza', { cookie: cookieCaja, clave: K('e2e-limp-403'), cuerpo: {} })
+    const r = await api('POST', `/hotel/habitaciones/${HAB_A}/limpieza`, { cookie: cookieCaja, clave: K('e2e-limp-403'), cuerpo: {} })
     if (r.estado !== 403) throw new Error(`${r.estado}`)
     return '403'
   })
@@ -289,7 +290,7 @@ try {
     await caso('RES-01', '/hotel/reserva', 'crear reserva desde la UI', 'recepcion', '201 confirmada; aparece en la búsqueda', async () => {
       await page.goto(`${FRONT}/hotel/reserva`)
       await page.waitForTimeout(1500)
-      await page.getByRole('textbox', { name: 'Habitación' }).fill('HAB-101')
+      await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_A)
       await page.getByRole('textbox', { name: 'Desde' }).fill(EN_30_DIAS)
       await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_33_DIAS)
       await page.getByRole('textbox', { name: 'Huésped' }).fill('Huésped Sintético')
@@ -320,7 +321,7 @@ try {
       const r = await api('POST', '/hotel/reservas', {
         cookie: cookieRecepcion,
         clave: K('e2e-solape'),
-        cuerpo: { habitacion_id: 'HAB-101', inicio: EN_30_DIAS, fin: EN_33_DIAS, huesped: { nombre: 'Segunda Carrera' } },
+        cuerpo: { habitacion_id: HAB_A, inicio: EN_30_DIAS, fin: EN_33_DIAS, huesped: { nombre: 'Segunda Carrera' } },
       })
       if (r.estado !== 409) throw new Error(`${r.estado} ${JSON.stringify(r.datos)}`)
       return r.datos.detail
@@ -406,7 +407,7 @@ try {
     const r = await api('POST', `/hotel/reservas/${reservaId}/entrada`, { cookie: cookieRecepcion, clave: K('e2e-ent-1'), cuerpo: {} })
     if (r.estado !== 200) throw new Error(`${r.estado} ${JSON.stringify(r.datos)}`)
     const inv = await api('GET', '/hotel/habitaciones', { cookie: cookieRecepcion })
-    const hab101 = inv.datos.habitaciones.find((h) => h.habitacion_id === 'HAB-101')
+    const hab101 = inv.datos.habitaciones.find((h) => h.habitacion_id === HAB_A)
     if (hab101.estado_operativo !== 'ocupada') throw new Error(`estado: ${hab101.estado_operativo}`)
     return 'HAB-101 ocupada'
   })
@@ -433,7 +434,7 @@ try {
     const futura = await api('POST', '/hotel/reservas', {
       cookie: cookieRecepcion,
       clave: K('e2e-res-corta'),
-      cuerpo: { habitacion_id: 'HAB-102', inicio: EN_1_DIA, fin: EN_30_DIAS, huesped: { nombre: 'Cancelación Corta' } },
+      cuerpo: { habitacion_id: HAB_B, inicio: EN_1_DIA, fin: EN_30_DIAS, huesped: { nombre: 'Cancelación Corta' } },
     })
     reservaCortaId = futura.datos.reserva_id
     const cancelada = await api('POST', `/hotel/reservas/${reservaCortaId}/cancelacion`, { cookie: cookieRecepcion, clave: K('e2e-cancel-corta'), cuerpo: {} })
@@ -479,7 +480,7 @@ try {
       const conf = await confirmacion(page)
       if (!conf || !conf.includes('liquidada')) throw new Error(`sin liquidación: ${conf}`)
       const inv = await api('GET', '/hotel/habitaciones', { cookie: cookieAdmin })
-      const hab101 = inv.datos.habitaciones.find((h) => h.habitacion_id === 'HAB-101')
+      const hab101 = inv.datos.habitaciones.find((h) => h.habitacion_id === HAB_A)
       if (hab101.estado_preparacion !== 'sucia' || hab101.limpieza_pendiente !== true) throw new Error(`tras salida: ${JSON.stringify(hab101)}`)
       await evidencia(page, 'sal-02-liquidada')
       return `${conf}; HAB-101 sucia con tarea`
@@ -508,19 +509,19 @@ try {
     await caso('USR-01', '/hotel/usuarios', 'alta y listado con «Usar id»', 'administrador', 'usuario creado y listado', async () => {
       await page.goto(`${FRONT}/hotel/usuarios`)
       await page.waitForTimeout(1800)
-      await page.getByRole('textbox', { name: 'Nombre' }).fill('recepcion_tmp_${RUN}')
+      await page.getByRole('textbox', { name: 'Nombre' }).fill(`recepcion_tmp_${RUN}`)
       await page.getByRole('textbox', { name: 'Clave', exact: true }).fill('TmpRecep99')
       await page.getByRole('button', { name: 'Crear usuario' }).click()
       await page.waitForTimeout(2000)
       const filas = await page.evaluate(() => [...document.querySelectorAll('.usuario-fila')].map((f) => f.innerText))
-      if (!filas.some((f) => f.includes('recepcion_tmp_${RUN}'))) throw new Error('no listado tras el alta')
+      if (!filas.some((f) => f.includes(`recepcion_tmp_${RUN}`))) throw new Error('no listado tras el alta')
       await evidencia(page, 'usr-01-listado')
       return 'creado y listado'
     })
     await caso('USR-02', '/hotel/usuarios', 'revocación cierra la sesión del otro', 'administrador', 'la sesión revocada pasa a 401', async () => {
       const r = await api('GET', '/usuarios', { cookie: cookieAdmin })
-      idRecepcion = r.datos.usuarios.find((u) => u.nombre === 'recepcion_tmp_${RUN}').id
-      const sesionTmp = await loginApi('recepcion_tmp_${RUN}', 'TmpRecep99')
+      idRecepcion = r.datos.usuarios.find((u) => u.nombre === `recepcion_tmp_${RUN}`).id
+      const sesionTmp = await loginApi(`recepcion_tmp_${RUN}`, 'TmpRecep99')
       const viva = await api('GET', '/sesion', { cookie: sesionTmp })
       if (viva.estado !== 200) throw new Error('la sesión nueva no está viva')
       await api('POST', `/usuarios/${idRecepcion}/revocacion`, { cookie: cookieAdmin, clave: K('e2e-revoc'), cuerpo: {} })
@@ -530,7 +531,7 @@ try {
     })
     await caso('USR-03', '/hotel/usuarios', 'baja impide el login', 'administrador', 'activo=false; login 401', async () => {
       await api('POST', `/usuarios/${idRecepcion}/baja`, { cookie: cookieAdmin, clave: K('e2e-baja'), cuerpo: {} })
-      const r = await api('POST', '/sesion', { cuerpo: { usuario: 'recepcion_tmp_${RUN}', clave: 'TmpRecep99' } })
+      const r = await api('POST', '/sesion', { cuerpo: { usuario: `recepcion_tmp_${RUN}`, clave: 'TmpRecep99' } })
       if (r.estado !== 401) throw new Error(`login tras baja: ${r.estado}`)
       return 'login rechazado tras la baja'
     })
@@ -559,7 +560,7 @@ try {
     await page.waitForTimeout(1500)
     const claveAntes = await page.evaluate(() => document.querySelector('.nota-clave code')?.textContent)
     if (!claveAntes) throw new Error('clave no visible antes del envío')
-    await page.getByRole('textbox', { name: 'Habitación' }).fill('HAB-103')
+    await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_C)
     await page.getByRole('textbox', { name: 'Desde' }).fill(EN_40_DIAS)
     const hasta = sumarDias(new Date(HOY), 42)
     await page.getByRole('textbox', { name: 'Hasta' }).fill(hasta)

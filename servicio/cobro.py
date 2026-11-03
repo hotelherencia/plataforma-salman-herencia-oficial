@@ -118,13 +118,19 @@ def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> d
     ).fetchone()
     if habitacion[2]:
         raise HabitacionNoLista("la habitación tiene mantenimiento abierto")
-    if habitacion[0] != "disponible":
+    # Espejo del dominio (check_in): OCUPADA no bloquea — el turnover de una
+    # reserva no solapada está permitido (DECISIÓN 2026-10-30). Solo bloquean
+    # los estados no vendibles y la suciedad; el solape lo cubre la consulta
+    # de otra estadía más abajo.
+    if habitacion[0] in ("bloqueada", "fuera_de_servicio"):
         raise HabitacionNoLista("la habitación no está disponible")
     if habitacion[1] not in ("limpia", "inspeccionada"):
         raise HabitacionNoLista("la habitación no está lista para el check-in")
     (otra_estadia,) = conexion.execute(
-        "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado = 'en_estadia' AND id <> %s",
-        (_reserva[1], reserva_id),
+        "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado = 'en_estadia' AND id <> %s "
+        "AND daterange(inicio, fin, '[)') && "
+        "(SELECT daterange(inicio, fin, '[)') FROM reservas WHERE id = %s)",
+        (_reserva[1], reserva_id, reserva_id),
     ).fetchone()
     if otra_estadia > 0:
         raise HabitacionNoLista("hay otra estadía en curso en esa habitación")
