@@ -19,8 +19,8 @@ URL_TEST = os.environ.get(
 )
 EMPRESA = "EMP-SINTETICA-001"
 ADMIN = ("admin", "clave-admin-sintetica")
-FUTURO = (date.today() + timedelta(days=30)).isoformat()
-FUTURO_FIN = (date.today() + timedelta(days=33)).isoformat()
+FUTURO = (date.today() - timedelta(days=9)).isoformat()  # pasado: la entrada exige reserva iniciada (v1-issue-07)
+FUTURO_FIN = (date.today() - timedelta(days=6)).isoformat()
 
 
 def _semilla(conexion):

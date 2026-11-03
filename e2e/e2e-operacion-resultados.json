@@ -14,7 +14,7 @@
     "flujo": "alta duplicada no sobrescribe (If-None-Match)",
     "rol": "administrador",
     "esperado": "alerta «ya existe»; tipo y capacidad intactos",
-    "observado": "la habitación HAB-mw0wsi6c-M ya existe",
+    "observado": "la habitación HAB-mw102uk3-M ya existe",
     "estado": "APROBADO"
   },
   {
@@ -32,7 +32,7 @@
     "flujo": "editar tipo y capacidad con reserva previa",
     "rol": "administrador",
     "esperado": "cambio aplicado y auditado; reserva intacta",
-    "observado": "Habitación HAB-mw0wsi6c-M: tipo doble → suite · capacidad 2 → 3",
+    "observado": "Habitación HAB-mw102uk3-M: tipo doble → suite · capacidad 2 → 3",
     "estado": "APROBADO"
   },
   {
@@ -50,7 +50,7 @@
     "flujo": "retiro bloqueado por reserva vigente",
     "rol": "administrador",
     "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
-    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-17ee82e362b9",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-74861057f362",
     "estado": "APROBADO"
   },
   {
@@ -113,7 +113,7 @@
     "flujo": "cada noche «disponible» coincide con la oferta de esa noche",
     "rol": "caja",
     "esperado": "consistencia total ocupación ↔ oferta en 10 noches",
-    "observado": "230 celdas consistentes con la oferta",
+    "observado": "390 celdas consistentes con la oferta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "panel coincide con un recuento independiente",
     "rol": "administrador",
     "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
-    "observado": "en_casa 0, llegadas 0, noches 15, ocupación reservada 5.9 %",
+    "observado": "en_casa 0, llegadas 0, noches 24, ocupación reservada 5.6 %",
     "estado": "APROBADO"
   },
   {

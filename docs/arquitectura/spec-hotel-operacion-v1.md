@@ -373,3 +373,4 @@ Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
 | D-TAR-01 | ¿Tarifas superpuestas: reemplazo (V1) o rechazo (dominio)? | reemplazo con regla §2.5 |
 | D-OCU-01 | ¿Mantenimiento programado por fechas? | estado actual proyectado |
 | D-AUD-01 | ¿Otros roles ven la auditoría de la habitación? | solo administrador |
+| D-ENT-01 | ¿La entrada adopta la regla del dominio (desde las 15:00 del día de inicio y con documento)? (V1-ISSUE-07; registrada en spec-api-v1 «Operación de la habitación») | entrada sin hora ni documento (contrato vigente); el panel acota la estadía con la fecha de liquidación (§4.3) |

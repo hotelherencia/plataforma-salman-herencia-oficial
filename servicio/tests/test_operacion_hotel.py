@@ -9,6 +9,8 @@ import unittest
 import uuid
 from datetime import date, timedelta
 
+_BASE = (date.today() - timedelta(days=40))
+
 import psycopg
 from fastapi.testclient import TestClient
 
@@ -71,7 +73,7 @@ class OperacionBaseTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 201, respuesta.text)
         return respuesta.json()["id"]
 
-    def reservar(self, inicio="2027-06-01", fin="2027-06-05", habitacion="HAB-SINT-101",
+    def reservar(self, inicio=str(_BASE), fin=str(_BASE + timedelta(days=4)), habitacion="HAB-SINT-101",
                  nombre="Huésped Operación", documento="12345678-9"):
         respuesta = self.cliente.post(
             "/hotel/reservas",
@@ -107,8 +109,8 @@ class OperacionBaseTest(unittest.TestCase):
 
 class BusquedaReservasTest(OperacionBaseTest):
     def test_filtros_opcionales_combinados_con_and_y_orden(self):
-        r1 = self.reservar(inicio="2027-06-01", fin="2027-06-05", nombre="Ana Pérez", documento="111-1")
-        r2 = self.reservar(inicio="2027-06-10", fin="2027-06-12", nombre="bruno diaz", documento="222-2")
+        r1 = self.reservar(inicio=str(_BASE), fin=str(_BASE + timedelta(days=4)), nombre="Ana Pérez", documento="111-1")
+        r2 = self.reservar(inicio=str(_BASE + timedelta(days=9)), fin=str(_BASE + timedelta(days=11)), nombre="bruno diaz", documento="222-2")
         self.entrada(r2)  # r2 queda en_estadia
 
         # sin filtros: las dos, ordenadas por inicio, id
@@ -116,12 +118,12 @@ class BusquedaReservasTest(OperacionBaseTest):
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         items = respuesta.json()["reservas"]
         self.assertEqual([i["reserva_id"] for i in items], [r1, r2])
-        self.assertEqual(items[0]["inicio"], "2027-06-01")
+        self.assertEqual(items[0]["inicio"], str(_BASE))
 
         # fecha: la noche que contiene el día
-        respuesta = self.cliente.get("/hotel/reservas", params={"fecha": "2027-06-03"})
+        respuesta = self.cliente.get("/hotel/reservas", params={"fecha": str(_BASE + timedelta(days=2))})
         self.assertEqual({i["reserva_id"] for i in respuesta.json()["reservas"]}, {r1})
-        respuesta = self.cliente.get("/hotel/reservas", params={"fecha": "2027-06-05"})
+        respuesta = self.cliente.get("/hotel/reservas", params={"fecha": str(_BASE + timedelta(days=4))})
         self.assertEqual(respuesta.json()["reservas"], [])  # fin exclusivo
 
         # estado: igualdad exacta
@@ -137,11 +139,11 @@ class BusquedaReservasTest(OperacionBaseTest):
 
         # AND de filtros
         respuesta = self.cliente.get(
-            "/hotel/reservas", params={"fecha": "2027-06-11", "estado": "en_estadia", "texto": "bruno"}
+            "/hotel/reservas", params={"fecha": str(_BASE + timedelta(days=10)), "estado": "en_estadia", "texto": "bruno"}
         )
         self.assertEqual([i["reserva_id"] for i in respuesta.json()["reservas"]], [r2])
         respuesta = self.cliente.get(
-            "/hotel/reservas", params={"fecha": "2027-06-11", "estado": "confirmada"}
+            "/hotel/reservas", params={"fecha": str(_BASE + timedelta(days=10)), "estado": "confirmada"}
         )
         self.assertEqual(respuesta.json()["reservas"], [])
 
@@ -316,8 +318,8 @@ class HabitacionOperacionTest(OperacionBaseTest):
         # reserva no solapada puede hacer check-in aunque la unidad esté
         # ocupada por otra estadía. A [1,5) entra; B [5,7) entra después;
         # C que solapa con B no consigue cupo.
-        a = self.reservar(inicio="2027-01-01", fin="2027-01-05", nombre="Estadia A")
-        b = self.reservar(inicio="2027-01-05", fin="2027-01-07", nombre="Estadia B")
+        a = self.reservar(inicio=str(_BASE), fin=str(_BASE + timedelta(days=4)), nombre="Estadia A")
+        b = self.reservar(inicio=str(_BASE + timedelta(days=4)), fin=str(_BASE + timedelta(days=6)), nombre="Estadia B")
         self.assertEqual(self.entrada(a).status_code, 200)
         self.assertEqual(
             self.select("SELECT estado_operativo FROM habitaciones WHERE id='HAB-SINT-101'")[0][0], "ocupada")
@@ -328,7 +330,7 @@ class HabitacionOperacionTest(OperacionBaseTest):
 
         solape = self.cliente.post(
             "/hotel/reservas",
-            json={"habitacion_id": "HAB-SINT-101", "inicio": "2027-01-05", "fin": "2027-01-07",
+            json={"habitacion_id": "HAB-SINT-101", "inicio": str(_BASE + timedelta(days=4)), "fin": str(_BASE + timedelta(days=6)),
                   "huesped": {"nombre": "C"}},
             headers={"Idempotency-Key": self.clave()},
         )
@@ -346,7 +348,7 @@ class HabitacionOperacionTest(OperacionBaseTest):
         self.assertEqual(tarea, [("limpieza", "pendiente")])
 
         # Mientras la unidad está sucia, una estadía nueva no puede entrar.
-        d = self.reservar(inicio="2027-01-07", fin="2027-01-09", nombre="Estadia D")
+        d = self.reservar(inicio=str(_BASE + timedelta(days=6)), fin=str(_BASE + timedelta(days=8)), nombre="Estadia D")
         self.assertEqual(self.entrada(d).status_code, 409)
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (d,))[0][0], "confirmada")
 
@@ -377,7 +379,7 @@ class HabitacionOperacionTest(OperacionBaseTest):
             "SELECT tipo, estado FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND tipo='mantenimiento'")
         self.assertEqual(tarea, [("mantenimiento", "pendiente")])
 
-        oferta = self.cliente.get("/hotel/oferta", params={"inicio": "2027-06-01", "fin": "2027-06-02", "personas": 2})
+        oferta = self.cliente.get("/hotel/oferta", params={"inicio": str(_BASE), "fin": str(_BASE + timedelta(days=1)), "personas": 2})
         self.assertNotIn("HAB-SINT-101", {i["habitacion_id"] for i in oferta.json()["oferta"]})
 
         self.assertEqual(self.entrada(rid).status_code, 409)  # mantenimiento abierto, aunque esté limpia
@@ -407,9 +409,9 @@ class HabitacionOperacionTest(OperacionBaseTest):
             "/hotel/habitaciones/HAB-SINT-101/limpieza", headers={"Idempotency-Key": self.clave()}).status_code, 403)
 
     def test_oferta_incluye_unidad_ocupada_en_otras_fechas(self):
-        a = self.reservar(inicio="2027-01-01", fin="2027-01-05")
+        a = self.reservar(inicio=str(_BASE), fin=str(_BASE + timedelta(days=4)))
         self.entrada(a)  # HAB-SINT-101 queda ocupada
-        oferta = self.cliente.get("/hotel/oferta", params={"inicio": "2027-06-10", "fin": "2027-06-12", "personas": 2})
+        oferta = self.cliente.get("/hotel/oferta", params={"inicio": str(_BASE + timedelta(days=9)), "fin": str(_BASE + timedelta(days=11)), "personas": 2})
         self.assertIn("HAB-SINT-101", {i["habitacion_id"] for i in oferta.json()["oferta"]})
 
     def test_salida_con_saldo_pendiente_no_cambia_nada(self):
@@ -424,7 +426,8 @@ class HabitacionOperacionTest(OperacionBaseTest):
 
 class CancelacionTest(OperacionBaseTest):
     def test_dentro_de_48_horas_sin_penalidad_y_libera_cupo(self):
-        rid = self.reservar(inicio="2027-06-01", fin="2027-06-05")
+        futuro = date.today() + timedelta(days=30)
+        rid = self.reservar(inicio=str(futuro), fin=str(futuro + timedelta(days=4)))
         respuesta = self.cliente.post(
             f"/hotel/reservas/{rid}/cancelacion", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
@@ -446,9 +449,9 @@ class CancelacionTest(OperacionBaseTest):
         self.assertIn("Alojamiento", original[0][1])
 
         # el cupo queda libre: la oferta muestra la habitación y se puede re-reservar
-        oferta = self.cliente.get("/hotel/oferta", params={"inicio": "2027-06-02", "fin": "2027-06-03", "personas": 2})
+        oferta = self.cliente.get("/hotel/oferta", params={"inicio": str(_BASE + timedelta(days=1)), "fin": str(_BASE + timedelta(days=2)), "personas": 2})
         self.assertIn("HAB-SINT-101", {i["habitacion_id"] for i in oferta.json()["oferta"]})
-        self.reservar(inicio="2027-06-02", fin="2027-06-03", nombre="Reemplazo")
+        self.reservar(inicio=str(_BASE + timedelta(days=1)), fin=str(_BASE + timedelta(days=2)), nombre="Reemplazo")
 
     def test_fuera_de_plazo_carga_la_primera_noche(self):
         manana = date.today() + timedelta(days=1)
@@ -476,7 +479,7 @@ class CancelacionTest(OperacionBaseTest):
             f"/hotel/reservas/{rid}/cancelacion", headers={"Idempotency-Key": self.clave()}).status_code, 409)
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (rid,))[0][0], "en_estadia")
 
-        rid2 = self.reservar(inicio="2027-06-10", fin="2027-06-12", nombre="Otra reserva")
+        rid2 = self.reservar(inicio=str(_BASE + timedelta(days=9)), fin=str(_BASE + timedelta(days=11)), nombre="Otra reserva")
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid2}/cancelacion", headers={"Idempotency-Key": "cancela-1"}).status_code, 200)
         # repetir con otra clave: 409 (estado) y sin reversos duplicados
@@ -486,7 +489,8 @@ class CancelacionTest(OperacionBaseTest):
             "SELECT count(*) FROM cargos WHERE reserva_id=%s AND tipo='reverso'", (rid2,))[0][0], 1)
 
     def test_con_pagos_el_neto_a_favor_se_confirma_sin_reembolso(self):
-        rid = self.reservar()
+        futuro = date.today() + timedelta(days=30)
+        rid = self.reservar(inicio=str(futuro), fin=str(futuro + timedelta(days=4)))
         self.pagar(rid, 200_000, "cobro-total")
         respuesta = self.cliente.post(
             f"/hotel/reservas/{rid}/cancelacion", headers={"Idempotency-Key": self.clave()})

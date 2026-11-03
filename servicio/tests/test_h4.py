@@ -1,6 +1,6 @@
 import os
 import unittest
-from datetime import date
+from datetime import date, timedelta
 
 import psycopg
 from fastapi.testclient import TestClient
@@ -17,7 +17,7 @@ URL_TEST = os.environ.get(
 )
 EMPRESA = "EMP-SINTETICA-001"
 ADMIN = ("admin", "clave-admin-sintetica")
-RANGO = {"inicio": "2026-11-10", "fin": "2026-11-12"}
+RANGO = {"inicio": str(date.today() - timedelta(days=20)), "fin": str(date.today() - timedelta(days=18))}
 
 
 class NucleoRechaza(Nucleo):

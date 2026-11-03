@@ -12,7 +12,7 @@ servicio. El dominio decide; la base de datos proyecta.
 | Sesión | Acceso vigente | `sid` en cookie HttpOnly/Secure (12 h), revocable individual o por usuario |
 | Habitación | Unidad vendible | doble estado (ver diagrama) + bandera de mantenimiento + tareas operativas |
 | Tarifa | Precio por noche | con vigencia: sin tarifa vigente no hay oferta ni reserva |
-| Reserva | Compromiso de estadía | ciclo de estados (ver diagrama); huésped con documento exigido a la entrada |
+| Reserva | Compromiso de estadía | ciclo de estados (ver diagrama); documento del huésped opcional (la entrada no lo exige en V1, ver «Entrada») |
 | Pago / Cargo | Movimientos de la cuenta | pagos manuales por rol autorizado; cargos en estadía (minibar etc.) |
 | Auditoría | Trazabilidad | actor, acción, recurso, resultado en cada mutación |
 
@@ -21,7 +21,7 @@ servicio. El dominio decide; la base de datos proyecta.
 ```mermaid
 stateDiagram-v2
     [*] --> confirmada : POST /hotel/reservas (con cupo y tarifa vigente)
-    confirmada --> en_estadia : entrada (documento + hora; habitación lista)
+    confirmada --> en_estadia : entrada (habitación lista)
     confirmada --> cancelada : cancelación (dentro de plazo sin cargo; fuera: primera noche)
     en_estadia --> finalizada : salida (liquidación)
     en_estadia --> cancelada : cancelación con saldo a favor (sin reembolso automático)
@@ -54,8 +54,15 @@ Proyección técnica: `estado_operativo` (disponible/ocupada) ×
 - **Turnover**: la limpieza completa solo cambia la preparación; las fechas de
   mantenimiento quedan intactas; unidad sucia hoy puede venderse en fecha
   futura.
-- **Entrada**: exige documento y hora de llegada; la noche se asienta al
-  check-in.
+- **Entrada** (corregido 2026-11-03, V1-ISSUE-14): exige la habitación lista
+  (sin mantenimiento abierto, ni `bloqueada` ni `fuera_de_servicio` —
+  `ocupada` no bloquea el turnover—, limpia o inspeccionada, sin otra estadía
+  solapada); **no** exige documento ni hora de llegada y se acepta
+  antes del día de inicio (contrato vigente, spec-api-v1 «Operación de la
+  habitación»). No asienta cargos: el alojamiento completo nace al confirmar
+  la reserva. El dominio en memoria sí exige 15:00 del día de inicio y
+  documento; adoptar esa regla es la DECISIÓN PENDIENTE D-ENT-01
+  (V1-ISSUE-07).
 - **Caja**: conciliación del día con pagos y cargos; solo roles autorizados.
 - **Idempotencia en todo POST de mutación** (cl `Idempotency-Key`): reintento
   seguro de red y de usuario; 409 ante clave reutilizada con cuerpo distinto.

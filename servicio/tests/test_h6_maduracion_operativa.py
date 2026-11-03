@@ -410,8 +410,18 @@ class MaduracionOperativaTest(unittest.TestCase):
         # documento es nullable y la hora de llegada no es condición HTTP.
         sin_doc = self.reservar("HAB-SINT-103", P1, P3, "Elías", documento=None, clave="r-sd")
         self.assertEqual(self.entrada(sin_doc, "ent-sd").status_code, 200)
+
+    def test_entrada_exige_que_la_reserva_haya_comenzado(self):
+        # REQUISITO PROPUESTO 2026-11-03 (v1-issue-07, en ratificación): la
+        # entrada exige inicio <= hoy; fuente: regla de llegada del dominio.
         futura = self.reservar("HAB-SINT-102", FUTURO, FUTURO_FIN, "Fito", clave="r-fu")
-        self.assertEqual(self.entrada(futura, "ent-fu").status_code, 200)
+        respuesta = self.entrada(futura, "ent-fu")
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertIn("día de entrada", respuesta.json()["detail"])
+        hoy = HOY.isoformat()
+        manana = (HOY + timedelta(days=2)).isoformat()
+        actual = self.reservar("HAB-SINT-102", hoy, manana, "Gabi", clave="r-ga")
+        self.assertEqual(self.entrada(actual, "ent-ga").status_code, 200)
 
     # ---- 5. cancelación (decide el dominio, sin reversos) ----
 

@@ -65,7 +65,7 @@ sequenceDiagram
     end
     U->>F: registrar pago (monto, modo)
     F->>S: POST /hotel/reservas/{id}/pagos
-    U->>F: entrada: documento + hora de llegada
+    U->>F: entrada (V1 sin exigir documento ni hora, D-ENT-01 pendiente)
     F->>S: POST /hotel/reservas/{id}/entrada
     S->>S: exige habitación lista (limpia, sin mantenimiento abierto)
     U->>F: cargos en estadía (minibar, etc.)

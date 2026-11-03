@@ -139,10 +139,30 @@ columnas y tabla — `habitaciones.mantenimiento boolean`, `tareas_operativas`
 
 - `POST /hotel/reservas/{id}/entrada` (ya publicada) queda así: en la misma
   transacción, si la habitación tiene mantenimiento abierto, su
-  `estado_operativo` no es `disponible`, su `estado_preparacion` no es
-  `limpia` ni `inspeccionada`, u otra reserva `en_estadia` ocupa esa
-  habitación → **409** y nada cambia. Si pasa: la reserva queda `en_estadia` y
-  `estado_operativo` pasa a `ocupada`.
+  `estado_operativo` es `bloqueada` o `fuera_de_servicio`, su
+  `estado_preparacion` no es `limpia` ni `inspeccionada`, u otra reserva
+  `en_estadia` de esa habitación solapa su rango → **409** y nada cambia. Si
+  pasa: la reserva queda `en_estadia` y `estado_operativo` pasa a `ocupada`.
+  - HECHO DOCUMENTADO (corregido 2026-11-03, V1-ISSUE-14; antes decía «no es
+    `disponible`»): `ocupada` no bloquea la entrada de una reserva no
+    solapada (turnover). Fuente: dominio `check_in` (solo `BLOQUEADA`/
+    `FUERA_DE_SERVICIO`), `cobro.entrada` y
+    `test_turnover_solape_sucia_limpieza_y_siguiente_checkin`. Efecto abierto
+    sobre la salida: V1-ISSUE-15.
+  - HECHO (contrato vigente, fijado por
+    `test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato`): la
+    entrada **no** exige documento del huésped ni la hora de llegada; se
+    acepta también antes del día de inicio. No asienta cargo: el alojamiento
+    completo nace al confirmar la reserva.
+  - HECHO DOCUMENTADO (dominio, especificación ejecutable según AGENTS.md):
+    `ServicioHotelInventario.check_in` rechaza antes de `inicio` a las
+    `HORA_LLEGADA` (15:00) y sin documento (`CheckInIncompleto`).
+  - DECISIÓN PENDIENTE D-ENT-01 (V1-ISSUE-07, propietario): ¿el contrato
+    adopta la regla del dominio (hora y documento), o se mantiene la entrada
+    sin esas condiciones? Mientras no se decida, rige el contrato vigente; no
+    se cambia el comportamiento por inferencia. Si se adopta, cambian también
+    los casos E2E que hoy entran antes de la fecha (EST-01/SAL-02 de
+    `e2e/e2e.mjs`).
 - `POST /hotel/reservas/{id}/salida` (ya publicada): con el saldo neto
   (cargo menos reverso) ya en cero, en la misma transacción: la reserva queda
   `finalizada`, `estado_operativo` vuelve a `disponible`,
@@ -265,7 +285,7 @@ el contrato:
 | `POST /hotel/reservas/{id}/pagos` | El núcleo registra el efecto. Si el núcleo rechaza, no hay pago. Cuerpo: `{monto_clp, clave, modo}`. `modo="manual"` (DECISIÓN, 2026-10-28): caja en efectivo o transferencia que recepción registra; solo roles recepción, caja o administrador; no consulta el banco y no queda conciliado. `modo="pasarela"` sin adaptador → 503 y nada marcado como cobrado. |
 | `POST /hotel/reservas/{id}/cargos` | Cargo de texto libre (minibar, consumo, extra). Roles recepción, caja o administrador; solo en `confirmada` o `en_estadia`; monto entero > 0 (si no, 422); otro estado → 409. Ver «Cargos de la estadía». |
 | `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con reversos y regla de 48 h (ver «Cancelación»). Roles recepción o administrador. |
-| `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, no disponible, sucia u otra estadía en la unidad bloquean → 409). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
+| `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **la reserva ya comenzó** (`inicio ≤ hoy` del servidor; si no → 409 «aún no llega su día de entrada» — REQUISITO PROPUESTO 2026-11-03 por v1-issue-07, en ratificación; fuente: regla de llegada del dominio `check_in`). Sin exigir documento del huésped (D-ENT-01 sigue pendiente). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
 | `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. La habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente. |
 | `POST /hotel/habitaciones/{id}/limpieza` | Completa la limpieza pendiente y, si estaba sucia, deja la unidad `limpia`. Roles recepción o administrador. |
 | `POST /hotel/habitaciones/{id}/mantenimiento` | Abre o cierra el mantenimiento de la unidad (con su tarea). Solo administrador. Con mantenimiento abierto la oferta no la incluye y la entrada responde 409. |

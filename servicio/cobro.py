@@ -112,6 +112,14 @@ def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> d
     _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     if _reserva[2] != "confirmada":
         raise TransicionInvalida(f"la reserva está {_reserva[2]}")
+    # REQUISITO PROPUESTO 2026-11-03 (v1-issue-07, en ratificación; fuente:
+    # regla de llegada del dominio check_in): la entrada exige que la reserva
+    # haya comenzado. Fecha del servidor, igual que la cancelación.
+    (inicio,) = conexion.execute(
+        "SELECT inicio FROM reservas WHERE id = %s", (reserva_id,)
+    ).fetchone()
+    if inicio > date.today():
+        raise TransicionInvalida(f"aún no llega su día de entrada ({inicio.isoformat()})")
     habitacion = conexion.execute(
         "SELECT estado_operativo, estado_preparacion, mantenimiento FROM habitaciones WHERE id = %s",
         (_reserva[1],),

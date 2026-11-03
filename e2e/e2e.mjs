@@ -28,7 +28,9 @@ import { fileURLToPath } from 'node:url'
 const FRONT = process.env.FRONT_URL || 'http://127.0.0.1:3000'
 const API = process.env.API_URL || 'http://127.0.0.1:8080'
 const HOY = new Date()
+const HOY_FECHA = HOY.toISOString().slice(0, 10)
 const EN_1_DIA = sumarDias(HOY, 1)
+const EN_3_DIAS = sumarDias(HOY, 3)
 const EN_30_DIAS = sumarDias(HOY, 30)
 const EN_33_DIAS = sumarDias(HOY, 33)
 const EN_40_DIAS = sumarDias(HOY, 40)
@@ -316,8 +318,8 @@ try {
       await page.goto(`${FRONT}/hotel/reserva`)
       await page.waitForTimeout(1500)
       await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_A)
-      await page.getByRole('textbox', { name: 'Desde' }).fill(EN_30_DIAS)
-      await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_33_DIAS)
+      await page.getByRole('textbox', { name: 'Desde' }).fill(HOY_FECHA)
+      await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_3_DIAS)
       await page.getByRole('textbox', { name: 'Huésped' }).fill('Huésped Sintético')
       await page.getByRole('button', { name: 'Confirmar reserva' }).click()
       await page.waitForTimeout(2000)
@@ -346,7 +348,7 @@ try {
       const r = await api('POST', '/hotel/reservas', {
         cookie: cookieRecepcion,
         clave: K('e2e-solape'),
-        cuerpo: { habitacion_id: HAB_A, inicio: EN_30_DIAS, fin: EN_33_DIAS, huesped: { nombre: 'Segunda Carrera' } },
+        cuerpo: { habitacion_id: HAB_A, inicio: HOY_FECHA, fin: EN_3_DIAS, huesped: { nombre: 'Segunda Carrera' } },
       })
       if (r.estado !== 409) throw new Error(`${r.estado} ${JSON.stringify(r.datos)}`)
       return r.datos.detail
@@ -436,6 +438,18 @@ try {
     if (hab101.estado_operativo !== 'ocupada') throw new Error(`estado: ${hab101.estado_operativo}`)
     return 'HAB-101 ocupada'
   })
+  await caso('EST-01b', '/hotel/estadia', 'check-in de una reserva que aún no comienza', 'recepcion', '409 «aún no llega su día de entrada» (v1-issue-07)', async () => {
+    const futura = await api('POST', '/hotel/reservas', {
+      cookie: cookieRecepcion,
+      clave: K('e2e-ent-futura'),
+      cuerpo: { habitacion_id: HAB_A, inicio: EN_40_DIAS, fin: sumarDias(HOY, 42), huesped: { nombre: 'Llegada Futura' } },
+    })
+    if (futura.estado !== 201) throw new Error(`no se creó: ${futura.estado}`)
+    const r = await api('POST', `/hotel/reservas/${futura.datos.reserva_id}/entrada`, { cookie: cookieRecepcion, clave: K('e2e-ent-futura-2'), cuerpo: {} })
+    if (r.estado !== 409) throw new Error(`esperado 409, llegó ${r.estado}: ${JSON.stringify(r.datos)}`)
+    if (!r.datos.detail || !r.datos.detail.includes('día de entrada')) throw new Error(`detalle: ${JSON.stringify(r.datos)}`)
+    return r.datos.detail
+  })
   await caso('EST-02', '/hotel/estadia', 'cargo de minibar en estadía', 'caja', '201 cargo; entra en la liquidación', async () => {
     const r = await api('POST', `/hotel/reservas/${reservaId}/cargos`, { cookie: cookieCaja, clave: K('e2e-cargo-1'), cuerpo: { concepto: 'minibar', monto_clp: 5000 } })
     if (r.estado !== 201) throw new Error(`${r.estado}`)
@@ -487,7 +501,7 @@ try {
     await caso('SAL-02', '/hotel/salida', 'pago del resto y liquidación', 'administrador', 'liquidación con saldo 0; unidad sucia + tarea', async () => {
       const detalle = await api('GET', `/hotel/reservas?texto=${reservaId}`, { cookie: cookieAdmin })
       const tarifa = detalle.datos.reservas[0].tarifa_noche_aceptada_clp
-      const noches = (new Date(EN_33_DIAS) - new Date(EN_30_DIAS)) / 86400000
+      const noches = (new Date(EN_3_DIAS) - new Date(HOY_FECHA)) / 86400000
       const total = tarifa * noches + 5000
       const pagado = 100000 + 5000
       const restante = total - pagado

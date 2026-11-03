@@ -70,10 +70,32 @@ requisito → spec → implementación → prueba en
 - [Hecha] `v1-oper-01` — mantenedor (alta solo-crear, edición auditada,
   tarifa append-only con desempate, baja lógica), detalle de reserva con
   cuenta, búsqueda por periodo, ocupación por noche y panel operativo.
-- [Lista, P1] `v1-issue-07` — check-in/salida sin la regla de fecha/hora ni
-  documento del dominio (hallazgo de la E2E).
+- [Bloqueada, P1] `v1-issue-07` — decisión D-ENT-01: ¿la entrada adopta la
+  regla de fecha/hora y documento del dominio? (reencuadrado por `v1-issue-14`).
 - [Lista, P2] `v1-issue-08..10` — decisiones pendientes del propietario
   (financieros y rol gerencia; personas/reasignación/tipos; tarifas
   superpuestas, mantenimiento programado, denominador y auditoría).
 - No cargados a GitHub Projects (sin acciones externas en esta sesión).
 
+
+## Revisión de integración y ciclo TDD (2026-11-03, tarde)
+
+Revisión de solo lectura de la operación del hotel (con dos corridas de
+Gemini 4 Argon vía `agy` sobre copias aisladas) y primer ciclo TDD.
+
+- [Hecha, P1] `v1-issue-12` — `POST /hotel/reservas` rechaza (409) una
+  habitación fuera del cupo, como la oferta y el dominio (spec-hotel-operacion
+  §2.7, CA-HAB-07). RED/GREEN en servicio (5) y E2E (`e2e-reserva-vendible.mjs`,
+  3); regresión 155/155, 44/44 y 16/16. El código quedó dentro del commit
+  local `ca2e40a` de otro trabajo; la E2E y este registro, sin commit.
+- [Lista, P2] `v1-issue-13` — renovar la clave de idempotencia tras un 4xx.
+- [Hecha, P1] `v1-issue-14` — `v1-issue-07` reencuadrado como decisión
+  D-ENT-01 (ahora Bloqueada, a la espera del propietario); spec-api-v1,
+  spec-hotel-operacion §7, `docs/funcional/dominio.md` y `flujos.md` describen
+  la entrada tal como la fija el contrato vigente (sin cambio de comportamiento).
+- [Bloqueada] `v1-issue-15` (salida con otra estadía, depende de 07),
+  `v1-issue-16` (roles de entrada/salida), `v1-issue-17` (tarifa de estadías
+  que cruzan periodos), `v1-issue-18` (orden de despliegue y empates de
+  tarifas en producción; requiere autorización).
+- [Lista, P3] `v1-issue-19` — deuda documental.
+- No cargados a GitHub Projects (sin acciones externas): falta sincronizar.

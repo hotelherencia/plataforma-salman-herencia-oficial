@@ -610,10 +610,10 @@
  },
  {
   "id": "v1-issue-07",
-  "title": "[Issue] V1-ISSUE-07 — Check-in y salida del servicio no aplican la regla de fecha/hora ni de documento del dominio",
-  "body": "Fuente: E2E de operación 2026-11-03 (IND-01, segunda corrida). HECHO: el dominio `ServicioHotelInventario.check_in` rechaza la entrada antes de las 15:00 del día de llegada (`HORA_LLEGADA`) y sin documento del huésped; `servicio/cobro.entrada` no valida fecha ni documento, y `salida` no valida fecha. Consecuencia observada: `e2e/e2e.mjs` (EST-01/SAL-02) hace check-in y liquida hoy una reserva que empieza en 30 días; queda `finalizada` sin noches ocupadas y la habitación pasa por `ocupada`/`sucia` fuera de fecha. El panel lo trata bien (fin efectivo = fecha de liquidación, spec-hotel-operacion-v1 §4.3), pero la operación diverge de la especificación ejecutable. Corregir en `cobro.entrada` (409) y ajustar los casos E2E que entran antes de fecha. DECISIÓN PENDIENTE asociada: ¿se permite salida anticipada y con qué efecto en la cuenta?",
+  "title": "[Issue] V1-ISSUE-07 — Decisión D-ENT-01: ¿la entrada (y la salida) adoptan la regla de fecha/hora y documento del dominio?",
+  "body": "Reencuadrado 2026-11-03 (V1-ISSUE-14): no es un defecto contra el contrato sino una DECISIÓN PENDIENTE del propietario. HECHO (contrato vigente): spec-api-v1 «Operación de la habitación» enumera las causas de rechazo de la entrada sin hora ni documento, y test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato (test_h6) fija 200 sin documento y antes de la fecha. HECHO DOCUMENTADO (dominio): ServicioHotelInventario.check_in rechaza antes de inicio 15:00 (HORA_LLEGADA) y sin documento. Consecuencia observada: e2e/e2e.mjs (EST-01/SAL-02) hace check-in y liquida hoy una reserva que empieza en 30 días; el panel lo acota con la fecha de liquidación (spec-hotel-operacion-v1 §4.3). Preguntas al propietario: (1) ¿la entrada exige 15:00 del día de inicio? (2) ¿exige documento, y qué pasa si falta (rechazo o ingreso incompleto derivado a recepción, como el dominio)? (3) ¿se permite salida anticipada y con qué efecto en la cuenta? Si se adopta: cambio de contrato en spec-api-v1, test_h6 y casos E2E que entran antes de fecha. Mientras tanto no se cambia el comportamiento. Antes decía «corregir en cobro.entrada (409)»: eso rompería el contrato vigente.\n\n**Avance 2026-11-03:** implementada la mitad operativa sin ambigüedad — la entrada exige que la reserva haya comenzado (inicio ≤ hoy del servidor; 409 «aún no llega su día de entrada»), alineada con la regla de llegada del dominio. Spec-api-v1 actualizado como REQUISITO PROPUESTO en ratificación; prueba unitaria test_entrada_exige_que_la_reserva_haya_comenzado y caso E2E EST-01b en verde (servicio 156/156, E2E 45/45 + 16/16). La salida no valida fecha en el dominio tampoco (sin divergencia). LO QUE SIGUE PENDIENTE (decisión de producto, no se inventa): exigir documento del huésped en la entrada — hoy el front no lo recoge y el contrato lo mantiene opcional (D-ENT-01).",
   "tipo": "Tarea",
-  "estado": "Lista",
+  "estado": "Bloqueada",
   "prioridad": "P1",
   "vertical": "hotel",
   "padre": null,
@@ -659,6 +659,96 @@
   "tipo": "Tarea",
   "estado": "Hecha",
   "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-12",
+  "title": "[Issue] V1-ISSUE-12 — Reserva sobre habitación fuera del cupo (retirada, bloqueada o en mantenimiento)",
+  "body": "Objetivo: POST /hotel/reservas aplica la misma regla de cupo que la oferta. HECHO DOCUMENTADO: el dominio rechaza reservar una unidad no vendible (ServicioHotelInventario.reservar → ESTADO_NO_VENDIBLE) y spec-api-v1 dice que el mantenimiento saca la unidad del cupo; crear_reserva no miraba el estado, así que /hotel/reserva (campo de texto libre) confirmaba reservas en una habitación retirada que después no podía hacer check-in. Spec: spec-hotel-operacion-v1 §2.7 y CA-HAB-07; fila POST /hotel/reservas de spec-api-v1. Cambio: reservas.HabitacionNoVendible; crear_reserva lee estado_operativo/mantenimiento tras el FOR UPDATE → 409 {detail}; aplicacion.py lo mapea. Front sin cambios (muestra el detail). Pruebas: servicio/tests/test_reserva_vendible.py (5: retirada→409 sin reserva/cargo/auditoría y reincorporada→201; bloqueada y mantenimiento→409 para admin y recepción; ocupada/sucia siguen vendibles; el 409 queda asociado a su clave; retiro y reserva concurrentes se serializan). RED verificado (201 en vez de 409); GREEN 5/5; mutaciones (leer el estado antes del cerrojo; ignorar mantenimiento) detectadas. Regresión servicio 155/155 en base dedicada. E2E e2e/e2e-reserva-vendible.mjs (RV-01..03, desde el menú): RED 0/3 contra 938d0b0 y GREEN 3/3 contra ca2e40a; e2e.mjs 44/44 y e2e-operacion.mjs 16/16 desde copias en scratch (sin escribir resultados compartidos). Evidencia: capturas/e2e-2026-11-03/rv-01..02*.png, e2e/e2e-reserva-vendible-resultados.json. Nota de integración: el código, la spec y las pruebas unitarias quedaron dentro del commit local ca2e40a (v1-issue-11) de otro trabajo; la E2E y este registro siguen sin commit. Limitación: el estado no tiene fechas (D-OCU-01), igual que la oferta.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-13",
+  "title": "[Issue] V1-ISSUE-13 — Front: renovar la clave de idempotencia tras un rechazo definitivo (4xx)",
+  "body": "Objetivo: que reintentar una acción después de corregir su causa la ejecute. HECHO: idempotencia.ejecutar guarda cualquier respuesta, también los 409; las fichas solo renuevan la clave tras 2xx (front/app/hotel/habitaciones/[id]/page.js enviar()). Caso: retiro → 409 reservas_vigentes → se cancela la reserva → reintento en la misma ficha devuelve el 409 guardado. REQUISITO PROPUESTO (spec-front-v1): tras 4xx de negocio se renueva la clave; tras error de red se conserva. Archivos: front/app/hotel/**/page.js, front/lib/api.js (useClaveOperacion). Riesgo: no renovar ante fallo de red (duplicaría). Criterio/prueba: E2E retiro 409 → cancelar → reintento sin recargar → 200; unittest no aplica (la API ya es correcta).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-14",
+  "title": "[Issue] V1-ISSUE-14 — Corregir el encuadre de V1-ISSUE-07 y docs/funcional/dominio.md (check-in)",
+  "body": "Objetivo: que la documentación no afirme reglas que el código no aplica. HECHO: spec-api-v1 «Operación de la habitación» enumera las causas de rechazo de la entrada sin hora ni documento, y test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato (test_h6, d101569) lo fija; el dominio exige 15:00 y documento. V1-ISSUE-07 pide «corregir en cobro.entrada (409)», lo que rompería el contrato vigente: debe quedar como DECISIÓN PENDIENTE del propietario (¿se adopta la regla del dominio en el contrato?). docs/funcional/dominio.md:24,57 dice HECHO DOCUMENTADO «entrada exige documento + hora» y no es lo que hace PostgreSQL. Solo documentación; sin cambio de comportamiento. Resultado (2026-11-03): spec-api-v1 registra D-ENT-01 junto a la cláusula de entrada (HECHO contrato vigente / HECHO dominio / DECISIÓN PENDIENTE) y corrige dos imprecisiones: la entrada no exige estado `disponible` (bloquean `bloqueada`/`fuera_de_servicio`; `ocupada` no bloquea el turnover, fuente: dominio check_in, cobro.entrada y test_turnover_solape_sucia_limpieza_y_siguiente_checkin) y la fila de la tabla. spec-hotel-operacion-v1 §7 agrega D-ENT-01. docs/funcional/dominio.md (tabla, diagrama y regla «Entrada», que además decía «la noche se asienta al check-in»: el alojamiento nace al confirmar) y flujos.md quedan alineados. Evidencia: test_h6 23/23 contra ca2e40a (incluye test_entrada_no_exige… y test_turnover…); estático: cobro.entrada no inserta cargos y crear_reserva sí. Sin cambio de comportamiento, sin prueba nueva. NO VERIFICADO: el render de los dos diagramas Mermaid editados (sin validador local; solo cambió el texto de etiquetas).",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-15",
+  "title": "[Issue] V1-ISSUE-15 — La salida deja la habitación disponible aunque otra estadía siga en curso",
+  "body": "HECHO: cobro.entrada permite dos reservas en_estadia en la misma habitación si sus rangos no se solapan; cobro.salida fija estado_operativo=disponible y sucia sin mirar si queda otra estadía. Depende de la decisión de V1-ISSUE-07 (si la entrada se limita a la fecha de llegada, el caso casi desaparece). Criterio: con otra en_estadia en la unidad, la salida no la marca disponible. Pruebas: unittest de servicio + releer habitación.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-07"
+  ]
+ },
+ {
+  "id": "v1-issue-16",
+  "title": "[Issue] V1-ISSUE-16 — Decisión: roles del check-in y la salida",
+  "body": "HECHO: POST /hotel/reservas/{id}/entrada y /salida no llaman _exigir_rol (cualquier rol con sesión, incluida caja); ninguna spec asigna roles a esas operaciones. DECISIÓN PENDIENTE del propietario: ¿quién registra entrada y salida? Sin decisión no se cambia el comportamiento.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-17",
+  "title": "[Issue] V1-ISSUE-17 — Decisión: tarifa de estadías que cruzan dos periodos de tarifa",
+  "body": "HECHO: oferta y crear_reserva usan la tarifa vigente de la noche de inicio × noches; la ocupación evalúa la tarifa noche por noche (sin_tarifa), igual que el dominio en buscar_disponibilidad. Una estadía que empieza con tarifa y sigue en noches sin tarifa se vende igual. DECISIÓN PENDIENTE: ¿una sola tarifa congelada (la de inicio) o suma por noche? Relacionada con D-TAR-01.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-18",
+  "title": "[Issue] V1-ISSUE-18 — Integración: orden de despliegue y empates de tarifas existentes",
+  "body": "HECHO: las migraciones corren al arrancar la API (aplicacion.py) en una transacción y sin cerrojo; Railway puede quedar en NEEDS_APPROVAL (h7-despliegue.md) mientras Vercel publica un front que llama a /hotel/indicadores, /hotel/ocupacion y fichas que la API anterior no tiene. 0009 rellena tarifas.creado_en en orden físico: si producción tiene tarifas de una misma habitación con igual fecha_desde, la vigente podría cambiar. NO VERIFICADO: requiere una consulta de solo lectura en producción (autorización). Propuesta: desplegar Railway primero, verificar /salud y la migración, después Vercel. Requiere autorización del propietario.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-19",
+  "title": "[Issue] V1-ISSUE-19 — Deuda documental: hotel_sql.py sin uso, diagramas del destino anterior, rutas fuera de la tabla",
+  "body": "HECHO: servicio/hotel_sql.py no lo importa ningún módulo y su docstring dice que el dominio decide cada operación HTTP; los flujo-0*.mmd describen el destino sustituido (AGENTS.md) y ninguno cubre la operación nueva; spec-api-v1 dice «nada fuera de la tabla existe» pero existen GET /sesion, GET /cuenta/2fa/qr y GET /salud; INFORME-operacion.md llama V1-ISSUE-08 al aislamiento de pruebas (es V1-ISSUE-11). Solo documentación.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P3",
   "vertical": "transversal",
   "padre": null,
   "depende_de": []

@@ -77,7 +77,7 @@
     "flujo": "inventario refleja la semilla",
     "rol": "administrador",
     "esperado": "las 3 habitaciones sembradas listadas con tarifa ref.",
-    "observado": "26 unidades (3 sembradas + sintéticas del dominio)",
+    "observado": "42 unidades (3 sembradas + sintéticas del dominio)",
     "estado": "APROBADO"
   },
   {
@@ -86,7 +86,7 @@
     "flujo": "alta desde la UI aparece en el inventario",
     "rol": "administrador",
     "esperado": "HAB-201 creada y listada",
-    "observado": "HAB-mw0wtjon-201 listada tras el alta",
+    "observado": "HAB-mw104qvs-201 listada tras el alta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "caja lee el inventario",
     "rol": "caja",
     "esperado": "200 con las unidades",
-    "observado": "27 unidades visibles",
+    "observado": "43 unidades visibles",
     "estado": "APROBADO"
   },
   {
@@ -131,7 +131,7 @@
     "flujo": "consulta de oferta",
     "rol": "administrador",
     "esperado": "200 solo disponibles, con tarifa y vencimiento",
-    "observado": "11 unidades con tarifa y vigencia",
+    "observado": "18 unidades con tarifa y vigencia",
     "estado": "APROBADO"
   },
   {
@@ -140,7 +140,7 @@
     "flujo": "consulta de oferta",
     "rol": "recepcion",
     "esperado": "200 solo disponibles, con tarifa y vencimiento",
-    "observado": "11 unidades con tarifa y vigencia",
+    "observado": "18 unidades con tarifa y vigencia",
     "estado": "APROBADO"
   },
   {
@@ -149,7 +149,7 @@
     "flujo": "consulta de oferta",
     "rol": "caja",
     "esperado": "200 solo disponibles, con tarifa y vencimiento",
-    "observado": "11 unidades con tarifa y vigencia",
+    "observado": "18 unidades con tarifa y vigencia",
     "estado": "APROBADO"
   },
   {
@@ -158,7 +158,7 @@
     "flujo": "crear reserva desde la UI",
     "rol": "recepcion",
     "esperado": "201 confirmada; aparece en la búsqueda",
-    "observado": "Reserva RSV-63de250e424b: estado «confirmada»",
+    "observado": "Reserva RSV-f01927d2d4de: estado «confirmada»",
     "estado": "APROBADO"
   },
   {
@@ -167,7 +167,7 @@
     "flujo": "reserva sin tarifa vigente es rechazada",
     "rol": "recepcion",
     "esperado": "409 con mensaje «sin tarifa vigente»",
-    "observado": "sin tarifa vigente para HAB-mw0wtjon-201 en 2026-12-03",
+    "observado": "sin tarifa vigente para HAB-mw104qvs-201 en 2026-12-03",
     "estado": "APROBADO"
   },
   {
@@ -176,7 +176,7 @@
     "flujo": "solape en misma unidad y fechas",
     "rol": "recepcion",
     "esperado": "409 sin cupo (la carrera la gana una)",
-    "observado": "sin cupo para HAB-mw0wtjon-A en [2026-12-03, 2026-12-06)",
+    "observado": "sin cupo para HAB-mw104qvs-A en [2026-11-03, 2026-11-06)",
     "estado": "APROBADO"
   },
   {
@@ -203,7 +203,7 @@
     "flujo": "la página nace con reservas listadas",
     "rol": "caja",
     "esperado": "tabla visible al entrar, sin buscar",
-    "observado": "22 reserva(s) encontrada(s)",
+    "observado": "39 reserva(s) encontrada(s)",
     "estado": "APROBADO"
   },
   {
@@ -212,7 +212,7 @@
     "flujo": "pago manual de caja registra efecto",
     "rol": "caja",
     "esperado": "201 confirmado; la caja del día lo lista",
-    "observado": "Pago PAG-ab95595506a9 de $100000: estado «confirmado»",
+    "observado": "Pago PAG-3646b3576110 de $100000: estado «confirmado»",
     "estado": "APROBADO"
   },
   {
@@ -230,7 +230,7 @@
     "flujo": "pago duplicado con misma clave y cuerpo",
     "rol": "caja",
     "esperado": "mismo resultado, un solo efecto",
-    "observado": "mismo pago PAG-1342e93022e4",
+    "observado": "mismo pago PAG-5a374de07865",
     "estado": "APROBADO"
   },
   {
@@ -243,12 +243,21 @@
     "estado": "APROBADO"
   },
   {
+    "id": "EST-01b",
+    "ruta": "/hotel/estadia",
+    "flujo": "check-in de una reserva que aún no comienza",
+    "rol": "recepcion",
+    "esperado": "409 «aún no llega su día de entrada» (v1-issue-07)",
+    "observado": "aún no llega su día de entrada (2026-12-13)",
+    "estado": "APROBADO"
+  },
+  {
     "id": "EST-02",
     "ruta": "/hotel/estadia",
     "flujo": "cargo de minibar en estadía",
     "rol": "caja",
     "esperado": "201 cargo; entra en la liquidación",
-    "observado": "CRG-c443e38778bc",
+    "observado": "CRG-d897b978b95c",
     "estado": "APROBADO"
   },
   {
@@ -293,7 +302,7 @@
     "flujo": "pago del resto y liquidación",
     "rol": "administrador",
     "esperado": "liquidación con saldo 0; unidad sucia + tarea",
-    "observado": "Reserva RSV-63de250e424b: estado «liquidada»; HAB-101 sucia con tarea",
+    "observado": "Reserva RSV-f01927d2d4de: estado «liquidada»; HAB-101 sucia con tarea",
     "estado": "APROBADO"
   },
   {
@@ -311,7 +320,7 @@
     "flujo": "caja ve los pagos del día",
     "rol": "caja",
     "esperado": "200 con total y pagos",
-    "observado": "total $465000 en 9 pago(s)",
+    "observado": "total $930000 en 18 pago(s)",
     "estado": "APROBADO"
   },
   {
