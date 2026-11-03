@@ -321,6 +321,7 @@ try {
       await page.getByRole('textbox', { name: 'Desde' }).fill(HOY_FECHA)
       await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_3_DIAS)
       await page.getByRole('textbox', { name: 'Huésped' }).fill('Huésped Sintético')
+      await page.getByRole('textbox', { name: /Documento/ }).fill('E2E-DOC-123')
       await page.getByRole('button', { name: 'Confirmar reserva' }).click()
       await page.waitForTimeout(2000)
       const conf = await confirmacion(page)
@@ -367,7 +368,7 @@ try {
     const conCaja = await api('GET', `/hotel/reservas?texto=${reservaId}`, { cookie: cookieCaja })
     const docRecep = conRecepcion.datos.reservas[0].huesped_documento
     const docCaja = conCaja.datos.reservas[0].huesped_documento
-    if (docRecep === undefined) throw new Error('recepcion no recibió documento')
+    if (docRecep !== 'E2E-DOC-123') throw new Error(`recepcion no recibió el documento enviado: ${docRecep}`)
     if (docCaja !== undefined && docCaja !== null) throw new Error('caja recibió documento')
     return `recepcion:${String(docRecep)} caja:${String(docCaja)}`
   })

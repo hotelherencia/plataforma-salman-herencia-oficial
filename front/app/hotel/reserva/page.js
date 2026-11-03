@@ -9,6 +9,7 @@ export default function Reserva() {
     inicio: '2026-12-10',
     fin: '2026-12-12',
     nombre: 'Huésped Web',
+    documento: '',
   })
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
@@ -28,7 +29,10 @@ export default function Reserva() {
           habitacion_id: campos.habitacion_id,
           inicio: campos.inicio,
           fin: campos.fin,
-          huesped: { nombre: campos.nombre },
+          huesped: {
+            nombre: campos.nombre,
+            ...(campos.documento.trim() ? { documento: campos.documento.trim() } : {}),
+          },
         },
       })
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado)) // 409 incluido: la clave se conserva
@@ -55,6 +59,7 @@ export default function Reserva() {
           <Campo etiqueta="Desde" type="date" value={campos.inicio} onChange={(e) => setCampos({ ...campos, inicio: e.target.value })} />
           <Campo etiqueta="Hasta" type="date" value={campos.fin} onChange={(e) => setCampos({ ...campos, fin: e.target.value })} />
           <Campo etiqueta="Huésped" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
+          <Campo etiqueta="Documento (opcional)" value={campos.documento} onChange={(e) => setCampos({ ...campos, documento: e.target.value })} />
           <button type="submit" className="boton-primario">Confirmar reserva</button>
         </form>
       </section>
@@ -62,18 +67,6 @@ export default function Reserva() {
       <button onClick={nuevaOperacion} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
-      {salida && (
-        <a
-          className="boton-primario enlace-salida"
-          target="_blank"
-          rel="noopener noreferrer"
-          href={`https://wa.me/56956491501?text=${encodeURIComponent(
-            `Reserva ${salida.reserva_id} confirmada: habitación ${salida.habitacion_id}, del ${salida.inicio} al ${salida.fin}. Huésped: ${campos.nombre}.`
-          )}`}
-        >
-          Avisar por WhatsApp
-        </a>
-      )}
     </MarcoHotel>
   )
 }
