@@ -14,7 +14,7 @@
     "flujo": "alta duplicada no sobrescribe (If-None-Match)",
     "rol": "administrador",
     "esperado": "alerta «ya existe»; tipo y capacidad intactos",
-    "observado": "la habitación HAB-mw10me9n-M ya existe",
+    "observado": "la habitación HAB-mw10urhj-M ya existe",
     "estado": "APROBADO"
   },
   {
@@ -32,7 +32,7 @@
     "flujo": "editar tipo y capacidad con reserva previa",
     "rol": "administrador",
     "esperado": "cambio aplicado y auditado; reserva intacta",
-    "observado": "Habitación HAB-mw10me9n-M: tipo doble → suite · capacidad 2 → 3",
+    "observado": "Habitación HAB-mw10urhj-M: tipo doble → suite · capacidad 2 → 3",
     "estado": "APROBADO"
   },
   {
@@ -50,7 +50,7 @@
     "flujo": "retiro bloqueado por reserva vigente",
     "rol": "administrador",
     "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
-    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-0f156997ae32",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-73b911f9f155",
     "estado": "APROBADO"
   },
   {
@@ -113,7 +113,7 @@
     "flujo": "cada noche «disponible» coincide con la oferta de esa noche",
     "rol": "caja",
     "esperado": "consistencia total ocupación ↔ oferta en 10 noches",
-    "observado": "510 celdas consistentes con la oferta",
+    "observado": "550 celdas consistentes con la oferta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "panel coincide con un recuento independiente",
     "rol": "administrador",
     "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
-    "observado": "en_casa 0, llegadas 0, noches 27, ocupación reservada 4.8 %",
+    "observado": "en_casa 0, llegadas 0, noches 30, ocupación reservada 5.0 %",
     "estado": "APROBADO"
   },
   {
@@ -141,6 +141,15 @@
     "rol": "anónimo",
     "esperado": "401 en indicadores, ocupación, ficha y detalle",
     "observado": "401 ×4",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "IND-04",
+    "ruta": "/hotel/panel",
+    "flujo": "filtro por tipo de habitación recalcula el panel",
+    "rol": "administrador",
+    "esperado": "las tarjetas cambian al filtrar por un tipo existente",
+    "observado": "sin filtro 55 → solo «simple» 8",
     "estado": "APROBADO"
   }
 ]

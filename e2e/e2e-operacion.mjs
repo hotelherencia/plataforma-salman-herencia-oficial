@@ -417,6 +417,20 @@ try {
     esperar(estados.every((e) => e === 401), estados.join(','))
     return '401 ×4'
   })
+
+  await caso('IND-04', '/hotel/panel', 'filtro por tipo de habitación recalcula el panel', 'administrador', 'las tarjetas cambian al filtrar por un tipo existente', async () => {
+    const page = await paginaDe(ADMIN)
+    await page.goto(`${FRONT}/hotel/panel`)
+    await page.waitForTimeout(2500)
+    const total = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/HABITACIONES REGISTRADAS\s*(\d+)/)?.[1])
+    await page.getByRole('combobox', { name: /TIPO DE HABITACIÓN/i }).selectOption('simple')
+    await page.getByRole('button', { name: 'Actualizar' }).click()
+    await page.waitForTimeout(2500)
+    const filtrado = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/HABITACIONES REGISTRADAS\s*(\d+)/)?.[1])
+    await page.context().close()
+    esperar(total && filtrado && total !== filtrado, `sin filtro ${total} / con filtro ${filtrado}`)
+    return `sin filtro ${total} → solo «simple» ${filtrado}`
+  })
   await admin.close()
 } finally {
   await navegador.close()
