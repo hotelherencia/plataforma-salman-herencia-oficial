@@ -1,0 +1,371 @@
+[
+  {
+    "id": "ACC-01",
+    "ruta": "/login",
+    "flujo": "login admin redirige a la plataforma",
+    "rol": "administrador",
+    "esperado": "200 y home con empresa y módulos",
+    "observado": "home con sesión admin",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "ACC-02",
+    "ruta": "/login",
+    "flujo": "clave inválida no abre sesión y avisa",
+    "rol": "anónimo",
+    "esperado": "401 y mensaje de credenciales inválidas",
+    "observado": "Credenciales inválidas o sesión no disponible.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "ACC-03",
+    "ruta": "/hotel/oferta",
+    "flujo": "ruta hotel sin sesión pide login",
+    "rol": "anónimo",
+    "esperado": "mensaje «Sesión cerrada», sin datos",
+    "observado": "pide inicio de sesión",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "ACC-04",
+    "ruta": "/cuenta",
+    "flujo": "estado 2FA visible",
+    "rol": "administrador",
+    "esperado": "muestra «Estado: desactivado» y alta disponible",
+    "observado": "estado 2FA desactivado visible",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "ACC-05",
+    "ruta": "/login",
+    "flujo": "botón Google oculto sin adaptador",
+    "rol": "anónimo",
+    "esperado": "sin botón «Entrar con Google» (configurado:false)",
+    "observado": "sin botón Google",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "CER-CAF",
+    "ruta": "/cafeteria",
+    "flujo": "módulo cerrado no operable",
+    "rol": "administrador",
+    "esperado": "aviso de fuera de la versión, sin formularios ni fetch",
+    "observado": "presentado como fuera de la versión, sin operación",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "CER-INM",
+    "ruta": "/inmobiliaria",
+    "flujo": "módulo cerrado no operable",
+    "rol": "administrador",
+    "esperado": "aviso de fuera de la versión, sin formularios ni fetch",
+    "observado": "presentado como fuera de la versión, sin operación",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "CER-CON",
+    "ruta": "/constructora",
+    "flujo": "módulo cerrado no operable",
+    "rol": "administrador",
+    "esperado": "aviso de fuera de la versión, sin formularios ni fetch",
+    "observado": "presentado como fuera de la versión, sin operación",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "HAB-01",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "inventario refleja la semilla",
+    "rol": "administrador",
+    "esperado": "las 3 habitaciones sembradas listadas con tarifa ref.",
+    "observado": "6 unidades (3 sembradas + sintéticas del dominio)",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "HAB-02",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "alta desde la UI aparece en el inventario",
+    "rol": "administrador",
+    "esperado": "HAB-201 creada y listada",
+    "observado": "HAB-201 listada tras el alta",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "HAB-03",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "abrir mantenimiento excluye de la oferta",
+    "rol": "administrador",
+    "esperado": "oferta sin HAB-103; al cerrar vuelve",
+    "observado": "oferta excluye/incluye según mantenimiento",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "HAB-04",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "recepción no puede abrir mantenimiento",
+    "rol": "recepcion",
+    "esperado": "403 «acceso denegado»",
+    "observado": "403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "HAB-05",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "caja no puede completar limpieza",
+    "rol": "caja",
+    "esperado": "403 «acceso denegado»",
+    "observado": "403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "HAB-06",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "caja lee el inventario",
+    "rol": "caja",
+    "esperado": "200 con las unidades",
+    "observado": "7 unidades visibles",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OFE-ADM",
+    "ruta": "/hotel/oferta",
+    "flujo": "consulta de oferta",
+    "rol": "administrador",
+    "esperado": "200 solo disponibles, con tarifa y vencimiento",
+    "observado": "2 unidades con tarifa y vigencia",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OFE-REC",
+    "ruta": "/hotel/oferta",
+    "flujo": "consulta de oferta",
+    "rol": "recepcion",
+    "esperado": "200 solo disponibles, con tarifa y vencimiento",
+    "observado": "2 unidades con tarifa y vigencia",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OFE-CAJ",
+    "ruta": "/hotel/oferta",
+    "flujo": "consulta de oferta",
+    "rol": "caja",
+    "esperado": "200 solo disponibles, con tarifa y vencimiento",
+    "observado": "2 unidades con tarifa y vigencia",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "RES-01",
+    "ruta": "/hotel/reserva",
+    "flujo": "crear reserva desde la UI",
+    "rol": "recepcion",
+    "esperado": "201 confirmada; aparece en la búsqueda",
+    "observado": "Reserva RSV-af8094e3611e: estado «confirmada»",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "RES-02",
+    "ruta": "/hotel/reserva",
+    "flujo": "reserva sin tarifa vigente es rechazada",
+    "rol": "recepcion",
+    "esperado": "409 con mensaje «sin tarifa vigente»",
+    "observado": "sin tarifa vigente para HAB-201 en 2026-12-03",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "RES-03",
+    "ruta": "/hotel/reserva",
+    "flujo": "solape en misma unidad y fechas",
+    "rol": "recepcion",
+    "esperado": "409 sin cupo (la carrera la gana una)",
+    "observado": "sin cupo para HAB-101 en [2026-12-03, 2026-12-06)",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "BUS-01",
+    "ruta": "/hotel/reservas",
+    "flujo": "filtro de estado inválido",
+    "rol": "administrador",
+    "esperado": "422 «estado inválido»",
+    "observado": "estado inválido",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "BUS-02",
+    "ruta": "/hotel/reservas",
+    "flujo": "documento del huésped por rol",
+    "rol": "recepcion vs caja",
+    "esperado": "recepcion lo ve; caja no",
+    "observado": "recepcion:null caja:undefined",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "BUS-03",
+    "ruta": "/hotel/reservas",
+    "flujo": "la página nace con reservas listadas",
+    "rol": "caja",
+    "esperado": "tabla visible al entrar, sin buscar",
+    "observado": "1 reserva(s) encontrada(s)",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "PAG-01",
+    "ruta": "/hotel/pago",
+    "flujo": "pago manual de caja registra efecto",
+    "rol": "caja",
+    "esperado": "201 confirmado; la caja del día lo lista",
+    "observado": "Pago PAG-3f1c59f0a847 de $100000: estado «confirmado»",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "PAG-02",
+    "ruta": "/hotel/pago",
+    "flujo": "pasarela sin adaptador",
+    "rol": "caja",
+    "esperado": "503 «no configurado», nada cobrado",
+    "observado": "La pasarela no está configurada: nada quedó marcado como cobrado.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "PAG-03",
+    "ruta": "/hotel/pago",
+    "flujo": "pago duplicado con misma clave y cuerpo",
+    "rol": "caja",
+    "esperado": "mismo resultado, un solo efecto",
+    "observado": "mismo pago PAG-057fe50b8e82",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "EST-01",
+    "ruta": "/hotel/estadia",
+    "flujo": "check-in deja la unidad ocupada",
+    "rol": "recepcion",
+    "esperado": "reserva en_estadia; inventario «ocupada»",
+    "observado": "HAB-101 ocupada",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "EST-02",
+    "ruta": "/hotel/estadia",
+    "flujo": "cargo de minibar en estadía",
+    "rol": "caja",
+    "esperado": "201 cargo; entra en la liquidación",
+    "observado": "CRG-4a160ebcfbf4",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "EST-03",
+    "ruta": "/hotel/estadia",
+    "flujo": "cargo con monto inválido",
+    "rol": "recepcion",
+    "esperado": "422",
+    "observado": "422",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "EST-04",
+    "ruta": "/hotel/estadia",
+    "flujo": "caja no puede cancelar",
+    "rol": "caja",
+    "esperado": "403 (cancelación: recepción o admin)",
+    "observado": "403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "EST-05",
+    "ruta": "/hotel/estadia",
+    "flujo": "cancelación fuera de plazo carga la primera noche",
+    "rol": "recepcion",
+    "esperado": "409 (solo desde confirmada) + penalidad en otra",
+    "observado": "en_estadia→409; corta→cancelada con penalidad 35000",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "SAL-01",
+    "ruta": "/hotel/salida",
+    "flujo": "salida con saldo pendiente es bloqueada",
+    "rol": "administrador",
+    "esperado": "409 «saldo pendiente»",
+    "observado": "la cuenta tiene saldo pendiente de 50000 CLP",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "SAL-02",
+    "ruta": "/hotel/salida",
+    "flujo": "pago del resto y liquidación",
+    "rol": "administrador",
+    "esperado": "liquidación con saldo 0; unidad sucia + tarea",
+    "observado": "Reserva RSV-af8094e3611e: estado «liquidada»; HAB-101 sucia con tarea",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "CAJ-01",
+    "ruta": "/hotel/caja",
+    "flujo": "recepción no lee la caja",
+    "rol": "recepcion",
+    "esperado": "403 en la API",
+    "observado": "403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "CAJ-02",
+    "ruta": "/hotel/caja",
+    "flujo": "caja ve los pagos del día",
+    "rol": "caja",
+    "esperado": "200 con total y pagos",
+    "observado": "total $155000 en 3 pago(s)",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "USR-01",
+    "ruta": "/hotel/usuarios",
+    "flujo": "alta y listado con «Usar id»",
+    "rol": "administrador",
+    "esperado": "usuario creado y listado",
+    "observado": "creado y listado",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "USR-02",
+    "ruta": "/hotel/usuarios",
+    "flujo": "revocación cierra la sesión del otro",
+    "rol": "administrador",
+    "esperado": "la sesión revocada pasa a 401",
+    "observado": "sesión revocada → 401",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "USR-03",
+    "ruta": "/hotel/usuarios",
+    "flujo": "baja impide el login",
+    "rol": "administrador",
+    "esperado": "activo=false; login 401",
+    "observado": "login rechazado tras la baja",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "USR-04",
+    "ruta": "/hotel/usuarios",
+    "flujo": "recepción no gestiona usuarios",
+    "rol": "recepcion",
+    "esperado": "403 en la API; la UI avisa «solo administrador»",
+    "observado": "UI y API rechazan",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "IDE-01",
+    "ruta": "/hotel/reserva",
+    "flujo": "la clave se muestra antes del envío y rota tras el 2xx",
+    "rol": "recepcion",
+    "esperado": "clave visible; tras confirmar, otra distinta",
+    "observado": "visible y rotada",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "SES-01",
+    "ruta": "/salida-de-sesion",
+    "flujo": "cerrar sesión deja el panel fuera",
+    "rol": "administrador",
+    "esperado": "la siguiente lectura pide login",
+    "observado": "sesión cerrada, ruta pide login",
+    "estado": "APROBADO"
+  }
+]

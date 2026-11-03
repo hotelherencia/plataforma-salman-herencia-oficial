@@ -33,12 +33,12 @@ export default function Habitaciones() {
     if (sesion.fase === 'ok') cargarInventario()
   }, [sesion.fase, cargarInventario])
 
-  async function postear(ruta, cuerpo, clave, alExito, e) {
+  async function postear(ruta, cuerpo, clave, alExito, e, metodo = 'POST') {
     e.preventDefault()
     setError('')
     setSalida(null)
     try {
-      const r = await api(ruta, { metodo: 'POST', cuerpo, claveIdempotencia: clave })
+      const r = await api(ruta, { metodo, cuerpo, claveIdempotencia: clave })
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setSalida(r.datos)
@@ -102,7 +102,7 @@ export default function Habitaciones() {
             <form
               className="formulario"
               onSubmit={(e) =>
-                postear(`/hotel/habitaciones/${alta.habitacion_id}`, { tipo: alta.tipo, capacidad: Number(alta.capacidad) }, claveAlta, renovarClaveAlta, e)
+                postear(`/hotel/habitaciones/${alta.habitacion_id}`, { tipo: alta.tipo, capacidad: Number(alta.capacidad) }, claveAlta, renovarClaveAlta, e, 'PUT')
               }
             >
               <Campo etiqueta="Habitación" value={alta.habitacion_id} onChange={(e) => setAlta({ ...alta, habitacion_id: e.target.value })} />
@@ -128,7 +128,8 @@ export default function Habitaciones() {
                   },
                   claveTarifa,
                   renovarClaveTarifa,
-                  e
+                  e,
+                  'PUT'
                 )
               }
             >
