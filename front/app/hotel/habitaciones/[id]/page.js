@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import {
   api,
+  alRechazar,
   camposFaltantes,
   clp,
   mensajeDeError,
@@ -75,6 +76,7 @@ export default function FichaHabitacion() {
       const r = await api(ruta, opciones)
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovar)
         if (Array.isArray(r.datos.reservas_vigentes)) setVigentes(r.datos.reservas_vigentes)
       } else {
         setSalida(r.datos)
@@ -236,6 +238,7 @@ export default function FichaHabitacion() {
               )}
             </div>
           )}
+          <button onClick={() => { setSalida(null); setError(''); setVigentes([]); renovarEdicion(); renovarTarifa(); renovarServicio() }} className="boton-secundario">Nueva operación</button>
           <SalidaJson datos={salida} />
 
           <section className="tarjeta" aria-label="Historial de tarifas">

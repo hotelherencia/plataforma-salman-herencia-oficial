@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
 
 export default function Reserva() {
   const [campos, setCampos] = useState({
@@ -35,8 +35,10 @@ export default function Reserva() {
           },
         },
       })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado)) // 409 incluido: la clave se conserva
-      else {
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovarClave) // 4xx definitivo: clave nueva (V1-ISSUE-13)
+      } else {
         setSalida(r.datos)
         renovarClave() // 2xx: clave nueva para la operación siguiente
       }

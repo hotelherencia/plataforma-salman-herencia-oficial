@@ -23,6 +23,11 @@ class RecursoAjenoOInexistente(Exception):
     """403 sin revelar si la reserva existe."""
 
 
+class PagoDuplicadoConDatosDistintos(Exception):
+    """409 (V1-ISSUE-32): ya existe un pago con esa (reserva, clave) pero con
+    monto o modo distintos; no es un reintento, es un conflicto."""
+
+
 class PasarelaNoConfigurada(Exception):
     """503: puerto sin adaptador; nada queda marcado como cobrado."""
 
@@ -63,9 +68,14 @@ def registrar_pago_manual(
 ) -> dict:
     _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     existente = conexion.execute(
-        "SELECT id, monto_clp FROM pagos WHERE reserva_id = %s AND clave = %s", (reserva_id, clave)
+        "SELECT id, monto_clp, modo FROM pagos WHERE reserva_id = %s AND clave = %s", (reserva_id, clave)
     ).fetchone()
     if existente is not None:
+        if existente[1] != monto_clp or existente[2] != "manual":
+            raise PagoDuplicadoConDatosDistintos(
+                f"ya existe un pago con la clave «{clave}» por {existente[1]} CLP; "
+                "usa otra clave de cobro o el mismo monto para reintentar"
+            )
         return {"pago_id": existente[0], "reserva_id": reserva_id, "monto_clp": existente[1],
                 "clave": clave, "modo": "manual", "estado": "confirmado", "reintento": True}
     clave_efecto = f"{reserva_id}:{clave}"

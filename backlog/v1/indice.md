@@ -2,7 +2,7 @@
 
 Backlog vigente de la fase de construcción. Gobiernan las specs
 `docs/arquitectura/spec-api-v1.md`, `spec-backend-v1.md` y `spec-front-v1.md`.
-Fuente de ítems: `backlog/v1/construccion-v1.json` (42 ítems). Carga en
+Fuente de ítems: `backlog/v1/construccion-v1.json` (81 ítems). Carga en
 GitHub Projects (Project n.º 2): `backlog/v1/carga-v1.log.json`.
 
 El corpus documental de ciclos previos queda cerrado en el tablero (ver
@@ -67,15 +67,15 @@ indicadores financieros de HU-HOT-03 siguen fuera. Evidencia y matriz
 requisito → spec → implementación → prueba en
 `capturas/e2e-2026-11-03/INFORME-operacion.md`.
 
-- [Hecha] `v1-oper-01` — mantenedor (alta solo-crear, edición auditada,
+- [Hecha] `v1-oper-01` (GitHub `#295`) — mantenedor (alta solo-crear, edición auditada,
   tarifa append-only con desempate, baja lógica), detalle de reserva con
   cuenta, búsqueda por periodo, ocupación por noche y panel operativo.
-- [Bloqueada, P1] `v1-issue-07` — decisión D-ENT-01: ¿la entrada adopta la
+- [Bloqueada, P1] `v1-issue-07` (GitHub `#296`) — decisión D-ENT-01: ¿la entrada adopta la
   regla de fecha/hora y documento del dominio? (reencuadrado por `v1-issue-14`).
-- [Lista, P2] `v1-issue-08..10` — decisiones pendientes del propietario
+- [Lista, P2] `v1-issue-08..10` (GitHub `#297..#299`) — decisiones pendientes del propietario
   (financieros y rol gerencia; personas/reasignación/tipos; tarifas
   superpuestas, mantenimiento programado, denominador y auditoría).
-- No cargados a GitHub Projects (sin acciones externas en esta sesión).
+- Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#289..#294` para `v1-issue-01..06`, `#295..#299` para `v1-oper-01` y `v1-issue-07..10`, `#300..#301` para `v1-issue-11..12`).
 
 
 ## Revisión de integración y ciclo TDD (2026-11-03, tarde)
@@ -83,22 +83,22 @@ requisito → spec → implementación → prueba en
 Revisión de solo lectura de la operación del hotel (con dos corridas de
 Gemini 4 Argon vía `agy` sobre copias aisladas) y primer ciclo TDD.
 
-- [Hecha, P1] `v1-issue-12` — `POST /hotel/reservas` rechaza (409) una
+- [Hecha, P1] `v1-issue-12` (GitHub `#301`) — `POST /hotel/reservas` rechaza (409) una
   habitación fuera del cupo, como la oferta y el dominio (spec-hotel-operacion
   §2.7, CA-HAB-07). RED/GREEN en servicio (5) y E2E (`e2e-reserva-vendible.mjs`,
   3); regresión 155/155, 44/44 y 16/16. El código quedó dentro del commit
   local `ca2e40a` de otro trabajo; la E2E y este registro, sin commit.
-- [Lista, P2] `v1-issue-13` — renovar la clave de idempotencia tras un 4xx.
-- [Hecha, P1] `v1-issue-14` — `v1-issue-07` reencuadrado como decisión
+- [Lista, P1] `v1-issue-13` (GitHub `#281`) — renovar la clave de idempotencia tras un 4xx.
+- [Hecha, P1] `v1-issue-14` (GitHub `#302`) — `v1-issue-07` reencuadrado como decisión
   D-ENT-01 (ahora Bloqueada, a la espera del propietario); spec-api-v1,
   spec-hotel-operacion §7, `docs/funcional/dominio.md` y `flujos.md` describen
   la entrada tal como la fija el contrato vigente (sin cambio de comportamiento).
-- [Bloqueada] `v1-issue-15` (salida con otra estadía, depende de 07),
-  `v1-issue-16` (roles de entrada/salida), `v1-issue-17` (tarifa de estadías
-  que cruzan periodos), `v1-issue-18` (orden de despliegue y empates de
+- [Bloqueada] `v1-issue-15` (GitHub `#303`, salida con otra estadía, depende de 07),
+  `v1-issue-16` (GitHub `#304`, roles de entrada/salida), `v1-issue-17` (GitHub `#305`, tarifa de estadías
+  que cruzan periodos), `v1-issue-18` (GitHub `#306`, orden de despliegue y empates de
   tarifas en producción; requiere autorización).
-- [Lista, P3] `v1-issue-19` — deuda documental.
-- No cargados a GitHub Projects (sin acciones externas): falta sincronizar.
+- [Lista, P3] `v1-issue-19` (GitHub `#307`) — deuda documental.
+- Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#281`, `#301..#307`).
 
 
 ## Revisión landing → plataforma (2026-11-03, noche)
@@ -107,29 +107,29 @@ Navegación pública de https://hotelherencia.cl/ y del front publicado, sin
 enviar formularios ni crear datos. Hoy la landing solo envía una consulta a
 Formspree; no existe puente con la plataforma.
 
-- [Bloqueada, P1] `v1-issue-20` — decisión D-PUB-01: qué reserva puede hacer
+- [Bloqueada, P1] `v1-issue-20` (GitHub `#308`) — decisión D-PUB-01: qué reserva puede hacer
   un visitante (modalidad, garantía, unidad de venta, precio, datos, límites).
-- [Bloqueada, P1] `v1-issue-21` — spec de la superficie pública de la API.
-- [Bloqueada, P1] `v1-issue-22` — backend: disponibilidad pública y solicitud.
-- [Bloqueada, P1] `v1-issue-23` — front: página pública `/reservar`.
-- [Bloqueada, P2] `v1-issue-24` — bandeja de solicitudes en recepción.
-- [Bloqueada, P2] `v1-issue-25` — CTA de la landing (código fuera del repo).
-- [Bloqueada, P1] `v1-issue-26` — producción opera con la empresa sintética.
-- [Lista, P3] `v1-issue-27` — sin sesión se ve el menú interno.
-- No cargados a GitHub Projects (sin acciones externas): falta sincronizar.
+- [Bloqueada, P1] `v1-issue-21` (GitHub `#309`) — spec de la superficie pública de la API.
+- [Bloqueada, P1] `v1-issue-22` (GitHub `#310`) — backend: disponibilidad pública y solicitud.
+- [Bloqueada, P1] `v1-issue-23` (GitHub `#311`) — front: página pública `/reservar`.
+- [Bloqueada, P2] `v1-issue-24` (GitHub `#312`) — bandeja de solicitudes en recepción.
+- [Bloqueada, P2] `v1-issue-25` (GitHub `#313`) — CTA de la landing (código fuera del repo).
+- [Bloqueada, P1] `v1-issue-26` (GitHub `#314`) — producción opera con la empresa sintética.
+- [Lista, P3] `v1-issue-27` (GitHub `#315`) — sin sesión se ve el menú interno.
+- Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#308..#315`).
 
 
 ## Agente de reservas (2026-11-03, noche) — spec-kit `specs/005-hotel-agente-reservas/`
 
 Evaluación de mayor capacidad agéntica traducida a SDD/TDD. El agente nunca
-es autoridad: solo llama a herramientas deterministas del servidor y sus
+ es autoridad: solo llama a herramientas deterministas del servidor y sus
 cifras salen de `reservas.oferta`. Antecedente: `specs/002` historia 3.
 
-- [Bloqueada, P1] `v1-issue-28` — decisiones D-AGT-01..06.
-- [Bloqueada, P1] `v1-issue-29` — N0 copiloto: dominio, persistencia y API (TDD, modelo guionado).
-- [Bloqueada, P1] `v1-issue-30` — N0: bandeja `/hotel/agente` y E2E.
-- [Bloqueada, P2] `v1-issue-31` — adaptador real y evaluación de 50 casos (compuerta N1/N2).
-- No cargados a GitHub Projects (sin acciones externas): falta sincronizar.
+- [Bloqueada, P1] `v1-issue-28` (GitHub `#316`) — decisiones D-AGT-01..06.
+- [Bloqueada, P1] `v1-issue-29` (GitHub `#317`) — N0 copiloto: dominio, persistencia y API (TDD, modelo guionado).
+- [Bloqueada, P1] `v1-issue-30` (GitHub `#318`) — N0: bandeja `/hotel/agente` y E2E.
+- [Bloqueada, P2] `v1-issue-31` (GitHub `#319`) — adaptador real y evaluación de 50 casos (compuerta N1/N2).
+- Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#316..#319`).
 
 
 ## Auditoría técnica integral UI/UX, responsive, accesibilidad, rendimiento e integración (2026-11-03)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
+import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 
 export default function Estadia() {
   const sesion = useSesion()
@@ -30,7 +30,10 @@ export default function Estadia() {
         claveIdempotencia: claveEntrada,
         cuerpo: {},
       })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovarClaveEntrada)
+      }
       else {
         setSalida(r.datos)
         renovarClaveEntrada()
@@ -52,7 +55,10 @@ export default function Estadia() {
         claveIdempotencia: claveCancela,
         cuerpo: {},
       })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovarClaveCancela)
+      }
       else {
         setSalida(r.datos)
         renovarClaveCancela()
@@ -74,7 +80,10 @@ export default function Estadia() {
         claveIdempotencia: claveCargo,
         cuerpo: { concepto: cargo.concepto, monto_clp: Number(cargo.monto_clp) },
       })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovarClaveCargo)
+      }
       else {
         setSalida(r.datos)
         renovarClaveCargo()
@@ -114,6 +123,7 @@ export default function Estadia() {
         </form>
         <p className="nota-clave">Clave: <code>{claveCargo}</code></p>
       </section>
+      <button onClick={() => { setSalida(null); setError(''); renovarClaveEntrada(); renovarClaveCancela(); renovarClaveCargo() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>

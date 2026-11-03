@@ -71,6 +71,19 @@ class SesionHttpTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.json()["empresa_id"], EMPRESA)
 
+    def test_get_sesion_incluye_id_del_usuario(self):
+        # V1-ISSUE-33: el operador necesita su USR-... (p. ej. para cambiar su
+        # propia clave vía /cuenta).
+        self.login()
+        respuesta = self.cliente.get("/sesion")
+        self.assertEqual(respuesta.status_code, 200)
+        cuerpo = respuesta.json()
+        with psycopg.connect(URL_TEST) as conexion:
+            (uid,) = conexion.execute(
+                "SELECT id FROM usuarios WHERE nombre = %s", (ADMIN[0],)
+            ).fetchone()
+        self.assertEqual(cuerpo["id"], uid)
+
     def test_clave_mala_responde_401(self):
         respuesta = self.login(clave="clave-errada")
         self.assertEqual(respuesta.status_code, 401)

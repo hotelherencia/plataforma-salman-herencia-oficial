@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
+import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
 
 export default function Usuarios() {
@@ -40,8 +40,10 @@ export default function Usuarios() {
     setSalida(null)
     try {
       const r = await api(ruta, { metodo: 'POST', cuerpo, claveIdempotencia: clave })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
-      else {
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, alExito)
+      } else {
         setSalida(r.datos)
         alExito()
         cargarUsuarios()
@@ -117,6 +119,7 @@ export default function Usuarios() {
         </form>
         <p className="nota-clave">Clave: <code>{claveBaja}</code></p>
       </section>
+      <button onClick={() => { setSalida(null); setError(''); renovarClaveAlta(); renovarClaveCambio(); renovarClaveRevocacion(); renovarClaveBaja() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>

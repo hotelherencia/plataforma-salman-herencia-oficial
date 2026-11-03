@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, MarcoHotel, urlApi } from '../../lib/api'
+import { api, MarcoHotel, urlApi, Campo, useClaveOperacion, refrescarSesion } from '../../lib/api'
 
 export default function Cuenta() {
   const [sesion, setSesion] = useState(null)
@@ -9,14 +9,49 @@ export default function Cuenta() {
   const [codigo, setCodigo] = useState('')
   const [exito, setExito] = useState('')
   const [error, setError] = useState('')
+  const [claveNueva, setClaveNueva] = useState('')
+  const [claveOk, setClaveOk] = useState('')
+  const [claveError, setClaveError] = useState('')
+  const [claveCambiando, setClaveCambiando] = useState(false)
+  const [claveCambio, renovarClaveCambio] = useClaveOperacion()
 
   function recargarSesion() {
-    api('/sesion').then((r) => {
-      if (r.estado === 200) setSesion(r.datos)
+    refrescarSesion().then((estado) => {
+      if (estado.fase === 'ok') setSesion(estado.usuario)
     })
   }
 
   useEffect(recargarSesion, [])
+
+  // V1-ISSUE-33: cualquier rol autenticado puede cambiar su propia clave
+  // (spec-api-v1: el propio usuario o un administrador).
+  async function cambiarClave(e) {
+    e.preventDefault()
+    setClaveError('')
+    setClaveOk('')
+    if (claveNueva.trim().length < 6) {
+      setClaveError('La clave nueva debe tener al menos 6 caracteres.')
+      return
+    }
+    setClaveCambiando(true)
+    try {
+      const r = await api(`/usuarios/${sesion.id}/clave`, {
+        metodo: 'POST',
+        cuerpo: { clave: claveNueva },
+        claveIdempotencia: claveCambio,
+      })
+      if (r.estado >= 400) setClaveError(r.datos?.detail ?? 'No se pudo cambiar la clave')
+      else {
+        setClaveOk('Clave actualizada. Usa la clave nueva en tu próximo acceso.')
+        setClaveNueva('')
+        renovarClaveCambio()
+      }
+    } catch {
+      setClaveError('La API no está disponible')
+    } finally {
+      setClaveCambiando(false)
+    }
+  }
 
   async function generarAlta() {
     setError('')
@@ -64,7 +99,31 @@ export default function Cuenta() {
   }
 
   return (
-    <MarcoHotel titulo="Mi cuenta: doble factor (Google Authenticator)">
+    <MarcoHotel titulo="Mi cuenta: clave y doble factor">
+      {sesion && (
+        <section className="tarjeta">
+          <h2>Cambiar clave</h2>
+          <p className="estado">
+            Usuario {sesion.usuario} · {sesion.rol}. La clave nueva reemplaza a la actual para tus
+            próximos accesos.
+          </p>
+          <form className="formulario" onSubmit={cambiarClave}>
+            <Campo
+              etiqueta="Clave nueva"
+              type="password"
+              autoComplete="new-password"
+              value={claveNueva}
+              onChange={(e) => setClaveNueva(e.target.value)}
+            />
+            <button type="submit" className="boton-primario" disabled={claveCambiando}>
+              {claveCambiando ? 'Cambiando…' : 'Cambiar clave'}
+            </button>
+          </form>
+          <p className="nota-clave nota-tecnica">Clave: <code>{claveCambio}</code></p>
+          {claveOk && <p role="status" className="aviso-ok">{claveOk}</p>}
+          {claveError && <p role="alert" className="alerta">{claveError}</p>}
+        </section>
+      )}
       {sesion?.totp_activado ? (
         <section className="tarjeta">
           <h2>Estado: activado</h2>

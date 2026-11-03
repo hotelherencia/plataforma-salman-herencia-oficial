@@ -5,7 +5,7 @@
     "flujo": "desde el menú, reservar una habitación retirada",
     "rol": "recepcion",
     "esperado": "409: alerta «fuera del cupo»; la API no registra reserva",
-    "observado": "HAB-mw133ko2-R está fuera del cupo: no admite reservas nuevas · 0 reservas releídas",
+    "observado": "HAB-mw1acvcm-R está fuera del cupo: no admite reservas nuevas · 0 reservas releídas",
     "estado": "APROBADO"
   },
   {
@@ -14,7 +14,7 @@
     "flujo": "reservar una habitación con mantenimiento abierto",
     "rol": "recepcion",
     "esperado": "409: alerta «fuera del cupo»; sin reserva",
-    "observado": "HAB-mw133ko2-MT está fuera del cupo: no admite reservas nuevas · 0 reservas releídas",
+    "observado": "HAB-mw1acvcm-MT está fuera del cupo: no admite reservas nuevas · 0 reservas releídas",
     "estado": "APROBADO"
   },
   {
@@ -23,7 +23,7 @@
     "flujo": "reincorporar desde la ficha y volver a reservar",
     "rol": "administrador → recepcion",
     "esperado": "reincorporada; la misma reserva se confirma con la tarifa vigente",
-    "observado": "RSV-a55cfabf201b confirmada a $52.000/noche",
+    "observado": "RSV-dd6f166b7e50 confirmada a $52.000/noche",
     "estado": "APROBADO"
   }
 ]

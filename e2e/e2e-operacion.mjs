@@ -219,11 +219,15 @@ try {
   })
 
   await caso('MAN-05', '/hotel/habitaciones/[id]', 'retiro bloqueado por reserva vigente', 'administrador', '409 con enlace a la reserva; la unidad sigue en servicio', async () => {
+    const consola = []
+    admin.on('console', (m) => { if (m.type() === 'error') consola.push(m.text().slice(0, 180)) })
+    admin.on('requestfailed', (r) => consola.push('FAILED ' + r.url() + ' ' + (r.failure()?.errorText || '')))
+    admin.on('response', (r) => { if (r.url().includes('/servicio')) consola.push('RESP ' + r.status() + ' ' + r.url()) })
     await admin.getByRole('textbox', { name: 'Motivo' }).fill('remodelación E2E')
     await admin.getByRole('button', { name: 'Retirar de operación' }).click()
     await admin.waitForTimeout(1600)
     const a = await alerta(admin)
-    esperar(a && a.includes('reservas vigentes') && a.includes(RES_M.reserva_id), `alerta: ${a}`)
+    esperar(a && a.includes('reservas vigentes') && a.includes(RES_M.reserva_id), `alerta: ${a} | red: ${consola.join(' ;; ')}`)
     const ficha = (await api('GET', `/hotel/habitaciones/${HAB_M}`, { cookie: cAdmin })).datos
     esperar(ficha.en_servicio, 'quedó fuera de servicio pese a la reserva')
     await evidencia(admin, 'retiro-bloqueado')

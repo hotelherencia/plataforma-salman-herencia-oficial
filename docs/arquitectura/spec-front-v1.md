@@ -62,13 +62,15 @@ DECISIÓN (2026-10-30, orden del propietario): en `reserva`, `pago`,
 el formulario (`useState` con inicializador perezoso, `crypto.randomUUID()`)
 y es la que se envía en cada submit: «reintenta con la misma para no
 duplicar» es literalmente cierto. Se muestra antes del primer envío. Un error
-de red o un 4xx/5xx **no** la cambia; una respuesta 2xx la reemplaza por una
-clave nueva para la operación siguiente. `habitaciones` tiene dos formularios
-(alta y tarifa): cada uno lleva su clave. El único otro modo de acuñar una
-clave antes del 2xx es un botón «Nueva operación». Si el usuario cambia el
-cuerpo y reintenta con la clave vieja, la API responde 409 y la pantalla lo
-muestra sin acuñar una clave en silencio. El front no calcula tarifa, cupo
-ni saldo.
+de red **no** la cambia; una respuesta 2xx la reemplaza por una clave nueva;
+y un rechazo definitivo 4xx también la renueva (REQUISITO PROPUESTO
+2026-11-03, V1-ISSUE-13: corregir la causa y reintentar no debe devolver la
+respuesta guardada bajo la clave quemada). `habitaciones` tiene dos formularios
+(alta y tarifa): cada uno lleva su clave. El otro modo de acuñar una clave es
+un botón «Nueva operación», presente en toda pantalla con mutación. Si el
+usuario cambia el cuerpo y reintenta con la clave vieja, la API responde 409 y
+la pantalla lo muestra; con la renovación automática del 4xx el reintento
+corregido ejecuta con clave nueva. El front no calcula tarifa, cupo ni saldo.
 
 ## Rutas de cuenta
 

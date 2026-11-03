@@ -69,6 +69,28 @@ class CobroEstadiaTest(unittest.TestCase):
             headers={"Idempotency-Key": idem},
         )
 
+    def test_pago_misma_clave_distinto_monto_o_modo_es_409(self):
+        # V1-ISSUE-32: deduplicar por (reserva_id, clave) solo es reintento si
+        # el pago es idéntico; con monto distinto es un conflicto 409.
+        # (modo=pasarela se resuelve antes como 503 «no configurada».)
+        rid = self.reservar()
+        primera = self.pagar(rid, 50_000, clave="abono-1", idem="p1")
+        self.assertEqual(primera.status_code, 201, primera.text)
+        otra_clave = self.pagar(rid, 70_000, clave="abono-1", idem="p2")
+        self.assertEqual(otra_clave.status_code, 409, otra_clave.text)
+        # el pago original queda intacto: un solo pago de 50000
+        detalle = self.cliente.get(f"/hotel/reservas/{rid}").json()
+        self.assertEqual(detalle["cuenta"]["pagado_clp"], 50_000)
+
+    def test_pago_reintento_identico_repite_201_con_reintento(self):
+        rid = self.reservar()
+        primera = self.pagar(rid, 50_000, clave="abono-1", idem="p1")
+        repetida = self.pagar(rid, 50_000, clave="abono-1", idem="p2")
+        self.assertEqual(primera.status_code, 201, primera.text)
+        self.assertEqual(repetida.status_code, 201, repetida.text)
+        self.assertTrue(repetida.json()["reintento"])
+        self.assertEqual(repetida.json()["pago_id"], primera.json()["pago_id"])
+
     def test_pago_manual_deja_efecto_en_el_nucleo_y_pago_en_la_base(self):
         rid = self.reservar()
         respuesta = self.pagar(rid)

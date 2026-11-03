@@ -684,6 +684,41 @@ try {
     return 'cancelación oculta para caja; check-in visible'
   })
 
+  // ===== Q-bis. Renovación de clave tras 4xx (V1-ISSUE-13) =====
+  await caso('IDE-01', '/hotel/habitaciones', 'tras un 4xx la clave se renueva: corregir y reintentar ejecuta', 'administrador', '409 «ya existe» → cambiar id → reintento 201 sin recargar', async () => {
+    const ctx = await contextoRol('admin')
+    const page = await ctx.newPage()
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.goto(`${FRONT}/hotel/habitaciones`)
+    await page.waitForTimeout(1800)
+    await page.getByRole('textbox', { name: 'Habitación' }).first().fill(HAB_A) // ya existe → 409
+    await page.getByRole('button', { name: 'Dar de alta' }).click()
+    await page.waitForTimeout(1600)
+    const alerta1 = await alerta(page)
+    if (!alerta1 || !alerta1.includes('ya existe')) throw new Error(`primer intento: ${alerta1}`)
+    await page.getByRole('textbox', { name: 'Habitación' }).first().fill(`HAB-${RUN}-NUEVA`)
+    await page.getByRole('button', { name: 'Dar de alta' }).click()
+    await page.waitForTimeout(1800)
+    const conf = await confirmacion(page)
+    await ctx.close()
+    if (!conf) throw new Error('el reintento corregido no se confirmó (clave quemada)')
+    return '409 → corregir → 201 sin recargar'
+  })
+
+  await caso('SES-02', '/hotel/panel', 'una sola petición GET /sesion por carga de página', 'administrador', 'exactamente 1 por carga (V1-ISSUE-37: antes 2–3)', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT })
+    const page = await ctx.newPage()
+    let sesiones = 0
+    page.on('request', (r) => { if (r.url().endsWith('/sesion') && r.method() === 'GET') sesiones += 1 })
+    await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    sesiones = 0 // contar solo la carga completa del panel
+    await page.goto(`${FRONT}/hotel/panel`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(1200)
+    await ctx.close()
+    if (sesiones !== 1) throw new Error(`GET /sesion = ${sesiones}, esperado 1 por carga`)
+    return `GET /sesion = ${sesiones} en la carga del panel`
+  })
+
   // ===== Q. Navegación móvil y accesibilidad responsive (issues #276–#280) =====
   await caso('MUX-01', '/hotel/panel', 'menú móvil: panel con todas las opciones, activo único y visible', 'administrador', 'menú abre, «Ocupación» navega y cierra, un solo activo', async () => {
     const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 375, height: 667 } })
@@ -792,6 +827,12 @@ try {
   })
 
   // ===== O. Cierre de sesión =====
+  // Liberar los contextos acumulados: Chromium agota memoria con ~10
+  // contextos abiertos y el último caso muere («browser has been closed»).
+  for (const nombre of Object.keys(contextos)) {
+    await contextos[nombre].close()
+    delete contextos[nombre]
+  }
   await caso('SES-01', '/salida-de-sesion', 'cerrar sesión deja el panel fuera', 'administrador', 'la siguiente lectura pide login', async () => {
     const ctx = await contextoRol('admin')
     const page = await ctx.newPage()

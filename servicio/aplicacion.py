@@ -352,6 +352,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             "SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)
         ).fetchone()
         return {
+            "id": sesion.usuario_id,
             "usuario": sesion.nombre,
             "rol": sesion.rol,
             "empresa_id": sesion.empresa_id,
@@ -733,6 +734,9 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             except cobro.PagoRechazadoPorNucleo as error:
                 seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "rechazado-nucleo")
                 return 403, {"detail": str(error)}
+            except cobro.PagoDuplicadoConDatosDistintos as error:
+                seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "conflicto-clave-cobro")
+                return 409, {"detail": str(error)}
             seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "confirmado")
             return 201, registrado
 

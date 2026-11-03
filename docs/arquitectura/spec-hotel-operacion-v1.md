@@ -207,6 +207,39 @@ recibir una reserva nueva sin pasar por la oferta.
 - Idempotencia: el 409 queda asociado a su clave como cualquier respuesta
   (HECHO: `idempotencia.ejecutar`).
 
+### 2.8 Regla RES-TARIFA-NOCHES — cada noche de la estadía necesita tarifa vigente
+
+V1-ISSUE-39 (2026-11-03). Cierra la desconexión entre el mantenedor y la
+ocupación, que evalúan la tarifa noche por noche, y la oferta y la reserva,
+que solo miraban la primera noche.
+
+- HECHO DOCUMENTADO:
+  - §5 de esta spec: una noche sin tarifa vigente es `sin_tarifa`, no
+    `disponible`;
+  - spec-api-v1: la oferta devuelve «solo lo disponible, con tarifa
+    vigente»;
+  - `docs/funcional/dominio.md`: «sin tarifa vigente no hay oferta ni
+    reserva»;
+  - la ficha (§2.6) explica que «en cada noche rige» la tarifa de inicio
+    más reciente.
+- HECHO (hueco, código a 2026-11-03): `reservas.oferta` y
+  `reservas.crear_reserva` llaman a `tarifa_vigente(habitación, inicio)`. Con
+  una tarifa que termina antes de `fin`, la estadía se ofrecía y se
+  confirmaba igual. Las noches descubiertas, que `/hotel/ocupacion` pinta
+  `sin_tarifa`, quedaban vendidas al precio de la primera noche.
+- REQUISITO PROPUESTO (sin criterio nuevo, se deriva de lo anterior):
+  - Una unidad entra en la oferta de `[inicio, fin)` solo si **cada noche**
+    tiene tarifa vigente según la regla de §2.5.
+  - `POST /hotel/reservas` con alguna noche sin tarifa → **409** «sin tarifa
+    vigente para `<hab>` la noche `<d>`» (primera noche descubierta), sin
+    reserva, cargo ni auditoría de reserva.
+- **Fuera de esta regla:** cómo se calcula el precio de una estadía que cruza
+  dos tarifas. Sigue el HECHO vigente, tarifa de la noche de inicio × noches
+  y congelada en la reserva, hasta la DECISIÓN PENDIENTE D-TAR-02
+  (v1-issue-17). Esta regla no cambia ningún precio: solo deja de vender
+  noches sin tarifa.
+- Reservas existentes no se tocan; la regla rige para ofrecer y confirmar.
+
 ## 3. Consulta y análisis de reservas
 
 ### 3.1 Búsqueda (ampliación de `GET /hotel/reservas`)
@@ -335,7 +368,10 @@ Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
 - **Consistencia con la oferta** (criterio de aceptación): una noche
   `disponible` de una unidad con capacidad ≥ *p* aparece en `GET
   /hotel/oferta?inicio=d&fin=d+1&personas=p`, y una noche `confirmada`/
-  `en_estadia`/`no_vendible`/`sin_tarifa` no.
+  `en_estadia`/`no_vendible`/`sin_tarifa` no. Para estadías de varias
+  noches (§2.8, 2026-11-03): con `hoy ≤ inicio`, una unidad aparece en `GET
+  /hotel/oferta?inicio&fin&personas=p` si y solo si **todas** sus noches de
+  `[inicio, fin)` son `disponible` y su capacidad es ≥ *p*.
 - **Limitación L-OCU-01:** el mantenimiento y el fuera de servicio son estados
   actuales sin rango de fechas (HECHO: columna booleana / estado); se
   proyectan a todas las noches futuras, igual que la oferta. Programar
@@ -352,6 +388,7 @@ Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
 | CA-HAB-05 | No existe `DELETE` de habitaciones; la base impide borrar una con reservas | unittest |
 | CA-HAB-06 | Recepción y caja reciben 403 en alta, edición, tarifa y servicio; leen inventario y ficha sin auditoría | unittest + E2E |
 | CA-HAB-07 | `POST /hotel/reservas` sobre una habitación fuera de servicio, bloqueada o con mantenimiento abierto → 409 sin reserva, cargo ni auditoría; reincorporada, vuelve a reservarse; retiro y reserva concurrentes nunca dejan una reserva vigente en una unidad retirada (§2.7) | unittest + E2E |
+| CA-HAB-08 | Una estadía con alguna noche sin tarifa vigente no aparece en la oferta y su `POST /hotel/reservas` → 409 sin reserva, cargo ni auditoría; con tarifas contiguas que cubren todas las noches se ofrece y el total confirmado es igual al ofrecido; la unidad está en la oferta de `[inicio, fin)` si y solo si todas sus noches son `disponible` en `/hotel/ocupacion` (§2.8, §5) | unittest + E2E |
 | CA-RES-01 | Búsqueda por periodo y habitación combina con AND; `hasta ≤ desde` → 422 | unittest + E2E |
 | CA-RES-02 | Detalle de reserva devuelve cuenta con el mismo saldo que exige la salida; caja no ve el documento | unittest + E2E |
 | CA-OCU-01 | Estados por noche según §5, canceladas listadas sin pintar, consistentes con la oferta | unittest + E2E |

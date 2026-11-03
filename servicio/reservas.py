@@ -177,6 +177,19 @@ def tarifas_por_noche(conexion: psycopg.Connection, desde: date, hasta: date) ->
     return {(f[0], f[1]): f[2] for f in filas if f[2] is not None}
 
 
+def primera_noche_sin_tarifa(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> date | None:
+    """Primera noche de [inicio, fin) sin tarifa vigente, o None si todas la
+    tienen (spec-hotel-operacion-v1 §2.8: la misma regla que pinta `sin_tarifa`
+    en la ocupación). No fija el precio: eso sigue en `tarifa_vigente(inicio)`."""
+    fila = conexion.execute(
+        "SELECT d::date FROM generate_series(%s::date, %s::date - 1, interval '1 day') d "
+        "WHERE NOT EXISTS (SELECT 1 FROM tarifas t WHERE t.habitacion_id = %s "
+        "AND t.fecha_desde <= d::date AND t.fecha_hasta > d::date) ORDER BY d LIMIT 1",
+        (inicio, fin, habitacion_id),
+    ).fetchone()
+    return fila[0] if fila else None
+
+
 def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> bool:
     fila = conexion.execute(
         "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado IN ('confirmada', 'en_estadia') "
@@ -198,9 +211,11 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
     noches = (fin - inicio).days
     items = []
     for habitacion_id, tipo, _capacidad in unidades:
-        tarifa = tarifa_vigente(conexion, habitacion_id, inicio)
-        if tarifa is None or not _libre(conexion, habitacion_id, inicio, fin):
+        if primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin) is not None or not _libre(
+            conexion, habitacion_id, inicio, fin
+        ):
             continue
+        tarifa = tarifa_vigente(conexion, habitacion_id, inicio)
         items.append(
             {
                 "habitacion_id": habitacion_id,
@@ -399,9 +414,12 @@ def crear_reserva(
     ).fetchone()
     if habitacion is not None and (habitacion[1] or habitacion[0] in ESTADOS_NO_VENDIBLES):
         raise HabitacionNoVendible(f"{habitacion_id} está fuera del cupo: no admite reservas nuevas")
+    # Cada noche necesita tarifa (§2.8); el precio sigue siendo el de la noche
+    # de inicio × noches hasta D-TAR-02 (v1-issue-17).
+    descubierta = primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin)
+    if descubierta is not None:
+        raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {descubierta}")
     tarifa = tarifa_vigente(conexion, habitacion_id, inicio)
-    if tarifa is None:
-        raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} en {inicio}")
     reserva_id = f"RSV-{uuid.uuid4().hex[:12]}"
     total = tarifa * (fin - inicio).days
     try:

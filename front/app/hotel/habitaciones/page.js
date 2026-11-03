@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { api, camposFaltantes, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
+import { api, alRechazar, camposFaltantes, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 import { InventarioHabitaciones, InventarioVacio } from '../_componentes/inventario-habitaciones'
 
 /**
@@ -50,7 +50,10 @@ export default function Habitaciones() {
         claveIdempotencia: claveAlta,
         cabeceras: { 'If-None-Match': '*' },
       })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovarClaveAlta)
+      }
       else {
         setSalida(r.datos)
         renovarClaveAlta()
@@ -66,8 +69,10 @@ export default function Habitaciones() {
     setSalida(null)
     try {
       const r = await api(ruta, { metodo: 'POST', cuerpo, claveIdempotencia: clave })
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
-      else {
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovar)
+      } else {
         setSalida(r.datos)
         renovar()
         cargarInventario()
@@ -127,6 +132,7 @@ export default function Habitaciones() {
         </section>
       )}
 
+      <button onClick={() => { setSalida(null); setError(''); renovarClaveAlta(); renovarClaveTarifa(); renovarClaveLimpieza(); renovarClaveMantenimiento() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>

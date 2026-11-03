@@ -41,14 +41,43 @@ export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cab
   return { estado: respuesta.status, datos }
 }
 
+// Estado de sesión compartido (V1-ISSUE-37): BarraNav, MarcoHotel y la página
+// montaban useSesion() cada uno y disparaban 2–3 GET /sesion por carga, con
+// fallos transitorios que tumbaran la página a «API no disponible». Aquí hay
+// una sola fuente: la primera petición se deduplica en vuelo y el resultado
+// se comparte con todos los suscriptos; login/logout/2FA fuerzan un refresco.
+let cacheSesion = { fase: 'cargando', usuario: null }
+let promesaSesion = null
+const oyentesSesion = new Set()
+
+function publicarSesion() {
+  oyentesSesion.forEach((oyente) => oyente(cacheSesion))
+}
+
+export function refrescarSesion() {
+  if (!promesaSesion) {
+    promesaSesion = api('/sesion')
+      .then((r) => {
+        cacheSesion = r.estado === 200 ? { fase: 'ok', usuario: r.datos } : { fase: 'fuera', usuario: null }
+      })
+      .catch(() => {
+        cacheSesion = { fase: 'caida', usuario: null }
+      })
+      .finally(() => {
+        promesaSesion = null
+        publicarSesion()
+      })
+  }
+  return promesaSesion.then(() => cacheSesion)
+}
+
 export function useSesion() {
-  const [sesion, setSesion] = useState({ fase: 'cargando', usuario: null })
+  const [sesion, setSesion] = useState(cacheSesion)
   useEffect(() => {
-    api('/sesion')
-      .then((r) =>
-        setSesion(r.estado === 200 ? { fase: 'ok', usuario: r.datos } : { fase: 'fuera', usuario: null })
-      )
-      .catch(() => setSesion({ fase: 'caida', usuario: null }))
+    oyentesSesion.add(setSesion)
+    if (cacheSesion.fase === 'cargando') refrescarSesion()
+    else setSesion(cacheSesion)
+    return () => oyentesSesion.delete(setSesion)
   }, [])
   return sesion
 }
@@ -64,6 +93,14 @@ export function useClaveOperacion() {
   const [clave, setClave] = useState(() => crypto.randomUUID())
   const renovar = () => setClave(crypto.randomUUID())
   return [clave, renovar]
+}
+
+/** V1-ISSUE-13: ante un rechazo definitivo (4xx) la clave se renueva para que
+ *  corregir la causa y reintentar no devuelva la respuesta guardada bajo la
+ *  misma clave. Los errores de red no pasan por aquí: la clave se conserva
+ *  para reintentar la misma operación sin duplicar. */
+export function alRechazar(estado, renovar) {
+  if (estado >= 400 && estado < 500) renovar()
 }
 
 /** Marco común: con API caída muestra error y ninguna operación se confirma. */
