@@ -15,6 +15,8 @@ import { api, useSesion } from '../lib/api'
  */
 
 const OPERACION_HOTEL = [
+  ['/hotel/panel', 'Panel'],
+  ['/hotel/ocupacion', 'Ocupación'],
   ['/hotel/habitaciones', 'Habitaciones y tarifas'],
   ['/hotel/oferta', 'Oferta'],
   ['/hotel/reserva', 'Reserva'],
@@ -62,7 +64,7 @@ export default function BarraNav() {
         <Link href="/" className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
           Inicio
         </Link>
-        <Link href="/hotel/oferta" className={enHotel ? 'nav-enlace activo' : 'nav-enlace'}>
+        <Link href="/hotel/panel" className={enHotel ? 'nav-enlace activo' : 'nav-enlace'}>
           Hotel
         </Link>
         {MODULOS_CERRADOS.map((nombre) => (
@@ -78,7 +80,7 @@ export default function BarraNav() {
               <Link
                 key={href}
                 href={href}
-                className={ruta === href ? 'nav-enlace activo' : 'nav-enlace'}
+                className={ruta === href || ruta.startsWith(`${href}/`) ? 'nav-enlace activo' : 'nav-enlace'}
               >
                 {nombre}
               </Link>

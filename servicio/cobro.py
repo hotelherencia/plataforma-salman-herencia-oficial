@@ -141,12 +141,9 @@ def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> d
     return {"reserva_id": reserva_id, "habitacion_id": _reserva[1], "estado": "en_estadia"}
 
 
-def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> dict:
-    """Check-out: exige saldo neto (cargo menos reverso) en cero; finaliza la
-    reserva, deja la habitación disponible y sucia, y abre la limpieza."""
-    _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
-    if _reserva[2] != "en_estadia":
-        raise TransicionInvalida("check-out requiere una estadía en curso")
+def cuenta_de_reserva(conexion: psycopg.Connection, reserva_id: str) -> tuple[int, int]:
+    """(cargos netos, pagado): cargo menos reverso, y pagos confirmados. Única
+    fórmula del saldo: la usan la salida y el detalle de la reserva."""
     (neto,) = conexion.execute(
         "SELECT COALESCE(SUM(CASE WHEN tipo = 'reverso' THEN -monto_clp ELSE monto_clp END), 0) "
         "FROM cargos WHERE reserva_id = %s",
@@ -155,6 +152,71 @@ def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> di
     (pagado,) = conexion.execute(
         "SELECT COALESCE(SUM(monto_clp), 0) FROM pagos WHERE reserva_id = %s AND estado = 'confirmado'", (reserva_id,)
     ).fetchone()
+    return neto, pagado
+
+
+def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, ver_documento: bool) -> dict:
+    """Detalle de una reserva con su cuenta (spec-hotel-operacion-v1 §3.2).
+    Ajena o inexistente → 403 sin revelar cuál."""
+    _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
+    r = conexion.execute(
+        "SELECT r.id, r.habitacion_id, h.tipo, r.inicio, r.fin, r.huesped_nombre, r.huesped_documento, r.estado, "
+        "r.tarifa_noche_aceptada_clp, r.creado_en FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
+        "WHERE r.id = %s",
+        (reserva_id,),
+    ).fetchone()
+    neto, pagado = cuenta_de_reserva(conexion, reserva_id)
+    detalle = {
+        "reserva_id": r[0],
+        "habitacion_id": r[1],
+        "tipo_habitacion": r[2],
+        "inicio": r[3].isoformat(),
+        "fin": r[4].isoformat(),
+        "noches": (r[4] - r[3]).days,
+        "huesped_nombre": r[5],
+        "estado": r[7],
+        "tarifa_noche_aceptada_clp": r[8],
+        "creada_en": r[9].isoformat(),
+        "cargos": [
+            {"cargo_id": c[0], "tipo": c[1], "concepto": c[2], "monto_clp": c[3], "referencia": c[4],
+             "registrado_en": c[5].isoformat()}
+            for c in conexion.execute(
+                "SELECT id, tipo, concepto, monto_clp, referencia, creado_en FROM cargos "
+                "WHERE reserva_id = %s ORDER BY creado_en, id",
+                (reserva_id,),
+            ).fetchall()
+        ],
+        "pagos": [
+            {"pago_id": g[0], "monto_clp": g[1], "modo": g[2], "estado": g[3], "registrado_en": g[4].isoformat()}
+            for g in conexion.execute(
+                "SELECT id, monto_clp, modo, estado, creado_en FROM pagos WHERE reserva_id = %s ORDER BY creado_en, id",
+                (reserva_id,),
+            ).fetchall()
+        ],
+        "cuenta": {"cargos_netos_clp": neto, "pagado_clp": pagado, "saldo_clp": neto - pagado},
+        "liquidacion": None,
+    }
+    if ver_documento:
+        detalle["huesped_documento"] = r[6]
+    liquidacion = conexion.execute(
+        "SELECT id, total_clp, pagado_clp, saldo_clp, creado_en FROM liquidaciones WHERE reserva_id = %s",
+        (reserva_id,),
+    ).fetchone()
+    if liquidacion:
+        detalle["liquidacion"] = {
+            "liquidacion_id": liquidacion[0], "total_clp": liquidacion[1], "pagado_clp": liquidacion[2],
+            "saldo_clp": liquidacion[3], "liquidada_en": liquidacion[4].isoformat(),
+        }
+    return detalle
+
+
+def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> dict:
+    """Check-out: exige saldo neto (cargo menos reverso) en cero; finaliza la
+    reserva, deja la habitación disponible y sucia, y abre la limpieza."""
+    _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
+    if _reserva[2] != "en_estadia":
+        raise TransicionInvalida("check-out requiere una estadía en curso")
+    neto, pagado = cuenta_de_reserva(conexion, reserva_id)
     saldo = neto - pagado
     if saldo != 0:
         raise SaldoPendiente(f"la cuenta tiene saldo pendiente de {saldo} CLP")

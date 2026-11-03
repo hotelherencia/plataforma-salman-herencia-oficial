@@ -1,0 +1,146 @@
+[
+  {
+    "id": "NAV-01",
+    "ruta": "/hotel/panel",
+    "flujo": "el menú lleva a Panel y Ocupación; Hotel entra al panel",
+    "rol": "administrador",
+    "esperado": "enlaces Panel y Ocupación; Hotel → /hotel/panel",
+    "observado": "Inicio → Hotel → Panel → Ocupación",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-01",
+    "ruta": "/hotel/habitaciones",
+    "flujo": "alta duplicada no sobrescribe (If-None-Match)",
+    "rol": "administrador",
+    "esperado": "alerta «ya existe»; tipo y capacidad intactos",
+    "observado": "la habitación HAB-mw0wsi6c-M ya existe",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-02",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "abrir la ficha desde el inventario",
+    "rol": "administrador",
+    "esperado": "ficha con datos, tarifas, reservas, tareas y auditoría",
+    "observado": "todas las secciones visibles con la reserva previa",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-03",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "editar tipo y capacidad con reserva previa",
+    "rol": "administrador",
+    "esperado": "cambio aplicado y auditado; reserva intacta",
+    "observado": "Habitación HAB-mw0wsi6c-M: tipo doble → suite · capacidad 2 → 3",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-04",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "tarifa nueva cambia la venta y no la reserva",
+    "rol": "administrador",
+    "esperado": "oferta a 70000; reserva sigue a 50000; historial con vigente",
+    "observado": "venta nueva a $70.000; reserva previa a $50.000",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-05",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "retiro bloqueado por reserva vigente",
+    "rol": "administrador",
+    "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-17ee82e362b9",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-06",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "baja lógica y reincorporación",
+    "rol": "administrador",
+    "esperado": "fuera de servicio, sin oferta, historial intacto; reincorporada vuelve",
+    "observado": "retirada → fuera de oferta → reincorporada, con auditoría",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-07",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "recepción ve la ficha sin acciones de administración",
+    "rol": "recepcion",
+    "esperado": "sin formularios de admin ni auditoría; API 403",
+    "observado": "UI de solo lectura; PUT/tarifa/servicio → 403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "MAN-08",
+    "ruta": "/hotel/habitaciones/[id]",
+    "flujo": "caja lee la ficha; no administra; no hay borrado",
+    "rol": "caja",
+    "esperado": "ficha 200 sin auditoría; servicio 403; DELETE 405",
+    "observado": "lectura sí; servicio 403; DELETE 405 (no publicado)",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "RSV-01",
+    "ruta": "/hotel/reservas",
+    "flujo": "buscar por periodo y habitación, abrir detalle",
+    "rol": "recepcion",
+    "esperado": "lista solo las del periodo; detalle con cuenta del servidor",
+    "observado": "2 reservas; detalle con saldo $120.000",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "RSV-02",
+    "ruta": "/hotel/reservas/[id]",
+    "flujo": "caja ve la cuenta pero no el documento",
+    "rol": "caja",
+    "esperado": "detalle 200 sin huesped_documento; periodo inválido 422",
+    "observado": "cuenta visible, documento oculto; 422 en periodo vacío",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OCU-01",
+    "ruta": "/hotel/ocupacion",
+    "flujo": "rejilla por noche con confirmada, cancelada y disponible",
+    "rol": "recepcion",
+    "esperado": "celdas según §5; cancelada listada sin pintar; enlace al detalle",
+    "observado": "D30–D32 confirmada; noches de la cancelada disponibles; celda → detalle",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OCU-02",
+    "ruta": "/hotel/ocupacion",
+    "flujo": "cada noche «disponible» coincide con la oferta de esa noche",
+    "rol": "caja",
+    "esperado": "consistencia total ocupación ↔ oferta en 10 noches",
+    "observado": "230 celdas consistentes con la oferta",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "IND-01",
+    "ruta": "/hotel/panel",
+    "flujo": "panel coincide con un recuento independiente",
+    "rol": "administrador",
+    "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
+    "observado": "en_casa 0, llegadas 0, noches 15, ocupación reservada 5.9 %",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "IND-02",
+    "ruta": "/hotel/panel",
+    "flujo": "indicadores sin dinero, financieros declarados como no disponibles",
+    "rol": "recepcion y caja",
+    "esperado": "200 para ambos; sin montos; ADR en no_disponibles",
+    "observado": "recepción y caja leen; sin montos; ADR/RevPAR declarados pendientes; 422 > 92 noches",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "IND-03",
+    "ruta": "/hotel/indicadores",
+    "flujo": "sin sesión no hay datos",
+    "rol": "anónimo",
+    "esperado": "401 en indicadores, ocupación, ficha y detalle",
+    "observado": "401 ×4",
+    "estado": "APROBADO"
+  }
+]

@@ -21,6 +21,12 @@ POLITICA_CANCELACION = (
 )
 ESTADOS_VALIDOS = ("confirmada", "en_estadia", "finalizada", "cancelada")
 ESTADOS_QUE_OCUPAN_CUPO = ("confirmada", "en_estadia")
+# HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): bloqueada y fuera de servicio
+# no entran al cupo para ninguna fecha; el mantenimiento tampoco.
+ESTADOS_NO_VENDIBLES = ("bloqueada", "fuera_de_servicio")
+# Regla única de vigencia de tarifas (spec-hotel-operacion-v1 §2.5): la de mayor
+# fecha_desde que cubre la noche; a igualdad, la registrada más recientemente.
+ORDEN_VIGENCIA_TARIFA = "ORDER BY t.fecha_desde DESC, t.creado_en DESC, t.id DESC"
 
 
 class SinCupo(Exception):
@@ -29,6 +35,22 @@ class SinCupo(Exception):
 
 class SinTarifaVigente(Exception):
     """409: no hay tarifa para la fecha de inicio."""
+
+
+class HabitacionYaExiste(Exception):
+    """409: alta con If-None-Match: * sobre una habitación existente."""
+
+
+class HabitacionInexistente(Exception):
+    """403 sin revelar existencia (mismo criterio que limpieza/mantenimiento)."""
+
+
+class ReservasVigentes(Exception):
+    """409: no se retira de operación una unidad con reservas confirmada/en_estadia."""
+
+    def __init__(self, reservas: list[str]):
+        super().__init__("la habitación tiene reservas vigentes")
+        self.reservas = reservas
 
 
 def sembrar_habitaciones(conexion: psycopg.Connection) -> None:
@@ -40,12 +62,82 @@ def sembrar_habitaciones(conexion: psycopg.Connection) -> None:
         )
 
 
-def upsert_habitacion(conexion: psycopg.Connection, habitacion_id: str, tipo: str, capacidad: int) -> None:
-    conexion.execute(
-        "INSERT INTO habitaciones (id, establecimiento_id, tipo, capacidad) VALUES (%s, %s, %s, %s) "
-        "ON CONFLICT (id) DO UPDATE SET tipo = EXCLUDED.tipo, capacidad = EXCLUDED.capacidad",
-        (habitacion_id, ESTABLECIMIENTO_SINTETICO, tipo, capacidad),
-    )
+def guardar_habitacion(
+    conexion: psycopg.Connection, habitacion_id: str, tipo: str, capacidad: int, solo_crear: bool = False
+) -> dict:
+    """Alta o edición de tipo y capacidad (spec-hotel-operacion-v1 §2.2–2.3).
+
+    Solo toca esas dos columnas: reservas, tarifas, estados y tareas quedan
+    intactos. `solo_crear` (If-None-Match: *) rechaza una habitación existente.
+    Devuelve `creada` y `cambios {campo: [antes, después]}`."""
+    actual = conexion.execute(
+        "SELECT tipo, capacidad FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
+    ).fetchone()
+    if actual is None:
+        conexion.execute(
+            "INSERT INTO habitaciones (id, establecimiento_id, tipo, capacidad) VALUES (%s, %s, %s, %s)",
+            (habitacion_id, ESTABLECIMIENTO_SINTETICO, tipo, capacidad),
+        )
+        return {"creada": True, "cambios": {"tipo": [None, tipo], "capacidad": [None, capacidad]}}
+    if solo_crear:
+        raise HabitacionYaExiste(f"la habitación {habitacion_id} ya existe")
+    cambios = {
+        campo: [antes, despues]
+        for campo, antes, despues in (("tipo", actual[0], tipo), ("capacidad", actual[1], capacidad))
+        if antes != despues
+    }
+    if cambios:
+        conexion.execute(
+            "UPDATE habitaciones SET tipo = %s, capacidad = %s WHERE id = %s", (tipo, capacidad, habitacion_id)
+        )
+    return {"creada": False, "cambios": cambios}
+
+
+def fijar_servicio(conexion: psycopg.Connection, habitacion_id: str, en_servicio: bool, motivo: str | None) -> dict:
+    """Retiro de operación (baja lógica) y reincorporación (spec-hotel-operacion-v1
+    §2.4). Retirar exige que ninguna reserva confirmada o en estadía use la
+    unidad; nada se borra y la preparación y el mantenimiento se conservan."""
+    fila = conexion.execute(
+        "SELECT estado_operativo, motivo_fuera_de_servicio FROM habitaciones WHERE id = %s FOR UPDATE",
+        (habitacion_id,),
+    ).fetchone()
+    if fila is None:
+        raise HabitacionInexistente("acceso denegado")
+    retirada = fila[0] == "fuera_de_servicio"
+    cambio = False
+    if not en_servicio and not retirada:
+        vigentes = [
+            f[0]
+            for f in conexion.execute(
+                "SELECT id FROM reservas WHERE habitacion_id = %s AND estado = ANY(%s) ORDER BY inicio, id",
+                (habitacion_id, list(ESTADOS_QUE_OCUPAN_CUPO)),
+            ).fetchall()
+        ]
+        if vigentes:
+            raise ReservasVigentes(vigentes)
+        conexion.execute(
+            "UPDATE habitaciones SET estado_operativo = 'fuera_de_servicio', motivo_fuera_de_servicio = %s, "
+            "fuera_de_servicio_desde = now() WHERE id = %s",
+            (motivo, habitacion_id),
+        )
+        cambio = True
+    elif en_servicio and retirada:
+        conexion.execute(
+            "UPDATE habitaciones SET estado_operativo = 'disponible', motivo_fuera_de_servicio = NULL, "
+            "fuera_de_servicio_desde = NULL WHERE id = %s",
+            (habitacion_id,),
+        )
+        cambio = True
+    estado, motivo_actual = conexion.execute(
+        "SELECT estado_operativo, motivo_fuera_de_servicio FROM habitaciones WHERE id = %s", (habitacion_id,)
+    ).fetchone()
+    return {
+        "habitacion_id": habitacion_id,
+        "en_servicio": estado != "fuera_de_servicio",
+        "estado_operativo": estado,
+        "motivo": motivo_actual,
+        "cambio": cambio,
+    }
 
 
 def insertar_tarifa(
@@ -62,11 +154,23 @@ def insertar_tarifa(
 
 def tarifa_vigente(conexion: psycopg.Connection, habitacion_id: str, fecha: date) -> int | None:
     fila = conexion.execute(
-        "SELECT tarifa_noche_clp FROM tarifas WHERE habitacion_id = %s AND fecha_desde <= %s AND fecha_hasta > %s "
-        "ORDER BY fecha_desde DESC LIMIT 1",
+        "SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = %s AND t.fecha_desde <= %s "
+        f"AND t.fecha_hasta > %s {ORDEN_VIGENCIA_TARIFA} LIMIT 1",
         (habitacion_id, fecha, fecha),
     ).fetchone()
     return fila[0] if fila else None
+
+
+def tarifas_por_noche(conexion: psycopg.Connection, desde: date, hasta: date) -> dict[tuple[str, date], int]:
+    """Tarifa vigente de cada (habitación, noche) en [desde, hasta), con la
+    misma regla que `tarifa_vigente` (una sola consulta para la rejilla)."""
+    filas = conexion.execute(
+        "SELECT h.id, d::date, (SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
+        f"AND t.fecha_desde <= d::date AND t.fecha_hasta > d::date {ORDEN_VIGENCIA_TARIFA} LIMIT 1) "
+        "FROM habitaciones h CROSS JOIN generate_series(%s::date, %s::date - 1, interval '1 day') d",
+        (desde, hasta),
+    ).fetchall()
+    return {(f[0], f[1]): f[2] for f in filas if f[2] is not None}
 
 
 def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> bool:
@@ -83,9 +187,9 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
     # en otras fechas; mantenimiento, bloqueada y fuera_de_servicio quedan fuera.
     unidades = conexion.execute(
         "SELECT id, tipo, capacidad FROM habitaciones WHERE capacidad >= %s "
-        "AND mantenimiento = false AND estado_operativo NOT IN ('bloqueada', 'fuera_de_servicio') "
+        "AND mantenimiento = false AND estado_operativo <> ALL(%s) "
         "ORDER BY id",
-        (personas,),
+        (personas, list(ESTADOS_NO_VENDIBLES)),
     ).fetchall()
     noches = (fin - inicio).days
     items = []
@@ -106,34 +210,115 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
     return {"oferta": items, "emitida_en": ahora.isoformat(), "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60}
 
 
-def listar_habitaciones(conexion: psycopg.Connection) -> list[dict]:
+_COLUMNAS_HABITACION = (
+    "h.id, h.tipo, h.capacidad, h.estado_operativo, h.estado_preparacion, h.mantenimiento, "
+    "COALESCE((SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
+    "ORDER BY t.fecha_desde DESC, t.creado_en DESC, t.id DESC LIMIT 1), 0), "
+    "(SELECT COUNT(*) FROM tareas_operativas ta WHERE ta.habitacion_id = h.id AND ta.estado = 'pendiente'), "
+    "EXISTS(SELECT 1 FROM tareas_operativas ta WHERE ta.habitacion_id = h.id "
+    "AND ta.estado = 'pendiente' AND ta.tipo = 'limpieza'), "
+    "(SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
+    f"AND t.fecha_desde <= %s AND t.fecha_hasta > %s {ORDEN_VIGENCIA_TARIFA} LIMIT 1), "
+    "h.motivo_fuera_de_servicio, h.fuera_de_servicio_desde, h.creado_en"
+)
+
+
+def _habitacion_a_dict(f) -> dict:
+    return {
+        "habitacion_id": f[0],
+        "tipo": f[1],
+        "capacidad": f[2],
+        "estado_operativo": f[3],
+        "estado_preparacion": f[4],
+        "mantenimiento": f[5],
+        "tarifa_noche_clp": f[6],
+        "tareas_pendientes": f[7],
+        "limpieza_pendiente": f[8],
+        "tarifa_vigente_hoy_clp": f[9],
+        "en_servicio": f[3] != "fuera_de_servicio",
+        "motivo_fuera_de_servicio": f[10],
+        "fuera_de_servicio_desde": f[11].isoformat() if f[11] else None,
+        "creado_en": f[12].isoformat(),
+    }
+
+
+def listar_habitaciones(conexion: psycopg.Connection, hoy: date | None = None) -> list[dict]:
     """Inventario operativo de las unidades (GET /hotel/habitaciones,
     spec-api-v1 «Operación de la habitación»): estado operativo, preparación,
     mantenimiento y tareas pendientes, con la última tarifa configurada como
-    referencia de contexto. Solo lectura, sin reglas de negocio."""
+    referencia (`tarifa_noche_clp`) y la vigente hoy. Solo lectura."""
+    hoy = hoy or date.today()
     filas = conexion.execute(
-        "SELECT h.id, h.tipo, h.capacidad, h.estado_operativo, h.estado_preparacion, h.mantenimiento, "
-        "COALESCE((SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
-        "ORDER BY t.fecha_desde DESC LIMIT 1), 0), "
-        "(SELECT COUNT(*) FROM tareas_operativas ta WHERE ta.habitacion_id = h.id AND ta.estado = 'pendiente'), "
-        "EXISTS(SELECT 1 FROM tareas_operativas ta WHERE ta.habitacion_id = h.id "
-        "AND ta.estado = 'pendiente' AND ta.tipo = 'limpieza') "
-        "FROM habitaciones h ORDER BY h.id"
+        f"SELECT {_COLUMNAS_HABITACION} FROM habitaciones h ORDER BY h.id", (hoy, hoy)
     ).fetchall()
-    return [
+    return [_habitacion_a_dict(f) for f in filas]
+
+
+def ficha_habitacion(
+    conexion: psycopg.Connection,
+    habitacion_id: str,
+    empresa_id: str,
+    ver_documento: bool,
+    ver_auditoria: bool,
+    hoy: date | None = None,
+) -> dict:
+    """Ficha de la habitación (spec-hotel-operacion-v1 §2.6): datos, historial
+    de tarifas con la vigente hoy, reservas en cualquier estado, tareas y —solo
+    para administrador— la auditoría cuyo recurso es la habitación."""
+    hoy = hoy or date.today()
+    fila = conexion.execute(
+        f"SELECT {_COLUMNAS_HABITACION} FROM habitaciones h WHERE h.id = %s", (hoy, hoy, habitacion_id)
+    ).fetchone()
+    if fila is None:
+        raise HabitacionInexistente("acceso denegado")
+    ficha = _habitacion_a_dict(fila)
+    vigente_id = conexion.execute(
+        "SELECT t.id FROM tarifas t WHERE t.habitacion_id = %s AND t.fecha_desde <= %s AND t.fecha_hasta > %s "
+        f"{ORDEN_VIGENCIA_TARIFA} LIMIT 1",
+        (habitacion_id, hoy, hoy),
+    ).fetchone()
+    ficha["tarifas"] = [
         {
-            "habitacion_id": f[0],
-            "tipo": f[1],
-            "capacidad": f[2],
-            "estado_operativo": f[3],
-            "estado_preparacion": f[4],
-            "mantenimiento": f[5],
-            "tarifa_noche_clp": f[6],
-            "tareas_pendientes": f[7],
-            "limpieza_pendiente": f[8],
+            "tarifa_id": t[0],
+            "fecha_desde": t[1].isoformat(),
+            "fecha_hasta": t[2].isoformat(),
+            "tarifa_noche_clp": t[3],
+            "registrada_en": t[4].isoformat(),
+            "vigente_hoy": vigente_id is not None and t[0] == vigente_id[0],
         }
-        for f in filas
+        for t in conexion.execute(
+            "SELECT t.id, t.fecha_desde, t.fecha_hasta, t.tarifa_noche_clp, t.creado_en FROM tarifas t "
+            f"WHERE t.habitacion_id = %s {ORDEN_VIGENCIA_TARIFA}",
+            (habitacion_id,),
+        ).fetchall()
     ]
+    ficha["reservas"] = list(
+        reversed(buscar_reservas(conexion, empresa_id, habitacion_id=habitacion_id, ver_documento=ver_documento))
+    )
+    ficha["tareas"] = [
+        {
+            "tarea_id": t[0],
+            "tipo": t[1],
+            "estado": t[2],
+            "creada_en": t[3].isoformat(),
+            "completada_en": t[4].isoformat() if t[4] else None,
+        }
+        for t in conexion.execute(
+            "SELECT id, tipo, estado, creado_en, completada_en FROM tareas_operativas "
+            "WHERE habitacion_id = %s ORDER BY creado_en DESC, id DESC",
+            (habitacion_id,),
+        ).fetchall()
+    ]
+    if ver_auditoria:
+        ficha["auditoria"] = [
+            {"actor": a[0], "accion": a[1], "resultado": a[2], "registrada_en": a[3].isoformat()}
+            for a in conexion.execute(
+                "SELECT actor, accion, resultado, creado_en FROM auditoria WHERE recurso = %s "
+                "ORDER BY creado_en DESC, id DESC",
+                (habitacion_id,),
+            ).fetchall()
+        ]
+    return ficha
 
 
 def buscar_reservas(
@@ -143,9 +328,13 @@ def buscar_reservas(
     estado: str | None = None,
     texto: str | None = None,
     ver_documento: bool = False,
+    desde: date | None = None,
+    hasta: date | None = None,
+    habitacion_id: str | None = None,
 ) -> list[dict]:
     """Búsqueda de reservas de la empresa (spec-api-v1): filtros opcionales con
-    AND, orden por inicio, id. huesped_documento solo para ROLES_DOCUMENTO."""
+    AND, orden por inicio, id. huesped_documento solo para ROLES_DOCUMENTO.
+    `desde`/`hasta` (2026-11-03): la reserva toca el periodo [desde, hasta)."""
     consulta = (
         "SELECT id, habitacion_id, inicio, fin, huesped_nombre, estado, "
         "tarifa_noche_aceptada_clp, huesped_documento FROM reservas WHERE empresa_id = %s"
@@ -154,6 +343,15 @@ def buscar_reservas(
     if fecha is not None:
         consulta += " AND inicio <= %s AND fin > %s"
         parametros += [fecha, fecha]
+    if desde is not None:
+        consulta += " AND fin > %s"
+        parametros.append(desde)
+    if hasta is not None:
+        consulta += " AND inicio < %s"
+        parametros.append(hasta)
+    if habitacion_id is not None:
+        consulta += " AND habitacion_id = %s"
+        parametros.append(habitacion_id)
     if estado is not None:
         consulta += " AND estado = %s"
         parametros.append(estado)
@@ -173,6 +371,7 @@ def buscar_reservas(
             "huesped_nombre": fila[4],
             "estado": fila[5],
             "tarifa_noche_aceptada_clp": fila[6],
+            "noches": (fila[3] - fila[2]).days,
         }
         if ver_documento:
             item["huesped_documento"] = fila[7]

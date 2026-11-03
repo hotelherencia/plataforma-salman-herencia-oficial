@@ -4,7 +4,10 @@
 (búsqueda de reservas, gestión de usuarios, operación de la habitación,
 cancelación y cargos — secciones etiquetadas) y 2026-11-03 (lectura del
 inventario de habitaciones, `GET /hotel/habitaciones`, orden del propietario
-tras la revisión E2E). Es el contrato que el
+tras la revisión E2E) y, el mismo 2026-11-03, mantenedor de habitaciones,
+consulta de reservas por periodo, ocupación e indicadores operativos (flujos,
+métricas y criterios en [spec-hotel-operacion-v1.md](spec-hotel-operacion-v1.md)).
+Es el contrato que el
 front (Vercel) y el backend (Railway) cumplen juntos; sustituye como contrato
 vigente al catálogo heredado `docs/definicion-herencia/contratos/openapi.yaml`
 (que queda como referencia histórica, no como contrato). Lo sirve el backend;
@@ -204,7 +207,34 @@ sigue impidiendo la salida.
   **503** y el estado queda **pendiente**; nada se marca como cobrado,
   emitido ni enviado. El cuerpo declara qué puerto falta.
 
-## Operaciones de esta versión (27)
+## Mantenedor, consulta, ocupación e indicadores (2026-11-03)
+
+REQUISITO PROPUESTO. Las reglas completas (flujos por rol, campos editables,
+regla de vigencia de tarifas, definición de cada indicador y estados por noche)
+viven en [spec-hotel-operacion-v1.md](spec-hotel-operacion-v1.md); aquí solo
+el contrato:
+
+- `PUT /hotel/habitaciones/{id}`: `id` con patrón
+  `^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$` (si no, 422); con `If-None-Match: *` solo
+  crea (existe → 409). Responde `creada` y `cambios {campo: [antes, después]}`
+  y deja auditoría. No toca reservas, tarifas ni estados.
+- `PUT /hotel/tarifas`: append-only; vigente en la noche *d* la de mayor
+  `fecha_desde` con `fecha_desde ≤ d < fecha_hasta`, a igualdad la registrada
+  más recientemente. Deja auditoría.
+- `POST /hotel/habitaciones/{id}/servicio {en_servicio, motivo?}`: baja
+  lógica (`fuera_de_servicio`) y reincorporación. Solo administrador; con
+  `Idempotency-Key`; retirar exige `motivo` (422) y ninguna reserva
+  `confirmada`/`en_estadia` (si no, 409 con `reservas_vigentes`). **No existe
+  `DELETE` de habitaciones.**
+- `GET /hotel/reservas` suma `desde`, `hasta` (la reserva toca el periodo:
+  `inicio < hasta` y `fin > desde`; `hasta ≤ desde` → 422) y `habitacion_id`.
+- `GET /hotel/reservas/{id}`: detalle con cargos, pagos y cuenta (saldo con la
+  misma fórmula de la salida). Documento solo para `ROLES_DOCUMENTO`.
+- `GET /hotel/ocupacion?desde&hasta` (≤ 62 noches) y `GET
+  /hotel/indicadores?desde&hasta&tipo` (≤ 92 noches): lectura para cualquier
+  rol, sin dinero ni documento; fecha de corte = fecha del servidor.
+
+## Operaciones de esta versión (32)
 
 | Operación | Efecto |
 |---|---|
@@ -221,11 +251,16 @@ sigue impidiendo la salida.
 | `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash). El propio usuario o un administrador. |
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |
 | `POST /usuarios/{id}/baja` | `activo=false` y revoca sesiones. Solo administrador, sobre otro usuario; no al último administrador activo (409). |
-| `PUT /hotel/habitaciones/{id}` | Alta o cambio de habitación: tipo, capacidad. Solo administrador. |
-| `PUT /hotel/tarifas` | Tarifa por fecha y unidad. No cambia el precio de una reserva ya aceptada. |
+| `PUT /hotel/habitaciones/{id}` | Alta o cambio de habitación: tipo, capacidad (con `If-None-Match: *` solo alta). Devuelve `creada` y `cambios`; auditado. Solo administrador. |
+| `PUT /hotel/tarifas` | Tarifa por rango y unidad (append-only; regla de vigencia arriba). No cambia el precio de una reserva ya aceptada. Auditado. |
 | `GET /hotel/oferta?inicio&fin&personas` | Solo lo disponible, con tarifa vigente y vencimiento de la oferta. Incluye unidades ocupadas o sucias si el rango no solapa; excluye mantenimiento, bloqueada y fuera de servicio. |
 | `GET /hotel/habitaciones` | Inventario operativo de las unidades (REQUISITO PROPUESTO, 2026-11-03, orden del propietario tras la revisión E2E: la pantalla operaba a ciegas sin lectura del estado). Por unidad: `tipo`, `capacidad`, `estado_operativo`, `estado_preparacion`, `mantenimiento`, `tareas_pendientes`, `limpieza_pendiente` y última tarifa configurada como referencia. Solo lectura, cualquier rol de la sesión; las mutaciones conservan sus reglas de rol (limpieza: recepción o administrador; mantenimiento: solo administrador). |
-| `GET /hotel/reservas?fecha=&estado=&texto=` | Búsqueda de reservas de la empresa, filtros opcionales combinados con AND. Ver «Búsqueda de reservas». |
+| `GET /hotel/habitaciones/{id}` | Ficha de la habitación: datos, estados, historial de tarifas (con `vigente_hoy`), reservas en cualquier estado, tareas y —solo administrador— auditoría. Cualquier rol; inexistente → 403. |
+| `POST /hotel/habitaciones/{id}/servicio` | Retira de operación (`fuera_de_servicio`, con motivo) o reincorpora. Solo administrador; reservas vigentes → 409. Baja lógica: nada se borra. |
+| `GET /hotel/reservas?fecha=&estado=&texto=&desde=&hasta=&habitacion_id=` | Búsqueda de reservas de la empresa, filtros opcionales combinados con AND. Ver «Búsqueda de reservas» y la ampliación 2026-11-03. |
+| `GET /hotel/reservas/{id}` | Detalle de una reserva con cargos, pagos, cuenta y liquidación. Cualquier rol; documento según rol; ajena o inexistente → 403. |
+| `GET /hotel/ocupacion?desde&hasta` | Estado por habitación y noche (confirmada, en estadía, finalizada, disponible, sin tarifa, no vendible) y reservas canceladas del periodo. Cualquier rol. |
+| `GET /hotel/indicadores?desde&hasta&tipo` | Panel operativo: situación de hoy y ocupación del periodo con fórmula, unidad y fuente por indicador; los financieros figuran como no disponibles. Cualquier rol. |
 | `POST /hotel/reservas` | Confirma una sola vez. La última unidad en carrera queda en una sola reserva: la confirmación es transaccional y la base rechaza el solape en (unidad, fechas) para `confirmada` y `en_estadia`. |
 | `POST /hotel/reservas/{id}/pagos` | El núcleo registra el efecto. Si el núcleo rechaza, no hay pago. Cuerpo: `{monto_clp, clave, modo}`. `modo="manual"` (DECISIÓN, 2026-10-28): caja en efectivo o transferencia que recepción registra; solo roles recepción, caja o administrador; no consulta el banco y no queda conciliado. `modo="pasarela"` sin adaptador → 503 y nada marcado como cobrado. |
 | `POST /hotel/reservas/{id}/cargos` | Cargo de texto libre (minibar, consumo, extra). Roles recepción, caja o administrador; solo en `confirmada` o `en_estadia`; monto entero > 0 (si no, 422); otro estado → 409. Ver «Cargos de la estadía». |

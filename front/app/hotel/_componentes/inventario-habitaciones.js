@@ -1,5 +1,8 @@
 'use client'
 
+import Link from 'next/link'
+import { clp } from '../../../lib/api'
+
 /**
  * Capa del módulo Hotel — inventario operativo de habitaciones (pura, sin
  * fetch): dibuja GET /hotel/habitaciones tal cual la envía la API y emite las
@@ -35,7 +38,7 @@ export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiar
           <span>Estado</span>
           <span>Preparación</span>
           <span>Mantenimiento</span>
-          <span>Tarifa ref.</span>
+          <span>Tarifa hoy</span>
           <span>Acciones</span>
         </li>
         {habitaciones.map((h) => (
@@ -57,7 +60,11 @@ export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento
   const hayLimpiezaPendiente = h.limpieza_pendiente || h.estado_preparacion === 'sucia'
   return (
     <li className="inventario-fila">
-      <span className="reserva-id">{h.habitacion_id}</span>
+      <span className="reserva-id">
+        <Link href={`/hotel/habitaciones/${h.habitacion_id}`} title="Abrir ficha: datos, tarifas, reservas e historial">
+          {h.habitacion_id}
+        </Link>
+      </span>
       <span className="reserva-celda">{h.tipo}</span>
       <span className="reserva-celda">{h.capacidad}</span>
       <span className={`reserva-estado estado-${h.estado_operativo}`}>
@@ -69,8 +76,13 @@ export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento
       <span className={`reserva-estado ${h.mantenimiento ? 'estado-cancelada' : 'estado-finalizada'}`}>
         {h.mantenimiento ? 'en mantenimiento' : 'activa'}
       </span>
-      <span className="reserva-tarifa">{h.tarifa_noche_clp > 0 ? `$${h.tarifa_noche_clp}/noche` : 'sin tarifa'}</span>
+      <span className="reserva-tarifa">
+        {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'sin tarifa hoy'}
+      </span>
       <span className="inventario-acciones">
+        <Link href={`/hotel/habitaciones/${h.habitacion_id}`} className="boton-fantasma">
+          Ficha
+        </Link>
         {puedeLimpiar && hayLimpiezaPendiente && (
           <button type="button" className="boton-fantasma" onClick={() => alLimpiar(h.habitacion_id)}>
             Completar limpieza

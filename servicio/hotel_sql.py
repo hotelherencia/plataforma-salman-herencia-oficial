@@ -87,7 +87,7 @@ def cargar_estado(conexion: psycopg.Connection) -> dict:
     filas = conexion.execute(
         "SELECT h.id, h.capacidad, h.estado_operativo, h.estado_preparacion, h.mantenimiento, "
         "COALESCE((SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
-        "ORDER BY t.fecha_desde DESC LIMIT 1), 0) "
+        "ORDER BY t.fecha_desde DESC, t.creado_en DESC, t.id DESC LIMIT 1), 0) "
         "FROM habitaciones h ORDER BY h.id"
     ).fetchall()
     unidades = tuple(
@@ -148,10 +148,12 @@ def cargar_estado(conexion: psycopg.Connection) -> dict:
         ).fetchall()
     )
     # Las tarifas por rango se expanden a entradas por día: la granularidad
-    # que usa el dominio en `_tarifas_por_fecha`.
+    # que usa el dominio en `_tarifas_por_fecha`. En orden de vigencia
+    # ascendente, la que gana (spec-hotel-operacion-v1 §2.5) se escribe última.
     tarifas_por_fecha: dict[tuple[str, date], tuple[str, int]] = {}
     for habitacion_id, desde, hasta, monto in conexion.execute(
-        "SELECT habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp FROM tarifas"
+        "SELECT habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp FROM tarifas "
+        "ORDER BY fecha_desde, creado_en, id"
     ).fetchall():
         dia = desde
         while dia < hasta:

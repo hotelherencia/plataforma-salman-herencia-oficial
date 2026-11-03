@@ -51,8 +51,8 @@ const MODULOS = [
     nombre: 'Hotel',
     icono: IconoHotel,
     estado: 'operable',
-    descripcion: 'Habitaciones, oferta, reservas, estadía, caja, limpieza y mantenimiento.',
-    href: '/hotel/oferta',
+    descripcion: 'Panel operativo, ocupación, habitaciones, oferta, reservas, estadía, caja, limpieza y mantenimiento.',
+    href: '/hotel/panel',
   },
   {
     nombre: 'Cafetería',

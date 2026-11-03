@@ -12,8 +12,8 @@ export function urlApi(ruta) {
 }
 
 /** Cliente HTTP del front: solo habla con API_BASE_URL y jamás calcula negocio. */
-export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia } = {}) {
-  const cabeceras = {}
+export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cabeceras: extra } = {}) {
+  const cabeceras = { ...(extra || {}) }
   let cuerpoSerializado
   if (cuerpo !== undefined) {
     cabeceras['Content-Type'] = 'application/json'
@@ -155,6 +155,17 @@ export function resumenConfirmacion(datos) {
   if (datos.tarifa_id) {
     return `Tarifa ${datos.habitacion_id}: $${datos.tarifa_noche_clp}/noche (${datos.fecha_desde} → ${datos.fecha_hasta})`
   }
+  if (datos.habitacion_id && typeof datos.en_servicio === 'boolean') {
+    if (!datos.cambio) return `Habitación ${datos.habitacion_id}: sin cambios (${datos.en_servicio ? 'en servicio' : 'fuera de servicio'})`
+    return datos.en_servicio
+      ? `Habitación ${datos.habitacion_id}: reincorporada a la operación`
+      : `Habitación ${datos.habitacion_id}: retirada de operación (${datos.motivo})`
+  }
+  if (datos.habitacion_id && typeof datos.creada === 'boolean') {
+    if (datos.creada) return `Habitación ${datos.habitacion_id} dada de alta: ${datos.tipo}, capacidad ${datos.capacidad}`
+    const cambios = Object.entries(datos.cambios || {}).map(([campo, [antes, despues]]) => `${campo} ${antes} → ${despues}`)
+    return `Habitación ${datos.habitacion_id}: ${cambios.length ? cambios.join(' · ') : 'sin cambios'}`
+  }
   if (datos.habitacion_id && datos.estado_preparacion) {
     const tareas = typeof datos.tareas_completadas === 'number' ? ` · ${datos.tareas_completadas} tarea(s) de limpieza cerrada(s)` : ''
     return `Habitación ${datos.habitacion_id}: preparación «${datos.estado_preparacion}»${tareas}`
@@ -202,5 +213,36 @@ export function CampoSelect({ etiqueta, children, ...props }) {
         {children}
       </select>
     </label>
+  )
+}
+
+/** Pesos chilenos para mostrar montos que ya calculó la API. */
+export function clp(monto) {
+  if (monto === null || monto === undefined) return '—'
+  return `$${Number(monto).toLocaleString('es-CL')}`
+}
+
+/** Definición declarada por la API para un indicador (spec-hotel-operacion-v1 §4):
+ *  el front no reescribe fórmulas, las muestra tal como llegan. */
+export function Definicion({ indicador }) {
+  if (!indicador) return null
+  return (
+    <details className="definicion">
+      <summary>Cómo se calcula</summary>
+      <dl>
+        <dt>Fórmula</dt>
+        <dd>{indicador.formula}</dd>
+        <dt>Unidad</dt>
+        <dd>{indicador.unidad}</dd>
+        <dt>Fuente</dt>
+        <dd>{indicador.fuente}</dd>
+        {indicador.limitaciones && (
+          <>
+            <dt>Limitaciones</dt>
+            <dd>{indicador.limitaciones}</dd>
+          </>
+        )}
+      </dl>
+    </details>
   )
 }

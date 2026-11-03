@@ -51,6 +51,13 @@ reinicio). Reglas:
   lectura. El servicio no marca cobrado nada que el núcleo no aceptó.
 - `huesped_documento` solo sale en las respuestas para roles `recepcion` o
   `administrador` (HECHO DOCUMENTADO: `ROLES_DOCUMENTO` del dominio).
+- Habitaciones: baja lógica (`estado_operativo = fuera_de_servicio`,
+  `motivo_fuera_de_servicio`, `fuera_de_servicio_desde`; migración 0009);
+  jamás `DELETE` (las FK de reservas, tarifas y tareas ya lo impiden).
+  `tarifas.creado_en` desempata la vigencia. Altas, ediciones, tarifas y
+  retiros dejan fila en `auditoria` (spec-hotel-operacion-v1 §2).
+- Indicadores y ocupación se calculan en SQL en el servidor, sin escribir
+  nada; el front no recalcula (spec-hotel-operacion-v1 §4–5).
 - **Al reiniciar el servicio, una reserva confirmada y un pago siguen ahí**
   (fila 6 del dictamen); las tareas operativas también.
 
@@ -63,8 +70,8 @@ núcleo. En esta versión responden **«no configurado»** y la API traduce eso 
 ## Criterio de aceptación
 
 1. `GET /salud` responde en el despliegue de Railway.
-2. Las **26 operaciones** de spec-api-v1 (contrato ampliado 2026-10-30) pasan
-   contra PostgreSQL.
+2. Las **32 operaciones** de spec-api-v1 (contrato ampliado 2026-10-30 y
+   2026-11-03) pasan contra PostgreSQL.
 3. Una segunda llamada con la misma clave de idempotencia no crea un segundo
    efecto; con otro cuerpo responde 409.
 4. Reinicio del proceso: reserva y pago persisten.

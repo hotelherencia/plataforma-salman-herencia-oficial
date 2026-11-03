@@ -21,9 +21,10 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 
 ## Rutas de esta versión (hotel)
 
-1. `/hotel/habitaciones` — alta y cambio de habitación y tarifa (admin);
-   completar limpieza y abrir o cerrar mantenimiento, cada acción con su
-   clave de idempotencia (2026-10-30).
+1. `/hotel/habitaciones` — inventario, alta de habitación (admin, solo crear
+   desde 2026-11-03); completar limpieza y abrir o cerrar mantenimiento, cada
+   acción con su clave de idempotencia (2026-10-30). Desde 2026-11-03 la
+   edición, la tarifa y el retiro viven en la ficha (ruta 12).
 2. `/hotel/oferta` — consulta de disponibilidad con tarifa y vencimiento.
 3. `/hotel/reserva` — confirmación con clave de idempotencia estable (ver
    «Idempotencia en el cliente»).
@@ -37,6 +38,22 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 8. `/hotel/caja` — pagos del día ligados a reserva.
 9. `/hotel/usuarios` — alta, cambio de clave, revocación y baja de usuarios;
    visible para administrador (2026-10-30).
+10. `/hotel/panel` — panel operativo: situación de hoy e indicadores del
+    periodo con su fórmula y fuente, tal como los envía `GET
+    /hotel/indicadores` (2026-11-03). Es la entrada del módulo Hotel.
+11. `/hotel/ocupacion` — rejilla habitación × noche de `GET /hotel/ocupacion`
+    con leyenda de estados; cada celda con reserva enlaza a su detalle
+    (2026-11-03).
+12. `/hotel/habitaciones/[id]` — ficha de la habitación: edición de tipo y
+    capacidad, tarifa nueva, retiro/reincorporación (administrador),
+    historial de tarifas, reservas, tareas y auditoría (2026-11-03). El alta en
+    `/hotel/habitaciones` envía `If-None-Match: *`.
+13. `/hotel/reservas/[id]` — detalle de la reserva con su cuenta; la búsqueda
+    de `/hotel/reservas` suma periodo y habitación (2026-11-03).
+
+Reglas de las rutas 10–13 (spec-hotel-operacion-v1): el front pinta lo que
+la API decide —estado de cada noche, saldo, valor de cada indicador— y no
+recalcula ninguno; las acciones que el rol no puede ejecutar no se muestran.
 
 ## Idempotencia en el cliente
 
@@ -68,7 +85,7 @@ ni saldo.
 ## Criterio de aceptación
 
 1. **Con la API apagada, el front muestra error y no confirma una reserva.**
-2. Con la API encendida, las **nueve** pantallas hoteleras leen y escriben solo
+2. Con la API encendida, las **trece** pantallas hoteleras leen y escriben solo
    por `API_BASE_URL`.
 3. No hay secretos ni tokens en el repositorio del front; la única variable
    de entorno es `API_BASE_URL`.

@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 /**
  * Capa del módulo Hotel — búsqueda de reservas (pura, sin fetch): recibe
  * solo props y dibuja la respuesta de GET /hotel/reservas tal cual la envía
@@ -47,7 +49,11 @@ export function EncabezadoReservas() {
 export function FilaReserva({ reserva }) {
   return (
     <li className="reserva-fila">
-      <span className="reserva-id">{reserva.reserva_id}</span>
+      <span className="reserva-id">
+        <Link href={`/hotel/reservas/${reserva.reserva_id}`} title="Ver detalle y cuenta">
+          {reserva.reserva_id}
+        </Link>
+      </span>
       <span className="reserva-huesped">{reserva.huesped_nombre}</span>
       <span className="reserva-celda">{reserva.habitacion_id}</span>
       <span className="reserva-celda reserva-fechas">{reserva.inicio} → {reserva.fin}</span>

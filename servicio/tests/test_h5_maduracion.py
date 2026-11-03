@@ -134,10 +134,13 @@ class MaduracionTest(unittest.TestCase):
                      "/hotel/reservas/{reserva_id}/cancelacion", "/hotel/reservas/{reserva_id}/cargos",
                      "/hotel/habitaciones/{habitacion_id}/limpieza",
                      "/hotel/habitaciones/{habitacion_id}/mantenimiento",
+                     "/hotel/habitaciones/{habitacion_id}/servicio",
                      "/usuarios", "/usuarios/{usuario_id}/clave",
                      "/usuarios/{usuario_id}/revocacion", "/usuarios/{usuario_id}/baja"],
             "PUT": ["/hotel/habitaciones/{habitacion_id}", "/hotel/tarifas"],
-            "GET": ["/hotel/oferta", "/hotel/caja", "/hotel/reservas", "/usuarios"],
+            "GET": ["/hotel/oferta", "/hotel/caja", "/hotel/reservas", "/usuarios",
+                    "/hotel/habitaciones", "/hotel/habitaciones/{habitacion_id}",
+                    "/hotel/reservas/{reserva_id}", "/hotel/ocupacion", "/hotel/indicadores"],
             "DELETE": ["/sesion"],
         }
         for metodo, rutas in esperadas.items():

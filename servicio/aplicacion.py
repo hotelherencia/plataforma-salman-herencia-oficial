@@ -9,7 +9,7 @@ import json
 import sys
 import time
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterator
 
@@ -19,9 +19,9 @@ for _ruta in (RAIZ / "core" / "incremento1", RAIZ / "verticales" / "hotel" / "in
         sys.path.insert(0, _s)
 
 import psycopg  # noqa: E402
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response  # noqa: E402
+from fastapi import Depends, FastAPI, Header, HTTPException, Path as RutaParam, Query, Request, Response  # noqa: E402
 from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
-from pydantic import BaseModel, Field  # noqa: E402
+from pydantic import BaseModel, Field, field_validator  # noqa: E402
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad  # noqa: E402
 from hotel_inventario.servicio import ROLES_DOCUMENTO, ServicioHotelInventario  # noqa: E402
@@ -34,6 +34,7 @@ from . import idempotencia  # noqa: E402
 from . import google_oidc  # noqa: E402
 from . import reservas as reservas_db  # noqa: E402
 from . import cobro  # noqa: E402
+from . import panel  # noqa: E402
 from . import totp  # noqa: E402
 from . import totp_qr  # noqa: E402
 
@@ -101,6 +102,23 @@ class CodigoTotpIn(BaseModel):
 class HabitacionIn(BaseModel):
     tipo: str = Field(min_length=1, max_length=50)
     capacidad: int = Field(gt=0, le=30)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_sin_bordes(cls, valor: str) -> str:
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("el tipo no puede quedar vacío")
+        return valor
+
+
+# spec-hotel-operacion-v1 §2.2: id estable y apto para URL (clave primaria).
+PATRON_ID_HABITACION = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$"
+
+
+class ServicioIn(BaseModel):
+    en_servicio: bool
+    motivo: str | None = Field(default=None, max_length=200)
 
 
 class TarifaIn(BaseModel):
@@ -463,19 +481,42 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
     @app.put("/hotel/habitaciones/{habitacion_id}")
     def definir_habitacion(
-        habitacion_id: str,
         habitacion: HabitacionIn,
+        habitacion_id: str = RutaParam(pattern=PATRON_ID_HABITACION),
         idempotency_key: str | None = Header(default=None),
+        if_none_match: str | None = Header(default=None),
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
     ) -> JSONResponse:
+        """Alta o edición (spec-hotel-operacion-v1 §2.2–2.3). Con
+        `If-None-Match: *` solo crea: una habitación existente responde 409."""
         _exigir_admin(sesion)
         clave = _clave_idempotencia_o_400(idempotency_key)
-        cuerpo = {"habitacion_id": habitacion_id, **json.loads(habitacion.model_dump_json())}
+        solo_crear = (if_none_match or "").strip() == "*"
+        cuerpo = {"habitacion_id": habitacion_id, "solo_crear": solo_crear, **json.loads(habitacion.model_dump_json())}
 
         def operacion() -> tuple[int, dict]:
-            reservas_db.upsert_habitacion(conexion, habitacion_id, habitacion.tipo, habitacion.capacidad)
-            return 200, {"habitacion_id": habitacion_id, "tipo": habitacion.tipo, "capacidad": habitacion.capacidad}
+            try:
+                guardada = reservas_db.guardar_habitacion(
+                    conexion, habitacion_id, habitacion.tipo, habitacion.capacidad, solo_crear
+                )
+            except reservas_db.HabitacionYaExiste as error:
+                return 409, {"detail": str(error)}
+            if guardada["creada"]:
+                resultado = f"creada tipo={habitacion.tipo} capacidad={habitacion.capacidad}"
+            elif guardada["cambios"]:
+                resultado = "editada " + "; ".join(
+                    f"{campo}: {antes}→{despues}" for campo, (antes, despues) in guardada["cambios"].items()
+                )
+            else:
+                resultado = "sin cambios"
+            seguridad.auditar(conexion, sesion.nombre, "habitacion", habitacion_id, resultado)
+            return 200, {
+                "habitacion_id": habitacion_id,
+                "tipo": habitacion.tipo,
+                "capacidad": habitacion.capacidad,
+                **guardada,
+            }
 
         try:
             codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
@@ -500,6 +541,10 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         def operacion() -> tuple[int, dict]:
             tarifa_id = reservas_db.insertar_tarifa(
                 conexion, tarifa.habitacion_id, tarifa.fecha_desde, tarifa.fecha_hasta, tarifa.tarifa_noche_clp
+            )
+            seguridad.auditar(
+                conexion, sesion.nombre, "tarifa", tarifa.habitacion_id,
+                f"{tarifa_id} {tarifa.fecha_desde}→{tarifa.fecha_hasta} ${tarifa.tarifa_noche_clp}/noche",
             )
             return 201, {
                 "tarifa_id": tarifa_id,
@@ -537,6 +582,89 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         mantenimiento y tareas pendientes por unidad. Lectura para cualquier
         rol de la sesión; las mutaciones conservan sus reglas de rol."""
         return {"habitaciones": reservas_db.listar_habitaciones(conexion)}
+
+    @app.get("/hotel/habitaciones/{habitacion_id}")
+    def ficha_habitacion(
+        habitacion_id: str,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        """Ficha (spec-hotel-operacion-v1 §2.6): cualquier rol; la auditoría
+        solo para administrador y el documento según ROLES_DOCUMENTO."""
+        return reservas_db.ficha_habitacion(
+            conexion,
+            habitacion_id,
+            sesion.empresa_id,
+            ver_documento=sesion.rol in ROLES_DOCUMENTO,
+            ver_auditoria=sesion.rol == "administrador",
+        )
+
+    @app.post("/hotel/habitaciones/{habitacion_id}/servicio")
+    def fijar_servicio_habitacion(
+        habitacion_id: str,
+        cuerpo_servicio: ServicioIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        """Baja lógica y reincorporación (spec-hotel-operacion-v1 §2.4)."""
+        _exigir_admin(sesion)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        motivo = (cuerpo_servicio.motivo or "").strip() or None
+        if not cuerpo_servicio.en_servicio and (motivo is None or len(motivo) < 3):
+            raise HTTPException(status_code=422, detail="retirar de operación exige un motivo (3 a 200 caracteres)")
+        cuerpo = {"habitacion_id": habitacion_id, **json.loads(cuerpo_servicio.model_dump_json())}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = reservas_db.fijar_servicio(conexion, habitacion_id, cuerpo_servicio.en_servicio, motivo)
+            except reservas_db.HabitacionInexistente as error:
+                raise seguridad.ErrorPermiso(str(error)) from error
+            except reservas_db.ReservasVigentes as error:
+                return 409, {"detail": str(error), "reservas_vigentes": error.reservas}
+            if not resultado["cambio"]:
+                texto = "sin cambios"
+            elif cuerpo_servicio.en_servicio:
+                texto = "reincorporada"
+            else:
+                texto = f"retirada: {motivo}"
+            seguridad.auditar(conexion, sesion.nombre, "habitacion-servicio", habitacion_id, texto)
+            return 200, resultado
+
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.get("/hotel/ocupacion")
+    def consultar_ocupacion(
+        desde: date | None = None,
+        hasta: date | None = None,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        """Estado por habitación y noche (spec-hotel-operacion-v1 §5); por
+        defecto las 14 noches desde hoy (fecha del servidor)."""
+        hoy = date.today()
+        desde = desde or hoy
+        hasta = hasta or desde + timedelta(days=14)
+        return panel.ocupacion(conexion, sesion.empresa_id, desde, hasta, hoy)
+
+    @app.get("/hotel/indicadores")
+    def consultar_indicadores(
+        desde: date | None = None,
+        hasta: date | None = None,
+        tipo: str | None = Query(default=None, max_length=50),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        """Panel operativo (spec-hotel-operacion-v1 §4); por defecto la noche de hoy."""
+        hoy = date.today()
+        desde = desde or hoy
+        hasta = hasta or desde + timedelta(days=1)
+        return panel.indicadores(conexion, sesion.empresa_id, desde, hasta, hoy, tipo or None)
 
     @app.post("/hotel/reservas")
     def confirmar_reserva(
@@ -681,11 +809,16 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         fecha: date | None = None,
         estado: str | None = None,
         texto: str | None = None,
+        desde: date | None = None,
+        hasta: date | None = None,
+        habitacion_id: str | None = Query(default=None, max_length=50),
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
     ) -> dict:
         if estado is not None and estado not in reservas_db.ESTADOS_VALIDOS:
             raise HTTPException(status_code=422, detail="estado inválido")
+        if desde is not None and hasta is not None and hasta <= desde:
+            raise HTTPException(status_code=422, detail="hasta debe ser mayor que desde")
         items = reservas_db.buscar_reservas(
             conexion,
             empresa_id=sesion.empresa_id,
@@ -693,8 +826,22 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             estado=estado,
             texto=texto,
             ver_documento=sesion.rol in ROLES_DOCUMENTO,
+            desde=desde,
+            hasta=hasta,
+            habitacion_id=habitacion_id or None,
         )
         return {"reservas": items, "total": len(items)}
+
+    @app.get("/hotel/reservas/{reserva_id}")
+    def detalle_reserva_hotel(
+        reserva_id: str,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        """Detalle con cuenta (spec-hotel-operacion-v1 §3.2); ajena → 403."""
+        return cobro.detalle_reserva(
+            conexion, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO
+        )
 
     @app.get("/usuarios")
     def listar_usuarios(
@@ -936,6 +1083,14 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     @app.exception_handler(cobro.PagoRechazadoPorNucleo)
     async def manejar_acceso(_request: Request, _exc: Exception) -> Response:
         return Response(content='{"detail":"acceso denegado"}', status_code=403, media_type="application/json")
+
+    @app.exception_handler(reservas_db.HabitacionInexistente)
+    async def manejar_habitacion_inexistente(_request: Request, _exc: Exception) -> Response:
+        return Response(content='{"detail":"acceso denegado"}', status_code=403, media_type="application/json")
+
+    @app.exception_handler(panel.PeriodoInvalido)
+    async def manejar_periodo(_request: Request, exc: panel.PeriodoInvalido) -> Response:
+        return Response(content=json.dumps({"detail": str(exc)}, ensure_ascii=False), status_code=422, media_type="application/json")
 
     @app.exception_handler(psycopg.IntegrityError)
     async def manejar_integridad(_request: Request, _exc: psycopg.IntegrityError) -> Response:
