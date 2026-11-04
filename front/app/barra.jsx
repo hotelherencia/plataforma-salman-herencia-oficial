@@ -37,6 +37,10 @@ const OPERACION_HOTEL = [
 
 const MODULOS_CERRADOS = ['Cafetería', 'Inmobiliaria', 'Constructora']
 
+// Bandeja del agente (V1-ISSUE-30): la API la restringe a recepción o
+// administrador y el ítem del menú se oculta a los demás roles.
+const RUTA_AGENTE = ['/hotel/agente', 'Agente']
+
 function esActivo(ruta, href) {
   return ruta === href || ruta.startsWith(`${href}/`)
 }
@@ -45,7 +49,10 @@ export default function BarraNav() {
   const ruta = usePathname()
   const sesion = useSesion()
   const enHotel = ruta.startsWith('/hotel')
-  const hayOperacionActiva = OPERACION_HOTEL.some(([href]) => esActivo(ruta, href))
+  const puedeVerAgente =
+    sesion.fase === 'ok' && (sesion.usuario.rol === 'recepcion' || sesion.usuario.rol === 'administrador')
+  const hayOperacionActiva =
+    OPERACION_HOTEL.some(([href]) => esActivo(ruta, href)) || esActivo(ruta, RUTA_AGENTE[0])
   const [abierto, setAbierto] = useState(false)
   const botonRef = useRef(null)
   const panelRef = useRef(null)
@@ -120,6 +127,11 @@ export default function BarraNav() {
                   {nombre}
                 </Link>
               ))}
+              {puedeVerAgente && (
+                <Link href={RUTA_AGENTE[0]} aria-current={esActivo(ruta, RUTA_AGENTE[0]) ? 'page' : undefined} className={esActivo(ruta, RUTA_AGENTE[0]) ? 'nav-enlace activo' : 'nav-enlace'}>
+                  {RUTA_AGENTE[1]}
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -176,6 +188,11 @@ export default function BarraNav() {
                     {nombre}
                   </Link>
                 ))}
+                {puedeVerAgente && (
+                  <Link href={RUTA_AGENTE[0]} onClick={cerrar} aria-current={esActivo(ruta, RUTA_AGENTE[0]) ? 'page' : undefined} className={esActivo(ruta, RUTA_AGENTE[0]) ? 'nav-enlace activo' : 'nav-enlace'}>
+                    {RUTA_AGENTE[1]}
+                  </Link>
+                )}
               </>
             )}
           </nav>

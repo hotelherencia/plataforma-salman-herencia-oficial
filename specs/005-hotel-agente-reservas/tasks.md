@@ -29,7 +29,7 @@ Las tareas con [P] pueden hacerse en paralelo con la anterior.
 
 - [x] T030A Escribir AG-S01 a AG-S14 en
   `servicio/tests/test_agente_servicio.py`. Ver RED.
-- [x] T030B Migración `0010_agente_reservas.sql`, rol `agente`,
+- [x] T030B Migración `0011_agente_reservas.sql`, rol `agente`,
   `orquestador.procesar` y rutas `/hotel/agente/*` en `aplicacion.py`. GREEN.
 - [x] T030C Regresión completa del servicio; revisar que `ROLES_*` no
   incluyan `agente` y que el usuario `agente` no obtenga sesión por ninguna
@@ -37,12 +37,17 @@ Las tareas con [P] pueden hacerse en paralelo con la anterior.
 
 ## Fase 3 — Front y E2E (N0)
 
-- [ ] T040A Escribir `e2e/e2e-agente.mjs` (AG-E01 a AG-E05) contra front y API
-  locales con el modelo guionado (variable de entorno de prueba, nunca en
-  producción). Ver RED.
-- [ ] T040B Ruta `/hotel/agente` y entrada en el menú por rol. GREEN.
-- [ ] T040C E2E base, operación, vendible y agente en verde; capturas propias
-  `ag-NN-*.png`.
+- [x] T040A Escribir `e2e/e2e-agente.mjs` (AG-E01, AG-E02, AG-E04, AG-E05;
+  AG-E03 quedó cubierto por AG-S07 en servicio) contra front y API locales con
+  el modelo guionado: la API arranca con `AGENTE_GUION_JSON="$(node
+  e2e-agente.mjs --guion)"` y el guion alcanza para una corrida (re-correr
+  exige reiniciar la API). Ver RED.
+- [x] T040B Ruta `/hotel/agente` y entrada en el menú por rol. GREEN
+  (`front/app/hotel/agente/page.js`; ítem «Agente» visible solo para
+  recepción/administrador en `front/app/barra.jsx`).
+- [x] T040C E2E landing, público, vendible/agente en verde; capturas propias
+  `ag-NN-*.png`. Evidencia 2026-11-04: agente 4/4, landing 3/3, público 6/6,
+  servicio 233/233, dominio 180/180.
 
 ## Fase 4 — Adaptador real y evaluación (compuerta)
 

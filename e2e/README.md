@@ -73,6 +73,30 @@ FRONT_URL; la base del front se inyecta con `window.LANDING_PLATAFORMA_URL`
 FRONT_URL=http://127.0.0.1:3000 node e2e-landing.mjs
 ```
 
+## Suite del agente de reservas (2026-11-04)
+
+`e2e-agente.mjs` (V1-ISSUE-30) cubre la bandeja `/hotel/agente` con el modelo
+guionado (NFR-A04): flujo feliz con redacción de datos personales, portapapeles
+y aprobación releída; recotización al aprobar con oferta vencida («la oferta
+cambió» → borrador nuevo); escalada por decisión inválida sin efectos; y rol
+caja sin menú ni acceso. Requiere la API con el guion en el entorno (una
+corrida por arranque de la API) y psql + `E2E_DB_URL` (AG-E05 envejece la
+vigencia de la oferta directo en la base de pruebas):
+
+```bash
+export AGENTE_GUION_JSON="$(node e2e-agente.mjs --guion)"
+# arrancar la API con ese entorno y el front (build con API_BASE_URL horneado)
+FRONT_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:8080 \
+  E2E_DB_URL=postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma_e2e_agente \
+  node e2e-agente.mjs
+```
+
+Resultados en `e2e-agente-resultados.json`, capturas `ag-NN-*.png`. AG-E03
+(503 sin adaptador) se cubre en servicio (AG-S07) y el guion es obligatorio
+aquí. Las aserciones se anclan al ítem 0 de la oferta tal como lo compone el
+servidor (la oferta ordena por id): la suite es re-ejecutable en la misma base
+sin reset, como las demás.
+
 **Bases recién creadas en `e2e-reserva-publica.mjs`:** PUB-01 auto-selecciona
 la primera opción de la oferta (orden `ORDER BY id` de `reservas.oferta`) y
 la convierte; PUB-03 pide las mismas fechas y exige la habitación de la

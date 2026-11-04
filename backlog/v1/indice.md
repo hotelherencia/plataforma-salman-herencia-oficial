@@ -127,7 +127,7 @@ cifras salen de `reservas.oferta`. Antecedente: `specs/002` historia 3.
 
 - [Bloqueada, P1] `v1-issue-28` (GitHub `#316`) — decisiones D-AGT-01..06.
 - [Bloqueada, P1] `v1-issue-29` (GitHub `#317`) — N0 copiloto: dominio, persistencia y API (TDD, modelo guionado).
-- [Bloqueada, P1] `v1-issue-30` (GitHub `#318`) — N0: bandeja `/hotel/agente` y E2E.
+- [Hecha, P1] `v1-issue-30` (GitHub `#318`) — N0: bandeja `/hotel/agente` y E2E.
 - [Bloqueada, P2] `v1-issue-31` (GitHub `#319`) — adaptador real y evaluación de 50 casos (compuerta N1/N2).
 - Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#316..#319`).
 
@@ -214,5 +214,30 @@ compuerta). D-AGT-02..06 siguen pendientes: el puerto del modelo responde 503
   segunda). Evidencia: AG-U01..U06 (13 tests) y AG-S01..S14 (14 tests) en
   verde; regresión completa servicio 233/233 y dominio 180/180. Las pruebas de
   dominio corren con PYTHONPATH de los incrementos (core+verticales/*).
-- Pendiente del paquete (próximo bucle): `#318` — bandeja `/hotel/agente` en
-  el front y E2E AG-E01..E05 (modelo guionado vía `AGENTE_GUION_JSON`).
+
+## Agente de reservas N0 — front y E2E (2026-11-04)
+
+- [Hecha, P1] `v1-issue-30` (GitHub `#318`) — bandeja `/hotel/agente`
+  (`front/app/hotel/agente/page.js`): recepción pega la consulta entrante
+  (canal + texto), ve el texto redactado ([correo]/[teléfono]/[rut]/[tarjeta]),
+  el borrador con las cifras releídas por API, la traza del turno y acciones
+  Aprobar (con edición opcional) / Descartar / «Copiar respuesta»; 409 «la
+  oferta cambió» se traduce en aviso con el borrador recotizado para aprobar
+  el nuevo. Ítem «Agente» en el menú solo para recepción/administrador
+  (`front/app/barra.jsx`, escritorio y móvil). E2E `e2e/e2e-agente.mjs` con
+  modelo guionado (`AGENTE_GUION_JSON="$(node e2e-agente.mjs --guion)"`, una
+  corrida por arranque de la API; AG-E03 quedó cubierto por AG-S07 en
+  servicio): AG-E01 flujo feliz con portapapeles y aprobación releída,
+  AG-E05 recotización con tarifa cambiada (v2 aprobado, v1 pendiente),
+  AG-E02 inyección → escalada sin efectos (0 reservas), AG-E04 caja sin menú
+  ni acceso (guardia + 403). APRENDIZAJE de la corrida: (1) `API_BASE_URL` se
+  hornea en el build (`next.config.mjs`): toca build + `next start`, no basta
+  la variable al arrancar; (2) el ítem 0 de la oferta ordena por id — entre
+  corridas es la habitación más vieja de la base, las aserciones se anclan a
+  lo que dice el texto del borrador; (3) el polling de Playwright puede ver
+  estados transitorios: el aviso se espera con su texto
+  (`getByRole('alert').filter({hasText})`), no solo el elemento. Evidencia
+  2026-11-04: agente 4/4, base 56/56, operación 20/20, landing 3/3, público
+  6/6, servicio 233/233, dominio 180/180.
+- Pendiente del paquete (próximo bucle): `#319` — adaptador real del modelo y
+  evaluación de 50 casos (compuerta SC-003; bloqueado por D-AGT-02).
