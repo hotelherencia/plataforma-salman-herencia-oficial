@@ -288,3 +288,26 @@ E2E una sola vez, sincronizado en el mismo commit.
   T060/T070 (N1/N2) siguen con sus decisiones. Evidencia 2026-11-04: servicio
   244/244, dominio 180/180, agente 4/4, operación 20/20, base 56/56,
   landing 3/3, público 6/6.
+
+## Canal público WhatsApp — evaluación e historias de usuario (2026-11-04)
+
+- [Hecha, P1] `v1-issue-32` (GitHub `#324`, orden del propietario
+  2026-11-04: «el canal público puede ser WhatsApp… un agente que reciba la
+  petición y responda derivando a 1 agente; crear historias de usuario para
+  integrar Meta; lo mínimo es integrar asistencia por IA») — paquete de
+  especificación `specs/006-hotel-canal-whatsapp/` (formato spec-kit del
+  repo, mismas convenciones que specs/005): HECHO DOCUMENTADO de la
+  evaluación (la traza landing es reconcilible vía `solicitudes.origen`;
+  las reservas directas no registran canal), fases F0–F2 (F0 manual con
+  `canal_origen='whatsapp'` **ya existe** en el agente N0 — ese N0 ya es la
+  asistencia por IA mínima, y la bandeja con borrador `escalado` ya es la
+  derivación a 1 humano), 4 historias con escenarios de aceptación, FR-W01–
+  FR-W07, NFR-W01–W05, SC-W01–W03 y decisiones D-WSP-01/02/03 + D-CANAL-01.
+  Sin sistemas externos reales: Meta queda como puerto (sin adaptador →
+  503 «no configurado»), la regla de AGENTS.md no cambia. La propuesta del
+  issue (`reservas.canal {recepcion, landing}` para «ingresos por canal»)
+  queda registrada en §2 del paquete como **D-CANAL-01: propuesta sin
+  implementar**, a la espera de decisión explícita del propietario. El issue
+  #324 se comenta y queda ABIERTO hasta que el propietario autorice el
+  adaptador Meta. Evidencia 2026-11-04: sin cambios de código (solo spec),
+  regresión servicio 244/244, dominio 180/180.
