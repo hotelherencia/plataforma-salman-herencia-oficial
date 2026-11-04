@@ -162,3 +162,32 @@ Cargados en GitHub Issues y en `hotelherencia/projects/2`:
   `pg_advisory_xact_lock` en `servicio/idempotencia.py`), guardia síncrona de
   doble envío, corrección de bloqueo tras `window.confirm` y contexto operativo
   de la reserva en `/hotel/estadia` (`servicio/tests/test_cancelacion_estadia.py`).
+
+## Bucle landing → plataforma (2026-11-04)
+
+Construcción del pedazo de V1-ISSUE-25 que vive en este repositorio. La
+landing de hotelherencia.cl está fuera del repo (Apache estático), así que
+se versiona en `landing/` una réplica fiel del sitio actual, lista para
+publicar en ese hosting, con el CTA ya cableado al front público. Ciclo
+TDD: RED (tests + E2E nuevos en rojo) → GREEN (implementación) → regresión.
+
+- [Hecha, P1] `v1-issue-25` (GitHub `#313`) — landing estática en `landing/`
+  (hero con widget de reserva, ubicación, servicios, habitaciones, galería,
+  FAQ y contacto con el contenido del sitio vigente). El CTA «Consultar
+  reserva» valida el rango con la misma regla que `front/app/reservar/page.js`
+  (`landing/js/reserva.js`, funciones puras también corridas en Node) y abre
+  `/reservar?inicio=…&fin=…&personas=…` (CA-PUB-12), sin datos personales en
+  la URL. E2E nueva `e2e/e2e-landing.mjs` (PUB-07/08/09), navegador real
+  contra esta carpeta servida estáticamente y el front en build de
+  producción: 3/3. Contacto: con `FORMSPREE_URL` sin configurar orienta a
+  tel/WhatsApp (D-PUB-01 sigue pendiente del propietario). Regresión del
+  canal público completa (PUB-01..05 + BAN-01): 6/6 contra base
+  `plataforma_e2e_landing`. El issue se mantiene abierto hasta que el CTA
+  esté publicado y verificado en el hosting real.
+- APRENDIZAJE de la corrida: `e2e-reserva-publica.mjs` asume una base con al
+  menos una habitación vendible ajena a la corrida: PUB-01 auto-selecciona
+  la primera opción de la oferta (`buscar()` de `/reservar`) y la convierte,
+  y PUB-03 reutiliza las mismas fechas exigiendo la habitación de la
+  corrida. Con una base recién creada PUB-02/03 fallan siempre; hay que
+  sembrar una habitación «decoy» con tarifa que ordene antes (documentado en
+  `e2e/README.md`).

@@ -1,0 +1,34 @@
+{
+  "fecha": "2026-11-04",
+  "landing": "http://127.0.0.1:39769",
+  "front": "http://127.0.0.1:3000",
+  "resultados": [
+    {
+      "id": "PUB-07",
+      "ruta": "/",
+      "flujo": "desde la landing, elegir fechas y huéspedes y pulsar «Consultar reserva» abre /reservar con inicio, fin y personas",
+      "rol": "visitante",
+      "esperado": "navega a /reservar?inicio=2026-11-05&fin=2026-11-08&personas=3 y el formulario llega precargado",
+      "observado": "http://127.0.0.1:3000/reservar?inicio=2026-11-05&fin=2026-11-08&personas=3",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "PUB-08",
+      "ruta": "/",
+      "flujo": "salida anterior a la llegada: mensaje local y sin navegación",
+      "rol": "visitante",
+      "esperado": "alerta «salida posterior» y la URL sigue en la landing",
+      "observado": "La salida debe ser posterior a la llegada.",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "PUB-09",
+      "ruta": "/",
+      "flujo": "fechas sin completar: mensaje local y sin navegación",
+      "rol": "visitante",
+      "esperado": "alerta «indica las fechas» y la URL sigue en la landing",
+      "observado": "Indica las fechas de tu estadía.",
+      "estado": "APROBADO"
+    }
+  ]
+}

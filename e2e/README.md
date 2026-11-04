@@ -58,3 +58,25 @@ FRONT_URL=http://127.0.0.1:3000 API_URL=http://127.0.0.1:8080 node e2e-operacion
 (p. ej. `DATABASE_URL_TEST=.../plataforma_test_operacion`) o una desechable
 recién creada: con otra sesión escribiendo en la base compartida, los tests
 fallan por interferencia (deadlocks, sesiones borradas). Ver V1-ISSUE-08.
+
+## Suite de la landing (2026-11-04)
+
+`e2e-landing.mjs` (V1-ISSUE-25, CA-PUB-12) sirve `landing/` en un puerto
+efímero y verifica con navegador real que el CTA «Consultar reserva» abre
+`/reservar` del front con inicio/fin/personas (PUB-07) y que rangos
+inválidos o fechas vacías se rechazan en la landing sin navegar (PUB-08/09;
+la validación espeja la de `/reservar`). Solo requiere el front en
+FRONT_URL; la base del front se inyecta con `window.LANDING_PLATAFORMA_URL`
+(addInitScript), sin tocar los estáticos.
+
+```bash
+FRONT_URL=http://127.0.0.1:3000 node e2e-landing.mjs
+```
+
+**Bases recién creadas en `e2e-reserva-publica.mjs`:** PUB-01 auto-selecciona
+la primera opción de la oferta (orden `ORDER BY id` de `reservas.oferta`) y
+la convierte; PUB-03 pide las mismas fechas y exige la habitación de la
+corrida. Si la base está vacía salvo esa habitación, PUB-02 y PUB-03 fallan
+siempre (oferta vacía u ocupada). Sembrar antes una habitación vendible
+ajena con tarifa que ordene antes, p. ej. `HAB-PUB-000000DECOY` con tarifa
+2026–2027 — es el estado habitual de la base compartida `plataforma_e2e`.
