@@ -279,7 +279,7 @@ class OcupacionOfertaReconciliacionTest(ReconciliacionBaseTest):
                 estados[celda["estado"]] = estados.get(celda["estado"], 0) + 1
             with self.subTest(noche=noche):
                 self.assertEqual(fila["disponibles"], estados.get("disponible", 0))
-                self.assertEqual(fila["ocupadas"], estados.get("confirmada", 0) + estados.get("en_estadia", 0))
+                self.assertEqual(fila["ocupadas_cupo"], estados.get("confirmada", 0) + estados.get("en_estadia", 0))
                 self.assertEqual(fila["no_vendibles"], estados.get("no_vendible", 0))
 
 
@@ -317,12 +317,12 @@ class PanelReconciliacionTest(ReconciliacionBaseTest):
             self.assertEqual(s["unidades"], len(activas), noche)
             self.assertEqual(s["reservadas"], len({f[1] for f in con_noche}), noche)
             if noche <= H:
-                self.assertIsNotNone(s["ocupadas"], noche)
-                self.assertEqual(s["ocupadas"], len({f[1] for f in con_noche if f[4] in ("en_estadia", "finalizada")}), noche)
-                esperado_ocupadas += s["ocupadas"]
+                self.assertIsNotNone(s["ocupadas_estadias"], noche)
+                self.assertEqual(s["ocupadas_estadias"], len({f[1] for f in con_noche if f[4] in ("en_estadia", "finalizada")}), noche)
+                esperado_ocupadas += s["ocupadas_estadias"]
                 esperado_unidades += s["unidades"]
             else:
-                self.assertIsNone(s["ocupadas"], noche)
+                self.assertIsNone(s["ocupadas_estadias"], noche)
             esperado_reservadas += s["reservadas"]
         per = p["periodo_indicadores"]
         self.assertEqual(per["noches_reservadas"]["valor"], esperado_reservadas)
@@ -333,7 +333,7 @@ class PanelReconciliacionTest(ReconciliacionBaseTest):
     def test_periodo_todo_futuro_ocupacion_nula_no_cero(self):
         p = self.panel(H + timedelta(days=1), H + timedelta(days=8))
         self.assertIsNone(p["periodo_indicadores"]["ocupacion"]["valor"])
-        self.assertTrue(all(s["ocupadas"] is None for s in p["serie"]))
+        self.assertTrue(all(s["ocupadas_estadias"] is None for s in p["serie"]))
         # las reservadas futuras sí cuentan (prospectivas)
         self.assertGreater(p["periodo_indicadores"]["noches_reservadas"]["valor"], 0)
 
@@ -380,5 +380,5 @@ class PanelReconciliacionTest(ReconciliacionBaseTest):
                 self.assertEqual(serie[noche]["reservadas"],
                                  estados.get("confirmada", 0) + estados.get("en_estadia", 0) + estados.get("finalizada", 0))
                 if date.fromisoformat(noche) <= H:
-                    self.assertEqual(serie[noche]["ocupadas"],
+                    self.assertEqual(serie[noche]["ocupadas_estadias"],
                                      estados.get("en_estadia", 0) + estados.get("finalizada", 0))

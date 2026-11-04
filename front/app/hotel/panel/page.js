@@ -202,7 +202,7 @@ export default function Panel() {
                   <tr key={s.fecha}>
                     <td>{s.fecha}</td>
                     <td>{s.unidades}</td>
-                    <td>{s.ocupadas === null ? 'futura' : s.ocupadas}</td>
+                    <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
                     <td>{s.reservadas}</td>
                   </tr>
                 ))}

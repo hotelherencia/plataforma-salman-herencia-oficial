@@ -110,7 +110,7 @@ def ocupacion(conexion: psycopg.Connection, empresa_id: str, desde: date, hasta:
     habitaciones = _habitaciones(conexion, None)
     reservas = _reservas_del_periodo(conexion, empresa_id, desde, hasta, [h["habitacion_id"] for h in habitaciones])
     tarifas = tarifas_por_noche(conexion, desde, hasta)
-    resumen = {n: {"fecha": n.isoformat(), "disponibles": 0, "ocupadas": 0, "no_vendibles": 0} for n in noches}
+    resumen = {n: {"fecha": n.isoformat(), "disponibles": 0, "ocupadas_cupo": 0, "no_vendibles": 0} for n in noches}
     salida = []
     for h in habitaciones:
         propias = [r for r in reservas if r["habitacion_id"] == h["habitacion_id"]]
@@ -124,7 +124,7 @@ def ocupacion(conexion: psycopg.Connection, empresa_id: str, desde: date, hasta:
             finalizada = next((r for r in propias if r["estado"] == "finalizada" and _contiene(r, noche)), None)
             if vigente:
                 celda.update(estado=vigente["estado"], reserva_id=vigente["reserva_id"])
-                resumen[noche]["ocupadas"] += 1
+                resumen[noche]["ocupadas_cupo"] += 1
             elif noche < hoy:
                 if finalizada:
                     celda.update(estado="finalizada", reserva_id=finalizada["reserva_id"])
@@ -257,14 +257,14 @@ def indicadores(
         activas = {h["habitacion_id"] for h in habitaciones if h["registrada_el"] <= noche}
         activas |= {r["habitacion_id"] for r in con_noche}
         reservadas = len({r["habitacion_id"] for r in con_noche})
-        ocupadas = None
+        ocupadas_estadias = None
         if noche <= hoy:
-            ocupadas = len({r["habitacion_id"] for r in con_noche if r["estado"] in ("en_estadia", "finalizada")})
+            ocupadas_estadias = len({r["habitacion_id"] for r in con_noche if r["estado"] in ("en_estadia", "finalizada")})
             unidades_pasadas += len(activas)
-            ocupadas_total += ocupadas
+            ocupadas_total += ocupadas_estadias
         unidades_total += len(activas)
         reservadas_total += reservadas
-        serie.append({"fecha": noche.isoformat(), "unidades": len(activas), "ocupadas": ocupadas,
+        serie.append({"fecha": noche.isoformat(), "unidades": len(activas), "ocupadas_estadias": ocupadas_estadias,
                       "reservadas": reservadas})
 
     canceladas = [r for r in reservas if r["estado"] == "cancelada"]

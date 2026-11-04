@@ -155,7 +155,7 @@ export default function Ocupacion() {
                   <th scope="row">Disponibles / cupo ocupado</th>
                   {datos.resumen.map((r) => (
                     <td key={r.fecha} className="ocupacion-resumen">
-                      {r.disponibles}/{r.ocupadas}
+                      {r.disponibles}/{r.ocupadas_cupo}
                     </td>
                   ))}
                 </tr>

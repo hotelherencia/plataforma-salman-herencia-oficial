@@ -367,7 +367,7 @@ class OcupacionTest(BaseOperacion):
                       next(h for h in cuerpo["habitaciones"] if h["habitacion_id"] == "HAB-O-2")["reservas"]}
         self.assertEqual(reservas_2, {"RSV-O-CON": "confirmada", "RSV-O-CAN": "cancelada"})
         hoy = next(x for x in cuerpo["resumen"] if x["fecha"] == HOY.isoformat())
-        self.assertEqual(hoy, {"fecha": HOY.isoformat(), "disponibles": 1, "ocupadas": 1, "no_vendibles": 2})
+        self.assertEqual(hoy, {"fecha": HOY.isoformat(), "disponibles": 1, "ocupadas_cupo": 1, "no_vendibles": 2})
 
     def test_ca_ocu_01_consistente_con_la_oferta(self):
         cuerpo = self.admin.get(f"/hotel/ocupacion?desde={iso(0)}&hasta={iso(5)}").json()
@@ -436,7 +436,7 @@ class IndicadoresTest(BaseOperacion):
         self.assertEqual((h["habitaciones_total"]["valor"], h["habitaciones_ocupadas"]["valor"],
                           h["habitaciones_vendibles"]["valor"], h["habitaciones_sucias"]["valor"],
                           h["limpiezas_pendientes"]["valor"], h["en_mantenimiento"]["valor"]), (3, 1, 2, 1, 1, 1))
-        self.assertEqual([s["ocupadas"] for s in cuerpo["serie"]], [1, 2, 1, None])
+        self.assertEqual([s["ocupadas_estadias"] for s in cuerpo["serie"]], [1, 2, 1, None])
         self.assertEqual([s["reservadas"] for s in cuerpo["serie"]], [1, 2, 2, 1])
 
     def test_ca_ind_01_filtro_por_tipo(self):

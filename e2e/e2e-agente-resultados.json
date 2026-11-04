@@ -7,7 +7,7 @@
       "flujo": "recepción pega la consulta; el borrador trae las cifras del turno; copia y aprueba; queda aprobado releído por API",
       "rol": "recepcion",
       "esperado": "texto redactado ([correo]/[teléfono], sin datos crudos); borrador con habitación y cifras consistentes (total = 2 noches × tarifa); portapapeles con el texto; API: borrador «aprobado»",
-      "observado": "CON-e7ac55a5a60a → borrador aprobado (2 trazas)",
+      "observado": "CON-cc28e838b68b → borrador aprobado (2 trazas)",
       "estado": "APROBADO"
     },
     {
@@ -16,7 +16,7 @@
       "flujo": "si la oferta venció, aprobar recotiza: tarifa distinta → aviso «la oferta cambió» con borrador nuevo; se aprueba el nuevo",
       "rol": "recepcion + administrador",
       "esperado": "409 traducido en pantalla; borrador v2 con la tarifa nueva (2×/noche = total); al aprobar el v2 queda «aprobado»; v1 sigue pendiente",
-      "observado": "CON-0e51a9390e03 → v2 aprobado a $80.000/noche; v1 quedó pendiente",
+      "observado": "CON-c12c0005c4af → v2 aprobado a $52.000/noche; v1 quedó pendiente",
       "estado": "APROBADO"
     },
     {
@@ -25,7 +25,7 @@
       "flujo": "la consulta intenta inyectar autoridad (tarifa); el verificador escala la consulta y nada se crea",
       "rol": "recepcion",
       "esperado": "estado «escalada» con motivo «decision invalida»; sin borradores; reservas de la habitación: 0 antes y después",
-      "observado": "CON-6f43985ec68c escalada; reservas en HAB-AGT-mw2asfs7: 0",
+      "observado": "CON-b7b533aafa34 escalada; reservas en HAB-AGT-mw2b5phc: 0",
       "estado": "APROBADO"
     },
     {

@@ -7,7 +7,7 @@
       "flujo": "deep link de la landing → solicitud → recepción la convierte y la reserva queda trazable",
       "rol": "visitante → recepcion",
       "esperado": "disponibilidad del servidor; solicitud con id; bandeja la muestra con el mismo id; conversión crea reserva confirmada",
-      "observado": "SOL-65f009b97644 → RSV-523324c44b5e (capturas/e2e-2026-11-04/01-pub-01-solicitud-recibida.png)",
+      "observado": "SOL-cc669bd8ca1d → RSV-e661a046951b (capturas/e2e-2026-11-04/01-pub-01-solicitud-recibida.png)",
       "estado": "APROBADO"
     },
     {

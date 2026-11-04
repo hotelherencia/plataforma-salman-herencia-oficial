@@ -462,7 +462,7 @@ try {
       const coincide = pintado.filas[apiId] && JSON.stringify(pintado.filas[apiId]) === JSON.stringify(esperadas)
       esperar(coincide, `${apiId}: UI ${JSON.stringify(pintado.filas[apiId])} vs API ${JSON.stringify(esperadas)}`)
     }
-    const pieEsperado = r.datos.resumen.map((x) => `${x.disponibles}/${x.ocupadas}`)
+    const pieEsperado = r.datos.resumen.map((x) => `${x.disponibles}/${x.ocupadas_cupo}`)
     esperar(JSON.stringify(pintado.pie) === JSON.stringify(pieEsperado), `pie ${pintado.pie} vs ${pieEsperado}`)
     await evidencia(page, 'ocu-03-ui-igual-api')
     await page.close()
@@ -515,7 +515,7 @@ try {
     for (let i = 0; i < ind.serie.length; i++) {
       const filaApi = ind.serie[i]
       const filaUi = kpis.serie[i]
-      const ocupadasUi = filaApi.ocupadas === null ? 'futura' : String(filaApi.ocupadas)
+      const ocupadasUi = filaApi.ocupadas_estadias === null ? 'futura' : String(filaApi.ocupadas_estadias)
       esperar(filaUi[0] === filaApi.fecha && filaUi[1] === String(filaApi.unidades)
               && filaUi[2] === ocupadasUi && filaUi[3] === String(filaApi.reservadas),
               `serie ${filaApi.fecha}: UI ${filaUi} vs API ${JSON.stringify(filaApi)}`)

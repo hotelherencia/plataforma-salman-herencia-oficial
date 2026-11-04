@@ -333,14 +333,16 @@ unidades del establecimiento, incluidas fuera de servicio y mantenimiento
 | `reservas_canceladas` | reservas `cancelada` cuyo rango toca el periodo, y sus noches | reservas, noches | `reservas` | la fecha de cancelación no está en `reservas` (solo en `auditoria`); el periodo se mide por fecha de estadía |
 | `reservas_registradas` | reservas creadas (`creado_en::date`) dentro del periodo, por estado actual | reservas | `reservas.creado_en` | — |
 
-Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
-ATENCIÓN (2026-11-03): el `ocupadas` de esta serie son **estadías reales**
+Serie diaria: por noche, `unidades`, `ocupadas_estadias` (si `d ≤ hoy`),
+`reservadas`.
+HECHO (2026-11-04, V1-ISSUE-32 / #320): este campo se llama
+`ocupadas_estadias` desde la revisión de contrato — son **estadías reales**
 (`en_estadia` + `finalizada`, noches `d ≤ hoy`); no es el mismo número que el
-`ocupadas` del resumen de `/hotel/ocupacion` (§5: cupo comprometido
-`confirmada`+`en_estadia`, cualquier noche). Fórmulas distintas, nombres
-iguales en dos endpoints: cada respuesta lleva su fórmula y esta nota queda
-como definición. Unificar nombres es REQUISITO PROPUESTO para una revisión
-del contrato (rompería el front y la E2E al renombrar).
+`ocupadas_cupo` del resumen de `/hotel/ocupacion` (§5: cupo comprometido
+`confirmada`+`en_estadia`, cualquier noche). Antes ambos se llamaban
+`ocupadas` y la duplicidad era una trampa de lectura (informe
+2026-11-03); el renombre rompió front y E2E una sola vez y quedó
+sincronizado en la misma revisión. Fórmulas distintas, nombres distintos.
 
 ### 4.4 Fuera del panel (no se calcula; se declara en `no_disponibles`)
 
@@ -361,16 +363,16 @@ del contrato (rompería el front y la E2E al renombrar).
   tipo, capacidad, estado_operativo, estado_preparacion, mantenimiento,
   en_servicio, noches: [{fecha, estado, reserva_id?, tarifa_noche_clp?,
   motivo?}], reservas: [{reserva_id, inicio, fin, estado, huesped_nombre}]}],
-  resumen: [{fecha, disponibles, ocupadas, no_vendibles}]}`.
-- **Definición de `resumen` (2026-11-03, para eliminar la ambigüedad del
-  nombre `ocupadas`):** cada noche suma las celdas con ese estado —
-  `disponibles` = celdas `disponible`; `ocupadas` = celdas `confirmada` o
+  resumen: [{fecha, disponibles, ocupadas_cupo, no_vendibles}]}`.
+- **Definición de `resumen` (2026-11-03; renombrado 2026-11-04 en la revisión
+  V1-ISSUE-32 / #320):** cada noche suma las celdas con ese estado —
+  `disponibles` = celdas `disponible`; `ocupadas_cupo` = celdas `confirmada` o
   `en_estadia` (**cupo comprometido**, cualquier noche del periodo); `no_vendibles`
   = celdas `no_vendible`. Las celdas `finalizada`, `sin_ocupar` y `sin_tarifa`
   no entran en ningún bucket del resumen (HECHO: implementación actual;
-  nombre distinto del `ocupadas` del panel §4.3, que mide estadías reales
-  pasadas — son métricas distintas con fórmulas distintas, y cada una lleva
-  su fórmula en la respuesta)..
+  nombre distinto del `ocupadas_estadias` de la serie del panel §4.3, que mide
+  estadías reales pasadas — son métricas distintas con fórmulas distintas, y
+  cada una lleva su fórmula en la respuesta).
 - **Estado de cada noche** (en el servidor; el front solo pinta):
   1. hay reserva `confirmada` o `en_estadia` que la contiene → ese estado y su
      `reserva_id` (es lo que protege el constraint `reservas_sin_solape`);

@@ -241,3 +241,24 @@ compuerta). D-AGT-02..06 siguen pendientes: el puerto del modelo responde 503
   6/6, servicio 233/233, dominio 180/180.
 - Pendiente del paquete (próximo bucle): `#319` — adaptador real del modelo y
   evaluación de 50 casos (compuerta SC-003; bloqueado por D-AGT-02).
+
+## Contrato: unificar «ocupadas» (2026-11-04)
+
+Revisión de contrato pedida por #320 (propuesta de la veracidad 2026-11-03):
+dos métricas distintas compartían el nombre `ocupadas` en dos endpoints —
+resumen de `GET /hotel/ocupacion` (cupo comprometido `confirmada`+`en_estadia`,
+cualquier noche) y serie de `GET /hotel/indicadores` (estadías reales
+`en_estadia`+`finalizada`, noches `d ≤ hoy`). El renombre se aprobó con la
+orden del propietario de completar el backlog (2026-11-04) y rompió front y
+E2E una sola vez, sincronizado en el mismo commit.
+
+- [Hecha, P2] GitHub `#320` — renombre `ocupadas` → `ocupadas_cupo` (resumen
+  de `/hotel/ocupacion`) y `ocupadas` → `ocupadas_estadias` (serie de
+  `/hotel/indicadores`): contrato antes del código
+  (spec-hotel-operacion-v1 §5 y §4.3, spec-api-v1 §«Mantenedor…»), luego
+  TDD (tests de reconciliación en rojo → `servicio/panel.py`), front
+  (`front/app/hotel/ocupacion/page.js`, `front/app/hotel/panel/page.js`) y
+  `e2e/e2e-operacion.mjs` (OCU-03, IND-05). Los KPI `habitaciones_ocupadas` y
+  `noches_ocupadas` no cambian (ya eran nombres propios). Evidencia
+  2026-11-04: servicio 233/233, operación 20/20, base 56/56, agente 4/4,
+  landing 3/3, público 6/6, dominio 180/180.
