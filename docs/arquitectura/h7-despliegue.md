@@ -454,9 +454,58 @@ el entorno del desarrollador no deja pasar el WebSocket HMR de Next
 así funciona el modo desarrollo tras un proxy que corta `ws://`. Comprobaciones:
 
 - Consola del navegador: errores `WebSocket connection to ... failed`.
-- `http://127.0.0.1:3000/salud` del backend debe responder 200 (la API no es
+- `http://127.0.0.1:8080/salud` del backend debe responder 200 (la API no es
   el problema).
 - Contrastar con el **build de producción** (`npm run build && npm run start`):
   ahí no hay HMR y la hidratación es inmediata. La revisión E2E siempre corre
   contra el build de producción por esto.
+
+### Orden de despliegue (V1-ISSUE-18, 2026-11-03)
+
+Vercel publica el front en cada push; Railway espera aprobación a mano. Si
+Vercel se adelanta a Railway, el front llamará endpoints que el build viejo
+no tiene (`/publico/*`, fichas, indicadores). Por eso el orden correcto al
+aprobar un lote que toque ambos artefactos es:
+
+1. **Railway primero**: aprobar el deploy del servicio y verificar que el
+   build nuevo sirve:
+   - `curl -s https://servicio-production-a2d7.up.railway.app/salud` → 200;
+   - `curl -s -o /dev/null -w "%{http_code}" https://servicio-production-a2d7.up.railway.app/publico/disponibilidad?inicio=<futuro>&fin=<futuro+2>&personas=2`
+     → **200 u otro 4xx legible** (existe) en vez de 404 (build viejo).
+2. **Verificar los empates de tarifas de la migración 0009** (solo lectura;
+   la migración rellenó `tarifas.creado_en` en orden físico para desempatar
+   la vigencia: si dos tarifas de una misma habitación comparten
+   `fecha_desde`, gana la de `creado_en` más reciente — una vigencia podría
+   cambiar al aplicarse en producción). Consulta para el propietario o el
+   administrador de la base de producción:
+   ```sql
+   SELECT habitacion_id, fecha_desde, count(*)
+   FROM tarifas GROUP BY habitacion_id, fecha_desde HAVING count(*) > 1;
+   ```
+   Si devuelve filas, decidir cuál tarifa debe quedar vigente (cargar una
+   tarifa nueva con la fecha_desde deseada hace que gane la nueva) **antes**
+   de seguir.
+3. **Vercel después**: el front ya publicado automáticamente encuentra el
+   contrato completo en el backend.
+
+### Canal público en producción — checklist previo (V1-ISSUE-26)
+
+El canal `/publico/*` y `/reservar` están construidos y verificados en
+local, pero **no deben activarse en producción** hasta que el propietario
+complete (todo requiere su decisión o sus datos reales):
+
+- [ ] Deploy Railway del lote actual aprobado (sección anterior).
+- [ ] **Empresa real**: alta y configuración del establecimiento real (hoy
+      `GET /salud` responde `EMP-SINTETICA-001`: una solicitud pública
+      persistiría en el tenant sintético).
+- [ ] **Habitaciones y tarifas reales** cargadas por el propietario (el
+      siembra sintético no se ofrece al público: sin tarifa no hay oferta).
+- [ ] **ORIGEN_LANDING=https://hotelherencia.cl** en las variables de Railway
+      (sin ella la landing no tiene CORS hacia `/publico/*`).
+- [ ] **Política de respaldo y datos personales** (Q-CORE-03, Ley 21.719):
+      las solicitudes guardan nombre y contacto del huésped; definir
+      retención y quién los procesa.
+- [ ] **CTA de la landing** (v1-issue-25): apuntar el botón a
+      `/reservar?inicio=…&fin=…&personas=…` solo después de lo anterior.
+- [ ] Freno de abuso vigente (`PUBLICO_MAX_POR_MINUTO`, por defecto 6).
 
