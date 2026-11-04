@@ -95,20 +95,24 @@ puerto vacío responde «no configurado» y no simula éxito
 
 ## 3. Integración — cuatro flujos (diagramas Mermaid)
 
+*2026-11-03 (V1-ISSUE-19): estos cuatro diagramas describen el destino que
+AGENTS.md sustituyó por las specs V1; se archivan en
+`docs/archivo-no-construccion/diagramas-destino-anterior/`.*
+
 Convención en los cuatro diagramas: **línea continua** = lo que el código hace
 hoy; **línea punteada** = enlace que falta o destino propuesto.
 
-1. [flujo-01-acceso-empresa.mmd](flujo-01-acceso-empresa.mmd) — hoy: cada
+1. [flujo-01-acceso-empresa.mmd](../archivo-no-construccion/diagramas-destino-anterior/flujo-01-acceso-empresa.mmd) — hoy: cada
    módulo fija su empresa y niega otra con su propia excepción. Falta: front,
    API y una única puerta de empresa en el núcleo.
-2. [flujo-02-reserva-sin-canal.mmd](flujo-02-reserva-sin-canal.mmd) — hoy: el
+2. [flujo-02-reserva-sin-canal.mmd](../archivo-no-construccion/diagramas-destino-anterior/flujo-02-reserva-sin-canal.mmd) — hoy: el
    hotel confirma reserva con cerrojo y sin invocar el puerto de canal. Falta:
    el borde HTTP delante del módulo.
-3. [flujo-03-cobro-detenido-en-puerto.mmd](flujo-03-cobro-detenido-en-puerto.mmd)
+3. [flujo-03-cobro-detenido-en-puerto.mmd](../archivo-no-construccion/diagramas-destino-anterior/flujo-03-cobro-detenido-en-puerto.mmd)
    — hoy: pago en memoria dentro del hotel y `aplicar_resultado_pago` solo en
    las pruebas del núcleo. Falta: el enlace vertical → núcleo y los puertos de
    pago/documento en el núcleo.
-4. [flujo-04-core-compartido.mmd](flujo-04-core-compartido.mmd) — hoy: cuatro
+4. [flujo-04-core-compartido.mmd](../archivo-no-construccion/diagramas-destino-anterior/flujo-04-core-compartido.mmd) — hoy: cuatro
    verticales (incluido el hotel) con empresa fija copiada, sin compartir
    código. Destino: un solo login y una sola base de pagos por el núcleo.
 

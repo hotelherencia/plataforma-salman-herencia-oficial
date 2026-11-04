@@ -120,10 +120,10 @@ trabajo original: API `:8080` + front build `:3000` contra la base dedicada
 en la base de pruebas compartida, la suite completa llegó a 49 fallos + 40
 errores (deadlocks en TRUNCATE, 401, datos borrados a mitad de prueba); con
 base dedicada, tres corridas completas seguidas en verde (147/147). Se
-registra **V1-ISSUE-08** para aislar la base de pruebas por defecto.
+registra **V1-ISSUE-11** para aislar la base de pruebas por defecto.
 
 **Deuda viva tras esta pasada:** V1-ISSUE-07 (el servicio no aplica la regla
 de fecha/hora ni de documento del dominio en check-in/salida — divergencia
-documentada; requiere decisión del propietario) y V1-ISSUE-08 (aislamiento de
+documentada; requiere decisión del propietario) y V1-ISSUE-11 (aislamiento de
 la base de pruebas). Las decisiones de negocio D-* de la spec §7 siguen
 pendientes del propietario; no se inventaron criterios.

@@ -254,10 +254,13 @@ el contrato:
   /hotel/indicadores?desde&hasta&tipo` (≤ 92 noches): lectura para cualquier
   rol, sin dinero ni documento; fecha de corte = fecha del servidor.
 
-## Operaciones de esta versión (32)
+## Operaciones de esta versión (35)
 
 | Operación | Efecto |
 |---|---|
+| `GET /salud` | Liveness de despliegue (Railway): 200 sin sesión ni datos. |
+| `GET /sesion` | Con cookie `sid`: `{id, usuario, rol, empresa_id, totp_activo}`. Sin sesión → 401. |
+| `GET /cuenta/2fa/qr` | Con sesión y 2FA pendiente/activo: devuelve el QR (PNG) del secreto para Google Authenticator. |
 | `POST /sesion` | Abre sesión de la empresa Herencia y fija la cookie `sid`. Con 2FA activo exige además `totp` (ver «Identidad y sesión»). |
 | `DELETE /sesion` | Cierra la sesión (la fila de `sesiones` queda revocada). |
 | `POST /cuenta/2fa` | Con sesión: genera el secreto TOTP pendiente y devuelve `{secreto, uri}` (otpauth://). No activa nada. |
@@ -286,7 +289,7 @@ el contrato:
 | `POST /hotel/reservas/{id}/cargos` | Cargo de texto libre (minibar, consumo, extra). Roles recepción, caja o administrador; solo en `confirmada` o `en_estadia`; monto entero > 0 (si no, 422); otro estado → 409. Ver «Cargos de la estadía». |
 | `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con reversos y regla de 48 h (ver «Cancelación»). Roles recepción o administrador. |
 | `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **la reserva ya comenzó** (`inicio ≤ hoy` del servidor; si no → 409 «aún no llega su día de entrada» — REQUISITO PROPUESTO 2026-11-03 por v1-issue-07, en ratificación; fuente: regla de llegada del dominio `check_in`). Sin exigir documento del huésped (D-ENT-01 sigue pendiente). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
-| `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. La habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente. |
+| `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. Si no queda otra estadía en curso en la unidad, la habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente; si otra estadía sigue en curso (turnover no solapado), la unidad permanece `ocupada` y limpia, sin tarea nueva (V1-ISSUE-15, 2026-11-03). |
 | `POST /hotel/habitaciones/{id}/limpieza` | Completa la limpieza pendiente y, si estaba sucia, deja la unidad `limpia`. Roles recepción o administrador. |
 | `POST /hotel/habitaciones/{id}/mantenimiento` | Abre o cierra el mantenimiento de la unidad (con su tarea). Solo administrador. Con mantenimiento abierto la oferta no la incluye y la entrada responde 409. |
 | `GET /hotel/caja?fecha=YYYY-MM-DD` | Pagos del día ligados a reserva. Sin movimiento bancario en esta versión. |
