@@ -230,7 +230,9 @@ def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: s
 
 def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> dict:
     """Check-out: exige saldo neto (cargo menos reverso) en cero; finaliza la
-    reserva, deja la habitación disponible y sucia, y abre la limpieza."""
+    reserva y abre la limpieza. V1-ISSUE-15: solo deja la unidad disponible y
+    sucia si no queda otra estadía en curso (el turnover no solapado de
+    entrada admite dos estadías contiguas en la misma habitación)."""
     _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     if _reserva[2] != "en_estadia":
         raise TransicionInvalida("check-out requiere una estadía en curso")
@@ -245,14 +247,26 @@ def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> di
         (liquidacion_id, reserva_id, neto, pagado),
     )
     conexion.execute("UPDATE reservas SET estado = 'finalizada' WHERE id = %s", (reserva_id,))
-    conexion.execute(
-        "UPDATE habitaciones SET estado_operativo = 'disponible', estado_preparacion = 'sucia' WHERE id = %s",
-        (_reserva[1],),
-    )
-    conexion.execute(
-        "INSERT INTO tareas_operativas (id, habitacion_id, tipo, estado) VALUES (%s, %s, 'limpieza', 'pendiente')",
-        (f"TSK-{uuid.uuid4().hex[:12]}", _reserva[1]),
-    )
+    (otra_estadia,) = conexion.execute(
+        "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado = 'en_estadia' AND id <> %s",
+        (_reserva[1], reserva_id),
+    ).fetchone()
+    if otra_estadia > 0:
+        # Otra estadía sigue en curso en la unidad: la habitación permanece
+        # ocupada y limpia (la limpieza del turnover ya ocurrió antes de esa
+        # entrada); la tarea se abre en la salida de la última estadía.
+        conexion.execute(
+            "UPDATE habitaciones SET estado_operativo = 'ocupada' WHERE id = %s", (_reserva[1],)
+        )
+    else:
+        conexion.execute(
+            "UPDATE habitaciones SET estado_operativo = 'disponible', estado_preparacion = 'sucia' WHERE id = %s",
+            (_reserva[1],),
+        )
+        conexion.execute(
+            "INSERT INTO tareas_operativas (id, habitacion_id, tipo, estado) VALUES (%s, %s, 'limpieza', 'pendiente')",
+            (f"TSK-{uuid.uuid4().hex[:12]}", _reserva[1]),
+        )
     return {
         "liquidacion_id": liquidacion_id,
         "reserva_id": reserva_id,

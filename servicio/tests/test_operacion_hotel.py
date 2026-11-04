@@ -336,9 +336,23 @@ class HabitacionOperacionTest(OperacionBaseTest):
         )
         self.assertEqual(solape.status_code, 409, solape.text)
 
-        # Salida de A (saldo en cero): finalizada, disponible y sucia, con tarea.
+        # Salida de A (saldo en cero): finalizada. V1-ISSUE-15: con B todavía
+        # en_estadia en la unidad, la habitación sigue ocupada y limpia, sin
+        # tarea nueva; B no se altera.
         self.pagar(a, 200_000, "cobro-a")
         respuesta = self.salida(a)
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        operativo, preparacion = self.select(
+            "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id='HAB-SINT-101'")[0]
+        self.assertEqual((operativo, preparacion), ("ocupada", "limpia"))
+        self.assertEqual(self.select(
+            "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")[0][0], 0)
+        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "en_estadia")
+
+        # La salida de B —la última estadía de la unidad— sí deja disponible y
+        # sucia, y abre la tarea de limpieza.
+        self.pagar(b, 100_000, "cobro-b")
+        respuesta = self.salida(b)
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         operativo, preparacion = self.select(
             "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id='HAB-SINT-101'")[0]
@@ -422,6 +436,41 @@ class HabitacionOperacionTest(OperacionBaseTest):
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (a,))[0][0], "en_estadia")
         self.assertEqual(
             self.select("SELECT estado_operativo FROM habitaciones WHERE id='HAB-SINT-101'")[0][0], "ocupada")
+
+    def test_salida_con_otra_estadia_en_curso_no_marca_disponible(self):
+        """V1-ISSUE-15: entrada admite el turnover no solapado (rangos
+        contiguos), así que una unidad puede tener dos estadías en curso. La
+        salida de una no debe marcar disponible+sucia ni abrir limpieza si la
+        otra estadía sigue en curso."""
+        a = self.reservar(inicio=str(_BASE), fin=str(_BASE + timedelta(days=2)))  # 2 noches
+        b = self.reservar(inicio=str(_BASE + timedelta(days=2)), fin=str(_BASE + timedelta(days=4)))
+        self.assertEqual(self.entrada(a).status_code, 200)
+        self.assertEqual(self.entrada(b).status_code, 200)  # contigua: no solapa
+
+        self.assertEqual(self.pagar(a, 100_000, self.clave()).status_code, 201)  # 2 x 50000
+        respuesta = self.salida(a)
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        self.assertEqual(respuesta.json()["estado"], "liquidada")
+
+        # A finalizada, B sigue en_estadia
+        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (a,))[0][0], "finalizada")
+        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "en_estadia")
+        # la unidad NO queda disponible ni sucia: B sigue dentro
+        operativo, preparacion = self.select(
+            "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id='HAB-SINT-101'"
+        )[0]
+        self.assertEqual(operativo, "ocupada")
+        self.assertEqual(preparacion, "limpia")
+        # sin tarea de limpieza nueva: la del turnover ya pasó antes de la entrada de B
+        self.assertEqual(self.select(
+            "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' "
+            "AND tipo='limpieza' AND estado='pendiente'")[0][0], 0)
+
+        # la salida de la última estadía sí libera la unidad
+        self.assertEqual(self.pagar(b, 100_000, self.clave()).status_code, 201)
+        self.assertEqual(self.salida(b).status_code, 200)
+        self.assertEqual(
+            self.select("SELECT estado_operativo FROM habitaciones WHERE id='HAB-SINT-101'")[0][0], "disponible")
 
 
 class CancelacionTest(OperacionBaseTest):

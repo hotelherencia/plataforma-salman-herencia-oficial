@@ -309,8 +309,23 @@ class MaduracionOperativaTest(unittest.TestCase):
             headers={"Idempotency-Key": "r-c"},
         )
         self.assertEqual(solape.status_code, 409)
-        # salida de A (saldo 0): la unidad queda sucia y nace la tarea de limpieza
+        # salida de A (saldo 0) con B todavía en_estadia (V1-ISSUE-15): la
+        # unidad sigue ocupada y limpia; no nace tarea de limpieza
         self.assertEqual(self.salida(rid_a, "sal-a").status_code, 200)
+        with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
+            (operativo, preparacion) = conexion.execute(
+                "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id = 'HAB-SINT-101'"
+            ).fetchone()
+            (tareas_pendientes,) = conexion.execute(
+                "SELECT count(*) FROM tareas_operativas WHERE habitacion_id = 'HAB-SINT-101' "
+                "AND tipo = 'limpieza' AND estado = 'pendiente'"
+            ).fetchone()
+        self.assertEqual((operativo, preparacion), ("ocupada", "limpia"))
+        self.assertEqual(tareas_pendientes, 0)
+        # la salida de B, la última estadía de la unidad, deja sucia y con tarea
+        self.assertEqual(self.pagar(rid_b, 100_000, "cob-b", "pag-b").status_code, 201)
+        self.assertEqual(self.salida(rid_b, "sal-b").status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             (operativo, preparacion) = conexion.execute(
