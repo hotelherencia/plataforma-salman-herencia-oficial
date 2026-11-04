@@ -210,6 +210,21 @@ export function resumenConfirmacion(datos) {
   if (datos.habitacion_id && datos.tipo) {
     return `Habitación ${datos.habitacion_id}: ${datos.tipo}, capacidad ${datos.capacidad}`
   }
+  if (datos.reserva_id && datos.estado === 'cancelada' && Array.isArray(datos.reversos)) {
+    const totalReversado = datos.reversos.reduce((s, r) => s + (r.monto_clp || 0), 0)
+    const txtReversos = datos.reversos.length
+      ? `${datos.reversos.length} reverso(s) aplicado(s) (${clp(totalReversado)})`
+      : 'sin cargos previos por reversar'
+    const txtPenalidad =
+      typeof datos.penalidad_clp === 'number' && datos.penalidad_clp > 0
+        ? ` · penalidad fuera de plazo: ${clp(datos.penalidad_clp)}`
+        : ' · sin penalidad (dentro de plazo)'
+    const txtReembolso =
+      datos.reembolso === 'no configurado'
+        ? ' · reembolso por pasarela no configurado (sin devolución automática)'
+        : ''
+    return `Reserva ${datos.reserva_id}: estado «cancelada» · ${txtReversos}${txtPenalidad}${txtReembolso}`
+  }
   if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
   if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`
   if (typeof datos.sesiones_revocadas === 'number') return `Usuario ${datos.id}: ${datos.sesiones_revocadas} sesión(es) revocada(s)`

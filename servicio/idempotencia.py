@@ -17,9 +17,16 @@ def ejecutar(conexion, empresa_id: str, clave: str, cuerpo: dict, operacion) -> 
     """Ejecuta `operacion()` una sola vez por clave y devuelve (código, cuerpo).
 
     `operacion` debe devolver (codigo_respuesta, cuerpo_dict). La respuesta se
-    guarda en `claves_idempotencia` y se repite intacta en reintentos.
+    guarda en `claves_idempotencia` y se repite intacta en reintentos. El
+    cerrojo transaccional por `(empresa_id, clave)` serializa reintentos
+    concurrentes en vuelo para que no ejecuten `operacion()` dos veces ni
+    fallen con UniqueViolation al insertar la clave.
     """
     digest = hash_cuerpo(cuerpo)
+    conexion.execute(
+        "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+        (empresa_id, clave),
+    )
     fila = conexion.execute(
         "SELECT hash_cuerpo, codigo_respuesta, cuerpo_respuesta "
         "FROM claves_idempotencia WHERE empresa_id = %s AND clave = %s",

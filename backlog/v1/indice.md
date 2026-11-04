@@ -88,7 +88,7 @@ Gemini 4 Argon vía `agy` sobre copias aisladas) y primer ciclo TDD.
   §2.7, CA-HAB-07). RED/GREEN en servicio (5) y E2E (`e2e-reserva-vendible.mjs`,
   3); regresión 155/155, 44/44 y 16/16. El código quedó dentro del commit
   local `ca2e40a` de otro trabajo; la E2E y este registro, sin commit.
-- [Lista, P1] `v1-issue-13` (GitHub `#281`) — renovar la clave de idempotencia tras un 4xx.
+- [Hecha, P1] `v1-issue-13` (GitHub `#281`) — renovar la clave de idempotencia tras un 4xx.
 - [Hecha, P1] `v1-issue-14` (GitHub `#302`) — `v1-issue-07` reencuadrado como decisión
   D-ENT-01 (ahora Bloqueada, a la espera del propietario); spec-api-v1,
   spec-hotel-operacion §7, `docs/funcional/dominio.md` y `flujos.md` describen
@@ -138,22 +138,27 @@ Auditoría sobre instancias locales aisladas (`:8097` y `:3017`) en 7 viewports
 (`320px` a `1440px`) y 4 roles (`anonimo`, `administrador`, `recepcion`, `caja`).
 Cargados en GitHub Issues y en `hotelherencia/projects/2`:
 
-- [Lista, P1] `v1-issue-13` (GitHub `#281`, enriquecido) — renovar clave de
-  idempotencia tras 4xx o exponer «Nueva operación» en todas las pantallas con mutación.
-- [Lista, P1] `v1-issue-32` (GitHub `#282`) — cobro parcial en `/hotel/pago`
+- [Hecha, P1] `v1-issue-13` (GitHub `#281`, enriquecido) — renovar clave de
+  idempotencia tras 4xx o exponer «Nueva operación» en todas las pantallas con mutación (resuelto en `e49efa5`).
+- [Hecha, P1] `v1-issue-32` (GitHub `#282`) — cobro parcial en `/hotel/pago`
   con `clave: 'cobro-web-1'` por defecto devuelve `201` (`reintento: true`) sin
-  registrar el segundo abono.
-- [Lista, P1] `v1-issue-33` (GitHub `#283`) — cambio de clave propia para
-  roles `recepcion` y `caja` en `/cuenta` e inclusión de `id` en `GET /sesion`.
-- [Lista, P2] `v1-issue-34` (GitHub `#284`) — desbordamiento horizontal móvil
-  (`320px–430px`) en `/hotel/habitaciones/[id]`, `/hotel/reservas/[id]` y `/hotel/oferta`.
-- [Lista, P2] `v1-issue-35` (GitHub `#285`) — precarga de `reserva_id` y
+  registrar el segundo abono (resuelto en `e49efa5`).
+- [Hecha, P1] `v1-issue-33` (GitHub `#283`) — cambio de clave propia para
+  roles `recepcion` y `caja` en `/cuenta` e inclusión de `id` en `GET /sesion` (resuelto en `e49efa5`).
+- [Hecha, P2] `v1-issue-34` (GitHub `#284`) — desbordamiento horizontal móvil
+  (`320px–430px`) en `/hotel/habitaciones/[id]`, `/hotel/reservas/[id]` y `/hotel/oferta` (resuelto en `de4c2c9`).
+- [Hecha, P2] `v1-issue-35` (GitHub `#285`) — precarga de `reserva_id` y
   `habitacion_id`/fechas entre pantallas operativas y eliminación de defaults
-  inválidos en `/hotel/reserva`.
-- [Lista, P2] `v1-issue-36` (GitHub `#286`) — accesibilidad y táctil: blancos
+  inválidos en `/hotel/reserva` (resuelto en `de4c2c9`).
+- [Hecha, P2] `v1-issue-36` (GitHub `#286`) — accesibilidad y táctil: blancos
   `>= 44×44 px`, semántica de tabla en listados, foco visible, `prefers-reduced-motion`
-  y confirmación en acciones destructivas.
-- [Lista, P2] `v1-issue-37` (GitHub `#287`) — rendimiento: compartir estado de
-  `useSesion()` para evitar 2 a 3 llamadas `GET /sesion` por montaje.
-- [Lista, P3] `v1-issue-38` (GitHub `#288`) — guardia de sesión y `.pagina` en
-  `/cafeteria`, `/inmobiliaria` y `/constructora`, y formato `clp()` en `/hotel/caja`.
+  y confirmación en acciones destructivas (resuelto en `de4c2c9`).
+- [Hecha, P2] `v1-issue-37` (GitHub `#287`) — rendimiento: compartir estado de
+  `useSesion()` para evitar 2 a 3 llamadas `GET /sesion` por montaje (resuelto en `e49efa5`).
+- [Hecha, P3] `v1-issue-38` (GitHub `#288`) — guardia de sesión y `.pagina` en
+  `/cafeteria`, `/inmobiliaria` y `/constructora`, y formato `clp()` en `/hotel/caja` (resuelto en `de4c2c9`).
+- [Hecha, P1] `v1-issue-39` (GitHub `#321`) — blindaje de cancelación y operaciones de estadía
+  ante concurrencia (`SELECT ... FOR UPDATE` en `servicio/cobro.py` y
+  `pg_advisory_xact_lock` en `servicio/idempotencia.py`), guardia síncrona de
+  doble envío, corrección de bloqueo tras `window.confirm` y contexto operativo
+  de la reserva en `/hotel/estadia` (`servicio/tests/test_cancelacion_estadia.py`).
