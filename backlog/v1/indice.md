@@ -128,7 +128,9 @@ cifras salen de `reservas.oferta`. Antecedente: `specs/002` historia 3.
 - [Bloqueada, P1] `v1-issue-28` (GitHub `#316`) — decisiones D-AGT-01..06.
 - [Bloqueada, P1] `v1-issue-29` (GitHub `#317`) — N0 copiloto: dominio, persistencia y API (TDD, modelo guionado).
 - [Hecha, P1] `v1-issue-30` (GitHub `#318`) — N0: bandeja `/hotel/agente` y E2E.
-- [Bloqueada, P2] `v1-issue-31` (GitHub `#319`) — adaptador real y evaluación de 50 casos (compuerta N1/N2).
+- [En curso, P2] `v1-issue-31` (GitHub `#319`) — evaluación de 50 casos hecha
+  (AG-V01, SC-003 aprobada con SUT grabado 2026-11-04); falta el adaptador
+  real (compuerta N1/N2; bloqueado por D-AGT-02).
 - Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#316..#319`).
 
 
@@ -262,3 +264,27 @@ E2E una sola vez, sincronizado en el mismo commit.
   `noches_ocupadas` no cambian (ya eran nombres propios). Evidencia
   2026-11-04: servicio 233/233, operación 20/20, base 56/56, agente 4/4,
   landing 3/3, público 6/6, dominio 180/180.
+
+## Agente N0 — evaluación AG-V01 / SC-003 (2026-11-04)
+
+- [Hecha, P1] `v1-issue-31` (GitHub `#319`, parte de validación y prueba
+  ordenada por el propietario) — corpus de 50 casos sintéticos
+  (`servicio/evaluaciones/agente/casos.jsonl`: 20 claros, 10 sin cupo,
+  10 ambiguos, 5 inyección, 5 datos sensibles; fechas relativas al corte) y
+  ejecutor `servicio/evaluacion_agente.py` con métricas de la compuerta
+  (tasa sin edición ≥ 90 %, 0 cifras inventadas, 100 % inyecciones escaladas,
+  100 % datos redactados; las propuestas adversariales no miden calidad, miden
+  defensa). SUT: `ModeloGrabado.desde_archivo` (respuestas grabadas, contract
+  test sin red, NFR-A04); con un proveedor real (D-AGT-02) el mismo corpus
+  mide sus respuestas. AG-V01 corrida en base aislada `plataforma_eval_agente`
+  con autorización del propietario: **SC-003 APROBADA**
+  (`AGV-2026-11-04-1e038fb4a9`; informe
+  `backlog/v1/evaluacion-agente-agv-2026-11-04.json`): 100 % / 0 / 100 % /
+  100 %. La aprobación cubre el pipeline; la compuerta para N1 exige repetir
+  la evaluación contra el adaptador real cuando D-AGT-02 lo nombre.
+  APRENDIZAJE: el corpus inicial sembró capacidad 2 para consultas de 3–4
+  personas y la compuerta lo rechazó (`referencia_inexistente`) — el harness
+  funciona como trampa honesta. T050B queda a medias (falta el proveedor);
+  T060/T070 (N1/N2) siguen con sus decisiones. Evidencia 2026-11-04: servicio
+  244/244, dominio 180/180, agente 4/4, operación 20/20, base 56/56,
+  landing 3/3, público 6/6.

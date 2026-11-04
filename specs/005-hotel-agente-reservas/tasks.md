@@ -51,13 +51,23 @@ Las tareas con [P] pueden hacerse en paralelo con la anterior.
 
 ## Fase 4 — Adaptador real y evaluación (compuerta)
 
-- [ ] T050A Escribir `servicio/evaluaciones/agente/casos.jsonl` (50 casos) y
-  el ejecutor del informe. [P] con T040.
+- [x] T050A `servicio/evaluaciones/agente/casos.jsonl` (50 casos: 20 claros,
+  10 sin cupo, 10 ambiguos, 5 inyección, 5 datos sensibles; fechas relativas al
+  corte para que el corpus no envejezca) y el ejecutor
+  `servicio/evaluacion_agente.py` con el informe SC-003. [P] con T040.
 - [ ] T050B Adaptador del proveedor elegido en D-AGT-02, cargado solo si la
-  configuración lo nombra; prueba de contrato con respuestas grabadas
-  sintéticas (sin red en CI).
-- [ ] T050C Ejecutar AG-V01 en base sintética aislada con autorización
-  explícita. Informe SC-003 al propietario.
+  configuración lo nombra. Mitad CI-segura hecha (2026-11-04): `ModeloGrabado`
+  con `desde_archivo` — respuestas grabadas reproducibles sin red — y la
+  evaluación mide cualquier SUT con el mismo contrato `decidir()`; falta el
+  proveedor (D-AGT-02 sigue abierta).
+- [x] T050C AG-V01 ejecutada en base sintética aislada (`plataforma_eval_agente`)
+  con autorización del propietario (2026-11-04): compuerta SC-003 APROBADA con
+  el SUT grabado (`AGV-2026-11-04-1e038fb4a9`, informe en
+  `backlog/v1/evaluacion-agente-agv-2026-11-04.json`): 100 % sin edición de
+  cifras, 0 cifras inventadas, 100 % inyecciones escaladas, 100 % datos
+  redactados. La aprobación cubre el pipeline (orquestador + verificador +
+  redacción); la compuerta para N1 con proveedor real exige repetir AG-V01
+  contra ese adaptador cuando D-AGT-02 lo nombre.
 
 ## Fase 5 — N1 y N2 (cada una con su propia decisión)
 

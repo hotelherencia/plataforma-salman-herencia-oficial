@@ -6,6 +6,7 @@ adaptador real se cargará solo si la configuración lo nombra.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Protocol
 
 
@@ -51,3 +52,20 @@ class ModeloGuionado:
         decision = self._guion.pop(0)
         self.decisiones.append(decision)
         return decision
+
+
+class ModeloGrabado(ModeloGuionado):
+    """Adaptador de respuestas grabadas (contract test sin red, NFR-A04).
+
+    Es el SUT de la evaluación AG-V01: carga las decisiones desde un archivo
+    JSON (`desde_archivo`) y las entrega en orden. Cuando D-AGT-02 elija un
+    proveedor real, su adaptador deberá respetar el mismo contrato `decidir()`
+    y la evaluación medirá sus respuestas con los mismos casos.
+    """
+
+    nombre = "grabado"
+
+    @classmethod
+    def desde_archivo(cls, ruta: str) -> "ModeloGrabado":
+        with open(ruta, encoding="utf-8") as manejador:
+            return cls(json.loads(manejador.read()))
