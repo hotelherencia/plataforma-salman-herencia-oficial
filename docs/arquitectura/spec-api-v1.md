@@ -254,7 +254,53 @@ el contrato:
   /hotel/indicadores?desde&hasta&tipo` (≤ 92 noches): lectura para cualquier
   rol, sin dinero ni documento; fecha de corte = fecha del servidor.
 
-## Operaciones de esta versión (35)
+## Canal público (2026-11-03, V1-ISSUE-21; implementado en V1-ISSUE-22/24)
+
+Superficie sin sesión para la landing https://hotelherencia.cl/. Prefijo
+propio `/publico/`; sin cookie ni credenciales (el navegador del visitante
+jamás recibe `sid`). La empresa es la del núcleo del proceso (regla de
+arranque), **nunca un parámetro**: una sola empresa en V1 (SUPUESTO
+Q-CORE-01). Las respuestas no llevan datos de huéspedes ni identificadores
+internos ajenos a la operación (la oferta cita `habitacion_id` porque la
+solicitud lo necesita).
+
+- `GET /publico/disponibilidad?inicio&fin&personas` — misma regla que
+  `GET /hotel/oferta` (cupo, tarifa vigente en cada noche §2.8, RES-VENDIBLE,
+  vencimiento): la decide `reservas.oferta`; esta ruta solo la expone sin
+  sesión. Validación: 400 `fin <= inicio`; 422 personas fuera de 1..30,
+  `inicio` en el pasado o más de 30 noches.
+- `POST /publico/solicitudes` — persiste una **solicitud** (no una reserva:
+  D-PUB-01 sigue pendiente) en tabla propia con `estado='recibida'`,
+  `origen='landing'` y fila de auditoría (`actor='publico:<solicitud_id>'`).
+  Cuerpo mínimo: `{habitacion_id, inicio, fin, personas, huesped_nombre,
+  huesped_contacto}`; cabecera `Idempotency-Key` obligatoria. Sin cupo o con
+  alguna noche sin tarifa → 409 legible y **nada se persiste** (CA-PUB-05).
+  Misma clave + mismo cuerpo → misma solicitud (200, `reintento:true`);
+  misma clave + otro cuerpo → 409 (espacio de claves separado del interno,
+  `solicitudes(empresa_id, idempotency_key)` único). Espacio de claves y tabla
+  son propios: la clave del visitante nunca toca `claves_idempotencia`.
+- Freno de abuso en memoria por IP: máximo 6 solicitudes por minuto → 429;
+  cuerpo mayor a 8 KB → 413.
+- CORS: con `ORIGEN_LANDING` configurado, ese origen accede **solo** a
+  `/publico/*`, con `Access-Control-Allow-Origin` sin credenciales (preflight
+  incluido); el resto de la API sigue exigiendo `ORIGEN_FRONT` con
+  credenciales y `origin_de_mutaciones` devuelve 403 a orígenes ajenos en
+  mutaciones internas (CA-PUB-03). Sin `ORIGEN_LANDING`, las rutas públicas
+  responden same-origin (útiles para el front y para pruebas).
+- Conversión interna (recepción, V1-ISSUE-24): `GET /hotel/solicitudes`,
+  `POST /hotel/solicitudes/{id}/conversion` (crea la reserva por
+  `reservas.crear_reserva` — la misma operación y la misma carrera por la
+  última unidad; sin cupo → 409 y la solicitud queda `recibida`) y
+  `POST /hotel/solicitudes/{id}/rechazo` (estado `rechazada` + motivo). La
+  trazabilidad es solicitud → `reserva_id` + auditoría. Dos solicitudes
+  idénticas concurrentes son dos solicitudes; la conversión de cada una la
+  decide el servidor de a una (CA-PUB-06: como máximo una confirmación por
+  carrera, la misma regla transaccional de la reserva).
+- CA-PUB-01: sin sesión, la disponibilidad responde 200 sin datos personales.
+  CA-PUB-02: las rutas internas siguen 401 sin sesión. CA-PUB-04: misma clave
+  y cuerpo no crean dos solicitudes.
+
+## Operaciones de esta versión (40)
 
 | Operación | Efecto |
 |---|---|
@@ -293,6 +339,11 @@ el contrato:
 | `POST /hotel/habitaciones/{id}/limpieza` | Completa la limpieza pendiente y, si estaba sucia, deja la unidad `limpia`. Roles recepción o administrador. |
 | `POST /hotel/habitaciones/{id}/mantenimiento` | Abre o cierra el mantenimiento de la unidad (con su tarea). Solo administrador. Con mantenimiento abierto la oferta no la incluye y la entrada responde 409. |
 | `GET /hotel/caja?fecha=YYYY-MM-DD` | Pagos del día ligados a reserva. Sin movimiento bancario en esta versión. |
+| `GET /publico/disponibilidad?inicio&fin&personas` | Sin sesión: la oferta vigente con la misma regla de cupo y tarifa que `/hotel/oferta` (ver «Canal público»). |
+| `POST /publico/solicitudes` | Sin sesión: persiste una solicitud `recibida` con `Idempotency-Key` propia; sin cupo o sin tarifa → 409 y nada se persiste. Ver «Canal público». |
+| `GET /hotel/solicitudes?estado=` | Bandeja de solicitudes públicas (recibida/convertida/rechazada). Roles recepción o administrador. |
+| `POST /hotel/solicitudes/{id}/conversion` | Convierte la solicitud en reserva por `reservas.crear_reserva` (misma carrera por la última unidad); marca `convertida` con `reserva_id` y auditoría. Roles recepción o administrador; sin cupo → 409 y queda `recibida`. |
+| `POST /hotel/solicitudes/{id}/rechazo` | Marca la solicitud `rechazada` con motivo. Roles recepción o administrador; `recibida` → 409. |
 
 ## Criterio de aceptación
 

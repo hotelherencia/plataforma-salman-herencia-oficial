@@ -55,10 +55,26 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
     `/hotel/habitaciones` envía `If-None-Match: *`.
 13. `/hotel/reservas/[id]` — detalle de la reserva con su cuenta; la búsqueda
     de `/hotel/reservas` suma periodo y habitación (2026-11-03).
+14. `/hotel/solicitudes` — bandeja de solicitudes públicas con conversión a
+    reserva y rechazo (recepción o administrador, 2026-11-03, v1-issue-24).
 
 Reglas de las rutas 10–13 (spec-hotel-operacion-v1): el front pinta lo que
 la API decide —estado de cada noche, saldo, valor de cada indicador— y no
 recalcula ninguno; las acciones que el rol no puede ejecutar no se muestran.
+
+## Rutas públicas (2026-11-03, v1-issue-23; contrato «Canal público»)
+
+1. `/reservar` — página del visitante, **fuera de `MarcoHotel`** (sin menú
+   interno) y dentro de `RUTAS_PUBLICAS` del Lienzo (con `/login`). Lee
+   `inicio`, `fin` y `personas` de la query y los valida antes de usarlos (no
+   confía en ellos); consulta `GET /publico/disponibilidad` y muestra lo que
+   el servidor responde —no calcula totales—; recoge huésped y contacto con
+   aviso de privacidad y envía `POST /publico/solicitudes` con
+   `Idempotency-Key` estable que sobrevive errores y se renueva tras 2xx;
+   muestra el número de solicitud devuelto. Parámetros inválidos → mensaje,
+   sin llamada de mutación; API caída → aviso y nada confirmable.
+2. El CTA «Consultar reserva» de la landing apunta a
+   `/reservar?inicio=…&fin=…&personas=…` (deep link precargado).
 
 ## Idempotencia en el cliente
 
