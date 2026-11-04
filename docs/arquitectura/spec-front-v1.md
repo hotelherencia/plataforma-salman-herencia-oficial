@@ -31,9 +31,10 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
    acción con su clave de idempotencia (2026-10-30). Desde 2026-11-03 la
    edición, la tarifa y el retiro viven en la ficha (ruta 12).
 2. `/hotel/oferta` — consulta de disponibilidad con tarifa y vencimiento.
-3. `/hotel/reserva` — confirmación con clave de idempotencia estable (ver
-   «Idempotencia en el cliente»).
-4. `/hotel/reservas` — búsqueda de reservas por fecha, estado y texto
+3. `/hotel/reserva` («Nueva reserva» en el menú) — confirmación con clave de
+   idempotencia estable (ver «Idempotencia en el cliente»).
+4. `/hotel/reservas` («Buscar reservas» en el menú) — búsqueda con filtros
+   por periodo, fecha, estado, texto y habitación; enlaza al detalle
    (2026-10-30).
 5. `/hotel/pago` — registro de pago (modo manual de caja; pasarela muestra
    «no disponible» ante 503).

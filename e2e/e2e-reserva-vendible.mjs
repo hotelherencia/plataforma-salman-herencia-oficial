@@ -143,7 +143,7 @@ try {
     await recepcion.waitForTimeout(1200)
     await recepcion.getByRole('link', { name: 'Hotel', exact: true }).first().click()
     await recepcion.waitForTimeout(1400)
-    await recepcion.getByRole('link', { name: 'Reserva', exact: true }).click()
+    await recepcion.getByRole('link', { name: 'Nueva reserva', exact: true }).click()
     await recepcion.waitForTimeout(1400)
     esperar(recepcion.url().endsWith('/hotel/reserva'), `menú llevó a ${recepcion.url()}`)
     await llenarYConfirmar(HAB_R, 'Huésped Retirada')

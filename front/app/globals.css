@@ -164,6 +164,11 @@ a {
   position: sticky;
   top: 0;
   height: 100vh;
+  /* Con el menú completo (módulos + 12 operaciones) el contenido supera la
+     altura de viewport en pantallas bajas: sin este scroll el pie con
+     «Cerrar sesión» queda fuera de alcance en las páginas largas
+     (confirmado por la E2E CLV-01 el 2026-11-04). */
+  overflow-y: auto;
 }
 
 .marca {

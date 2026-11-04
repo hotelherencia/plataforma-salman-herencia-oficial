@@ -168,7 +168,7 @@ try {
   })
 
   await caso('TN-02', '/hotel/reserva', 'desde el menú, reservar la misma estadía', 'recepcion', `409: alerta «sin tarifa vigente … la noche ${D(45)}»; la API no registra reserva`, async () => {
-    await irDesdeMenu(recepcion, 'Reserva', '/hotel/reserva')
+    await irDesdeMenu(recepcion, 'Nueva reserva', '/hotel/reserva')
     await confirmarReserva()
     const a = await alerta(recepcion)
     await evidencia(recepcion, 'reserva-rechazada')
@@ -199,7 +199,7 @@ try {
     esperar((await textoPagina(recepcion)).includes(HAB), 'la pantalla no la muestra')
     await evidencia(recepcion, 'oferta-cubierta')
 
-    await irDesdeMenu(recepcion, 'Reserva', '/hotel/reserva')
+    await irDesdeMenu(recepcion, 'Nueva reserva', '/hotel/reserva')
     await confirmarReserva()
     const c = await confirmacion(recepcion)
     await evidencia(recepcion, 'reserva-confirmada')
