@@ -597,6 +597,49 @@ a.boton-primario {
   margin-top: 0.25rem;
 }
 
+/* Bandeja de solicitudes y página pública /reservar (V1-ISSUE-23/24) */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lista-opciones {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.8rem 0 1.2rem;
+}
+
+.opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  cursor: pointer;
+}
+
+.opcion:has(input:checked) {
+  border-color: var(--verde-oscuro);
+  background: var(--superficie);
+}
+
+.opcion input {
+  margin-top: 0.2rem;
+}
+
+.acciones-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acciones-fila .entrada {
+  min-width: 12rem;
+}
+
 .boton-fantasma {
   justify-self: start;
   background: rgba(255, 255, 255, 0.6);

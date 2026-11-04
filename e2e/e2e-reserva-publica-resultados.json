@@ -1,0 +1,59 @@
+{
+  "fecha": "2026-11-03",
+  "resultados": [
+    {
+      "id": "PUB-01",
+      "ruta": "/reservar",
+      "flujo": "deep link de la landing → solicitud → recepción la convierte y la reserva queda trazable",
+      "rol": "visitante → recepcion",
+      "esperado": "disponibilidad del servidor; solicitud con id; bandeja la muestra con el mismo id; conversión crea reserva confirmada",
+      "observado": "SOL-6607e841fc5f → RSV-5a39f0525ffd (capturas/e2e-2026-11-03/01-pub-01-solicitud-recibida.png)",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "PUB-02",
+      "ruta": "/reservar",
+      "flujo": "rango sin cupo: la pantalla lo dice y la API rechaza sin persistir",
+      "rol": "visitante",
+      "esperado": "«No hay opciones…» en la pantalla; POST /publico/solicitudes → 409",
+      "observado": "pantalla y API rechazan; nada que confirmar",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "PUB-03",
+      "ruta": "/reservar",
+      "flujo": "doble envío (misma clave del navegador) no crea dos solicitudes",
+      "rol": "visitante",
+      "esperado": "una sola fila; el reintento responde 200 reintento:true",
+      "observado": "1 sola solicitud tras el doble clic",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "PUB-04",
+      "ruta": "/reservar",
+      "flujo": "parámetros de la URL inválidos: mensaje local, sin llamada de mutación",
+      "rol": "visitante",
+      "esperado": "alerta de validación y sección de disponibilidad ausente",
+      "observado": "fin invertido y personas=99 rechazados en el cliente",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "PUB-05",
+      "ruta": "/reservar",
+      "flujo": "el visitante jamás ve el menú interno ni datos ajenos",
+      "rol": "anonimo",
+      "esperado": "sin enlaces de operación en /reservar; /hotel/panel pide login",
+      "observado": "página pública limpia y guardia intacta",
+      "estado": "APROBADO"
+    },
+    {
+      "id": "BAN-01",
+      "ruta": "/hotel/solicitudes",
+      "flujo": "recepción rechaza con motivo; la conversión posterior es 409",
+      "rol": "recepcion",
+      "esperado": "estado rechazada + motivo; convertir → 409",
+      "observado": "rechazada con motivo; conversión 409",
+      "estado": "APROBADO"
+    }
+  ]
+}

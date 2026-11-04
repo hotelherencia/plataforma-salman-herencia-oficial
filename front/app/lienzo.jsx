@@ -5,8 +5,9 @@ import BarraNav from './barra.jsx'
 import { useSesion } from '../lib/api'
 import PantallaAcceso from './login/pantalla.jsx'
 
-/** Rutas públicas: un visitante sin sesión las ve igual (V1-ISSUE-27). */
-const RUTAS_PUBLICAS = ['/login']
+/** Rutas públicas: un visitante sin sesión las ve igual (V1-ISSUE-27 y
+ *  V1-ISSUE-23: /reservar es la página de la landing, fuera del menú). */
+const RUTAS_PUBLICAS = ['/login', '/reservar']
 
 /** Estructura visual (V1-ISSUE-27): el chrome completo (sidebar + contenido)
  *  solo se pinta con sesión válida. Sin sesión, toda ruta interna muestra solo
