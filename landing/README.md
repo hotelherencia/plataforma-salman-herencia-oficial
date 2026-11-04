@@ -23,8 +23,13 @@ con trazabilidad (`servicio/canal_publico.py`).
 - `js/widget.js` — cableado del formulario del hero al deep link.
 - `js/galeria.js` — carruseles de habitaciones y galería (mejora progresiva:
   sin JS queda visible la primera imagen de cada grupo).
-- `js/formulario.js` — formulario de contacto de #contacto.
-- `test/reserva.test.mjs` — tests del constructor: `node --test landing/test/`.
+- `js/formulario.js` — cableado del formulario de contacto de #contacto a
+  `POST {API_URL}/publico/leads`.
+- `js/leads.js` — utilidades **puras** del formulario de contacto (mapeo del
+  cuerpo a snake_case y mensajes según el código HTTP). Sin DOM: también las
+  importan los tests de Node.
+- `test/leads.test.mjs` — tests del mapeo y los mensajes.
+- `test/reserva.test.mjs` — tests del constructor: `node --test 'landing/test/*.test.mjs'`.
 
 ## Configuración al publicar
 
@@ -33,10 +38,14 @@ En `js/config.js`:
 - `PLATAFORMA_URL`: origen del front público. Por defecto la instalación en
   Vercel. El E2E la sobrescribe en el navegador con
   `window.LANDING_PLATAFORMA_URL` (addInitScript), sin tocar estos archivos.
-- `FORMSPREE_URL`: endpoint del formulario de contacto. D-PUB-01 (qué pasa
-  con Formspree) sigue **DECISIÓN PENDIENTE** del propietario (issue #308):
-  con `null` el formulario no envía a ningún servicio externo y orienta al
-  visitante hacia teléfono y WhatsApp; configurado, envía por `fetch`.
+- `API_URL`: origen del servicio que recibe el formulario de contacto
+  (`POST {API_URL}/publico/leads`, especificación en
+  `docs/arquitectura/spec-api-v1.md` «Contacto y leads de la landing»).
+  D-PUB-01 resuelta (2026-11-04, orden del propietario): el formulario es
+  **propio** y Formspree se retira — las consultas quedan en la plataforma
+  como leads gestionables por recepción. Por defecto es el front en `/api/*`
+  (reenvío al backend según `front/vercel.json`); el E2E y las pruebas
+  locales lo sobrescriben con `window.LANDING_API_URL`.
 
 ## Fotografías
 

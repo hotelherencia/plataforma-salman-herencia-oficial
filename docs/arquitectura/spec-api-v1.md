@@ -300,6 +300,55 @@ solicitud lo necesita).
   CA-PUB-02: las rutas internas siguen 401 sin sesión. CA-PUB-04: misma clave
   y cuerpo no crean dos solicitudes.
 
+## Contacto y leads de la landing (2026-11-04, V1-ISSUE-20 punto 8 resuelto)
+
+DECISIÓN 2026-11-04 (orden del propietario): el formulario de contacto de
+https://hotelherencia.cl/ se integra a la plataforma con **formulario
+propio**; Formspree se retira (independencia y sin costo adicional). La
+landing postea a `{API_URL}/publico/leads`, con `API_URL` por defecto el
+front Vercel en `/api/*` (reenvío al backend según `front/vercel.json`, sin
+CORS extra); en pruebas y E2E, `window.LANDING_API_URL` apunta al servicio
+directo. Mismas reglas generales del canal público: prefijo `/publico/`, sin
+cookie ni credenciales, empresa = la del núcleo del proceso (nunca un
+parámetro).
+
+- `POST /publico/leads` — sin sesión: persiste un **lead** (prospección:
+  consulta general del visitante) en tabla propia con `estado='nuevo'`,
+  `origen='landing'` y fila de auditoría (`actor='publico:<lead_id>'`).
+  Cuerpo mínimo: `{nombre, correo, telefono}`; opcionales `{huespedes,
+  check_in, check_out, mensaje}` (el formulario de la landing envía los
+  siete). Cabecera `Idempotency-Key` obligatoria. Espacio de claves propio
+  (`leads(empresa_id, idempotency_key)` único): la clave del visitante nunca
+  toca `claves_idempotencia`. Misma clave + mismo cuerpo → 200 `reintento:true`;
+  misma clave + otro cuerpo → 409. Freno por IP: máximo 6 por minuto → 429;
+  cuerpo mayor a 8 KB → 413.
+- Validación: `nombre` no vacío (≤ 200); `correo` con formato (≤ 320);
+  `telefono` no vacío (≤ 40); `huespedes` 1..30 si viene; si vienen fechas,
+  vienen ambas y `check_out > check_in` (422); `mensaje` ≤ 2000. Los datos de
+  contacto se guardan **tal cual**: son el objeto de la gestión comercial
+  (igual que `solicitudes.huesped_contacto`); la redacción NFR-A03 aplica solo
+  si el texto se envía a un modelo externo, que este canal no hace.
+- Respuesta 201 `{lead: {id, estado, creado_en}}` sin datos de terceros ni
+  identificadores internos ajenos.
+- Gestión interna (recepción o administrador; 401 sin sesión, 403 con otro
+  rol): `GET /hotel/leads?estado=` — bandeja por estado (`nuevo|contactado|
+  cerrado`; sin filtro, todas) orden `creado_en` DESC, con los datos de
+  contacto y el mensaje (la bandeja ES la agenda de seguimiento). Solo leads
+  de la empresa de la sesión.
+- `POST /hotel/leads/{id}/estado` — `{estado: contactado|cerrado, nota?}`.
+  Transiciones válidas: `nuevo→contactado`, `nuevo→cerrado`,
+  `contactado→cerrado`; cualquier otra → 409. Ajeno o inexistente → 403
+  «acceso denegado» (sin revelar cuál es el caso, igual que las solicitudes).
+  `Idempotency-Key` interna obligatoria (la compuerta de mutaciones). Guarda
+  `gestion_en`/`gestion_por`/nota con fila de auditoría (`actor=<nombre de
+  sesión>`). La gestión nunca borra: el lead queda en su estado final.
+- CA-LEAD-01: sin sesión, crear un lead responde 201 sin datos personales de
+  terceros. CA-LEAD-02: reintento con misma clave y cuerpo no crea dos leads.
+  CA-LEAD-03: la bandeja exige rol de gestión y nunca muestra leads de otra
+  empresa. CA-LEAD-04: la gestión es idempotente por clave interna: repetir
+  la misma operación con la misma clave devuelve el mismo resultado sin
+  reescribir `gestion_en`.
+
 ## Agente de reservas (2026-11-04, V1-ISSUE-28/29; D-AGT-01 ratificada 2026-11-04)
 
 Copiloto de recepción (nivel **N0**, DECISIÓN 2026-11-04: orden del propietario
@@ -351,7 +400,7 @@ habitaciones se rechaza sin ejecutar y la consulta escala. `crear_solicitud`
 llega solo en N2 (D-PUB-01 y D-AGT-04). El modelo jamás envía `empresa_id`,
 rol, tarifa ni total como argumento.
 
-## Operaciones de esta versión (47)
+## Operaciones de esta versión (50)
 
 | Operación | Efecto |
 |---|---|
@@ -395,6 +444,9 @@ rol, tarifa ni total como argumento.
 | `GET /hotel/solicitudes?estado=` | Bandeja de solicitudes públicas (recibida/convertida/rechazada). Roles recepción o administrador. |
 | `POST /hotel/solicitudes/{id}/conversion` | Convierte la solicitud en reserva por `reservas.crear_reserva` (misma carrera por la última unidad); marca `convertida` con `reserva_id` y auditoría. Roles recepción o administrador; sin cupo → 409 y queda `recibida`. |
 | `POST /hotel/solicitudes/{id}/rechazo` | Marca la solicitud `rechazada` con motivo. Roles recepción o administrador; `recibida` → 409. |
+| `POST /publico/leads` | Sin sesión: persiste un lead `nuevo` con `Idempotency-Key` propia (origen landing, tabla y espacio de claves propios). Ver «Contacto y leads de la landing». |
+| `GET /hotel/leads?estado=` | Bandeja de leads (nuevo/contactado/cerrado) con datos de contacto y mensaje. Roles recepción o administrador; solo la empresa de la sesión. |
+| `POST /hotel/leads/{id}/estado` | Avanza el lead (`contactado`/`cerrado` con nota) con auditoría; transición inválida → 409, ajeno → 403. Roles recepción o administrador. |
 | `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |
 | `GET /hotel/agente/consultas?estado=` | Bandeja del agente por estado, sin texto completo. Roles recepción o administrador. |
 | `GET /hotel/agente/consultas/{id}` | Consulta con borradores y traza resumida; ajena → 403. Roles recepción o administrador. |

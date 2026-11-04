@@ -311,3 +311,41 @@ E2E una sola vez, sincronizado en el mismo commit.
   #324 se comenta y queda ABIERTO hasta que el propietario autorice el
   adaptador Meta. Evidencia 2026-11-04: sin cambios de código (solo spec),
   regresión servicio 244/244, dominio 180/180.
+
+## Contacto y leads de la landing — formulario propio (2026-11-04)
+
+- [Hecha, P1] `v1-issue-20` punto 8 (GitHub `#308`, orden del propietario
+  2026-11-04: «crear nuestro propio forms desde la landingpage que se integre
+  directamente», captar leads para seguimiento; Formspree pierde
+  independencia y cuesta) — DECISIÓN tomada y construida: formulario propio
+  que postea a la plataforma; **Formspree retirado**. Contrato antes del
+  código (spec-api-v1 «Contacto y leads de la landing», 50 operaciones):
+  `POST /publico/leads` sin sesión (idempotencia propia, freno por IP,
+  CORS solo `/publico/*`, tabla y espacio de claves propios — la clave del
+  visitante nunca toca `claves_idempotencia`; los datos de contacto se
+  guardan tal cual, son la agenda de seguimiento; la redacción NFR-A03 no
+  aplica porque el texto no sale a terceros) y gestión interna
+  `GET /hotel/leads` + `POST /hotel/leads/{id}/estado`
+  (nuevo→contactado→cerrado con nota, auditoría, idempotencia interna;
+  la gestión nunca borra). TDD: 16 pruebas nuevas en
+  `servicio/tests/test_leads.py` (CA-LEAD-01..04). Implementación:
+  migración `0012_leads.sql`, `servicio/leads.py`, rutas en
+  `servicio/aplicacion.py`, bandeja `front/app/hotel/leads` (+ ítem de menú).
+  Landing: `js/leads.js` (utilidades puras, mapeo a snake_case) +
+  `formulario.js` postea a `{API_URL}/publico/leads` (`API_URL` default el
+  front en `/api/*` según `front/vercel.json`; en E2E/local
+  `window.LANDING_API_URL`), 3 tests nuevos (`node --test
+  'landing/test/*.test.mjs'`, 12/12) y README actualizado. E2E nuevo
+  `e2e/e2e-leads.mjs` (5 casos: envío real desde la landing con CORS del
+  origen, rechazo sin persistir, bandeja, contactado con nota, cierre sin
+  reapertura; el origen de la landing usa puerto fijo LANDING_PORT=4173
+  porque el CORS del formulario se valida contra ORIGEN_LANDING).
+  APRENDIZAJES: (1) `hasText` de Playwright con string es
+  case-insensitive — matcheó el botón «Contactado» como si fuera la celda
+  de estado; con regex sin flags es case-sensitive; (2) PUB-03 de
+  reserva-publica quedó mal aislado: usaba el mismo rango que PUB-01, cuyo
+  cupo consume al convertir — el caso prueba idempotencia, no cupo; ahora
+  usa un rango propio libre (+20..+22 días). Evidencia 2026-11-04:
+  servicio 260/260, dominio 180/180 (5 raíces), landing unitarios 12/12,
+  E2E: base 56/56, operación 20/20, reserva-publica 6/6, landing 3/3,
+  leads 5/5, agente 4/4.

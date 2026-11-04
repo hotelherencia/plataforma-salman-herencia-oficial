@@ -1,10 +1,12 @@
 /**
- * Formulario de contacto de la sección #contacto. D-PUB-01 (convivencia con
- * Formspree) sigue DECISIÓN PENDIENTE del propietario: con FORMSPREE_URL
- * configurado envía por fetch ( Accept: application/json ); sin él, no
- * simula un envío y orienta al visitante hacia teléfono y WhatsApp.
+ * Formulario de contacto de la sección #contacto. D-PUB-01 resuelta
+ * (2026-11-04, orden del propietario): formulario propio que postea a la
+ * plataforma (`{API_URL}/publico/leads`, spec-api-v1 «Contacto y leads de la
+ * landing»); Formspree se retira. Sin `API_URL` configurado, no se simula un
+ * envío y se orienta al visitante hacia teléfono y WhatsApp.
  */
-import { FORMSPREE_URL } from './config.js'
+import { API_URL } from './config.js'
+import { mapearCuerpo, mensajePara } from './leads.js'
 
 export function inicializarFormulario(documento) {
   const formulario = documento.querySelector('[data-formulario-contacto]')
@@ -13,7 +15,7 @@ export function inicializarFormulario(documento) {
 
   formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault()
-    if (!FORMSPREE_URL) {
+    if (!API_URL) {
       estado.textContent =
         'El formulario web está en preparación: llámanos o escríbenos por WhatsApp y respondemos a la brevedad.'
       return
@@ -21,15 +23,28 @@ export function inicializarFormulario(documento) {
     const boton = formulario.querySelector('button[type="submit"]')
     boton.disabled = true
     estado.textContent = 'Enviando…'
+    const datos = Object.fromEntries(new FormData(formulario).entries())
+    // el HTML conserva los names históricos con guion; la API usa snake_case
+    const cuerpo = mapearCuerpo({
+      nombre: datos.nombre,
+      correo: datos.correo,
+      telefono: datos.telefono,
+      huespedes: datos.huespedes,
+      check_in: datos['check-in'],
+      check_out: datos['check-out'],
+      mensaje: datos.mensaje,
+    })
     try {
-      const respuesta = await fetch(FORMSPREE_URL, {
+      const respuesta = await fetch(`${API_URL.replace(/\/+$/, '')}/publico/leads`, {
         method: 'POST',
-        headers: { Accept: 'application/json' },
-        body: new FormData(formulario),
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify(cuerpo),
       })
-      estado.textContent = respuesta.ok
-        ? 'Consulta enviada. Responderemos a la brevedad.'
-        : 'No se pudo enviar. Inténtalo por teléfono o WhatsApp.'
+      estado.textContent = mensajePara(respuesta.status)
     } catch {
       estado.textContent = 'No se pudo enviar. Inténtalo por teléfono o WhatsApp.'
     } finally {

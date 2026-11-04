@@ -28,6 +28,7 @@ const OPERACION_HOTEL = [
   ['/hotel/reserva', 'Nueva reserva'],
   ['/hotel/reservas', 'Buscar reservas'],
   ['/hotel/solicitudes', 'Solicitudes'],
+  ['/hotel/leads', 'Leads'],
   ['/hotel/pago', 'Pago'],
   ['/hotel/estadia', 'Estadía'],
   ['/hotel/salida', 'Salida'],

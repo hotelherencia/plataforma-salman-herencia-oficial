@@ -36,6 +36,7 @@ from . import reservas as reservas_db  # noqa: E402
 from . import cobro  # noqa: E402
 from . import panel  # noqa: E402
 from . import canal_publico  # noqa: E402
+from . import leads as leads_mod  # noqa: E402
 from . import agente  # noqa: E402
 from .modelo_lenguaje import ModeloGuionado, NoConfigurado, SinAdaptador  # noqa: E402
 from . import totp  # noqa: E402
@@ -180,6 +181,21 @@ class SolicitudPublicaIn(BaseModel):
 
 class RechazoSolicitudIn(BaseModel):
     motivo: str = Field(min_length=1, max_length=300)
+
+
+class LeadPublicoIn(BaseModel):
+    nombre: str = Field(min_length=1, max_length=leads_mod.MAX_NOMBRE)
+    correo: str = Field(min_length=1, max_length=leads_mod.MAX_CORREO)
+    telefono: str = Field(min_length=1, max_length=leads_mod.MAX_TELEFONO)
+    huespedes: int | None = Field(default=None, ge=1, le=leads_mod.MAX_PERSONAS)
+    check_in: date | None = None
+    check_out: date | None = None
+    mensaje: str | None = Field(default=None, max_length=leads_mod.MAX_MENSAJE)
+
+
+class GestionLeadIn(BaseModel):
+    estado: str = Field(min_length=1, max_length=20)
+    nota: str | None = Field(default=None, max_length=500)
 
 
 class ConsultaAgenteIn(BaseModel):
@@ -1265,6 +1281,82 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             except canal_publico.SolicitudAjenaOInexistente:
                 return 403, {"detail": "acceso denegado"}
             except canal_publico.TransicionInvalida as error:
+                return 409, {"detail": str(error)}
+            return 200, resultado
+
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    # ------------------------------------------------------------------
+    # Contacto y leads de la landing (spec-api-v1 «Contacto y leads»)
+    # ------------------------------------------------------------------
+
+    @app.post("/publico/leads")
+    def crear_lead_publico(
+        lead: LeadPublicoIn,
+        request: Request,
+        idempotency_key: str | None = Header(default=None),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        if not idempotency_key or not idempotency_key.strip():
+            raise HTTPException(status_code=422, detail="falta la cabecera Idempotency-Key")
+        longitud = request.headers.get("content-length")
+        if longitud and int(longitud) > canal_publico.TOPE_CUERPO_BYTES:
+            raise HTTPException(status_code=413, detail="el cuerpo supera el tamaño permitido")
+        ip = request.client.host if request.client else "desconocida"
+        freno: canal_publico.FrenoDeSolicitudes = app.state.freno_solicitudes
+        if not freno.permite(ip):
+            raise HTTPException(
+                status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+            )
+        try:
+            resultado = leads_mod.crear_lead(
+                conexion, aplicacion.nucleo.empresa.id, lead.nombre, lead.correo, lead.telefono,
+                lead.huespedes, lead.check_in, lead.check_out, lead.mensaje,
+                idempotency_key.strip(),
+            )
+        except leads_mod.LeadInvalido as error:
+            raise HTTPException(status_code=422, detail=error.detalle)
+        except leads_mod.ClaveEnConflicto as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        codigo = 200 if resultado.get("reintento") else 201
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=resultado)
+
+    @app.get("/hotel/leads")
+    def bandeja_leads(
+        estado: str | None = None,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        _exigir_rol(sesion, leads_mod.ROLES_GESTION)
+        try:
+            return leads_mod.bandeja(conexion, sesion.empresa_id, estado)
+        except leads_mod.LeadInvalido as error:
+            raise HTTPException(status_code=422, detail=error.detalle)
+
+    @app.post("/hotel/leads/{lead_id}/estado")
+    def gestionar_lead(
+        lead_id: str,
+        gestion: GestionLeadIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, leads_mod.ROLES_GESTION)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"lead_id": lead_id, "estado": gestion.estado, "nota": gestion.nota}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = leads_mod.gestionar(
+                    conexion, sesion.empresa_id, lead_id, gestion.estado, gestion.nota,
+                    sesion.nombre,
+                )
+            except leads_mod.LeadAjenoOInexistente:
+                return 403, {"detail": "acceso denegado"}
+            except leads_mod.TransicionInvalida as error:
                 return 409, {"detail": str(error)}
             return 200, resultado
 

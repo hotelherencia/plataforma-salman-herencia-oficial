@@ -14,7 +14,7 @@
     "flujo": "alta duplicada no sobrescribe (If-None-Match)",
     "rol": "administrador",
     "esperado": "alerta «ya existe»; tipo y capacidad intactos",
-    "observado": "la habitación HAB-mw2e3qo7-M ya existe",
+    "observado": "la habitación HAB-mw2im6vu-M ya existe",
     "estado": "APROBADO"
   },
   {
@@ -32,7 +32,7 @@
     "flujo": "editar tipo y capacidad con reserva previa",
     "rol": "administrador",
     "esperado": "cambio aplicado y auditado; reserva intacta",
-    "observado": "Habitación HAB-mw2e3qo7-M: tipo doble → suite · capacidad 2 → 3",
+    "observado": "Habitación HAB-mw2im6vu-M: tipo doble → suite · capacidad 2 → 3",
     "estado": "APROBADO"
   },
   {
@@ -50,7 +50,7 @@
     "flujo": "retiro bloqueado por reserva vigente",
     "rol": "administrador",
     "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
-    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-20132a326caa",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-db33d4c9883d",
     "estado": "APROBADO"
   },
   {
@@ -113,7 +113,7 @@
     "flujo": "cada noche «disponible» coincide con la oferta de esa noche",
     "rol": "caja",
     "esperado": "consistencia total ocupación ↔ oferta en 10 noches",
-    "observado": "290 celdas consistentes con la oferta",
+    "observado": "100 celdas consistentes con la oferta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "panel coincide con un recuento independiente",
     "rol": "administrador",
     "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
-    "observado": "en_casa 0, llegadas 0, noches 9, ocupación reservada 2.8 %",
+    "observado": "en_casa 0, llegadas 0, noches 3, ocupación reservada 2.7 %",
     "estado": "APROBADO"
   },
   {
@@ -149,7 +149,7 @@
     "flujo": "filtro por tipo de habitación recalcula el panel",
     "rol": "administrador",
     "esperado": "las tarjetas cambian al filtrar por un tipo existente",
-    "observado": "sin filtro 29 → solo «simple» 2",
+    "observado": "sin filtro 10 → solo «simple» 1",
     "estado": "APROBADO"
   },
   {
@@ -158,7 +158,7 @@
     "flujo": "la rejilla y el resumen pintan exactamente lo que responde la API",
     "rol": "recepcion",
     "esperado": "cada fila de celdas y el pie coinciden con /hotel/ocupacion del mismo periodo",
-    "observado": "29 filas y 11 totales idénticos a la API",
+    "observado": "10 filas y 11 totales idénticos a la API",
     "estado": "APROBADO"
   },
   {

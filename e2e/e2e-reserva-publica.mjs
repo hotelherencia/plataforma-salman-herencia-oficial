@@ -191,7 +191,13 @@ try {
     const nombreUnico = `Doble Clic ${RUN}`
     const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 1280, height: 720 } })
     const page = await ctx.newPage()
-    await page.goto(`${FRONT}/reservar?inicio=${MANANA}&fin=${EN_3}&personas=2`)
+    // Aislamiento del cupo: PUB-01 convierte esta misma habitación en
+    // MANANA..EN_3 y PUB-02 la ocupa en EN_5..EN_7. Este caso prueba la
+    // idempotencia del doble envío, no el cupo: usa un rango propio libre
+    // (nadie más de la corrida toca +20..+22).
+    const ini = sumarDias(HOY, 20)
+    const fin = sumarDias(HOY, 22)
+    await page.goto(`${FRONT}/reservar?inicio=${ini}&fin=${fin}&personas=2`)
     await page.waitForSelector('.lista-opciones', { timeout: 8000 })
     await page.locator(`.opcion:has-text("${HAB}") input`).check()
     await page.getByRole('textbox', { name: 'Nombre' }).fill(nombreUnico)
