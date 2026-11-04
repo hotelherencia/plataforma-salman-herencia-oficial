@@ -1,11 +1,13 @@
 # Especificación — Agente de reservas del hotel
 
-Feature: `005-hotel-agente-reservas`. Fecha: 2026-11-03. Estado: **REQUISITO
-PROPUESTO, NO APROBADO, NO IMPLEMENTADO.** Todos los FR, NFR y SC de este
-documento esperan ratificación del propietario (decisiones D-AGT-01 a
-D-AGT-06). Al ratificarse, las rutas nuevas se incorporan a
-`docs/arquitectura/spec-api-v1.md` (especificación gobernante, AGENTS.md) antes
-de escribir código; mientras tanto este paquete no la modifica.
+Feature: `005-hotel-agente-reservas`. Fecha: 2026-11-03; actualizada 2026-11-04.
+Estado: **D-AGT-01 RATIFICADA (2026-11-04, orden del propietario: nivel
+inicial N0 copiloto con SC-003 como compuerta); N0 EN IMPLEMENTACIÓN
+(V1-ISSUE-29). D-AGT-02 a D-AGT-06 siguen pendientes** — sin proveedor del
+modelo ni canal, el N0 se construye y prueba con el modelo guionado y el
+puerto responde 503 «modelo no configurado». Las rutas nuevas ya se
+incorporaron a `docs/arquitectura/spec-api-v1.md` (sección «Agente de
+reservas», 2026-11-04) como manda este paquete.
 
 Antecedentes que este paquete acota y reemplaza para V1: historia 3 de
 `specs/002-hotel-reservas-concierge` («Concierge agéntico por WhatsApp»,

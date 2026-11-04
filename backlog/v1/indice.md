@@ -191,3 +191,28 @@ TDD: RED (tests + E2E nuevos en rojo) → GREEN (implementación) → regresión
   corrida. Con una base recién creada PUB-02/03 fallan siempre; hay que
   sembrar una habitación «decoy» con tarifa que ordene antes (documentado en
   `e2e/README.md`).
+
+## Agente de reservas N0 — backend (2026-11-04)
+
+D-AGT-01 ratificada por orden del propietario (2026-11-04: «sigue tu
+sugerencia» sobre V1-ISSUE-29 = nivel inicial N0 copiloto, SC-003 como
+compuerta). D-AGT-02..06 siguen pendientes: el puerto del modelo responde 503
+«modelo no configurado» y las pruebas usan el modelo guionado (NFR-A04).
+
+- [Hecha, P1] `v1-issue-29` (GitHub `#317`) — backend N0 con TDD puro
+  (RED→GREEN por capas, specs/005): dominio (`servicio/agente.py`: redactar,
+  validar_decision, componer, verificar, NIVELES cerrados por nivel; puerto
+  `servicio/modelo_lenguaje.py`: SinAdaptador/ModeloGuionado), migración
+  `0011_agente_reservas.sql` (4 tablas + índices; 0010 quedó tomada por el
+  canal público), orquestador `procesar` (tope 3 turnos, un reintento ante
+  fallo del modelo, verificador determinista, trazas y auditoría con actor
+  `agente:<consulta_id>`) y 7 rutas `/hotel/agente/*` en aplicacion.py
+  (spec-api-v1 §«Agente de reservas», operaciones 40→47). Identidad de
+  servicio `agente` sin clave utilizable ni email (sin sesión por ninguna
+  vía). Recotización al aprobar con oferta vencida (409 «la oferta cambió» con
+  borrador nuevo); aprobación concurrente con guardia de estado (409 a la
+  segunda). Evidencia: AG-U01..U06 (13 tests) y AG-S01..S14 (14 tests) en
+  verde; regresión completa servicio 233/233 y dominio 180/180. Las pruebas de
+  dominio corren con PYTHONPATH de los incrementos (core+verticales/*).
+- Pendiente del paquete (próximo bucle): `#318` — bandeja `/hotel/agente` en
+  el front y E2E AG-E01..E05 (modelo guionado vía `AGENTE_GUION_JSON`).

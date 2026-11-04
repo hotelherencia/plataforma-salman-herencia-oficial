@@ -82,10 +82,12 @@ flowchart LR
 
 ## Migración
 
-`0010_agente_reservas.sql`: crea `consultas_agente`, `borradores_agente`,
+`0011_agente_reservas.sql` (el número 0010 quedó tomado por el canal
+público): crea `consultas_agente`, `borradores_agente`,
 `trazas_agente` y `politica_agente`, más el usuario de servicio `agente` de
 la empresa (`usuarios.rol` no tiene CHECK en la base). Ver [data-model.md](data-model.md). Sin datos reales. Se
-aplica en el arranque como las demás; prueba de migración idempotente.
+aplica en el arranque como las demás; prueba de migración idempotente
+(AG-S14).
 
 ## Front
 

@@ -12,26 +12,26 @@ Las tareas con [P] pueden hacerse en paralelo con la anterior.
   `backlog/v1`.
 - [ ] T002 Propietario: D-AGT-02 (proveedor, región, retención y datos). No
   bloquea T010 a T040; sí bloquea T050.
-- [ ] T010 Enmendar `docs/arquitectura/spec-api-v1.md` con
+- [x] T010 Enmendar `docs/arquitectura/spec-api-v1.md` con
   `contracts/api-agente.md`, `spec-front-v1.md` con la ruta `/hotel/agente` y
   `spec-backend-v1.md` con el puerto `ModeloLenguaje`. Depende de T001.
 
 ## Fase 1 — Dominio puro (N0)
 
-- [ ] T020A Escribir AG-U01 a AG-U06 en `servicio/tests/test_agente_unidad.py`.
+- [x] T020A Escribir AG-U01 a AG-U06 en `servicio/tests/test_agente_unidad.py`.
   Ver RED.
-- [ ] T020B Implementar `servicio/agente.py` (`redactar`, `HERRAMIENTAS`,
+- [x] T020B Implementar `servicio/agente.py` (`redactar`, `HERRAMIENTAS`,
   `validar_decision`, `componer`, `verificar`) y `servicio/modelo_lenguaje.py`
   (`SinAdaptador`, `ModeloGuionado`). GREEN.
-- [ ] T020C Refactor más regresión del servicio y del dominio (181).
+- [x] T020C Refactor más regresión del servicio y del dominio (181).
 
 ## Fase 2 — Persistencia y API (N0)
 
-- [ ] T030A Escribir AG-S01 a AG-S14 en
+- [x] T030A Escribir AG-S01 a AG-S14 en
   `servicio/tests/test_agente_servicio.py`. Ver RED.
-- [ ] T030B Migración `0010_agente_reservas.sql`, rol `agente`,
+- [x] T030B Migración `0010_agente_reservas.sql`, rol `agente`,
   `orquestador.procesar` y rutas `/hotel/agente/*` en `aplicacion.py`. GREEN.
-- [ ] T030C Regresión completa del servicio; revisar que `ROLES_*` no
+- [x] T030C Regresión completa del servicio; revisar que `ROLES_*` no
   incluyan `agente` y que el usuario `agente` no obtenga sesión por ninguna
   vía.
 

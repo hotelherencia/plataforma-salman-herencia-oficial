@@ -60,6 +60,16 @@ reinicio). Reglas:
   nada; el front no recalcula (spec-hotel-operacion-v1 §4–5).
 - **Al reiniciar el servicio, una reserva confirmada y un pago siguen ahí**
   (fila 6 del dictamen); las tareas operativas también.
+- Agente de reservas (N0, 2026-11-04, V1-ISSUE-29): tablas propias
+  `consultas_agente`, `borradores_agente`, `trazas_agente` y `politica_agente`
+  (migración 0011), más el usuario de servicio `agente` (sin clave utilizable
+  ni sesión posible). Puerto `ModeloLenguaje`: sin adaptador (D-AGT-02
+  pendiente) responde 503 «modelo no configurado» y la consulta queda
+  `pendiente`; el modelo guionado solo existe para las pruebas. El orquestador
+  corre dentro de la petición (sin cola ni worker), con tope de 3 turnos y
+  verificador determinista: ninguna cifra del borrador sale del resultado de
+  las herramientas de su turno. Detalle en `specs/005-hotel-agente-reservas/`
+  y en la sección «Agente de reservas» de spec-api-v1.
 
 ## Puertos y sistemas externos
 
@@ -70,8 +80,8 @@ núcleo. En esta versión responden **«no configurado»** y la API traduce eso 
 ## Criterio de aceptación
 
 1. `GET /salud` responde en el despliegue de Railway.
-2. Las **32 operaciones** de spec-api-v1 (contrato ampliado 2026-10-30 y
-   2026-11-03) pasan contra PostgreSQL.
+2. Las **47 operaciones** de spec-api-v1 (contrato ampliado 2026-10-30,
+   2026-11-03 y 2026-11-04 con el agente N0) pasan contra PostgreSQL.
 3. Una segunda llamada con la misma clave de idempotencia no crea un segundo
    efecto; con otro cuerpo responde 409.
 4. Reinicio del proceso: reserva y pago persisten.

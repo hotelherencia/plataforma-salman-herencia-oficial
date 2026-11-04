@@ -300,7 +300,58 @@ solicitud lo necesita).
   CA-PUB-02: las rutas internas siguen 401 sin sesión. CA-PUB-04: misma clave
   y cuerpo no crean dos solicitudes.
 
-## Operaciones de esta versión (40)
+## Agente de reservas (2026-11-04, V1-ISSUE-28/29; D-AGT-01 ratificada 2026-11-04)
+
+Copiloto de recepción (nivel **N0**, DECISIÓN 2026-11-04: orden del propietario
+de proceder con N0; D-AGT-02..06 siguen pendientes y nada de este paquete se
+despliega sin autorización). Detalle de historias, herramientas y datos en
+`specs/005-hotel-agente-reservas/`; aquí va el contrato. **El agente no es
+autoridad**: cupo, tarifa, total, política y estado los produce el servidor
+(`reservas.oferta`, mismas reglas de `/hotel/oferta`); el modelo solo elige
+una plantilla y un saludo libre, y un verificador determinista rechaza todo
+borrador cuyas cifras no vengan del turno que las originó.
+
+Todas las rutas exigen sesión de recepción o administrador (401 sin sesión,
+403 con otro rol o con otra empresa). Las mutaciones llevan
+`Idempotency-Key`. La identidad de servicio `agente` se crea por migración,
+sin clave utilizable: ninguna sesión web puede emitirse para ella (FR-A06) y
+su barrera es la lista cerrada de herramientas, no los roles de sesión.
+
+- `POST /hotel/agente/consultas` — `{canal_origen: manual|landing|correo|whatsapp, texto: 1..4000}`.
+  201 `{consulta, borrador?}`: el borrador queda `pendiente_aprobacion` (o
+  `escalado` con motivo). Sin adaptador del modelo (D-AGT-02 pendiente) → 503
+  `{"detail":"modelo no configurado","estado":"pendiente"}` con la consulta
+  guardada; recepción la atiende como hoy. El texto se guarda **redactado**
+  (NFR-A03: sin RUT, tarjetas, correos ni teléfonos). Misma clave y cuerpo →
+  misma consulta sin una segunda llamada al modelo.
+- `GET /hotel/agente/consultas?estado=` — lista por estado (`pendiente`,
+  `procesada`, `escalada`) sin texto completo.
+- `GET /hotel/agente/consultas/{id}` — consulta con sus borradores y traza
+  resumida; ajena o inexistente → 403.
+- `POST /hotel/agente/borradores/{id}/aprobacion` — `{texto_editado?}`.
+  Si la oferta del borrador venció (> 15 min), el servidor **recotiza**:
+  cifra distinta → 409 «la oferta cambió» con borrador nuevo; igual → 200
+  `aprobado` (o `editado` con `texto_editado`). Ya resuelto → 409. Dos
+  aprobaciones concurrentes: una 200 y otra 409.
+- `POST /hotel/agente/borradores/{id}/descarte` — `{motivo}`; 200; ya
+  resuelto → 409.
+- `GET /hotel/agente/politica` / `PUT /hotel/agente/politica` — política de
+  autonomía por empresa (`nivel` N0|N1|N2, horario, `max_noches`,
+  `max_personas`, `tope_mensual_clp`). GET: recepción o administrador. PUT:
+  solo administrador; subir de nivel sin `evaluacion_ref` → 409 (compuerta
+  SC-003); recepción → 403.
+
+Herramientas internas (no son HTTP; el modelo solo las nombra con
+argumentos validados): `consultar_disponibilidad` (envuelve `reservas.oferta`)
+y `proponer_borrador` (plantilla ∈ {cotizacion, sin_disponibilidad,
+pedir_dato, escalar} con referencias a ítems del turno y saludo ≤ 280 sin
+dígitos). En N0 son exactamente estas dos: una decisión que nombra
+`crear_reserva`, pagos, caja, usuarios, cancelación, entrada, salida o
+habitaciones se rechaza sin ejecutar y la consulta escala. `crear_solicitud`
+llega solo en N2 (D-PUB-01 y D-AGT-04). El modelo jamás envía `empresa_id`,
+rol, tarifa ni total como argumento.
+
+## Operaciones de esta versión (47)
 
 | Operación | Efecto |
 |---|---|
@@ -344,6 +395,13 @@ solicitud lo necesita).
 | `GET /hotel/solicitudes?estado=` | Bandeja de solicitudes públicas (recibida/convertida/rechazada). Roles recepción o administrador. |
 | `POST /hotel/solicitudes/{id}/conversion` | Convierte la solicitud en reserva por `reservas.crear_reserva` (misma carrera por la última unidad); marca `convertida` con `reserva_id` y auditoría. Roles recepción o administrador; sin cupo → 409 y queda `recibida`. |
 | `POST /hotel/solicitudes/{id}/rechazo` | Marca la solicitud `rechazada` con motivo. Roles recepción o administrador; `recibida` → 409. |
+| `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |
+| `GET /hotel/agente/consultas?estado=` | Bandeja del agente por estado, sin texto completo. Roles recepción o administrador. |
+| `GET /hotel/agente/consultas/{id}` | Consulta con borradores y traza resumida; ajena → 403. Roles recepción o administrador. |
+| `POST /hotel/agente/borradores/{id}/aprobacion` | Aprueba (o edita) el borrador; oferta vencida con cifra distinta → 409 «la oferta cambió» con borrador nuevo. Roles recepción o administrador. |
+| `POST /hotel/agente/borradores/{id}/descarte` | Descarta el borrador con motivo; ya resuelto → 409. Roles recepción o administrador. |
+| `GET /hotel/agente/politica` | Política de autonomía de la empresa. Roles recepción o administrador. |
+| `PUT /hotel/agente/politica` | Cambia la política; solo administrador (recepción → 403); subir de nivel sin `evaluacion_ref` → 409 (SC-003). |
 
 ## Criterio de aceptación
 

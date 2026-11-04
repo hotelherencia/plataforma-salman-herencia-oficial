@@ -44,6 +44,7 @@ class Configuracion:
     front_url: str = "http://localhost:3000"
     origen_landing: str | None = None
     publico_max_por_minuto: int = 6
+    agente_guion_json: str | None = None
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -77,4 +78,5 @@ def cargar_desde_entorno() -> Configuracion:
         front_url=os.environ.get("FRONT_URL", "http://localhost:3000"),
         origen_landing=_normalizar_origenes(os.environ.get("ORIGEN_LANDING")),
         publico_max_por_minuto=int(os.environ.get("PUBLICO_MAX_POR_MINUTO", "6")),
+        agente_guion_json=os.environ.get("AGENTE_GUION_JSON"),
     )
