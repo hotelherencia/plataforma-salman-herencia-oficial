@@ -334,6 +334,13 @@ unidades del establecimiento, incluidas fuera de servicio y mantenimiento
 | `reservas_registradas` | reservas creadas (`creado_en::date`) dentro del periodo, por estado actual | reservas | `reservas.creado_en` | — |
 
 Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
+ATENCIÓN (2026-11-03): el `ocupadas` de esta serie son **estadías reales**
+(`en_estadia` + `finalizada`, noches `d ≤ hoy`); no es el mismo número que el
+`ocupadas` del resumen de `/hotel/ocupacion` (§5: cupo comprometido
+`confirmada`+`en_estadia`, cualquier noche). Fórmulas distintas, nombres
+iguales en dos endpoints: cada respuesta lleva su fórmula y esta nota queda
+como definición. Unificar nombres es REQUISITO PROPUESTO para una revisión
+del contrato (rompería el front y la E2E al renombrar).
 
 ### 4.4 Fuera del panel (no se calcula; se declara en `no_disponibles`)
 
@@ -355,6 +362,15 @@ Serie diaria: por noche, `unidades`, `ocupadas` (si `d ≤ hoy`), `reservadas`.
   en_servicio, noches: [{fecha, estado, reserva_id?, tarifa_noche_clp?,
   motivo?}], reservas: [{reserva_id, inicio, fin, estado, huesped_nombre}]}],
   resumen: [{fecha, disponibles, ocupadas, no_vendibles}]}`.
+- **Definición de `resumen` (2026-11-03, para eliminar la ambigüedad del
+  nombre `ocupadas`):** cada noche suma las celdas con ese estado —
+  `disponibles` = celdas `disponible`; `ocupadas` = celdas `confirmada` o
+  `en_estadia` (**cupo comprometido**, cualquier noche del periodo); `no_vendibles`
+  = celdas `no_vendible`. Las celdas `finalizada`, `sin_ocupar` y `sin_tarifa`
+  no entran en ningún bucket del resumen (HECHO: implementación actual;
+  nombre distinto del `ocupadas` del panel §4.3, que mide estadías reales
+  pasadas — son métricas distintas con fórmulas distintas, y cada una lleva
+  su fórmula en la respuesta)..
 - **Estado de cada noche** (en el servidor; el front solo pinta):
   1. hay reserva `confirmada` o `en_estadia` que la contiene → ese estado y su
      `reserva_id` (es lo que protege el constraint `reservas_sin_solape`);

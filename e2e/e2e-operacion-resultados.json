@@ -14,7 +14,7 @@
     "flujo": "alta duplicada no sobrescribe (If-None-Match)",
     "rol": "administrador",
     "esperado": "alerta «ya existe»; tipo y capacidad intactos",
-    "observado": "la habitación HAB-mw1h3u7r-M ya existe",
+    "observado": "la habitación HAB-mw1l98mh-M ya existe",
     "estado": "APROBADO"
   },
   {
@@ -32,7 +32,7 @@
     "flujo": "editar tipo y capacidad con reserva previa",
     "rol": "administrador",
     "esperado": "cambio aplicado y auditado; reserva intacta",
-    "observado": "Habitación HAB-mw1h3u7r-M: tipo doble → suite · capacidad 2 → 3",
+    "observado": "Habitación HAB-mw1l98mh-M: tipo doble → suite · capacidad 2 → 3",
     "estado": "APROBADO"
   },
   {
@@ -50,7 +50,7 @@
     "flujo": "retiro bloqueado por reserva vigente",
     "rol": "administrador",
     "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
-    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-69b53d8f258b",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-8075eebc3a9a",
     "estado": "APROBADO"
   },
   {
@@ -113,7 +113,7 @@
     "flujo": "cada noche «disponible» coincide con la oferta de esa noche",
     "rol": "caja",
     "esperado": "consistencia total ocupación ↔ oferta en 10 noches",
-    "observado": "1910 celdas consistentes con la oferta",
+    "observado": "2240 celdas consistentes con la oferta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "panel coincide con un recuento independiente",
     "rol": "administrador",
     "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
-    "observado": "en_casa 1, llegadas 0, noches 71, ocupación reservada 3.4 %",
+    "observado": "en_casa 1, llegadas 6, noches 132, ocupación reservada 5.4 %",
     "estado": "APROBADO"
   },
   {
@@ -149,7 +149,34 @@
     "flujo": "filtro por tipo de habitación recalcula el panel",
     "rol": "administrador",
     "esperado": "las tarjetas cambian al filtrar por un tipo existente",
-    "observado": "sin filtro 191 → solo «simple» 26",
+    "observado": "sin filtro 224 → solo «simple» 30",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OCU-03",
+    "ruta": "/hotel/ocupacion",
+    "flujo": "la rejilla y el resumen pintan exactamente lo que responde la API",
+    "rol": "recepcion",
+    "esperado": "cada fila de celdas y el pie coinciden con /hotel/ocupacion del mismo periodo",
+    "observado": "224 filas y 11 totales idénticos a la API",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "OCU-04",
+    "ruta": "/hotel/ocupacion",
+    "flujo": "periodo inválido: la UI muestra el error y no datos viejas",
+    "rol": "recepcion",
+    "esperado": "alerta «hasta debe ser mayor…» y la rejilla anterior desaparece",
+    "observado": "error del servidor visible sin datos obsoletos",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "IND-05",
+    "ruta": "/hotel/panel",
+    "flujo": "los KPI y la serie muestran los valores del servidor sin recalcular",
+    "rol": "administrador",
+    "esperado": "cada tarjeta y cada fila de la serie coinciden con /hotel/indicadores del mismo periodo",
+    "observado": "19 KPI y 11 noches idénticos a la API",
     "estado": "APROBADO"
   }
 ]

@@ -69,12 +69,15 @@ export default function Ocupacion() {
     if (f.hasta) params.set('hasta', f.hasta)
     try {
       const r = await api(`/hotel/ocupacion?${params}`)
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
-      else {
+      if (r.estado >= 400) {
+        setDatos(null)
+        setError(mensajeDeError(r.datos, r.estado))
+      } else {
         setDatos(r.datos)
         setFiltros({ desde: r.datos.periodo.desde, hasta: r.datos.periodo.hasta })
       }
     } catch {
+      setDatos(null)
       setError('La API no está disponible')
     }
   }
@@ -149,7 +152,7 @@ export default function Ocupacion() {
               </tbody>
               <tfoot>
                 <tr>
-                  <th scope="row">Disponibles / ocupadas</th>
+                  <th scope="row">Disponibles / cupo ocupado</th>
                   {datos.resumen.map((r) => (
                     <td key={r.fecha} className="ocupacion-resumen">
                       {r.disponibles}/{r.ocupadas}

@@ -435,6 +435,95 @@ try {
     esperar(total && filtrado && total !== filtrado, `sin filtro ${total} / con filtro ${filtrado}`)
     return `sin filtro ${total} → solo «simple» ${filtrado}`
   })
+
+  // ===== Reconciliación UI ↔ API (2026-11-03) =====
+  await caso('OCU-03', '/hotel/ocupacion', 'la rejilla y el resumen pintan exactamente lo que responde la API', 'recepcion', 'cada fila de celdas y el pie coinciden con /hotel/ocupacion del mismo periodo', async () => {
+    const desde = D(29), hasta = D(40)
+    const r = await api('GET', `/hotel/ocupacion?desde=${desde}&hasta=${hasta}`, { cookie: cRecepcion })
+    esperar(r.estado === 200, `${r.estado}`)
+    const page = await paginaDe(RECEPCION)
+    await ir(page, '/hotel/ocupacion')
+    await page.getByLabel('Desde (noche)').fill(desde)
+    await page.getByLabel('Hasta (sin incluir)').fill(hasta)
+    await page.getByRole('button', { name: 'Ver periodo' }).click()
+    await page.waitForTimeout(1800)
+    const pintado = await page.evaluate(() => {
+      const filas = {}
+      for (const tr of document.querySelectorAll('table.ocupacion tbody tr')) {
+        const hid = tr.querySelector('th a')?.textContent.trim()
+        if (hid) filas[hid] = [...tr.querySelectorAll('td')].map((td) => td.dataset.estado)
+      }
+      const pie = [...document.querySelectorAll('tfoot .ocupacion-resumen')].map((td) => td.textContent.trim())
+      return { filas, pie }
+    })
+    for (const h of r.datos.habitaciones) {
+      const esperadas = h.noches.map((n) => n.estado)
+      const apiId = h.habitacion_id
+      const coincide = pintado.filas[apiId] && JSON.stringify(pintado.filas[apiId]) === JSON.stringify(esperadas)
+      esperar(coincide, `${apiId}: UI ${JSON.stringify(pintado.filas[apiId])} vs API ${JSON.stringify(esperadas)}`)
+    }
+    const pieEsperado = r.datos.resumen.map((x) => `${x.disponibles}/${x.ocupadas}`)
+    esperar(JSON.stringify(pintado.pie) === JSON.stringify(pieEsperado), `pie ${pintado.pie} vs ${pieEsperado}`)
+    await evidencia(page, 'ocu-03-ui-igual-api')
+    await page.close()
+    return `${Object.keys(pintado.filas).length} filas y ${pintado.pie.length} totales idénticos a la API`
+  })
+
+  await caso('OCU-04', '/hotel/ocupacion', 'periodo inválido: la UI muestra el error y no datos viejas', 'recepcion', 'alerta «hasta debe ser mayor…» y la rejilla anterior desaparece', async () => {
+    const page = await paginaDe(RECEPCION)
+    await ir(page, '/hotel/ocupacion')
+    await page.getByLabel('Desde (noche)').fill(D(35))
+    await page.getByLabel('Hasta (sin incluir)').fill(D(30))
+    await page.getByRole('button', { name: 'Ver periodo' }).click()
+    await page.waitForTimeout(1500)
+    const mensaje = await alerta(page)
+    esperar(mensaje && mensaje.includes('hasta debe ser mayor'), `alerta: ${mensaje}`)
+    esperar((await page.locator('table.ocupacion').count()) === 0, 'la rejilla vieja sigue visible pese al error')
+    await page.close()
+    return `error del servidor visible sin datos obsoletos`
+  })
+
+  await caso('IND-05', '/hotel/panel', 'los KPI y la serie muestran los valores del servidor sin recalcular', 'administrador', 'cada tarjeta y cada fila de la serie coinciden con /hotel/indicadores del mismo periodo', async () => {
+    const desde = D(29), hasta = D(40)
+    const ind = (await api('GET', `/hotel/indicadores?desde=${desde}&hasta=${hasta}`, { cookie: cAdmin })).datos
+    const page = await paginaDe(ADMIN)
+    await ir(page, '/hotel/panel')
+    await page.getByLabel('Desde (noche)').fill(desde)
+    await page.getByLabel('Hasta (sin incluir)').fill(hasta)
+    await page.getByRole('button', { name: 'Actualizar' }).click()
+    await page.waitForTimeout(2000)
+    const kpis = await page.evaluate(() => {
+      const pares = {}
+      for (const kpi of document.querySelectorAll('.kpi')) {
+        const titulo = kpi.querySelector('.kpi-titulo')?.textContent.trim()
+        const valor = kpi.querySelector('.kpi-valor')?.textContent.trim()
+        if (titulo) pares[titulo] = valor
+      }
+      const serie = [...document.querySelectorAll('table.serie tbody tr')].map((tr) =>
+        [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()))
+      return { pares, serie }
+    })
+    esperar(kpis.pares['Huéspedes en casa'] === String(ind.hoy.en_casa.valor),
+            `en_casa UI ${kpis.pares['Huéspedes en casa']} vs API ${ind.hoy.en_casa.valor}`)
+    esperar(kpis.pares['Llegadas vencidas sin check-in'] === String(ind.hoy.llegadas_vencidas.valor),
+            `llegadas_vencidas UI ${kpis.pares['Llegadas vencidas sin check-in']} vs API ${ind.hoy.llegadas_vencidas.valor}`)
+    esperar(kpis.pares['Noches reservadas'] === String(ind.periodo_indicadores.noches_reservadas.valor),
+            `noches_reservadas UI ${kpis.pares['Noches reservadas']} vs API ${ind.periodo_indicadores.noches_reservadas.valor}`)
+    esperar(kpis.pares['Unidades-noche'] === String(ind.periodo_indicadores.unidades_noche.valor),
+            `unidades_noche UI ${kpis.pares['Unidades-noche']} vs API ${ind.periodo_indicadores.unidades_noche.valor}`)
+    esperar(kpis.serie.length === ind.serie.length, `serie UI ${kpis.serie.length} vs API ${ind.serie.length}`)
+    for (let i = 0; i < ind.serie.length; i++) {
+      const filaApi = ind.serie[i]
+      const filaUi = kpis.serie[i]
+      const ocupadasUi = filaApi.ocupadas === null ? 'futura' : String(filaApi.ocupadas)
+      esperar(filaUi[0] === filaApi.fecha && filaUi[1] === String(filaApi.unidades)
+              && filaUi[2] === ocupadasUi && filaUi[3] === String(filaApi.reservadas),
+              `serie ${filaApi.fecha}: UI ${filaUi} vs API ${JSON.stringify(filaApi)}`)
+    }
+    await evidencia(page, 'ind-05-ui-igual-api')
+    await page.close()
+    return `${Object.keys(kpis.pares).length} KPI y ${kpis.serie.length} noches idénticos a la API`
+  })
   await admin.close()
 } finally {
   await navegador.close()

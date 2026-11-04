@@ -79,8 +79,10 @@ export default function Panel() {
     if (f.tipo) params.set('tipo', f.tipo)
     try {
       const r = await api(`/hotel/indicadores?${params}`)
-      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
-      else {
+      if (r.estado >= 400) {
+        setDatos(null)
+        setError(mensajeDeError(r.datos, r.estado))
+      } else {
         setDatos(r.datos)
         setFiltros({ desde: r.datos.periodo.desde, hasta: r.datos.periodo.hasta, tipo: f.tipo })
       }
