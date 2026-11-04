@@ -35,6 +35,7 @@ from . import google_oidc  # noqa: E402
 from . import reservas as reservas_db  # noqa: E402
 from . import cobro  # noqa: E402
 from . import panel  # noqa: E402
+from . import canal_publico  # noqa: E402
 from . import totp  # noqa: E402
 from . import totp_qr  # noqa: E402
 
@@ -165,6 +166,19 @@ class CargoIn(BaseModel):
     monto_clp: int = Field(gt=0, le=1_000_000_000)
 
 
+class SolicitudPublicaIn(BaseModel):
+    habitacion_id: str = Field(min_length=1, max_length=50)
+    inicio: date
+    fin: date
+    personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
+    huesped_nombre: str = Field(min_length=1, max_length=120)
+    huesped_contacto: str = Field(min_length=1, max_length=120)
+
+
+class RechazoSolicitudIn(BaseModel):
+    motivo: str = Field(min_length=1, max_length=300)
+
+
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
     aplicacion = aplicacion or construir_aplicacion()
     app = FastAPI(title="plataforma-salman-herencia-api", version="0.1.0")
@@ -174,6 +188,9 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         _preparar_base_de_datos(configuracion, aplicacion)
         app.state.database_url = configuracion.database_url
     app.state.freno_logins = seguridad.FrenoDeLogins()
+    app.state.freno_solicitudes = canal_publico.FrenoDeSolicitudes(
+        max_por_minuto=configuracion.publico_max_por_minuto if configuracion else 6
+    )
     app.state.estados_oauth = google_oidc.EstadosOAuth()
 
     if configuracion is not None and configuracion.origen_front:
@@ -213,7 +230,15 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             permitidos = {o.strip() for o in config.origen_front.split(",") if o.strip()}
             origin = request.headers.get("origin")
             if origin and origin not in permitidos:
-                return JSONResponse(status_code=403, content={"detail": "acceso denegado"})
+                # V1-ISSUE-22: el origen de la landing entra solo a /publico/*
+                # (CORS sin credenciales en cors_canal_publico); lo interno sigue 403.
+                es_publico_del_landing = (
+                    request.url.path.startswith("/publico/")
+                    and getattr(config, "origen_landing", None)
+                    and origin in {o.strip() for o in config.origen_landing.split(",") if o.strip()}
+                )
+                if not es_publico_del_landing:
+                    return JSONResponse(status_code=403, content={"detail": "acceso denegado"})
         return await call_next(request)
 
     @app.middleware("http")
@@ -222,6 +247,39 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         respuesta.headers["X-Content-Type-Options"] = "nosniff"
         respuesta.headers["X-Frame-Options"] = "DENY"
         respuesta.headers["Referrer-Policy"] = "no-referrer"
+        return respuesta
+
+    @app.middleware("http")
+    async def cors_canal_publico(request, call_next):
+        # V1-ISSUE-22 (spec-api-v1 «Canal público»): el origen de la landing
+        # tiene CORS sin credenciales y solo sobre /publico/*. Sin ORIGEN_LANDING
+        # configurado, estas rutas se usan same-origin (front y pruebas).
+        config = app.state.configuracion
+        if not (config and getattr(config, "origen_landing", None) and request.url.path.startswith("/publico/")):
+            return await call_next(request)
+        origin = request.headers.get("origin")
+        permitidos = {o.strip() for o in config.origen_landing.split(",") if o.strip()}
+        if not origin or origin not in permitidos:
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            return Response(
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": origin,
+                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                    "Access-Control-Allow-Headers": request.headers.get(
+                        "access-control-request-headers", "Content-Type, Idempotency-Key"
+                    ),
+                    "Vary": "Origin",
+                },
+            )
+        respuesta = await call_next(request)
+        respuesta.headers["Access-Control-Allow-Origin"] = origin
+        respuesta.headers["Vary"] = "Origin"
+        # El CORSMiddleware global añade Allow-Credentials a toda respuesta con
+        # Origin; aquí no hay credenciales (spec-api-v1 «Canal público»).
+        if "access-control-allow-credentials" in respuesta.headers:
+            del respuesta.headers["access-control-allow-credentials"]
         return respuesta
 
     @app.get("/salud")
@@ -1083,6 +1141,108 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         conexion.commit()
         return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
+    # --- Canal público (spec-api-v1 «Canal público», V1-ISSUE-22/24) ---
+
+    @app.get("/publico/disponibilidad")
+    def disponibilidad_publica(
+        inicio: date,
+        fin: date,
+        personas: int = Query(gt=0, le=canal_publico.MAX_PERSONAS),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        return canal_publico.disponibilidad(conexion, inicio, fin, personas, datetime.now())
+
+    @app.post("/publico/solicitudes")
+    def crear_solicitud_publica(
+        solicitud: SolicitudPublicaIn,
+        request: Request,
+        idempotency_key: str | None = Header(default=None),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        if not idempotency_key or not idempotency_key.strip():
+            raise HTTPException(status_code=422, detail="falta la cabecera Idempotency-Key")
+        longitud = request.headers.get("content-length")
+        if longitud and int(longitud) > canal_publico.TOPE_CUERPO_BYTES:
+            raise HTTPException(status_code=413, detail="el cuerpo supera el tamaño permitido")
+        ip = request.client.host if request.client else "desconocida"
+        freno: canal_publico.FrenoDeSolicitudes = app.state.freno_solicitudes
+        if not freno.permite(ip):
+            raise HTTPException(
+                status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+            )
+        resultado = canal_publico.crear_solicitud(
+            conexion, aplicacion.nucleo.empresa.id, solicitud.habitacion_id, solicitud.inicio,
+            solicitud.fin, solicitud.personas, solicitud.huesped_nombre,
+            solicitud.huesped_contacto, idempotency_key.strip(),
+        )
+        codigo = 200 if resultado.get("reintento") else 201
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=resultado)
+
+    @app.get("/hotel/solicitudes")
+    def bandeja_solicitudes(
+        estado: str | None = None,
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> dict:
+        _exigir_rol(sesion, canal_publico.ROLES_GESTION)
+        return canal_publico.bandeja(conexion, sesion.empresa_id, estado)
+
+    @app.post("/hotel/solicitudes/{solicitud_id}/conversion")
+    def convertir_solicitud(
+        solicitud_id: str,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, canal_publico.ROLES_GESTION)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"solicitud_id": solicitud_id, "operacion": "conversion"}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = canal_publico.convertir(
+                    conexion, sesion.empresa_id, solicitud_id, sesion.nombre
+                )
+            except canal_publico.SolicitudAjenaOInexistente:
+                return 403, {"detail": "acceso denegado"}
+            except canal_publico.TransicionInvalida as error:
+                return 409, {"detail": str(error)}
+            except canal_publico.SinCupoOSinTarifa as error:
+                return 409, {"detail": error.detalle}
+            return 201, resultado
+
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+    @app.post("/hotel/solicitudes/{solicitud_id}/rechazo")
+    def rechazar_solicitud(
+        solicitud_id: str,
+        cuerpo_rechazo: RechazoSolicitudIn,
+        idempotency_key: str | None = Header(default=None),
+        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
+        conexion=Depends(_conexion),
+    ) -> JSONResponse:
+        _exigir_rol(sesion, canal_publico.ROLES_GESTION)
+        clave = _clave_idempotencia_o_400(idempotency_key)
+        cuerpo = {"solicitud_id": solicitud_id, "motivo": cuerpo_rechazo.motivo}
+
+        def operacion() -> tuple[int, dict]:
+            try:
+                resultado = canal_publico.rechazar(
+                    conexion, sesion.empresa_id, solicitud_id, cuerpo_rechazo.motivo, sesion.nombre
+                )
+            except canal_publico.SolicitudAjenaOInexistente:
+                return 403, {"detail": "acceso denegado"}
+            except canal_publico.TransicionInvalida as error:
+                return 409, {"detail": str(error)}
+            return 200, resultado
+
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        conexion.commit()
+        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
     @app.exception_handler(cobro.RecursoAjenoOInexistente)
     @app.exception_handler(cobro.PagoRechazadoPorNucleo)
     async def manejar_acceso(_request: Request, _exc: Exception) -> Response:
@@ -1114,6 +1274,42 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         return Response(
             content='{"detail":"acceso denegado"}',
             status_code=403,
+            media_type="application/json",
+        )
+
+    @app.exception_handler(canal_publico.SolicitudAjenaOInexistente)
+    async def manejar_solicitud_ajena(_request: Request, _exc: canal_publico.SolicitudAjenaOInexistente) -> Response:
+        return Response(content='{"detail":"acceso denegado"}', status_code=403, media_type="application/json")
+
+    @app.exception_handler(canal_publico.SolicitudInvalida)
+    async def manejar_solicitud_invalida(_request: Request, exc: canal_publico.SolicitudInvalida) -> Response:
+        return Response(
+            content=json.dumps({"detail": exc.detalle}, ensure_ascii=False),
+            status_code=422,
+            media_type="application/json",
+        )
+
+    @app.exception_handler(canal_publico.SinCupoOSinTarifa)
+    async def manejar_sin_cupo_publico(_request: Request, exc: canal_publico.SinCupoOSinTarifa) -> Response:
+        return Response(
+            content=json.dumps({"detail": exc.detalle}, ensure_ascii=False),
+            status_code=409,
+            media_type="application/json",
+        )
+
+    @app.exception_handler(canal_publico.ClaveEnConflicto)
+    async def manejar_clave_publica(_request: Request, exc: canal_publico.ClaveEnConflicto) -> Response:
+        return Response(
+            content=json.dumps({"detail": str(exc)}, ensure_ascii=False),
+            status_code=409,
+            media_type="application/json",
+        )
+
+    @app.exception_handler(canal_publico.TransicionInvalida)
+    async def manejar_transicion_solicitud(_request: Request, exc: canal_publico.TransicionInvalida) -> Response:
+        return Response(
+            content=json.dumps({"detail": str(exc)}, ensure_ascii=False),
+            status_code=409,
             media_type="application/json",
         )
 

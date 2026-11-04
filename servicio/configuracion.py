@@ -42,6 +42,8 @@ class Configuracion:
     google_redirect_uri: str = "http://localhost:8080/auth/google/callback"
     admin_email: str | None = None
     front_url: str = "http://localhost:3000"
+    origen_landing: str | None = None
+    publico_max_por_minuto: int = 6
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -73,4 +75,6 @@ def cargar_desde_entorno() -> Configuracion:
         google_redirect_uri=os.environ.get("GOOGLE_REDIRECT_URI") or "http://localhost:8080/auth/google/callback",
         admin_email=os.environ.get("ADMIN_EMAIL"),
         front_url=os.environ.get("FRONT_URL", "http://localhost:3000"),
+        origen_landing=_normalizar_origenes(os.environ.get("ORIGEN_LANDING")),
+        publico_max_por_minuto=int(os.environ.get("PUBLICO_MAX_POR_MINUTO", "6")),
     )
