@@ -1,0 +1,29 @@
+[
+  {
+    "id": "TN-01",
+    "ruta": "/hotel/oferta",
+    "flujo": "desde el menú, estadía con noches sin tarifa",
+    "rol": "recepcion",
+    "esperado": "la habitación no aparece en la oferta (API y pantalla)",
+    "observado": "HAB-mw1fgv1o-TN ausente en pantalla y en GET /hotel/oferta",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "TN-02",
+    "ruta": "/hotel/reserva",
+    "flujo": "desde el menú, reservar la misma estadía",
+    "rol": "recepcion",
+    "esperado": "409: alerta «sin tarifa vigente … la noche 2026-12-18»; la API no registra reserva",
+    "observado": "sin tarifa vigente para HAB-mw1fgv1o-TN la noche 2026-12-18 · 0 reservas releídas",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "TN-03",
+    "ruta": "/hotel/habitaciones/[id] → /hotel/oferta → /hotel/reserva",
+    "flujo": "registrar la tarifa siguiente en la ficha, ofrecer y confirmar",
+    "rol": "administrador → recepcion",
+    "esperado": "se ofrece; el total y la tarifa confirmados son los ofrecidos y el cargo coincide",
+    "observado": "RSV-d9976ee4192e: $41000/noche, total $164000 = cargos",
+    "estado": "APROBADO"
+  }
+]

@@ -28,7 +28,16 @@ import { fileURLToPath } from 'node:url'
 const FRONT = process.env.FRONT_URL || 'http://127.0.0.1:3000'
 const API = process.env.API_URL || 'http://127.0.0.1:8080'
 const HOY = new Date()
-const HOY_FECHA = HOY.toISOString().slice(0, 10)
+// Fecha local del servidor de pruebas: toISOString() es UTC y tras las 21:00
+// en Chile (UTC-3) adelanta un día, rompiendo la comparación con la fecha del
+// backend (entrada, caja del día). Todo se formatea en hora local.
+function isoLocal(fecha) {
+  const d = new Date(fecha)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dia = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${dia}`
+}
+const HOY_FECHA = isoLocal(HOY)
 const EN_1_DIA = sumarDias(HOY, 1)
 const EN_3_DIAS = sumarDias(HOY, 3)
 const EN_30_DIAS = sumarDias(HOY, 30)
@@ -38,14 +47,14 @@ const EN_40_DIAS = sumarDias(HOY, 40)
 function sumarDias(fecha, dias) {
   const d = new Date(fecha)
   d.setDate(d.getDate() + dias)
-  return d.toISOString().slice(0, 10)
+  return isoLocal(d)
 }
 
 const RUN = Date.now().toString(36)
 const K = (nombre) => `${nombre}-${RUN}`
 
 function iso(fecha) {
-  return fecha.toISOString().slice(0, 10)
+  return isoLocal(fecha)
 }
 
 // ---------- cliente API con cookie ----------
@@ -199,15 +208,17 @@ try {
       if (page.url() !== `${FRONT}/login`) throw new Error(`navegó a ${page.url()}`)
       return a
     })
-    await caso('ACC-03', '/hotel/oferta', 'ruta hotel sin sesión pide login', 'anónimo', 'mensaje «Sesión cerrada», sin datos', async () => {
+    await caso('ACC-03', '/hotel/oferta', 'ruta hotel sin sesión pide login', 'anónimo', 'solo la pantalla de acceso, sin menú interno ni datos', async () => {
       const ctx2 = await navegador.newContext({ baseURL: FRONT })
       const anonima = await ctx2.newPage()
       await anonima.goto(`${FRONT}/hotel/oferta`)
       await anonima.waitForTimeout(1500)
       const texto = await textoPrincipal(anonima)
-      if (!texto.includes('Sesión cerrada')) throw new Error(`texto: ${texto.slice(0, 120)}`)
+      const menuInterno = await anonima.getByRole('link', { name: 'Panel' }).count()
       await ctx2.close()
-      return 'pide inicio de sesión'
+      if (menuInterno !== 0) throw new Error('menú interno visible sin sesión')
+      if (!texto.includes('Plataforma Herencia')) throw new Error(`texto: ${texto.slice(0, 120)}`)
+      return 'pide inicio de sesión, sin menú interno'
     })
     await caso('ACC-04', '/cuenta', 'estado 2FA visible', 'administrador', 'muestra «Estado: desactivado» y alta disponible', async () => {
       await page.goto(`${FRONT}/cuenta`)
@@ -882,6 +893,32 @@ try {
     return `zoom 200%: scrollWidth ${m.sw} ≤ ${m.iw}`
   })
 
+  // ===== AUT. Guardia de sesión en el Lienzo (V1-ISSUE-27) =====
+  await caso('AUT-01', '/hotel/reserva', 'visitante sin sesión: solo la pantalla de acceso, jamás el menú interno', 'anonimo', 'login visible y menú ausente; al entrar aparece la página en la misma ruta', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 1280, height: 720 } })
+    const page = await ctx.newPage()
+    await page.goto(`${FRONT}/hotel/reserva`)
+    await page.waitForTimeout(1800)
+    const menuInterno = await page.getByRole('link', { name: 'Panel' }).count()
+    const tarjetaLogin = await page.locator('.login-tarjeta').count()
+    const texto = await textoPrincipal(page)
+    if (menuInterno !== 0) throw new Error('menú interno visible sin sesión')
+    if (tarjetaLogin === 0) throw new Error('no apareció la pantalla de acceso')
+    if (texto.includes('Sesión cerrada') || texto.includes('Operando como'))
+      throw new Error('texto interno filtrado en la pantalla de acceso')
+    const captura = await evidencia(page, 'aut-01-sin-sesion')
+    await page.getByRole('textbox', { name: 'Usuario' }).fill('admin_e2e')
+    await page.getByRole('textbox', { name: 'Clave' }).fill(process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
+    await page.getByRole('button', { name: 'Entrar' }).click()
+    await page.waitForTimeout(2200)
+    const ruta = new URL(page.url()).pathname
+    const formularioReserva = await page.getByRole('textbox', { name: 'Huésped' }).count()
+    await ctx.close()
+    if (ruta !== '/hotel/reserva') throw new Error(`ruta tras entrar: ${ruta}`)
+    if (formularioReserva === 0) throw new Error('no apareció el formulario de reserva')
+    return `solo login + vuelta en misma ruta (${captura})`
+  })
+
   // ===== O. Cierre de sesión =====
   // Liberar los contextos acumulados: Chromium agota memoria con ~10
   // contextos abiertos y el último caso muere («browser has been closed»).
@@ -889,18 +926,22 @@ try {
     await contextos[nombre].close()
     delete contextos[nombre]
   }
-  await caso('SES-01', '/salida-de-sesion', 'cerrar sesión deja el panel fuera', 'administrador', 'la siguiente lectura pide login', async () => {
+  await caso('SES-01', '/salida-de-sesion', 'cerrar sesión deja el panel fuera', 'administrador', 'la ruta protegida muestra solo el login, sin menú interno', async () => {
     const ctx = await contextoRol('admin')
     const page = await ctx.newPage()
     await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
     await page.getByRole('button', { name: 'Cerrar sesión' }).click()
     await page.waitForTimeout(1500)
     await page.goto(`${FRONT}/hotel/oferta`)
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(1800)
+    const menuInterno = await page.getByRole('link', { name: 'Panel' }).count()
+    const tarjetaLogin = await page.locator('.login-tarjeta').count()
     const texto = await textoPrincipal(page)
     await page.close()
-    if (!texto.includes('Sesión cerrada')) throw new Error(`texto: ${texto.slice(0, 120)}`)
-    return 'sesión cerrada, ruta pide login'
+    if (menuInterno !== 0) throw new Error('el menú interno quedó visible tras cerrar sesión')
+    if (tarjetaLogin === 0) throw new Error('no se mostró la pantalla de login')
+    if (texto.includes('Sesión cerrada')) throw new Error('texto «Sesión cerrada» aún visible')
+    return 'solo login tras cerrar sesión, sin menú interno'
   })
 } finally {
   await navegador.close()

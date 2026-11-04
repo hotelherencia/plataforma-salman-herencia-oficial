@@ -22,8 +22,8 @@
     "ruta": "/hotel/oferta",
     "flujo": "ruta hotel sin sesión pide login",
     "rol": "anónimo",
-    "esperado": "mensaje «Sesión cerrada», sin datos",
-    "observado": "pide inicio de sesión",
+    "esperado": "solo la pantalla de acceso, sin menú interno ni datos",
+    "observado": "pide inicio de sesión, sin menú interno",
     "estado": "APROBADO"
   },
   {
@@ -77,7 +77,7 @@
     "flujo": "inventario refleja la semilla",
     "rol": "administrador",
     "esperado": "las 3 habitaciones sembradas listadas con tarifa ref.",
-    "observado": "138 unidades (3 sembradas + sintéticas del dominio)",
+    "observado": "177 unidades (3 sembradas + sintéticas del dominio)",
     "estado": "APROBADO"
   },
   {
@@ -86,7 +86,7 @@
     "flujo": "alta desde la UI aparece en el inventario",
     "rol": "administrador",
     "esperado": "HAB-201 creada y listada",
-    "observado": "HAB-mw1b9ivm-201 listada tras el alta",
+    "observado": "HAB-mw1fji8l-201 listada tras el alta",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "caja lee el inventario",
     "rol": "caja",
     "esperado": "200 con las unidades",
-    "observado": "139 unidades visibles",
+    "observado": "178 unidades visibles",
     "estado": "APROBADO"
   },
   {
@@ -131,7 +131,7 @@
     "flujo": "consulta de oferta",
     "rol": "administrador",
     "esperado": "200 solo disponibles, con tarifa y vencimiento",
-    "observado": "64 unidades con tarifa y vigencia",
+    "observado": "80 unidades con tarifa y vigencia",
     "estado": "APROBADO"
   },
   {
@@ -140,7 +140,7 @@
     "flujo": "consulta de oferta",
     "rol": "recepcion",
     "esperado": "200 solo disponibles, con tarifa y vencimiento",
-    "observado": "64 unidades con tarifa y vigencia",
+    "observado": "80 unidades con tarifa y vigencia",
     "estado": "APROBADO"
   },
   {
@@ -149,7 +149,7 @@
     "flujo": "consulta de oferta",
     "rol": "caja",
     "esperado": "200 solo disponibles, con tarifa y vencimiento",
-    "observado": "64 unidades con tarifa y vigencia",
+    "observado": "80 unidades con tarifa y vigencia",
     "estado": "APROBADO"
   },
   {
@@ -158,7 +158,7 @@
     "flujo": "crear reserva desde la UI",
     "rol": "recepcion",
     "esperado": "201 confirmada; aparece en la búsqueda",
-    "observado": "Reserva RSV-607e1528a048: estado «confirmada»",
+    "observado": "Reserva RSV-8add07cf1e77: estado «confirmada»",
     "estado": "APROBADO"
   },
   {
@@ -167,7 +167,7 @@
     "flujo": "reserva sin tarifa vigente es rechazada",
     "rol": "recepcion",
     "esperado": "409 con mensaje «sin tarifa vigente»",
-    "observado": "sin tarifa vigente para HAB-mw1b9ivm-201 en 2026-12-03",
+    "observado": "sin tarifa vigente para HAB-mw1fji8l-201 la noche 2026-12-03",
     "estado": "APROBADO"
   },
   {
@@ -176,7 +176,7 @@
     "flujo": "solape en misma unidad y fechas",
     "rol": "recepcion",
     "esperado": "409 sin cupo (la carrera la gana una)",
-    "observado": "sin cupo para HAB-mw1b9ivm-A en [2026-11-03, 2026-11-06)",
+    "observado": "sin cupo para HAB-mw1fji8l-A en [2026-11-03, 2026-11-06)",
     "estado": "APROBADO"
   },
   {
@@ -203,7 +203,7 @@
     "flujo": "la página nace con reservas listadas",
     "rol": "caja",
     "esperado": "tabla visible al entrar, sin buscar",
-    "observado": "133 reserva(s) encontrada(s)",
+    "observado": "169 reserva(s) encontrada(s)",
     "estado": "APROBADO"
   },
   {
@@ -212,7 +212,7 @@
     "flujo": "pago manual de caja registra efecto",
     "rol": "caja",
     "esperado": "201 confirmado; la caja del día lo lista",
-    "observado": "Pago PAG-244fd1d004b2 de $100000: estado «confirmado»",
+    "observado": "Pago PAG-8c08869f0703 de $100000: estado «confirmado»",
     "estado": "APROBADO"
   },
   {
@@ -230,7 +230,7 @@
     "flujo": "pago duplicado con misma clave y cuerpo",
     "rol": "caja",
     "esperado": "mismo resultado, un solo efecto",
-    "observado": "mismo pago PAG-a52ed27f7977",
+    "observado": "mismo pago PAG-5b0b7fc3f686",
     "estado": "APROBADO"
   },
   {
@@ -257,7 +257,7 @@
     "flujo": "cargo de minibar en estadía",
     "rol": "caja",
     "esperado": "201 cargo; entra en la liquidación",
-    "observado": "CRG-ce476a1340e8",
+    "observado": "CRG-8c865a76066f",
     "estado": "APROBADO"
   },
   {
@@ -302,7 +302,7 @@
     "flujo": "pago del resto y liquidación",
     "rol": "administrador",
     "esperado": "liquidación con saldo 0; unidad sucia + tarea",
-    "observado": "Reserva RSV-607e1528a048: estado «liquidada»; HAB-101 sucia con tarea",
+    "observado": "Reserva RSV-8add07cf1e77: estado «liquidada»; HAB-101 sucia con tarea",
     "estado": "APROBADO"
   },
   {
@@ -320,7 +320,7 @@
     "flujo": "caja ve los pagos del día",
     "rol": "caja",
     "esperado": "200 con total y pagos",
-    "observado": "total $2945000 en 57 pago(s)",
+    "observado": "total $3670000 en 71 pago(s)",
     "estado": "APROBADO"
   },
   {
@@ -419,7 +419,7 @@
     "flujo": "oferta → reserva → detalle → pago con campos precargados",
     "rol": "recepcion",
     "esperado": "sin copiar/pegar IDs: la query precarga y el «Siguiente paso» también",
-    "observado": "flujo completo precargado (RSV-8efc741fd2f2)",
+    "observado": "flujo completo precargado (RSV-07886d6fb685)",
     "estado": "APROBADO"
   },
   {
@@ -477,12 +477,21 @@
     "estado": "APROBADO"
   },
   {
+    "id": "AUT-01",
+    "ruta": "/hotel/reserva",
+    "flujo": "visitante sin sesión: solo la pantalla de acceso, jamás el menú interno",
+    "rol": "anonimo",
+    "esperado": "login visible y menú ausente; al entrar aparece la página en la misma ruta",
+    "observado": "solo login + vuelta en misma ruta (capturas/e2e-2026-11-03/12-aut-01-sin-sesion.png)",
+    "estado": "APROBADO"
+  },
+  {
     "id": "SES-01",
     "ruta": "/salida-de-sesion",
     "flujo": "cerrar sesión deja el panel fuera",
     "rol": "administrador",
-    "esperado": "la siguiente lectura pide login",
-    "observado": "sesión cerrada, ruta pide login",
+    "esperado": "la ruta protegida muestra solo el login, sin menú interno",
+    "observado": "solo login tras cerrar sesión, sin menú interno",
     "estado": "APROBADO"
   }
 ]

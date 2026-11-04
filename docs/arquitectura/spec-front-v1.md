@@ -17,7 +17,12 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
   Cada acción es una llamada a la API con `Idempotency-Key` en mutaciones.
 - El front no llama a Webpay, Booking, Airbnb, SII ni WhatsApp. No existe
   otra URL que `API_BASE_URL`.
-- Sin sesión: pantalla de login contra `POST /sesion`.
+- Sin sesión: pantalla de login contra `POST /sesion`. V1-ISSUE-27
+  (2026-11-03): la guardia vive en el `Lienzo` (layout raíz) — sin sesión,
+  toda ruta interna muestra solo ese formulario y jamás el menú de operación;
+  la única ruta pública sin sesión es `/login` (lista `RUTAS_PUBLICAS`). Al
+  entrar, la sesión compartida actualiza el Lienzo y la página protegida
+  aparece en la misma ruta, sin redirección.
 
 ## Rutas de esta versión (hotel)
 
