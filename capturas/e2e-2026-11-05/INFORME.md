@@ -41,3 +41,10 @@ publicación (CTA + formulario propio en verde con navegador real). Único paso
 restante: subir los estáticos al hosting de hotelherencia.cl y verificar el
 CTA en producción (requiere acceso del propietario; el repo no tiene
 herramienta de despliegue para ese hosting).
+
+**Addendum (regresión de cierre, misma fecha):** tras las correcciones de la
+auditoría (commits `18c89f5`, `c38e260`, `8e98711`) se repitió la suite base:
+56/56 APROBADO, con TFA-01 cubriendo además la baja del segundo factor
+exigiendo la clave (SEC-A02). Servicio 277/277, dominio 5 raíces OK, landing
+12/12. Las capturas de esta carpeta corresponden a esa corrida final (la
+pantalla «Mi cuenta» muestra ahora la clave de reautenticación).
