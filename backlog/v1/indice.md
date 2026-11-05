@@ -432,3 +432,41 @@ Tablero local: 10 ítems nuevos `v1-aud-01..10` en `construccion-v1.json`
 (estado Lista, con enlace a su issue). La carpeta `audit/` queda sin
 versionar (material de entrada de la jefatura; el contenido accionable ya
 está en las issues).
+
+## Correcciones de la auditoría — 2026-11-05 (noche)
+
+Orden del propietario: «avanzar con las correcciones». TDD puro (tests en
+rojo que reproducían cada vulnerabilidad → arreglo → regresión), contrato
+antes que código cuando el contrato cambiaba, y cierre de cada issue con
+evidencia. Commits: `18c89f5` (lote 1), `9478190` (SEC-A02), SEC-A05 y
+CI en commits propios.
+
+- [Hecha] **SEC-A01 (#326)** — `buscar_usuario_por_email` y
+  `obtener_sesion_activa` exigen `activo=true`: Google ya no entra a cuentas
+  dadas de baja y las sesiones vivas mueren con la baja.
+- [Hecha] **SEC-A02 (#327)** — migración `0013` con `totp_secreto_pendiente`
+  separado: el alta/reenrolamiento jamás desprotege la cuenta; reemplazar con
+  2FA activo y `DELETE /cuenta/2fa` exigen la clave actual (401); el QR solo
+  expone el pendiente. Contrato enmendado (spec-api-v1), front `/cuenta` pide
+  la clave, TFA-01 extendida (alta + login con TOTP + baja con
+  reautenticación) — E2E base 56/56.
+- [Hecha] **SEC-A03 (#328)** — el freno de logins solo se reinicia al
+  completar TODA la autenticación: el segundo factor ya no queda sin freno de
+  fuerza bruta (5 TOTPs malos → 429).
+- [Hecha] **SEC-A04 (#329)** — `_requerir_sesion` deniega 403 a sesión de
+  empresa distinta al núcleo en el límite HTTP (2 tests del comportamiento
+  viejo de «listas vacías» actualizados al 403).
+- [Hecha] **SEC-A05 (#330)** — state OAuth atado a cookie HttpOnly
+  `oauth_tx` (10 min, path /auth); `tomar` consume el state en todo intento y
+  exige coincidencia: state de otro navegador → 400 y gastado. Cierra el
+  login CSRF. Límite: transacciones en memoria (multi-réplica pendiente).
+- [Hecha] **OPS-A02 (#333)** — `GET /readiness` con consulta real a la base y
+  estado de migraciones (503 si cae); `/salud` sigue siendo liveness pura.
+  spec-api-v1 pasa a 51 operaciones.
+- [En curso] **REL-A01 (#331)** — CI creado (`.github/workflows/ci.yml`):
+  dominio 5 raíces + servicio contra PostgreSQL 17 + unitarios landing +
+  build front, en push/PR. Falta solo el paso del propietario: exigir el
+  check en la protección de rama (ruleset).
+- Tests nuevos: `servicio/tests/test_auditoria_seguridad.py` (17 casos). La
+  suite del servicio pasa de 260 a 277 pruebas, dominio 5 raíces OK, landing
+  12/12, E2E base 56/56 (tras SEC-A02).
