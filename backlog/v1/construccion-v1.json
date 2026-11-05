@@ -1004,5 +1004,125 @@
   "depende_de": [
    "v1-oper-01"
   ]
+ },
+ {
+  "id": "v1-aud-01",
+  "title": "[Issue] V1-AUD-01 — Google permite volver a entrar a usuario dado de baja",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría SEC-A01), criticidad alta. Trazada a GitHub #326 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 326
+ },
+ {
+  "id": "v1-aud-02",
+  "title": "[Issue] V1-AUD-02 — Reenrolamiento y eliminación de MFA sin reautenticación",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría SEC-A02), criticidad alta. Trazada a GitHub #327 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 327
+ },
+ {
+  "id": "v1-aud-03",
+  "title": "[Issue] V1-AUD-03 — El freno de login se reinicia antes de validar TOTP",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría SEC-A03), criticidad alta. Trazada a GitHub #328 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 328
+ },
+ {
+  "id": "v1-aud-04",
+  "title": "[Issue] V1-AUD-04 — Aislamiento de empresa incompleto en el límite HTTP",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría SEC-A04), criticidad alta. Trazada a GitHub #329 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 329
+ },
+ {
+  "id": "v1-aud-05",
+  "title": "[Issue] V1-AUD-05 — OAuth state de un solo uso sin vincular al navegador",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría SEC-A05), criticidad alta. Trazada a GitHub #330 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 330
+ },
+ {
+  "id": "v1-aud-06",
+  "title": "[Issue] V1-AUD-06 — Sin CI de repositorio ni protección observada de main",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría REL-A01), criticidad alta. Trazada a GitHub #331 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 331
+ },
+ {
+  "id": "v1-aud-07",
+  "title": "[Issue] V1-AUD-07 — Respaldo declarado sin restauración independiente demostrada",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría OPS-A01), criticidad alta. Trazada a GitHub #332 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 332
+ },
+ {
+  "id": "v1-aud-08",
+  "title": "[Issue] V1-AUD-08 — Salud no comprueba disponibilidad de base de datos",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría OPS-A02), criticidad media. Trazada a GitHub #333 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 333
+ },
+ {
+  "id": "v1-aud-09",
+  "title": "[Issue] V1-AUD-09 — Reglas y dependencias con deuda de mantenibilidad",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría ARC-A01), criticidad media. Trazada a GitHub #334 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 334
+ },
+ {
+  "id": "v1-aud-10",
+  "title": "[Issue] V1-AUD-10 — Documentación y validadores no describen el estado actual",
+  "body": "Auditoría de jefatura 2026-11-03 (Auditoría DOC-A01), criticidad media. Trazada a GitHub #335 el 2026-11-05 con evidencia y acción propuesta.",
+  "tipo": "Issue",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [],
+  "github": 335
  }
 ]

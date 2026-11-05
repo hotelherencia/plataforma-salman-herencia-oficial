@@ -403,3 +403,32 @@ mostró trabajo completado que el tablero aún registraba abierto.
   de leads contra la misma instancia en la misma ventana — comportamiento
   esperado, corrida única 5/5. `e2e-operacion` y `e2e-agente` no corridas
   hoy (base dedicada/guion; última evidencia en verde 2026-11-04).
+
+## Auditoría de jefatura 2026-11-03 → issues (2026-11-05)
+
+La jefatura auditó el avance (corte 2026-11-03, commit `05b153c`; dictamen:
+V1 interna operable, 10,0 % de avance evidenciado sobre 153 requisitos del
+alcance completo). Las observaciones llegaron en `audit/` (informe HTML,
+zip con matriz y hallazgos CSV). Verifiqué cada hallazgo contra el código
+actual antes de crear issues: los de seguridad SEC-A01..A05 y OPS-A02 y
+REL-A01 **siguen presentes**; UX-A01 ya estaba resuelto (#276–280, commits
+`e49efa5`/`de4c2c9`); FUN-A01 parcialmente (#303 resuelta en `c4f32dd`;
+#304/#305 bloqueadas por D-ENT-01); SEC-A00 ya tenía issue (#275).
+
+Traducidos a GitHub Issues (repo + Project n.º 2 con su prioridad):
+
+- **P1:** #326 SEC-A01 (Google ignora baja), #327 SEC-A02 (MFA sin
+  reautenticación), #328 SEC-A03 (freno de login reinicia antes del TOTP),
+  #329 SEC-A04 (aislamiento de empresa en el límite HTTP), #330 SEC-A05
+  (state OAuth sin vincular al navegador), #331 REL-A01 (sin CI ni
+  protección de main), #332 OPS-A01 (respaldo sin restauración demostrada —
+  acción del propietario).
+- **P2:** #333 OPS-A02 (salud sin readiness), #334 ARC-A01 (deuda de
+  arquitectura/dependencias), #335 DOC-A01 (documentación y validadores).
+- Comentarios cruzados: #275 (SEC-A00, con las dos precisiones técnicas de
+  la auditoría) y #296 (FUN-A01, con el estado real de #303/#304/#305).
+
+Tablero local: 10 ítems nuevos `v1-aud-01..10` en `construccion-v1.json`
+(estado Lista, con enlace a su issue). La carpeta `audit/` queda sin
+versionar (material de entrada de la jefatura; el contenido accionable ya
+está en las issues).
