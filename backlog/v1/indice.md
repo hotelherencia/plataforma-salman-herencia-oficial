@@ -470,3 +470,20 @@ CI en commits propios.
 - Tests nuevos: `servicio/tests/test_auditoria_seguridad.py` (17 casos). La
   suite del servicio pasa de 260 a 277 pruebas, dominio 5 raíces OK, landing
   12/12, E2E base 56/56 (tras SEC-A02).
+
+## Segunda pasada de cierre — 2026-11-05 (noche)
+
+- **#275 (rotación de secretos) cerrada** por orden del propietario: rotados
+  en los gestores del proveedor; quedan los recordatorios técnicos de la
+  auditoría (ADMIN_CLAVE no cambia la clave persistida por sí sola;
+  credencial OAuth ≠ clave Gmail; registrar fecha/alcance).
+- [Hecha] **DOC-A01 (#335)** — `scripts/validar_estado_v1.py` (13
+  comprobaciones: specs gobernantes, operaciones declaradas == filas (51),
+  tablero, evidencia citada, landing, `.env`, CI); el validador del corpus
+  heredado se archivó con el corpus cerrado. Ficha viva
+  `docs/arquitectura/estado-v1.md` con los números vigentes. README
+  sincronizado (público, construcción V1, secretos rotados).
+- [En curso] **ARC-A01 (#334)** — dependencias fijadas en los tres
+  manifiestos (lock reproducible); entrypoints de Vercel aclarados (vigentes,
+  una raíz de build cada uno); spec-backend-v1 sincronizada al flujo real.
+  Resta el split de `aplicacion.py` y la revisión de licencias.
