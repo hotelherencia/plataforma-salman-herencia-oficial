@@ -6,6 +6,7 @@ Con `database_url` configurada, el arranque también aplica migraciones y crea
 el administrador inicial desde variables de entorno (spec-api-v1).
 """
 import json
+import secrets
 import sys
 import time
 from dataclasses import dataclass
@@ -43,6 +44,8 @@ from . import totp  # noqa: E402
 from . import totp_qr  # noqa: E402
 
 NOMBRE_COOKIE_SESION = "sid"
+# SEC-A05 (#330): transacción OAuth atada al navegador que inició el login.
+NOMBRE_COOKIE_OAUTH_TX = "oauth_tx"
 
 
 class ErrorArranque(Exception):
@@ -405,6 +408,21 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             path="/",
         )
 
+    def _borrar_cookie_oauth_tx(response: Response) -> None:
+        """SEC-A05 (#330): la transacción OAuth se consume con el callback;
+        su cookie se elimina en los destinos (mismos atributos que al fijarla)."""
+        config = app.state.configuracion
+        segura = config.cookie_segura if config else False
+        response.set_cookie(
+            NOMBRE_COOKIE_OAUTH_TX,
+            "",
+            max_age=0,
+            httponly=True,
+            secure=segura,
+            samesite="none" if segura else "lax",
+            path="/auth",
+        )
+
     def _requerir_sesion(request: Request, conexion=Depends(_conexion)) -> seguridad.SesionActiva:
         sid = request.cookies.get(NOMBRE_COOKIE_SESION)
         if not sid:
@@ -512,12 +530,27 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         config = app.state.configuracion
         if not google_oidc.configurado(config):
             raise HTTPException(status_code=503, detail="no configurado")
-        estado = app.state.estados_oauth.nuevo()
+        # SEC-A05 (#330): la transacción queda atada a una cookie HttpOnly de
+        # vida corta; el callback exige que la cookie coincida con el state.
+        tx = secrets.token_urlsafe(16)
+        estado = app.state.estados_oauth.nuevo(tx=tx)
         url = google_oidc.url_de_consentimiento(config.google_client_id, estado, config.google_redirect_uri)
-        return RedirectResponse(url, status_code=302)
+        respuesta = RedirectResponse(url, status_code=302)
+        segura = config.cookie_segura if config else False
+        respuesta.set_cookie(
+            NOMBRE_COOKIE_OAUTH_TX,
+            tx,
+            max_age=google_oidc.VIDA_ESTADO_SEG,
+            httponly=True,
+            secure=segura,
+            samesite="none" if segura else "lax",
+            path="/auth",
+        )
+        return respuesta
 
     @app.get("/auth/google/callback")
     def callback_login_google(
+        request: Request,
         state: str | None = None,
         code: str | None = None,
         error: str | None = None,
@@ -528,8 +561,13 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             raise HTTPException(status_code=503, detail="no configurado")
         front = config.front_url
         if error is not None:
-            return RedirectResponse(f"{front}/login?error=acceso_denegado", status_code=302)
-        if state is None or not app.state.estados_oauth.tomar(state):
+            destino = RedirectResponse(f"{front}/login?error=acceso_denegado", status_code=302)
+            _borrar_cookie_oauth_tx(destino)
+            return destino
+        # El state se consume en todo intento (tomar lo extrae siempre): un
+        # rechazo por cookie ausente o distinta no deja el state reutilizable.
+        tx = request.cookies.get(NOMBRE_COOKIE_OAUTH_TX)
+        if state is None or not app.state.estados_oauth.tomar(state, tx=tx):
             raise HTTPException(status_code=400, detail="state inválido o expirado")
         if code is None:
             raise HTTPException(status_code=400, detail="falta el código de autorización")
@@ -545,7 +583,9 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         if usuario is None:
             seguridad.auditar(conexion, email, "login", "/auth/google/callback", "sin vinculo")
             conexion.commit()
-            return RedirectResponse(f"{front}/login?error=cuenta_sin_vinculo", status_code=302)
+            destino = RedirectResponse(f"{front}/login?error=cuenta_sin_vinculo", status_code=302)
+            _borrar_cookie_oauth_tx(destino)
+            return destino
         usuario_id, empresa_id, _rol, nombre = usuario
         sid = seguridad.crear_sesion(
             conexion, usuario_id, empresa_id,
@@ -555,6 +595,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         conexion.commit()
         destino = RedirectResponse(front, status_code=302)
         _fijar_cookie(destino, sid)
+        _borrar_cookie_oauth_tx(destino)
         return destino
 
     @app.post("/cuenta/2fa")

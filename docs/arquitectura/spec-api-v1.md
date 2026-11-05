@@ -418,8 +418,8 @@ rol, tarifa ni total como argumento.
 | `POST /cuenta/2fa/activar` | Con sesión: confirma el alta verificando el código contra el secreto pendiente; al confirmar, el pendiente pasa a ser el activo (reemplaza al previo). Código inválido o sin alta en curso → 400. |
 | `DELETE /cuenta/2fa` | Con sesión: desactiva el segundo factor y borra ambos secretos. Exige `clave` en el cuerpo (reautenticación): sin clave o errada → 401 (SEC-A02). |
 | `GET /auth/google/estado` | `{configurado: bool}`: true solo con `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en el entorno. |
-| `GET /auth/google` | 302 al consentimiento de Google (scope `openid email profile`, `state` de un solo uso, 10 min); sin configurar → 503 «no configurado». |
-| `GET /auth/google/callback` | Valida `state`, intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |
+| `GET /auth/google` | 302 al consentimiento de Google (scope `openid email profile`, `state` de un solo uso, 10 min); sin configurar → 503 «no configurado». Fija la cookie HttpOnly `oauth_tx` (vida 10 min, path `/auth`) que ata el state al navegador (SEC-A05). |
+| `GET /auth/google/callback` | Valida `state` **consumiéndolo en todo intento** y exigiendo que la cookie `oauth_tx` coincida con la que originó el login (state de otro navegador → 400, SEC-A05); intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |
 | `GET /usuarios` | Lista `id`, `nombre`, `rol`, `activo` de la empresa. Solo administrador. |
 | `POST /usuarios` | Alta `{nombre, rol, clave}` con hash argon2id. Solo administrador. Nombre repetido → 409. |
 | `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash). El propio usuario o un administrador. |

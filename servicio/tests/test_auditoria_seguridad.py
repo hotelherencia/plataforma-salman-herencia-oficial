@@ -242,6 +242,59 @@ class SECA04EmpresaDelNucleoTest(BaseAuditoriaTest):
         self.assertEqual(r.status_code, 200, r.text)
 
 
+class SECA05StateOAuthTest(BaseAuditoriaTest):
+    """SEC-A05 (#330): el state de un solo uso queda vinculado a una cookie
+    de transacción HttpOnly de vida corta: un callback con el state de otro
+    navegador (sin la cookie que lo originó) se rechaza — cierra el login
+    CSRF que la auditoría reprodujo sin cookies."""
+
+    def setUp(self):
+        super().setUp()
+        with psycopg.connect(URL_TEST) as conexion:
+            seguridad.vincular_email(conexion, ADMIN[0], "admin@herencia.cl")
+            conexion.commit()
+
+    def callback_con(self, cliente, state, email="admin@herencia.cl"):
+        token = id_token_de(**claims_google(email=email))
+        with mock.patch.object(google_oidc, "intercambiar_codigo", return_value={"id_token": token}), \
+             mock.patch.object(google_oidc, "obtener_jwks", return_value=jwk_de_prueba()):
+            return cliente.get(
+                "/auth/google/callback", params={"state": state, "code": "c"},
+                follow_redirects=False,
+            )
+
+    def state_para(self, cliente):
+        r = cliente.get("/auth/google", follow_redirects=False)
+        self.assertEqual(r.status_code, 302, r.text)
+        return r.headers["location"].split("state=")[1]
+
+    def test_state_de_otro_navegador_rechazado(self):
+        atacante = TestClient(self.app)
+        state = self.state_para(atacante)  # state ligado a la cookie del atacante
+        victima = TestClient(self.app)
+        victima.cookies.clear()
+        r = self.callback_con(victima, state)
+        self.assertEqual(r.status_code, 400, r.text)
+        # el state se consume igual: no es reutilizable
+        r = self.callback_con(atacante, state)
+        self.assertEqual(r.status_code, 400, r.text)
+
+    def test_callback_sin_cookie_rechazado(self):
+        cliente = TestClient(self.app)
+        state = self.state_para(cliente)
+        cliente.cookies.clear()
+        r = self.callback_con(cliente, state)
+        self.assertEqual(r.status_code, 400, r.text)
+
+    def test_flujo_ok_con_la_cookie_de_transaccion(self):
+        cliente = TestClient(self.app)
+        state = self.state_para(cliente)
+        r = self.callback_con(cliente, state)
+        self.assertEqual(r.status_code, 302, r.text)
+        self.assertTrue(r.headers["location"].startswith(FRONT))
+        self.assertIn("sid=", r.headers.get("set-cookie", ""))
+
+
 class OPSA02ReadinessTest(BaseAuditoriaTest):
     def test_readiness_ok_con_base_arriba(self):
         r = self.cliente.get("/readiness")

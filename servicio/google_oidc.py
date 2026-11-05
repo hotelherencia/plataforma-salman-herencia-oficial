@@ -39,29 +39,46 @@ class ErrorGoogleOidc(Exception):
 
 
 class EstadosOAuth:
-    """States de un solo uso, en memoria del proceso, con expiración."""
+    """States de un solo uso, en memoria del proceso, con expiración.
+
+    SEC-A05 (#330): cada state queda vinculado a un identificador de
+    transacción (`tx`) que el flujo HTTP guarda en una cookie HttpOnly de
+    vida corta: el callback solo acepta el state si la cookie coincide con
+    la que originó el login. Sin esto, un state interceptado era válido en
+    cualquier navegador (login CSRF, auditoría 2026-11-03).
+
+    Límite conocido (V1, un proceso): el diccionario vive en memoria del
+    proceso; con réplicas habría que persistir las transacciones o fijar
+    afinidad — pendiente para el escalado multi-instancia.
+    """
 
     def __init__(self, vida_segundos: int = VIDA_ESTADO_SEG) -> None:
         self._vida = vida_segundos
-        self._estados: dict[str, float] = {}
+        self._estados: dict[str, tuple[float, str | None]] = {}
         self._cerrojo = threading.Lock()
 
-    def nuevo(self, ahora: float | None = None) -> str:
+    def nuevo(self, tx: str | None = None, ahora: float | None = None) -> str:
         ahora = time.time() if ahora is None else ahora
         estado = secrets.token_urlsafe(32)
         with self._cerrojo:
-            caducados = [s for s, expira in self._estados.items() if expira <= ahora]
+            caducados = [s for s, (expira, _) in self._estados.items() if expira <= ahora]
             for s in caducados:
                 del self._estados[s]
-            self._estados[estado] = ahora + self._vida
+            self._estados[estado] = (ahora + self._vida, tx)
         return estado
 
-    def tomar(self, estado: str, ahora: float | None = None) -> bool:
-        """True una sola vez si existe y no expiró; el estado se consume siempre."""
+    def tomar(self, estado: str, tx: str | None = None, ahora: float | None = None) -> bool:
+        """True una sola vez si existe, no expiró y la transacción coincide.
+
+        El estado se consume siempre (intento válido o no) para no dejar
+        material reutilizable."""
         ahora = time.time() if ahora is None else ahora
         with self._cerrojo:
-            expira = self._estados.pop(estado, None)
-            return expira is not None and ahora <= expira
+            guardado = self._estados.pop(estado, None)
+            if guardado is None:
+                return False
+            expira, tx_guardado = guardado
+            return ahora <= expira and tx_guardado == tx
 
 
 def configurado(config) -> bool:
