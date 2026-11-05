@@ -133,7 +133,10 @@ class DosFactoresHttpTest(unittest.TestCase):
         self.login()
         secreto = self.cliente.post("/cuenta/2fa").json()["secreto"]
         self.cliente.post("/cuenta/2fa/activar", json={"codigo": totp.codigo(secreto)})
-        self.assertEqual(self.cliente.delete("/cuenta/2fa").status_code, 200)
+        # SEC-A02 (#327): desactivar exige la clave actual (reautenticación).
+        self.assertEqual(self.cliente.delete("/cuenta/2fa").status_code, 401)
+        r = self.cliente.request("DELETE", "/cuenta/2fa", json={"clave": ADMIN[1]})
+        self.assertEqual(r.status_code, 200, r.text)
         self.assertFalse(self.cliente.get("/sesion").json()["totp_activado"])
         self.cliente.cookies.clear()
         self.assertEqual(self.login().status_code, 200)

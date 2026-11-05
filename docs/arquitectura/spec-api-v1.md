@@ -31,6 +31,10 @@ una operación que no está en la tabla no se publica.
   `detail="código 2FA inválido"`. La alta se confirma con un código válido
   (`POST /cuenta/2fa` + `POST /cuenta/2fa/activar`); `GET /sesion` declara
   `totp_activado`. Migración: la columna nace desactivada, nadie queda fuera.
+  **SEC-A02 (2026-11-05):** el secreto pendiente vive en su propia columna
+  (`totp_secreto_pendiente`, migración 0013): iniciar un reenrolamiento jamás
+  desprotege la cuenta, y reemplazar o desactivar el factor exige la clave
+  actual (reautenticación → 401 sin ella). El QR solo expone el pendiente.
 - La sesión vive en el servidor (tabla `sesiones`, revocable). El front solo
   recibe la cookie.
 - **Login con Google (OAuth 2.0 / OIDC)** (DECISIÓN, 2026-10-29, orden del
@@ -407,12 +411,12 @@ rol, tarifa ni total como argumento.
 | `GET /salud` | Liveness de despliegue (Railway): 200 sin sesión ni datos. No toca la base de datos. |
 | `GET /readiness` | Readiness (OPS-A02, 2026-11-05): consulta real a la base y estado de migraciones; 503 si no responde. Sin sesión. |
 | `GET /sesion` | Con cookie `sid`: `{id, usuario, rol, empresa_id, totp_activo}`. Sin sesión → 401. |
-| `GET /cuenta/2fa/qr` | Con sesión y 2FA pendiente/activo: devuelve el QR (PNG) del secreto para Google Authenticator. |
+| `GET /cuenta/2fa/qr` | Con sesión y alta en curso: devuelve el QR (SVG) del secreto **pendiente**. Sin pendiente → 400. El secreto activo nunca se expone (SEC-A02, 2026-11-05). |
 | `POST /sesion` | Abre sesión de la empresa Herencia y fija la cookie `sid`. Con 2FA activo exige además `totp` (ver «Identidad y sesión»). |
 | `DELETE /sesion` | Cierra la sesión (la fila de `sesiones` queda revocada). |
-| `POST /cuenta/2fa` | Con sesión: genera el secreto TOTP pendiente y devuelve `{secreto, uri}` (otpauth://). No activa nada. |
-| `POST /cuenta/2fa/activar` | Con sesión: confirma el alta verificando el código recibido contra el secreto pendiente; código inválido → 400. |
-| `DELETE /cuenta/2fa` | Con sesión: desactiva el segundo factor y borra el secreto. |
+| `POST /cuenta/2fa` | Con sesión: genera el secreto TOTP **pendiente** (columna propia: el factor activo queda intacto hasta confirmar) y devuelve `{secreto, uri}`. Con 2FA ya activo exige `clave` en el cuerpo (reautenticación): sin clave o errada → 401 (SEC-A02). |
+| `POST /cuenta/2fa/activar` | Con sesión: confirma el alta verificando el código contra el secreto pendiente; al confirmar, el pendiente pasa a ser el activo (reemplaza al previo). Código inválido o sin alta en curso → 400. |
+| `DELETE /cuenta/2fa` | Con sesión: desactiva el segundo factor y borra ambos secretos. Exige `clave` en el cuerpo (reautenticación): sin clave o errada → 401 (SEC-A02). |
 | `GET /auth/google/estado` | `{configurado: bool}`: true solo con `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en el entorno. |
 | `GET /auth/google` | 302 al consentimiento de Google (scope `openid email profile`, `state` de un solo uso, 10 min); sin configurar → 503 «no configurado». |
 | `GET /auth/google/callback` | Valida `state`, intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |

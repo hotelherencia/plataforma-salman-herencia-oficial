@@ -19,7 +19,7 @@ for _ruta in (RAIZ / "core" / "incremento1", RAIZ / "verticales" / "hotel" / "in
         sys.path.insert(0, _s)
 
 import psycopg  # noqa: E402
-from fastapi import Depends, FastAPI, Header, HTTPException, Path as RutaParam, Query, Request, Response  # noqa: E402
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path as RutaParam, Query, Request, Response  # noqa: E402
 from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
 from pydantic import BaseModel, Field, field_validator  # noqa: E402
 
@@ -102,6 +102,14 @@ class Credenciales(BaseModel):
 
 class CodigoTotpIn(BaseModel):
     codigo: str = Field(min_length=6, max_length=10)
+
+
+class ClaveActualIn(BaseModel):
+    """SEC-A02 (#327): clave actual para reautenticar operaciones sensibles
+    del segundo factor (reemplazar el autenticador o desactivarlo). Cualquier
+    largo no vacío: la validación de la clave la hace `reautenticar_clave`
+    (401), no el esquema — un 422 aquí filtraría el chequeo de autorización."""
+    clave: str = Field(min_length=1)
 
 
 class HabitacionIn(BaseModel):
@@ -553,8 +561,20 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     def iniciar_2fa(
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
+        cuerpo: ClaveActualIn | None = Body(default=None),
     ) -> dict:
-        """Genera el secreto TOTP pendiente: la cuenta queda igual hasta confirmar."""
+        """Genera el secreto TOTP pendiente: el factor activo queda intacto
+        hasta confirmar. SEC-A02 (#327): con 2FA ya activo (reenrolamiento)
+        exige la clave actual — una sesión capturada no puede reemplazar el
+        autenticador."""
+        (activo,) = conexion.execute(
+            "SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)
+        ).fetchone()
+        if activo:
+            if cuerpo is None or not seguridad.reautenticar_clave(conexion, sesion.usuario_id, cuerpo.clave):
+                seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "reauth rechazada")
+                conexion.commit()
+                raise HTTPException(status_code=401, detail="se requiere la clave actual para reemplazar el autenticador")
         secreto = seguridad.iniciar_alta_totp(conexion, sesion.usuario_id)
         seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "alta iniciada")
         conexion.commit()
@@ -569,7 +589,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
     ) -> dict:
-        secreto = seguridad.secreto_totp(conexion, sesion.usuario_id)
+        secreto = seguridad.secreto_totp_pendiente(conexion, sesion.usuario_id)
         if secreto is None:
             raise HTTPException(status_code=400, detail="no hay alta de 2FA en curso")
         if not totp.verificar(secreto, cuerpo.codigo):
@@ -586,10 +606,13 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
     ) -> Response:
-        """QR (SVG) del secreto vigente: escaneable por Google Authenticator."""
-        secreto = seguridad.secreto_totp(conexion, sesion.usuario_id)
+        """QR (SVG) del secreto PENDIENTE: escaneable por Google Authenticator.
+
+        SEC-A02 (#327): el secreto activo nunca se expone; el QR sirve solo
+        durante el alta en curso."""
+        secreto = seguridad.secreto_totp_pendiente(conexion, sesion.usuario_id)
         if secreto is None:
-            raise HTTPException(status_code=400, detail="no hay secreto 2FA; inicia el alta con POST /cuenta/2fa")
+            raise HTTPException(status_code=400, detail="no hay alta de 2FA en curso; iníciala con POST /cuenta/2fa")
         svg = totp_qr.uri_a_svg(totp.uri_de_alta(secreto, sesion.nombre))
         return Response(content=svg, media_type="image/svg+xml")
 
@@ -597,7 +620,14 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     def desactivar_2fa(
         sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
         conexion=Depends(_conexion),
+        cuerpo: ClaveActualIn | None = Body(default=None),
     ) -> dict:
+        """SEC-A02 (#327): desactivar exige la clave actual (reautenticación):
+        una sesión capturada no puede eliminar el segundo factor."""
+        if cuerpo is None or not seguridad.reautenticar_clave(conexion, sesion.usuario_id, cuerpo.clave):
+            seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "reauth rechazada")
+            conexion.commit()
+            raise HTTPException(status_code=401, detail="clave de confirmación inválida")
         seguridad.desactivar_totp(conexion, sesion.usuario_id)
         seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "desactivado")
         conexion.commit()

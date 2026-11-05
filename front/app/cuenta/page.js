@@ -10,6 +10,7 @@ export default function Cuenta() {
   const [exito, setExito] = useState('')
   const [error, setError] = useState('')
   const [claveNueva, setClaveNueva] = useState('')
+  const [claveReauth, setClaveReauth] = useState('')
   const [claveOk, setClaveOk] = useState('')
   const [claveError, setClaveError] = useState('')
   const [claveCambiando, setClaveCambiando] = useState(false)
@@ -65,6 +66,28 @@ export default function Cuenta() {
     }
   }
 
+  // SEC-A02 (auditoría 2026-11-03, #327): con 2FA activo, reemplazar el
+  // autenticador exige la clave actual (reautenticación). El alta nunca
+  // desprotege la cuenta: el secreto nuevo queda pendiente hasta confirmar.
+  async function reemplazar() {
+    setError('')
+    setExito('')
+    if (!claveReauth) {
+      setError('Escribe tu clave actual para confirmar el reemplazo.')
+      return
+    }
+    try {
+      const r = await api('/cuenta/2fa', { metodo: 'POST', cuerpo: { clave: claveReauth } })
+      if (r.estado >= 400) setError(r.datos?.detail ?? 'No se pudo iniciar el reemplazo')
+      else {
+        setAlta(r.datos)
+        setExito('Autenticador nuevo pendiente: confírmalo con el código. El anterior sigue activo.')
+      }
+    } catch {
+      setError('La API no está disponible')
+    }
+  }
+
   async function activar(e) {
     e.preventDefault()
     setError('')
@@ -85,14 +108,20 @@ export default function Cuenta() {
 
   async function desactivar() {
     // V1-ISSUE-36: las acciones destructivas piden confirmación explícita.
+    // SEC-A02 (#327): además exige la clave actual (reautenticación).
     if (!window.confirm('¿Desactivar el doble factor? El acceso quedará solo con usuario y clave.')) return
     setError('')
     setExito('')
+    if (!claveReauth) {
+      setError('Escribe tu clave actual para confirmar.')
+      return
+    }
     try {
-      const r = await api('/cuenta/2fa', { metodo: 'DELETE' })
+      const r = await api('/cuenta/2fa', { metodo: 'DELETE', cuerpo: { clave: claveReauth } })
       if (r.estado >= 400) setError(r.datos?.detail ?? 'No se pudo desactivar')
       else {
         setExito('Doble factor desactivado.')
+        setClaveReauth('')
         recargarSesion()
       }
     } catch {
@@ -126,13 +155,27 @@ export default function Cuenta() {
           {claveError && <p role="alert" className="alerta">{claveError}</p>}
         </section>
       )}
-      {sesion?.totp_activado ? (
+      {sesion?.totp_activado && !alta ? (
         <section className="tarjeta">
           <h2>Estado: activado</h2>
           <p className="estado">
             Cada inicio de sesión pide, además de la clave, el código de 6 dígitos del autenticador.
+            Reemplazar el autenticador o desactivar el doble factor exige tu clave actual.
           </p>
-          <button onClick={desactivar} className="boton-fantasma">Desactivar doble factor</button>
+          <label className="campo">
+            <span className="campo-etiqueta">Tu clave actual (confirma cambios)</span>
+            <input
+              className="entrada"
+              type="password"
+              autoComplete="current-password"
+              value={claveReauth}
+              onChange={(e) => setClaveReauth(e.target.value)}
+            />
+          </label>
+          <div className="acciones-fila">
+            <button onClick={reemplazar} className="boton-fantasma">Reemplazar autenticador</button>
+            <button onClick={desactivar} className="boton-fantasma">Desactivar doble factor</button>
+          </div>
         </section>
       ) : alta ? (
         <section className="tarjeta">

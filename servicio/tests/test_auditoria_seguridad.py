@@ -137,6 +137,87 @@ class SECA03FrenoTotpTest(BaseAuditoriaTest):
         self.assertEqual(r.status_code, 401, r.text)
 
 
+class SECA02MfaReauthTest(BaseAuditoriaTest):
+    """SEC-A02 (#327): el secreto pendiente vive aparte del activo (el alta
+    nunca desprotege la cuenta) y reemplazar/desactivar el segundo factor
+    exige la clave actual (reautenticación)."""
+
+    def admin_con_totp_activo(self):
+        with psycopg.connect(URL_TEST) as conexion:
+            secreto = seguridad.iniciar_alta_totp(conexion, self.uid_admin())
+            seguridad.activar_totp(conexion, self.uid_admin())
+            conexion.commit()
+        return secreto
+
+    def uid_admin(self):
+        with psycopg.connect(URL_TEST) as conexion:
+            (uid,) = conexion.execute(
+                "SELECT id FROM usuarios WHERE nombre = %s", (ADMIN[0],)
+            ).fetchone()
+        return uid
+
+    def login_admin(self, codigo=None):
+        cuerpo = {"usuario": ADMIN[0], "clave": ADMIN[1]}
+        if codigo:
+            cuerpo["totp"] = codigo
+        return self.cliente.post("/sesion", json=cuerpo)
+
+    def test_primer_alta_sigue_sin_clave(self):
+        self.login(*ADMIN)
+        r = self.cliente.post("/cuenta/2fa")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(len(r.json()["secreto"]), 32)
+
+    def test_reenrolamiento_exige_clave_y_no_desprotege(self):
+        self.login(*ADMIN)  # sesión abierta antes de activar el factor
+        secreto_viejo = self.admin_con_totp_activo()
+        # sin clave y con clave errada: rechazado
+        self.assertEqual(self.cliente.post("/cuenta/2fa").status_code, 401)
+        r = self.cliente.post("/cuenta/2fa", json={"clave": "mal"})
+        self.assertEqual(r.status_code, 401, r.text)
+        # con clave: genera secreto pendiente nuevo
+        r = self.cliente.post("/cuenta/2fa", json={"clave": ADMIN[1]})
+        self.assertEqual(r.status_code, 200, r.text)
+        secreto_nuevo = r.json()["secreto"]
+        self.assertNotEqual(secreto_nuevo, secreto_viejo)
+        # mientras el nuevo está pendiente, el activo sigue siendo el viejo:
+        # la cuenta jamás quedó desprotegida (la vulnerabilidad de SEC-A02).
+        self.cliente.cookies.clear()
+        r = self.login_admin(codigo=totp.codigo(secreto_viejo))
+        self.assertEqual(r.status_code, 200, r.text)
+        # confirmar el nuevo cambia el activo (la sesión se abre con el viejo,
+        # que sigue vigente hasta la activación)
+        r = self.login_admin(codigo=totp.codigo(secreto_viejo))
+        self.assertEqual(r.status_code, 200, r.text)
+        r = self.cliente.post("/cuenta/2fa/activar", json={"codigo": totp.codigo(secreto_nuevo)})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.cliente.cookies.clear()
+        self.assertEqual(self.login_admin(codigo=totp.codigo(secreto_viejo)).status_code, 401)
+        self.assertEqual(self.login_admin(codigo=totp.codigo(secreto_nuevo)).status_code, 200)
+
+    def test_qr_solo_del_pendiente(self):
+        self.login(*ADMIN)
+        self.admin_con_totp_activo()
+        # activo sin pendiente: nada que escanear (el activo nunca se expone)
+        self.assertEqual(self.cliente.get("/cuenta/2fa/qr").status_code, 400)
+        self.cliente.post("/cuenta/2fa", json={"clave": ADMIN[1]})
+        r = self.cliente.get("/cuenta/2fa/qr")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertIn("image/svg+xml", r.headers["content-type"])
+
+    def test_desactivar_exige_clave(self):
+        self.login(*ADMIN)
+        self.admin_con_totp_activo()
+        self.assertEqual(self.cliente.delete("/cuenta/2fa").status_code, 401)
+        r = self.cliente.request("DELETE", "/cuenta/2fa", json={"clave": "mal"})
+        self.assertEqual(r.status_code, 401, r.text)
+        r = self.cliente.request("DELETE", "/cuenta/2fa", json={"clave": ADMIN[1]})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertFalse(self.cliente.get("/sesion").json()["totp_activado"])
+        self.cliente.cookies.clear()
+        self.assertEqual(self.login_admin().status_code, 200)
+
+
 class SECA04EmpresaDelNucleoTest(BaseAuditoriaTest):
     def test_sesion_de_otra_empresa_rechazada_en_el_limite(self):
         with psycopg.connect(URL_TEST) as conexion:

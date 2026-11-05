@@ -632,7 +632,7 @@ try {
     await api('POST', '/usuarios', { cookie: cookieAdmin, clave: K('2fa-alta'), cuerpo: { nombre: nombre2fa, rol: 'recepcion', clave: 'Clave2fa123' } })
     const ctx = await contextoRol('2fa')
     const page = await ctx.newPage()
-    await caso('TFA-01', '/cuenta', 'alta del segundo factor y login con TOTP', 'recepcion', 'secreto mostrado, activación con código, login exigiendo totp', async () => {
+    await caso('TFA-01', '/cuenta', 'alta del segundo factor, login con TOTP y baja con reautenticación', 'recepcion', 'secreto mostrado, activación con código, login exigiendo totp; desactivar exige la clave actual (SEC-A02)', async () => {
       await loginUi(page, nombre2fa, 'Clave2fa123')
       await page.goto(`${FRONT}/cuenta`)
       await page.waitForTimeout(1500)
@@ -664,7 +664,21 @@ try {
       await page.getByRole('button', { name: 'Entrar' }).click()
       await page.waitForTimeout(2000)
       if (page.url().includes('/login')) throw new Error('no entró con el código TOTP')
-      return '2FA activado y login con código'
+      // SEC-A02 (#327): desactivar el factor exige la clave actual
+      // (reautenticación). Sin clave el front lo exige; con clave baja.
+      await page.goto(`${FRONT}/cuenta`)
+      await page.waitForTimeout(1500)
+      page.on('dialog', (d) => d.accept())
+      await page.getByRole('button', { name: 'Desactivar doble factor' }).click()
+      await page.waitForTimeout(800)
+      let textoCuenta = await textoPrincipal(page)
+      if (!textoCuenta.includes('Escribe tu clave actual')) throw new Error('desactivó sin pedir la clave')
+      await page.getByLabel(/Tu clave actual/).fill('Clave2fa123')
+      await page.getByRole('button', { name: 'Desactivar doble factor' }).click()
+      await page.waitForTimeout(1500)
+      textoCuenta = await textoPrincipal(page)
+      if (!textoCuenta.includes('desactivado')) throw new Error(`no se desactivó: ${textoCuenta.slice(0, 160)}`)
+      return '2FA activado, login con código y baja exigiendo la clave'
     })
     await page.close()
   }

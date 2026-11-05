@@ -118,10 +118,15 @@ def crear_sesion(conexion: psycopg.Connection, usuario_id: str, empresa_id: str,
 
 
 def iniciar_alta_totp(conexion: psycopg.Connection, usuario_id: str) -> str:
-    """Genera el secreto TOTP y lo guarda pendiente: no activa nada todavía."""
+    """Genera el secreto TOTP PENDIENTE: jamás toca el factor activo.
+
+    SEC-A02 (#327): antes esta función escribía el secreto nuevo en la
+    columna única y ponía totp_activado=false, dejando la cuenta sin 2FA
+    hasta confirmar el reemplazo. La protección vigente se mantiene hasta
+    que `activar_totp` mueve el pendiente a activo."""
     secreto = totp.generar_secreto()
     conexion.execute(
-        "UPDATE usuarios SET totp_secreto = %s, totp_activado = FALSE WHERE id = %s",
+        "UPDATE usuarios SET totp_secreto_pendiente = %s WHERE id = %s",
         (secreto, usuario_id),
     )
     return secreto
@@ -134,15 +139,37 @@ def secreto_totp(conexion: psycopg.Connection, usuario_id: str) -> str | None:
     return fila[0] if fila else None
 
 
+def secreto_totp_pendiente(conexion: psycopg.Connection, usuario_id: str) -> str | None:
+    fila = conexion.execute(
+        "SELECT totp_secreto_pendiente FROM usuarios WHERE id = %s", (usuario_id,)
+    ).fetchone()
+    return fila[0] if fila else None
+
+
 def activar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
-    conexion.execute("UPDATE usuarios SET totp_activado = TRUE WHERE id = %s", (usuario_id,))
+    """Mueve el secreto pendiente a activo (idempotente tras verificar el código)."""
+    conexion.execute(
+        "UPDATE usuarios SET totp_secreto = totp_secreto_pendiente, "
+        "totp_secreto_pendiente = NULL, totp_activado = TRUE WHERE id = %s",
+        (usuario_id,),
+    )
 
 
 def desactivar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
     conexion.execute(
-        "UPDATE usuarios SET totp_activado = FALSE, totp_secreto = NULL WHERE id = %s",
+        "UPDATE usuarios SET totp_activado = FALSE, totp_secreto = NULL, "
+        "totp_secreto_pendiente = NULL WHERE id = %s",
         (usuario_id,),
     )
+
+
+def reautenticar_clave(conexion: psycopg.Connection, usuario_id: str, clave: str) -> bool:
+    """SEC-A02 (#327): verifica la clave actual para operaciones sensibles
+    del segundo factor (reemplazar/desactivar)."""
+    fila = conexion.execute(
+        "SELECT clave_hash FROM usuarios WHERE id = %s", (usuario_id,)
+    ).fetchone()
+    return fila is not None and verificar_clave(fila[0], clave)
 
 
 def obtener_sesion_activa(conexion: psycopg.Connection, sid: str) -> SesionActiva | None:
