@@ -393,4 +393,13 @@ mostró trabajo completado que el tablero aún registraba abierto.
   restante; el repo no tiene herramienta de despliegue para ese hosting
   (el runbook de `h7-despliegue.md` declara que no toca DNS ni
   hotelherencia.cl), así que requiere acceso del propietario.
-- Caza del intermitente: 3 corridas adicionales del servicio en curso.
+- Caza del intermitente: 3 corridas adicionales, las 3 en verde — acumulado
+  del día: 1 fallo no identificado al inicio y 5 corridas 260/260 seguidas.
+- Regresión E2E de certificación (sin cambios de código; ambiente local con
+  base `plataforma_e2e_landing`, front en build de producción): base 56/56,
+  reserva-publica 6/6, leads 5/5, landing 3/3. Informe y capturas en
+  `capturas/e2e-2026-11-05/INFORME.md`. Hallazgo: el freno de abuso del
+  canal público (6/IP/min en memoria por proceso) 429a al repetir la suite
+  de leads contra la misma instancia en la misma ventana — comportamiento
+  esperado, corrida única 5/5. `e2e-operacion` y `e2e-agente` no corridas
+  hoy (base dedicada/guion; última evidencia en verde 2026-11-04).
