@@ -1,6 +1,10 @@
-fastapi
-uvicorn
-psycopg[binary]
-argon2-cffi
-httpx
-qrcode
+# Dependencias del servicio, fijadas a las versiones con las que corre la
+# regresión (ARC-A01, auditoría 2026-11-03: antes iban sin pin). Los dos
+# pyproject.toml (raíz para Vercel con raíz repo; servicio/ para Vercel con
+# raíz servicio/) repiten esta lista: mantenerlos alineados.
+fastapi==0.162.0
+uvicorn==0.54.0
+psycopg[binary]==3.3.6
+argon2-cffi==25.1.0
+httpx==0.28.1
+qrcode==8.2

@@ -27,7 +27,28 @@ arranque). Solo biblioteca estándar + estas dependencias declaradas en
 - Configuración solo por variables de entorno (`DATABASE_URL`, flags de
   cookie, puerto `SERVICIO_PUERTO` con reserva de `$PORT` para Railway).
   **El repositorio no lleva `.env`**.
-- `GET /salud` (sin autenticar) responde 200 con estado y versión.
+- `GET /salud` (sin autenticar) responde 200 con estado y versión;
+  `GET /readiness` (OPS-A02) consulta la base y migraciones.
+
+## Flujo real de las reglas (sincronizado 2026-11-05, ARC-A01)
+
+La auditoría de jefatura 2026-11-03 señaló que la decisión documentada («el
+dominio decide cada operación HTTP») no describía el flujo real. Flujo
+vigente, de afuera hacia adentro:
+
+1. **Límite HTTP** (`servicio/aplicacion.py`): sesión, roles, CORS, frenos de
+   abuso, idempotencia; **ninguna regla de negocio** vive aquí.
+2. **Persistencia con reglas** (`servicio/reservas.py`, `servicio/cobro.py`):
+   las invariantes transaccionales (carrera por la última unidad, estados,
+   reversos, liquidación) se ejecutan en SQL dentro de la transacción.
+3. **Núcleo puro** (`core/`, `verticales/*/incremento1`): decide los efectos
+   de cobro/estadía que el servicio persiste en `efectos_nucleo`; es la
+   especificación ejecutable del dominio (181 pruebas, sin red).
+
+Deuda reconocida (sigue en #334): `aplicacion.py` concentra todas las rutas
+(~1.600 líneas); el split por módulos de rutas (auth/hotel/público/agente) y
+la revisión de licencias quedan como trabajo pendiente — los tests (277) son
+la red de seguridad para hacerlo.
 
 ## Persistencia
 

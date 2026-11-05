@@ -1,23 +1,24 @@
 # Entrypoint que el preset FastAPI del build de Vercel debe servir cuando la
 # raíz del build es el REPO, en formato `modulo:variable` (el que pide la
-# plataforma). Debe ser api.index:app y no api_vercel:app: el módulo
-# api_vercel vive en servicio/ y desde la raíz no resuelve (para builds con
-# raíz servicio/ manda servicio/pyproject.toml, que sí usa api_vercel:app).
+# plataforma). Para builds con raíz `servicio/` manda `servicio/pyproject.toml`,
+# que usa `api_vercel:app`. Los dos entrypoints existen y son vigentes: la
+# auditoría 2026-11-03 los llamó «obsoletos» por el parecido, pero cada uno
+# responde a una raíz de build distinta (ARC-A01; aclarado 2026-11-05).
 #
 # [project]: con un pyproject.toml presente, el build de Vercel instala las
 # dependencias desde aquí; sin esta tabla la función falla en runtime con
-# ModuleNotFoundError (psycopg, 2026-10-30). Railway/Nixpacks sigue instalando
-# desde requirements.txt de la raíz, que no se toca.
+# ModuleNotFoundError (psycopg, 2026-10-30). Las versiones van fijadas e
+# iguales a servicio/requirements.txt (lock reproducible, ARC-A01).
 [project]
 name = "plataforma-salman-herencia"
 version = "0.1.0"
 dependencies = [
-    "fastapi",
-    "uvicorn",
-    "psycopg[binary]",
-    "argon2-cffi",
-    "httpx",
-    "qrcode",
+    "fastapi==0.162.0",
+    "uvicorn==0.54.0",
+    "psycopg[binary]==3.3.6",
+    "argon2-cffi==25.1.0",
+    "httpx==0.28.1",
+    "qrcode==8.2",
 ]
 
 [tool.vercel]

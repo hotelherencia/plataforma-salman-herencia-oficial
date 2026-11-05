@@ -10,12 +10,12 @@
 name = "plataforma-salman-herencia-servicio"
 version = "0.1.0"
 dependencies = [
-    "fastapi",
-    "uvicorn",
-    "psycopg[binary]",
-    "argon2-cffi",
-    "httpx",
-    "qrcode",
+    "fastapi==0.162.0",
+    "uvicorn==0.54.0",
+    "psycopg[binary]==3.3.6",
+    "argon2-cffi==25.1.0",
+    "httpx==0.28.1",
+    "qrcode==8.2",
 ]
 
 [tool.vercel]
