@@ -1022,7 +1022,7 @@
   "title": "[Issue] V1-AUD-02 — Reenrolamiento y eliminación de MFA sin reautenticación",
   "body": "Auditoría de jefatura 2026-11-03 (Auditoría SEC-A02), criticidad alta. Trazada a GitHub #327 el 2026-11-05 con evidencia y acción propuesta.",
   "tipo": "Issue",
-  "estado": "Lista",
+  "estado": "Hecha",
   "prioridad": "P1",
   "vertical": "transversal",
   "padre": null,
