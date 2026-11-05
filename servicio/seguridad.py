@@ -82,9 +82,13 @@ def autenticar(conexion: psycopg.Connection, nombre: str, clave: str) -> tuple[s
 
 
 def buscar_usuario_por_email(conexion: psycopg.Connection, email: str) -> tuple[str, str, str, str] | None:
-    """Identidad vinculada a Google: (id, empresa_id, rol, nombre) o None."""
+    """Identidad vinculada a Google: (id, empresa_id, rol, nombre) o None.
+
+    SEC-A01 (#326): solo cuentas activas; una baja debe comportarse como un
+    email sin vínculo (el callback redirige a «cuenta_sin_vinculo» y no abre
+    sesión), jamás como una cuenta recuperable."""
     fila = conexion.execute(
-        "SELECT id, empresa_id, rol, nombre FROM usuarios WHERE email = %s", (email,)
+        "SELECT id, empresa_id, rol, nombre FROM usuarios WHERE email = %s AND activo = true", (email,)
     ).fetchone()
     if fila is None:
         return None
@@ -142,10 +146,14 @@ def desactivar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
 
 
 def obtener_sesion_activa(conexion: psycopg.Connection, sid: str) -> SesionActiva | None:
+    """SEC-A01 (#326): el JOIN exige `u.activo` — una baja mata las sesiones
+    vivas aunque la revocación por filas no haya corrido (carrera o baja por
+    SQL directo)."""
     fila = conexion.execute(
         "SELECT s.id, s.usuario_id, s.empresa_id, u.rol, u.nombre "
         "FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id "
-        "WHERE s.id = %s AND s.revocada_en IS NULL AND (s.expira_en IS NULL OR s.expira_en > now())",
+        "WHERE s.id = %s AND s.revocada_en IS NULL AND u.activo = true "
+        "AND (s.expira_en IS NULL OR s.expira_en > now())",
         (sid,),
     ).fetchone()
     if fila is None:

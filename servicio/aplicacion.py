@@ -336,6 +336,25 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             "empresa": aplicacion.nucleo.empresa.id,
         }
 
+    @app.get("/readiness")
+    def readiness() -> dict:
+        """Readiness (OPS-A02, #333): consulta real a la base y estado de
+        migraciones; 503 si no responde. `/salud` sigue siendo liveness pura
+        (no toca la base) — Railway puede seguir usando /salud para el
+        healthcheck del proceso y /readiness para el enrutado."""
+        database_url = getattr(app.state, "database_url", None)
+        if not database_url:
+            raise HTTPException(status_code=503, detail="base de datos no configurada")
+        try:
+            with psycopg.connect(database_url, connect_timeout=5) as conexion:
+                conexion.execute("SELECT 1")
+                (n_migraciones,) = conexion.execute(
+                    "SELECT count(*) FROM schema_migrations"
+                ).fetchone()
+        except psycopg.Error:
+            raise HTTPException(status_code=503, detail="la base de datos no responde")
+        return {"estado": "listo", "migraciones": n_migraciones}
+
     def _conexion() -> Iterator[psycopg.Connection]:
         # Sin DATABASE_URL en el arranque no hay `app.state.database_url`: se
         # responde 503 «no configurado» (convención de puertos de AGENTS.md) en
@@ -385,6 +404,12 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         sesion = seguridad.obtener_sesion_activa(conexion, sid)
         if sesion is None:
             raise HTTPException(status_code=401, detail="sesión inválida o vencida")
+        # SEC-A04 (#329): en V1 de empresa fija, el límite HTTP niega
+        # explícitamente una sesión de otra empresa en lugar de confiar en
+        # que la base no puede contenerla (auditoría 2026-11-03). Antes de
+        # multiempresa el invariante vive aquí, no en cada consulta.
+        if sesion.empresa_id != app.state.aplicacion.nucleo.empresa.id:
+            raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
         return sesion
 
     @app.post("/sesion")
@@ -406,8 +431,6 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "rechazado")
             conexion.commit()
             raise HTTPException(status_code=401, detail="credenciales inválidas")
-        freno.reiniciar(ip, credenciales.usuario)
-        freno.reiniciar_usuario(credenciales.usuario)
         usuario_id, empresa_id, rol, totp_activado = auth
         config = app.state.configuracion
         if totp_activado:
@@ -422,6 +445,12 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado")
                 conexion.commit()
                 raise HTTPException(status_code=401, detail="código 2FA inválido")
+        # SEC-A03 (#328): los contadores se reinician solo al completar TODA
+        # la autenticación. Hacerlo con la clave correcta (antes del TOTP)
+        # borraba los fallos en cada intento y dejaba el segundo factor sin
+        # freno de fuerza bruta (auditoría de jefatura 2026-11-03, SEC-A03).
+        freno.reiniciar(ip, credenciales.usuario)
+        freno.reiniciar_usuario(credenciales.usuario)
         sid = seguridad.crear_sesion(
             conexion, usuario_id, empresa_id,
             horas_vigencia=config.session_horas if config else 12,

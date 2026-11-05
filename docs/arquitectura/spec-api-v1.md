@@ -400,11 +400,12 @@ habitaciones se rechaza sin ejecutar y la consulta escala. `crear_solicitud`
 llega solo en N2 (D-PUB-01 y D-AGT-04). El modelo jamás envía `empresa_id`,
 rol, tarifa ni total como argumento.
 
-## Operaciones de esta versión (50)
+## Operaciones de esta versión (51)
 
 | Operación | Efecto |
 |---|---|
-| `GET /salud` | Liveness de despliegue (Railway): 200 sin sesión ni datos. |
+| `GET /salud` | Liveness de despliegue (Railway): 200 sin sesión ni datos. No toca la base de datos. |
+| `GET /readiness` | Readiness (OPS-A02, 2026-11-05): consulta real a la base y estado de migraciones; 503 si no responde. Sin sesión. |
 | `GET /sesion` | Con cookie `sid`: `{id, usuario, rol, empresa_id, totp_activo}`. Sin sesión → 401. |
 | `GET /cuenta/2fa/qr` | Con sesión y 2FA pendiente/activo: devuelve el QR (PNG) del secreto para Google Authenticator. |
 | `POST /sesion` | Abre sesión de la empresa Herencia y fija la cookie `sid`. Con 2FA activo exige además `totp` (ver «Identidad y sesión»). |

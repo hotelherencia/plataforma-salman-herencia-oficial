@@ -295,8 +295,8 @@ class AgenteServicioBaseTest(unittest.TestCase):
         otro = self.login_directo(OTRA_EMPRESA, "admin-b", "clave-b-12345")
         respuesta = otro.get(f"/hotel/agente/consultas/{consulta_id}")
         self.assertEqual(respuesta.status_code, 403, respuesta.text)
-        lista = otro.get("/hotel/agente/consultas").json()
-        self.assertEqual(lista["consultas"], [])
+        # SEC-A04 (#329): la sesión ajena se niega en el límite HTTP (403).
+        self.assertEqual(otro.get("/hotel/agente/consultas").status_code, 403)
 
     def test_ag_s11_agente_sin_sesion_posible(self):
         respuesta = self.cliente.post("/sesion", json={"usuario": "agente", "clave": "cualquiera"})

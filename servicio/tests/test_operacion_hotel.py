@@ -179,7 +179,9 @@ class BusquedaReservasTest(OperacionBaseTest):
             seguridad.crear_usuario(conexion, OTRA_EMPRESA, "admin-ajeno", "administrador", "clave-ajena-1")
             conexion.commit()
         ajeno = self.login("admin-ajeno", "clave-ajena-1")
-        self.assertEqual(ajeno.get("/hotel/reservas").json()["reservas"], [])
+        # SEC-A04 (#329): la sesión ajena se niega en el límite HTTP (403) en
+        # vez de ver listas vacías con 200.
+        self.assertEqual(ajeno.get("/hotel/reservas").status_code, 403)
         self.assertEqual(ajeno.post(f"/hotel/reservas/{rid}/cancelacion",
                                     headers={"Idempotency-Key": self.clave()}).status_code, 403)
         self.assertEqual(ajeno.post(f"/hotel/reservas/{rid}/cargos",
