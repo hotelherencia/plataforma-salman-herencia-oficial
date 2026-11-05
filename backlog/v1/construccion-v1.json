@@ -1,1008 +1,1008 @@
 [
-  {
-    "id": "v1-api",
-    "title": "[Épica] V1-API — Contrato API (spec-api-v1)",
-    "body": "**Fuente:** `docs/arquitectura/spec-api-v1.md` (gobierna). El contrato entre el front de Vercel y el backend de Railway: 10 operaciones, empresa solo de sesión, idempotencia, 401/403/409/503. Lo sirve el backend; nada fuera de la tabla se publica.",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-back",
-    "title": "[Épica] V1-BACK — Backend en Railway (spec-backend-v1)",
-    "body": "**Fuente:** `docs/arquitectura/spec-backend-v1.md` (gobierna). Un solo servicio FastAPI + PostgreSQL 17. Arranque que carga núcleo y hotel con la misma empresa (rechaza otra). Persistencia real; puertos externos sin adaptador → 503. Hitos H1–H5.",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-front",
-    "title": "[Épica] V1-FRONT — Front en Vercel (spec-front-v1)",
-    "body": "**Fuente:** `docs/arquitectura/spec-front-v1.md` (gobierna). Un solo proyecto Next.js; 7 pantallas del hotel; solo `API_BASE_URL`; cero lógica de negocio; API apagada → error y ninguna reserva confirmada. Hitos H6a–H6c.",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-desp",
-    "title": "[Épica] V1-DESP — Integración y despliegue (H7)",
-    "body": "**Fuente:** decisión del propietario 2026-10-28; `AGENTS.md` (derogación de push solo en H7). Las tres piezas se aceptan juntas. Prerrequisito: cuentas Railway y Vercel (no verificadas desde el repo; no bloquean H1).",
-    "tipo": "Épica",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-api/h1",
-    "title": "[Historia] V1-API/H1 — Publicar el contrato ejecutable (OpenAPI 3.1)",
-    "body": "**Como** front y backend, **quiero** el contrato en OpenAPI 3.1 servido por el backend, **para** implementar leyendo solo ese documento. Criterio: las 10 operaciones de spec-api-v1 con sus reglas de sesión, idempotencia y errores; nada fuera de la tabla.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-api",
-    "depende_de": []
-  },
-  {
-    "id": "v1-api/h1/t1",
-    "title": "[Tarea] V1-API/H1/T1 — Redactar OpenAPI 3.1 de las 10 operaciones",
-    "body": "Fuente: spec-api-v1. Documento en `servicio/contrato/` con las 10 rutas, esquemas y reglas 401/403/409/503.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-api/h1",
-    "depende_de": []
-  },
-  {
-    "id": "v1-api/h1/t2",
-    "title": "[Tarea] V1-API/H1/T2 — Servir el contrato y verificar sus rutas",
-    "body": "GET /contrato.yaml devuelve el documento; prueba de contrato recorre las 10 operaciones contra el backend en local.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-api/h1",
-    "depende_de": [
-      "v1-api/h1/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h1",
-    "title": "[Historia] V1-BACK/H1 — Servicio con hueso (arranque, /salud, regla de empresa)",
-    "body": "**Como** plataforma, **quiero** un proceso FastAPI que arranca con núcleo y hotel de la misma empresa, **para** tener el primer proceso real. Criterio (prueba H1): arranca con la misma empresa y **no arranca si el hotel trae otra**; GET /salud responde 200.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": []
-  },
-  {
-    "id": "v1-back/h1/t1",
-    "title": "[Tarea] V1-BACK/H1/T1 — Esqueleto FastAPI + psycopg v3 + config por env",
-    "body": "requirements.txt (fastapi, uvicorn, psycopg[binary], argon2-cffi); configuración solo por variables de entorno; sin .env en repo.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": []
-  },
-  {
-    "id": "v1-back/h1/t2",
-    "title": "[Tarea] V1-BACK/H1/T2 — Runner de migraciones SQL numeradas",
-    "body": "Migraciones en `servicio/migraciones/` (0001_*.sql…), ejecutadas por comando; tabla schema_migrations. SQL parametrizado desde el código (nada interpolado).",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": [
-      "v1-back/h1/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h1/t3",
-    "title": "[Tarea] V1-BACK/H1/T3 — Arranque con núcleo + hotel y regla de empresa",
-    "body": "construir_aplicacion carga Nucleo y ServicioHotelInventario con empresa=nucleo.empresa; rechaza el arranque con otra empresa (regla ya probada en el prototipo). GET /salud sin autenticar.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": [
-      "v1-back/h1/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h1/t4",
-    "title": "[Tarea] V1-BACK/H1/T4 — Prueba de arranque y de rechazo",
-    "body": "Prueba H1: el proceso arranca con núcleo y hotel de la misma empresa; con hotel de otra empresa el proceso no arranca.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h1",
-    "depende_de": [
-      "v1-back/h1/t3"
-    ]
-  },
-  {
-    "id": "v1-back/h2",
-    "title": "[Historia] V1-BACK/H2 — Sesión usuario/clave (argon2id, cookie sid)",
-    "body": "**Como** operador, **quiero** iniciar sesión con usuario y clave y que la empresa salga de la sesión, **para** que nada se autorice por un company_id del cliente. Criterio: clave solo como hash argon2id; admin inicial desde variables de entorno al arrancar (ningún SQL con clave); cookie sid HttpOnly/Secure/SameSite=None; 401 sin sesión; 403 otra empresa sin revelar existencia.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": [
-      "v1-back/h1"
-    ]
-  },
-  {
-    "id": "v1-back/h2/t1",
-    "title": "[Tarea] V1-BACK/H2/T1 — Migraciones usuarios y sesiones + admin desde env",
-    "body": "Tablas usuarios (clave argon2id) y sesiones (revocables); el administrador inicial se cree al arrancar leyendo usuario/clave de variables de entorno, nunca de SQL del repo.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h2",
-    "depende_de": [
-      "v1-back/h1/t2"
-    ]
-  },
-  {
-    "id": "v1-back/h2/t2",
-    "title": "[Tarea] V1-BACK/H2/T2 — POST /sesion y DELETE /sesion",
-    "body": "Abrir y cerrar sesión; cookie sid puesta por la API; sesión server-side en PostgreSQL.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h2",
-    "depende_de": [
-      "v1-back/h2/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h2/t3",
-    "title": "[Tarea] V1-BACK/H2/T3 — Pruebas 401 y 403",
-    "body": "Sin sesión → 401; sesión de otra empresa → 403 sin revelar si el recurso existe.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h2",
-    "depende_de": [
-      "v1-back/h2/t2"
-    ]
-  },
-  {
-    "id": "v1-back/h3",
-    "title": "[Historia] V1-BACK/H3 — Reserva persistente (habitaciones, tarifas, oferta, reserva transaccional)",
-    "body": "**Como** huésped y recepción, **quiero** reservar sobre datos que sobreviven al proceso, **para** operar de verdad. Criterio: PUT habitaciones (admin) y PUT tarifas sin alterar reservas aceptadas; GET oferta con vigencia; POST reservas transaccional con constraint de no solape — 100 requests a la última unidad dejan 1 reserva y 409 al resto.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": [
-      "v1-back/h2"
-    ]
-  },
-  {
-    "id": "v1-back/h3/t1",
-    "title": "[Tarea] V1-BACK/H3/T1 — Migraciones y endpoints de habitaciones y tarifas",
-    "body": "Tablas habitaciones y tarifas; PUT /hotel/habitaciones/{id} (solo administrador); PUT /hotel/tarifas por fecha, sin cambiar el precio de reservas ya aceptadas.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": [
-      "v1-back/h2/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h3/t2",
-    "title": "[Tarea] V1-BACK/H3/T2 — GET /hotel/oferta con vigencia",
-    "body": "Solo disponible, con tarifa vigente y vencimiento de la oferta.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": [
-      "v1-back/h3/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h3/t3",
-    "title": "[Tarea] V1-BACK/H3/T3 — POST /hotel/reservas transaccional",
-    "body": "Constraint de no solape por (unidad, fechas) dentro de la transacción de confirmación; la carrera por la última unidad la gana una sola reserva.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": [
-      "v1-back/h3/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h3/t4",
-    "title": "[Tarea] V1-BACK/H3/T4 — Prueba de la carrera por la última unidad",
-    "body": "100 requests concurrentes sobre la última unidad: 1 reserva confirmada, 99 con 409; sin sobreventa en la base.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h3",
-    "depende_de": [
-      "v1-back/h3/t3"
-    ]
-  },
-  {
-    "id": "v1-back/h4",
-    "title": "[Historia] V1-BACK/H4 — Cobro por el núcleo, idempotencia y estadía (entrada, salida, caja)",
-    "body": "**Como** caja y recepción, **quiero** cobrar solo con efecto del núcleo y operar la estadía, **para** que el dinero pase por la única puerta. Criterio: idempotencia por clave (replay igual; cuerpo distinto → 409); pago modo manual (efectivo/transferencia que registra recepción/caja/administrador, sin consulta bancaria ni conciliación) con efecto del núcleo; modo pasarela sin adaptador → 503 y nada marcado cobrado; entrada solo con habitación lista; salida liquida la cuenta; caja del día ligada a reserva.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": [
-      "v1-back/h2"
-    ]
-  },
-  {
-    "id": "v1-back/h4/t1",
-    "title": "[Tarea] V1-BACK/H4/T1 — Migraciones y middleware de idempotencia",
-    "body": "Tablas claves_idempotencia, pagos y efectos; toda mutación exige Idempotency-Key: misma clave+mismo cuerpo repite respuesta; misma clave+otro cuerpo → 409.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": [
-      "v1-back/h2/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h4/t2",
-    "title": "[Tarea] V1-BACK/H4/T2 — POST /hotel/reservas/{id}/pagos por el núcleo",
-    "body": "modo=manual: el efecto lo registra el núcleo (si rechaza, no hay pago); roles recepción/caja/administrador. modo=pasarela sin adaptador → 503 con estado pendiente.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": [
-      "v1-back/h4/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h4/t3",
-    "title": "[Tarea] V1-BACK/H4/T3 — Entrada, salida y caja",
-    "body": "POST entrada (check-in solo si la habitación está lista); POST salida (liquida la cuenta); GET /hotel/caja?fecha con pagos ligados a reserva; sin movimiento bancario en esta versión.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": [
-      "v1-back/h4/t1"
-    ]
-  },
-  {
-    "id": "v1-back/h4/t4",
-    "title": "[Tarea] V1-BACK/H4/T4 — Pruebas de idempotencia y rechazo del núcleo",
-    "body": "Misma clave de pago no crea un segundo efecto; cuerpo distinto con la misma clave → 409; si el núcleo rechaza el cobro no hay pago guardado.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": [
-      "v1-back/h4/t2",
-      "v1-back/h4/t3"
-    ]
-  },
-  {
-    "id": "v1-back/h5",
-    "title": "[Historia] V1-BACK/H5 — Persistencia tras reinicio",
-    "body": "**Como** operación, **quiero** que reserva y pago sobrevivan al reinicio del servicio, **para** que exista caja real. Criterio: cargar, registrar reserva y pago, matar el proceso, levantar: ambos siguen en PostgreSQL (fila 6 del dictamen).",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back",
-    "depende_de": [
-      "v1-back/h3",
-      "v1-back/h4"
-    ]
-  },
-  {
-    "id": "v1-back/h5/t1",
-    "title": "[Tarea] V1-BACK/H5/T1 — Prueba de reinicio con datos",
-    "body": "Prueba de aceptación: proceso A registra reserva+pago; proceso B (misma base) los ve. Todo lo escrito en H3/H4 debe salir de la memoria y vivir en PostgreSQL.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h5",
-    "depende_de": [
-      "v1-back/h3/t4",
-      "v1-back/h4/t4"
-    ]
-  },
-  {
-    "id": "v1-front/h6a",
-    "title": "[Historia] V1-FRONT/H6a — Esqueleto Next.js y login",
-    "body": "**Como** operador, **quiero** entrar con usuario y clave desde el navegador, **para** operar el hotel. Criterio: login contra POST /sesion; la sesión vive en la cookie sid de la API; ningún token en localStorage ni en código.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front",
-    "depende_de": [
-      "v1-api/h1"
-    ]
-  },
-  {
-    "id": "v1-front/h6a/t1",
-    "title": "[Tarea] V1-FRONT/H6a/T1 — Proyecto Next.js con login contra la API",
-    "body": "plataforma-salman-herencia-front: login, manejo de cookie, cliente HTTP que solo habla con API_BASE_URL.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6a",
-    "depende_de": []
-  },
-  {
-    "id": "v1-front/h6b",
-    "title": "[Historia] V1-FRONT/H6b — Las siete pantallas del hotel",
-    "body": "**Como** equipo, **queremos** las 7 pantallas del hotel leyendo y escribiendo solo por la API, **para** cumplir spec-front-v1. El front no calcula tarifa, no confirma cupo y no registra pagos.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front",
-    "depende_de": [
-      "v1-front/h6a"
-    ]
-  },
-  {
-    "id": "v1-front/h6b/t1",
-    "title": "[Tarea] V1-FRONT/H6b/T1 — /hotel/habitaciones (alta y cambio, admin)",
-    "body": "Pantalla de habitaciones y tarifas contra PUT /hotel/habitaciones/{id} y PUT /hotel/tarifas.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": [
-      "v1-front/h6a/t1"
-    ]
-  },
-  {
-    "id": "v1-front/h6b/t2",
-    "title": "[Tarea] V1-FRONT/H6b/T2 — /hotel/oferta y /hotel/reserva",
-    "body": "Consulta de oferta y confirmación con Idempotency-Key visible; reintento seguro sin doble confirmación.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": [
-      "v1-front/h6a/t1"
-    ]
-  },
-  {
-    "id": "v1-front/h6b/t3",
-    "title": "[Tarea] V1-FRONT/H6b/T3 — /hotel/pago, /hotel/estadia y /hotel/salida",
-    "body": "Registro de pago (modo manual; ante 503 de pasarela, aviso sin marcar cobrado), operación de estadía y salida con liquidación.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": [
-      "v1-front/h6a/t1"
-    ]
-  },
-  {
-    "id": "v1-front/h6b/t4",
-    "title": "[Tarea] V1-FRONT/H6b/T4 — /hotel/caja",
-    "body": "Pagos del día ligados a reserva contra GET /hotel/caja?fecha.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-front/h6b",
-    "depende_de": [
-      "v1-front/h6a/t1"
-    ]
-  },
-  {
-    "id": "v1-front/h6c",
-    "title": "[Historia] V1-FRONT/H6c — Reglas duras: rutas vacías, una sola URL y error sin API",
-    "body": "**Como** plataforma, **quiero** que el front dependa por completo de la API, **para** que sin API no se confirme nada. Criterio de aceptación: /cafeteria, /inmobiliaria y /constructora existen vacías; la única variable es API_BASE_URL; con la API apagada el front muestra error y no confirma una reserva.",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-front",
-    "depende_de": [
-      "v1-front/h6b"
-    ]
-  },
-  {
-    "id": "v1-front/h6c/t1",
-    "title": "[Tarea] V1-FRONT/H6c/T1 — Prueba de front con API apagada",
-    "body": "Prueba: API caída → las pantallas muestran error; ninguna acción confirma efecto local; rutas de otras verticales vacías.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": "v1-front/h6c",
-    "depende_de": [
-      "v1-front/h6b/t2"
-    ]
-  },
-  {
-    "id": "v1-desp/h7",
-    "title": "[Historia] V1-DESP/H7 — Publicar rama y desplegar Railway y Vercel",
-    "body": "**Como** plataforma, **queremos** las tres piezas aceptadas juntas en producción, **para** tener la V1 real. Criterio: GET /salud responde en el dominio de Railway; las 10 operaciones pasan contra PostgreSQL; el front en Vercel usa ese origen y ningún otro. Solo aquí se deroga la prohibición de push (AGENTS.md).",
-    "tipo": "Historia",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp",
-    "depende_de": [
-      "v1-back/h5",
-      "v1-front/h6c"
-    ]
-  },
-  {
-    "id": "v1-desp/h7/t1",
-    "title": "[Tarea] V1-DESP/H7/T1 — Verificar cuentas Railway y Vercel",
-    "body": "Prerrequisito: cuentas creadas y accesibles; no están verificadas desde el repositorio y no bloquean H1.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": []
-  },
-  {
-    "id": "v1-desp/h7/t2",
-    "title": "[Tarea] V1-DESP/H7/T2 — Push de la rama de trabajo",
-    "body": "Publicar la rama de la fase V1 (derogación H7 de AGENTS.md).",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": [
-      "v1-desp/h7/t1"
-    ]
-  },
-  {
-    "id": "v1-desp/h7/t3",
-    "title": "[Tarea] V1-DESP/H7/T3 — Railway: servicio + PostgreSQL + variables",
-    "body": "Desplegar el servicio con PostgreSQL y variables de entorno (DATABASE_URL, credenciales de admin); /salud responde.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": [
-      "v1-desp/h7/t2",
-      "v1-back/h5"
-    ]
-  },
-  {
-    "id": "v1-desp/h7/t4",
-    "title": "[Tarea] V1-DESP/H7/T4 — Vercel: front con API_BASE_URL del servicio",
-    "body": "Desplegar el front con API_BASE_URL apuntando al origen de Railway; aceptación conjunta de las tres piezas.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": "v1-desp/h7",
-    "depende_de": [
-      "v1-desp/h7/t2",
-      "v1-front/h6c"
-    ]
-  },
-  {
-    "id": "v1-issue-01",
-    "title": "[Issue] V1-ISSUE-01 — 20 pruebas del servicio en rojo (deuda técnica heredada de H6/H7)",
-    "body": "Fuente: revisión E2E 2026-11-03 (suite e2e/ + unittest). 17 fallos + 3 errores en `servicio/tests`: test_h6_maduracion_operativa (revocación de sesiones, turnover sucia→check-in, listar usuarios solo admin, entrada exige documento/hora, cancelación idempotente, 3 errores de cancelación), test_preh7_seguridad (cookie producción None+Secure, origin con barra final, origin exige cookie segura, origin ajeno rechazado), test_adaptador_dominio (5: propagación del fallo del dominio, sin reglas en el SQL, estado perdura), test_oauth. La revisión E2E funcional pasó 41/41, pero estos tests documentan reglas del contrato (seguridad de cookies/CORS incluida) que hoy no se ejercen en verde. Corregir uno a uno y bajar a 0.\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-02",
-    "title": "[Issue] V1-ISSUE-02 — Cobertura E2E del alta del segundo factor (TOTP) desde la interfaz",
-    "body": "Fuente: revisión E2E 2026-11-03. `/cuenta` muestra el estado y genera secreto+URI (verificado), pero la activación con código y el login posterior con 2FA solo se ejercen en `servicio/tests/test_2fa.py`. Ampliar `e2e/e2e.mjs` para completar el ciclo en navegador (generar código TOTP del secreto mostrado, activar, cerrar sesión y entrar con totp).\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-03",
-    "title": "[Issue] V1-ISSUE-03 — El front renderiza formularios que el rol vigente no puede ejecutar",
-    "body": "Fuente: revisión E2E 2026-11-03 (matriz CAJ-01, EST-04). La API rechaza bien con 403 según el contrato, pero `/hotel/caja` se muestra completo a recepción y «cancelar reserva» se muestra a caja; el error llega solo tras intentar. Mejora UX: ocultar o deshabilitar acciones no permitidas según el rol de la sesión (patrón ya usado en `/hotel/habitaciones` y `/hotel/usuarios`). No inventar permisos: leer el rol de la sesión y aplicar las mismas reglas del contrato.\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-04",
-    "title": "[Issue] V1-ISSUE-04 — Hidratación bloqueada en `next dev` cuando falla el WebSocket HMR",
-    "body": "Fuente: diagnóstico 2026-11-03. En `next dev`, si el entorno del desarrollador bloquea `ws://` (proxy/sandbox), React no hidrata: los formularios hacen submit nativo y la aplicación «no hace nada». En producción no ocurre (sin HMR). Acciones: documentar en el runbook/spec-front y, si se confirma como patrón común, evaluar fallback de hidratación o mensaje de diagnóstico.\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-05",
-    "title": "[Issue] V1-ISSUE-05 — Procedimiento de aprobación de deploys Railway (política post-incidente NEEDS_APPROVAL)",
-    "body": "Fuente: despliegue 2026-11-03. Tras el incidente Railway 2026-10-21, los deploys del backend quedan en NEEDS_APPROVAL y requieren aprobación manual en el dashboard (o `deploymentApprove` por API con token). Documentar en `docs/arquitectura/h7-despliegue.md` el paso operativo para el propietario (dónde se aprueba y el tiempo típico), de modo que cada push no parezca «atascado».\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-06",
-    "title": "[Issue] V1-ISSUE-06 — `e2e/e2e-resultados.json` versionado queda obsoleto entre corridas",
-    "body": "Fuente: revisión E2E 2026-11-03. El JSON de resultados se regenera en cada corrida y puede desactualizarse respecto al INFORME. Decidir: regenerarlo siempre junto al informe, o excluirlo del repo y dejarlo como artefacto local (`.gitignore`).\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-oper-01",
-    "title": "[Historia] V1-OPER-01 — Mantenedor de habitaciones, consulta de reservas, ocupación y panel operativo",
-    "body": "Fuente: orden del propietario 2026-11-03; especificación gobernante `docs/arquitectura/spec-hotel-operacion-v1.md` (flujos por rol, métricas con fórmula/unidad/fuente/limitaciones, criterios CA-*). Contrato: spec-api-v1 pasa a 32 operaciones (`GET /hotel/habitaciones/{id}`, `POST /hotel/habitaciones/{id}/servicio`, `GET /hotel/reservas/{id}`, `GET /hotel/ocupacion`, `GET /hotel/indicadores`; `PUT /hotel/habitaciones` con `If-None-Match: *`, `cambios` y auditoría; `GET /hotel/reservas` con periodo y habitación). Migración 0009 (baja lógica `fuera_de_servicio` con motivo/fecha; `tarifas.creado_en` para desempate). Front: rutas `/hotel/panel`, `/hotel/ocupacion`, `/hotel/habitaciones/[id]`, `/hotel/reservas/[id]`. Evidencia: `servicio/tests/test_operacion_mantenedor.py` (18), `e2e/e2e-operacion.mjs` (16/16) e informe `capturas/e2e-2026-11-03/INFORME-operacion.md`. Cambio de alcance: los indicadores HU-HOT-03 estaban fuera de V1; entra solo el panel operativo, los financieros siguen fuera (V1-ISSUE-08).",
-    "tipo": "Historia",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-07",
-    "title": "[Issue] V1-ISSUE-07 — Decisión D-ENT-01: ¿la entrada (y la salida) adoptan la regla de fecha/hora y documento del dominio?",
-    "body": "Reencuadrado 2026-11-03 (V1-ISSUE-14): no es un defecto contra el contrato sino una DECISIÓN PENDIENTE del propietario. HECHO (contrato vigente): spec-api-v1 «Operación de la habitación» enumera las causas de rechazo de la entrada sin hora ni documento, y test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato (test_h6) fija 200 sin documento y antes de la fecha. HECHO DOCUMENTADO (dominio): ServicioHotelInventario.check_in rechaza antes de inicio 15:00 (HORA_LLEGADA) y sin documento. Consecuencia observada: e2e/e2e.mjs (EST-01/SAL-02) hace check-in y liquida hoy una reserva que empieza en 30 días; el panel lo acota con la fecha de liquidación (spec-hotel-operacion-v1 §4.3). Preguntas al propietario: (1) ¿la entrada exige 15:00 del día de inicio? (2) ¿exige documento, y qué pasa si falta (rechazo o ingreso incompleto derivado a recepción, como el dominio)? (3) ¿se permite salida anticipada y con qué efecto en la cuenta? Si se adopta: cambio de contrato en spec-api-v1, test_h6 y casos E2E que entran antes de fecha. Mientras tanto no se cambia el comportamiento. Antes decía «corregir en cobro.entrada (409)»: eso rompería el contrato vigente.\n\n**Avance 2026-11-03:** implementada la mitad operativa sin ambigüedad — la entrada exige que la reserva haya comenzado (inicio ≤ hoy del servidor; 409 «aún no llega su día de entrada»), alineada con la regla de llegada del dominio. Spec-api-v1 actualizado como REQUISITO PROPUESTO en ratificación; prueba unitaria test_entrada_exige_que_la_reserva_haya_comenzado y caso E2E EST-01b en verde (servicio 156/156, E2E 45/45 + 16/16). La salida no valida fecha en el dominio tampoco (sin divergencia). LO QUE SIGUE PENDIENTE (decisión de producto, no se inventa): exigir documento del huésped en la entrada — hoy el front no lo recoge y el contrato lo mantiene opcional (D-ENT-01).",
-    "tipo": "Tarea",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-08",
-    "title": "[Issue] V1-ISSUE-08 — Decisión: indicadores financieros (ADR, RevPAR, ingresos) y rol gerencia",
-    "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §4.4 y §7 (D-ROL-01, D-IND-01, D-IND-02). El dominio calcula ADR/RevPAR con cargos de noche netos y los reserva a `gerencia`, rol que V1 no crea; V1 asienta un cargo único de alojamiento al reservar. Decidir: (1) ¿se crea `gerencia` o los ve `administrador`?; (2) ¿cómo se reconoce el ingreso por noche?; (3) ¿pagos acumulados por periodo, para qué rol y con qué advertencia de no conciliación? Relacionado: la fecha de cancelación no se guarda en `reservas` (solo en `auditoria`) y no existe estado no-show. Hasta decidir, el panel los declara en `no_disponibles`.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-09",
-    "title": "[Issue] V1-ISSUE-09 — Decisión: personas en la reserva, reasignación de habitación y catálogo de tipos",
-    "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §2.1 y §7 (D-HAB-01, D-HAB-02, D-HAB-03). La reserva no guarda cantidad de personas: bajar la capacidad de una habitación no se puede validar contra reservas futuras. No existe reasignar una reserva a otra unidad: retirar una habitación con reservas exige cancelarlas (con la regla de 48 h) y volver a reservar. El tipo es texto libre. Decidir los tres puntos; implementar con migración y prueba.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-10",
-    "title": "[Issue] V1-ISSUE-10 — Decisión: tarifas superpuestas, mantenimiento programado, denominador de ocupación y auditoría por rol",
-    "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §2.5, §4.3, §5 y §7 (D-TAR-01, D-OCU-01, D-IND-03, D-AUD-01). (1) El dominio rechaza una tarifa superpuesta; V1 la acepta y la de inicio más reciente gana (desempate por registro): confirmar o cambiar. (2) Mantenimiento y fuera de servicio son estados actuales sin rango de fechas; ¿mantenimiento programado? (3) Una habitación retirada sigue en el denominador de ocupación (fórmula del dominio). (4) La auditoría de la habitación solo la ve administrador.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-11",
-    "title": "[Issue] V1-ISSUE-11 — Aislar la base de pruebas para que trabajos concurrentes no interfieran",
-    "body": "Fuente: dos sesiones concurrentes sobre el mismo árbol (2026-11-03). HECHO: los tests de servicio usan DATABASE_URL_TEST con default plataforma_test (compartida); con otro cliente escribiendo a la vez se observaron corridas con 1 a 94 fallos (deadlocks TRUNCATE, 401, usuarios borrados a mitad de prueba). Con base dedicada no se reproduce. Ya documentado en e2e/README.md. Pendiente: guard de fail-fast en los setUp (detectar otras conexiones activas a la base de pruebas y abortar con mensaje claro) o default por proceso.\n\n**Resuelto 2026-11-03:** TDD — servicio/tests/aislamiento.py (exigir_base_libre, falla en setUp si hay otra conexión activa a la base de pruebas), test_aislamiento_pruebas.py (3 pruebas) y guard insertado en los 12 archivos de tests que truncan. Demostrado: con un cliente externo, fail-fast con mensaje claro; suite completa 155/155 en verde.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-12",
-    "title": "[Issue] V1-ISSUE-12 — Reserva sobre habitación fuera del cupo (retirada, bloqueada o en mantenimiento)",
-    "body": "Objetivo: POST /hotel/reservas aplica la misma regla de cupo que la oferta. HECHO DOCUMENTADO: el dominio rechaza reservar una unidad no vendible (ServicioHotelInventario.reservar → ESTADO_NO_VENDIBLE) y spec-api-v1 dice que el mantenimiento saca la unidad del cupo; crear_reserva no miraba el estado, así que /hotel/reserva (campo de texto libre) confirmaba reservas en una habitación retirada que después no podía hacer check-in. Spec: spec-hotel-operacion-v1 §2.7 y CA-HAB-07; fila POST /hotel/reservas de spec-api-v1. Cambio: reservas.HabitacionNoVendible; crear_reserva lee estado_operativo/mantenimiento tras el FOR UPDATE → 409 {detail}; aplicacion.py lo mapea. Front sin cambios (muestra el detail). Pruebas: servicio/tests/test_reserva_vendible.py (5: retirada→409 sin reserva/cargo/auditoría y reincorporada→201; bloqueada y mantenimiento→409 para admin y recepción; ocupada/sucia siguen vendibles; el 409 queda asociado a su clave; retiro y reserva concurrentes se serializan). RED verificado (201 en vez de 409); GREEN 5/5; mutaciones (leer el estado antes del cerrojo; ignorar mantenimiento) detectadas. Regresión servicio 155/155 en base dedicada. E2E e2e/e2e-reserva-vendible.mjs (RV-01..03, desde el menú): RED 0/3 contra 938d0b0 y GREEN 3/3 contra ca2e40a; e2e.mjs 44/44 y e2e-operacion.mjs 16/16 desde copias en scratch (sin escribir resultados compartidos). Evidencia: capturas/e2e-2026-11-03/rv-01..02*.png, e2e/e2e-reserva-vendible-resultados.json. Nota de integración: el código, la spec y las pruebas unitarias quedaron dentro del commit local ca2e40a (v1-issue-11) de otro trabajo; la E2E y este registro siguen sin commit. Limitación: el estado no tiene fechas (D-OCU-01), igual que la oferta.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-13",
-    "title": "[Issue] V1-ISSUE-13 — Front: renovar la clave de idempotencia tras un rechazo definitivo (4xx)",
-    "body": "Objetivo: que reintentar una acción después de corregir su causa la ejecute. HECHO: idempotencia.ejecutar guarda cualquier respuesta, también los 409; las fichas solo renuevan la clave tras 2xx (front/app/hotel/habitaciones/[id]/page.js enviar()). Caso 1: retiro → 409 reservas_vigentes → se cancela la reserva → reintento en la misma ficha devuelve el 409 guardado. Caso 2 (confirmado en auditoría E2E 2026-11-03): en /hotel/habitaciones (dar de alta HAB-SINT-102 → 409 ya existe → cambiar campo a HAB-201 → 409 «la clave ya fue usada con otro cuerpo») y en /hotel/usuarios (usuario repetido → 409 → cambiar nombre a otro usuario → 409 «la clave ya fue usada con otro cuerpo»); además /hotel/habitaciones, /hotel/habitaciones/[id], /hotel/estadia, /hotel/usuarios y /cuenta carecen del botón «Nueva operación» exigido por spec-front-v1. REQUISITO PROPUESTO (spec-front-v1): tras 4xx de negocio se renueva la clave (o se expone «Nueva operación» en todas las pantallas con mutación); tras error de red se conserva. Archivos: front/app/hotel/**/page.js, front/app/cuenta/page.js, front/lib/api.js (useClaveOperacion). Riesgo: no renovar ante fallo de red (duplicaría). Criterio/prueba: E2E 409 en habitaciones/usuarios/retiro → corregir dato o estado → reintento sin recargar → 200/201; unittest no aplica (la API ya es correcta).",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-14",
-    "title": "[Issue] V1-ISSUE-14 — Corregir el encuadre de V1-ISSUE-07 y docs/funcional/dominio.md (check-in)",
-    "body": "Objetivo: que la documentación no afirme reglas que el código no aplica. HECHO: spec-api-v1 «Operación de la habitación» enumera las causas de rechazo de la entrada sin hora ni documento, y test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato (test_h6, d101569) lo fija; el dominio exige 15:00 y documento. V1-ISSUE-07 pide «corregir en cobro.entrada (409)», lo que rompería el contrato vigente: debe quedar como DECISIÓN PENDIENTE del propietario (¿se adopta la regla del dominio en el contrato?). docs/funcional/dominio.md:24,57 dice HECHO DOCUMENTADO «entrada exige documento + hora» y no es lo que hace PostgreSQL. Solo documentación; sin cambio de comportamiento. Resultado (2026-11-03): spec-api-v1 registra D-ENT-01 junto a la cláusula de entrada (HECHO contrato vigente / HECHO dominio / DECISIÓN PENDIENTE) y corrige dos imprecisiones: la entrada no exige estado `disponible` (bloquean `bloqueada`/`fuera_de_servicio`; `ocupada` no bloquea el turnover, fuente: dominio check_in, cobro.entrada y test_turnover_solape_sucia_limpieza_y_siguiente_checkin) y la fila de la tabla. spec-hotel-operacion-v1 §7 agrega D-ENT-01. docs/funcional/dominio.md (tabla, diagrama y regla «Entrada», que además decía «la noche se asienta al check-in»: el alojamiento nace al confirmar) y flujos.md quedan alineados. Evidencia: test_h6 23/23 contra ca2e40a (incluye test_entrada_no_exige… y test_turnover…); estático: cobro.entrada no inserta cargos y crear_reserva sí. Sin cambio de comportamiento, sin prueba nueva. NO VERIFICADO: el render de los dos diagramas Mermaid editados (sin validador local; solo cambió el texto de etiquetas).",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-15",
-    "title": "[Issue] V1-ISSUE-15 — La salida deja la habitación disponible aunque otra estadía siga en curso",
-    "body": "HECHO: cobro.entrada permite dos reservas en_estadia en la misma habitación si sus rangos no se solapan; cobro.salida fija estado_operativo=disponible y sucia sin mirar si queda otra estadía. Depende de la decisión de V1-ISSUE-07 (si la entrada se limita a la fecha de llegada, el caso casi desaparece). Criterio: con otra en_estadia en la unidad, la salida no la marca disponible. Pruebas: unittest de servicio + releer habitación.",
-    "tipo": "Tarea",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-07"
-    ]
-  },
-  {
-    "id": "v1-issue-16",
-    "title": "[Issue] V1-ISSUE-16 — Decisión: roles del check-in y la salida",
-    "body": "HECHO: POST /hotel/reservas/{id}/entrada y /salida no llaman _exigir_rol (cualquier rol con sesión, incluida caja); ninguna spec asigna roles a esas operaciones. DECISIÓN PENDIENTE del propietario: ¿quién registra entrada y salida? Sin decisión no se cambia el comportamiento.",
-    "tipo": "Tarea",
-    "estado": "Bloqueada",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-17",
-    "title": "[Issue] V1-ISSUE-17 — Decisión: tarifa de estadías que cruzan dos periodos de tarifa",
-    "body": "HECHO: oferta y crear_reserva usan la tarifa vigente de la noche de inicio × noches; la ocupación evalúa la tarifa noche por noche (sin_tarifa), igual que el dominio en buscar_disponibilidad. Una estadía que empieza con tarifa y sigue en noches sin tarifa se vende igual. DECISIÓN PENDIENTE: ¿una sola tarifa congelada (la de inicio) o suma por noche? Relacionada con D-TAR-01.",
-    "tipo": "Tarea",
-    "estado": "Bloqueada",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-18",
-    "title": "[Issue] V1-ISSUE-18 — Integración: orden de despliegue y empates de tarifas existentes",
-    "body": "HECHO: las migraciones corren al arrancar la API (aplicacion.py) en una transacción y sin cerrojo; Railway puede quedar en NEEDS_APPROVAL (h7-despliegue.md) mientras Vercel publica un front que llama a /hotel/indicadores, /hotel/ocupacion y fichas que la API anterior no tiene. 0009 rellena tarifas.creado_en en orden físico: si producción tiene tarifas de una misma habitación con igual fecha_desde, la vigente podría cambiar. NO VERIFICADO: requiere una consulta de solo lectura en producción (autorización). Propuesta: desplegar Railway primero, verificar /salud y la migración, después Vercel. Requiere autorización del propietario.",
-    "tipo": "Tarea",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-19",
-    "title": "[Issue] V1-ISSUE-19 — Deuda documental: hotel_sql.py sin uso, diagramas del destino anterior, rutas fuera de la tabla",
-    "body": "HECHO: servicio/hotel_sql.py no lo importa ningún módulo y su docstring dice que el dominio decide cada operación HTTP; los flujo-0*.mmd describen el destino sustituido (AGENTS.md) y ninguno cubre la operación nueva; spec-api-v1 dice «nada fuera de la tabla existe» pero existen GET /sesion, GET /cuenta/2fa/qr y GET /salud; INFORME-operacion.md llama V1-ISSUE-08 al aislamiento de pruebas (es V1-ISSUE-11). Solo documentación.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P3",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-20",
-    "title": "[Issue] V1-ISSUE-20 — Decisión D-PUB-01: ¿qué reserva puede hacer un visitante desde la landing?",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: hoy la landing solo envía una consulta a Formspree (formulario POST https://formspree.io/f/…: nombre, correo, teléfono, huéspedes 1-8, check-in, check-out, mensaje); no consulta disponibilidad ni tarifa y nada llega a la plataforma. HECHO: la plataforma no tiene superficie pública (todas las rutas /hotel/* exigen sesión interna; /hotel/oferta sin sesión → 401 en producción). DECISIÓN PENDIENTE (propietario), sin la cual no se especifica ni implementa nada del canal: (1) modalidad: solicitud con confirmación humana de recepción, o reserva confirmada en línea por el motor; (2) si es confirmada: garantía o prepago (Q-HOT-03 dice «garantía con tarjeta» pero la pasarela es solo puerto, 503) o confirmación sin garantía; (3) unidad de venta pública: tipo de habitación (la landing muestra «Doble Pequeña» y «Cama Grande») vs habitación concreta (la API vende habitacion_id); correspondencia tipo↔habitaciones; (4) ¿se muestra precio público? ¿total con IVA? (la oferta entrega tarifa_noche_clp y total_clp sin desglose); (5) datos mínimos del huésped y consentimiento/aviso de privacidad (Ley 21.719; hoy ReservaIn solo guarda nombre y documento; la landing pide correo y teléfono); (6) límites: noches máximas (P04 = 30, PROPUESTA_TECNICA) y antelación; (7) política de cancelación visible al visitante (POLITICA_CANCELACION del servicio vs 48 h de Q-HOT-03); (8) qué pasa con el formulario Formspree actual (convive, se retira o se redirige). Duplicados revisados: amplía y reemplaza en V1 a la historia del destino anterior 002-hotel-reservas-concierge/H1 «Reservar y pagar desde la web del hotel» (US-HOT-001, GitHub #63, Bloqueada en el snapshot local; estado actual en GitHub no verificado) y a RES-001/SOC-002 de docs/definicion-herencia/specs/004-reserva-directa (NO APROBADO). No hay otro issue V1 sobre el canal público.",
-    "tipo": "Decisión",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-21",
-    "title": "[Issue] V1-ISSUE-21 — Spec: superficie pública de la API (disponibilidad y solicitud sin sesión interna)",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). REQUISITO PROPUESTO, spec primero (spec-api-v1 nueva sección «Canal público», sin código). Hoy spec-api-v1 solo define rutas con sesión y su regla «nada fuera de la tabla existe». Contenido a especificar según D-PUB-01: rutas bajo prefijo propio (p. ej. /publico/…), sin cookie ni credenciales; empresa fijada por configuración, nunca por parámetro; respuesta sin datos de huéspedes ni ids internos innecesarios; validación (fechas futuras, fin>inicio, personas en rango, noches máximas); CORS: el origen https://hotelherencia.cl solo para estas rutas y sin allow_credentials (hoy ORIGEN_FRONT aplica CORS con credenciales a toda la API y el middleware origin_de_mutaciones devuelve 403 a cualquier Origin ajeno; preflight desde la landing → 400 en producción); límite de abuso por IP/clave y tamaño; idempotencia de la solicitud (clave generada por el navegador, espacio de claves separado del interno, mismo cuerpo → misma respuesta); errores 400/409/422/429 legibles. CA: CA-PUB-01 sin sesión la disponibilidad responde 200 sin datos personales; CA-PUB-02 rutas internas siguen 401 sin sesión; CA-PUB-03 Origin de la landing accede solo a /publico/*, el resto 403; CA-PUB-04 la misma clave y cuerpo no crea dos solicitudes. Pruebas: servicio/tests/test_canal_publico.py (RED antes del código, en el ciclo de v1-issue-22).",
-    "tipo": "Spec",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-20"
-    ]
-  },
-  {
-    "id": "v1-issue-22",
-    "title": "[Issue] V1-ISSUE-22 — Backend: disponibilidad pública y solicitud de reserva persistida (TDD)",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). Implementa v1-issue-21. Disponibilidad pública reutiliza reservas.oferta (misma regla de cupo, tarifa vigente y RES-VENDIBLE; agregada por tipo si D-PUB-01 lo decide); la solicitud se persiste en tabla propia (estado «recibida», origen «landing», datos mínimos decididos) y queda auditada; si D-PUB-01 elige confirmación en línea, crea la reserva por reservas.crear_reserva dentro de la misma transacción con su carrera por la última unidad, nunca una vía paralela. Migración nueva, sin datos reales. CA: CA-PUB-01..04 + CA-PUB-05 sin cupo o sin tarifa → 409 legible y sin solicitud confirmada; CA-PUB-06 dos visitantes por la última unidad → como máximo una confirmación. Pruebas: test_canal_publico.py (unidad + PostgreSQL sintético con exigir_base_libre); regresión completa del servicio.",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-21"
-    ]
-  },
-  {
-    "id": "v1-issue-23",
-    "title": "[Issue] V1-ISSUE-23 — Front: página pública /reservar que recibe fechas y personas desde la landing",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: /hotel/reserva publicado responde 200 a un visitante anónimo pero solo muestra «Sesión cerrada. Inicia sesión»; ninguna página lee parámetros de la URL (no hay useSearchParams) y el formulario interno pide un habitacion_id (por defecto HAB-SINT-102). spec-front-v1 dice «Sin sesión: pantalla de login» y «no existe otra URL que API_BASE_URL»: requiere enmienda de spec-front-v1 antes del código. Alcance: ruta pública fuera de MarcoHotel (sin menú interno), lee inicio/fin/personas de la query y los valida (no confía en ellos), consulta /publico/disponibilidad, muestra lo que el servidor responde (no calcula total), recoge los datos decididos con aviso de privacidad, envía con Idempotency-Key estable que sobrevive errores y se renueva tras 2xx, muestra el número de solicitud o reserva devuelto. CA: CA-PUB-07 deep link con parámetros precarga el formulario; CA-PUB-08 parámetros inválidos → mensaje, sin llamada de mutación; CA-PUB-09 API caída → aviso y nada confirmable. E2E: e2e/e2e-reserva-publica.mjs casos PUB-01 (landing simulada local → /reservar con parámetros → disponibilidad → solicitud → recepción la ve con mismo id, releída por API), PUB-02 sin cupo, PUB-03 doble clic/reintento no duplica, PUB-04 parámetros manipulados, PUB-05 sin sesión no se ve ninguna pantalla interna.",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-22"
-    ]
-  },
-  {
-    "id": "v1-issue-24",
-    "title": "[Issue] V1-ISSUE-24 — Recepción: bandeja de solicitudes públicas y conversión en reserva con origen trazable",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: hoy las consultas de la landing van a Formspree (fuera de la plataforma); recepción no tiene dónde verlas. Alcance (si D-PUB-01 elige solicitud con confirmación humana): listado de solicitudes por estado, ver detalle, convertir en reserva usando POST /hotel/reservas existente (la carrera por la última unidad y RES-VENDIBLE siguen en el servidor), rechazar con motivo; la reserva conserva el id de solicitud y el origen «landing». Roles: recepción y administrador; caja no. CA: CA-PUB-10 solicitud convertida aparece en /hotel/reservas con el mismo precio/fechas aceptados o con la diferencia visible; CA-PUB-11 solicitud ya convertida no se convierte dos veces (409). E2E: PUB-06 en e2e-reserva-publica.mjs (desde el menú de recepción). No notifica al huésped (correo/WhatsApp son puertos sin adaptador).",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-22"
-    ]
-  },
-  {
-    "id": "v1-issue-25",
-    "title": "[Issue] V1-ISSUE-25 — Landing: el CTA «Consultar reserva» lleva al front público con los parámetros",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: los dos «Consultar reserva» y «Hablar con recepcionista» anclan a #contacto de la misma página; el sitio es estático (Apache, assets/js/main.js) y su código NO está en este repositorio (solo se copió su CSS a front/app/globals.css). BLOQUEO: acceso al código y hosting del sitio marketing y autorización para modificarlo y publicarlo. Alcance: enlace HTTPS al front público con inicio, fin y personas (sin datos personales en la URL), mantener o retirar Formspree según D-PUB-01, medir el origen sin identificar al visitante. CA: CA-PUB-12 desde https://hotelherencia.cl el CTA abre /reservar con las fechas elegidas. E2E: PUB-07 contra un despliegue de prueba de la landing (no producción).",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-20",
-      "v1-issue-23"
-    ]
-  },
-  {
-    "id": "v1-issue-26",
-    "title": "[Issue] V1-ISSUE-26 — Producción opera con la empresa sintética: requisito previo para abrir un canal público",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: GET /api/salud del front publicado devuelve empresa EMP-SINTETICA-001. Una reserva pública persistiría hoy en el tenant sintético. Antes de exponer el canal: alta de la empresa real, habitaciones y tarifas reales cargadas por el propietario, política de respaldo y datos personales (Q-CORE-03, Ley 21.719) y orden de despliegue (relacionado con v1-issue-18). Requiere decisión y autorización del propietario; nada se ejecuta en producción sin ella.",
-    "tipo": "Decisión",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-18"
-    ]
-  },
-  {
-    "id": "v1-issue-27",
-    "title": "[Issue] V1-ISSUE-27 — Front: un visitante sin sesión ve el menú interno completo en vez de la pantalla de login",
-    "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO (producción): /hotel/reserva sin sesión muestra el menú de operación (Panel, Caja, Usuarios, Mi cuenta, Cerrar sesión) y el texto «Sesión cerrada. Inicia sesión»; no expone datos (la API responde 401), pero contradice spec-front-v1 «Sin sesión: pantalla de login» y revela la estructura interna. Independiente de D-PUB-01. Coordinar con el trabajo en curso sobre front/app/barra.jsx (cambios sin commit de otro proceso al 2026-11-03). CA: sin sesión, toda ruta /hotel/* muestra solo el login (o redirige a /login conservando la ruta de vuelta). E2E: caso AUT-0x en e2e.mjs o archivo propio.",
-    "tipo": "Tarea",
-    "estado": "Lista",
-    "prioridad": "P3",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-28",
-    "title": "[Issue] V1-ISSUE-28 — Decisiones D-AGT-01..06: autonomía, proveedor de modelo, canal, límites, gasto y tono del agente de reservas",
-    "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. DECISIÓN PENDIENTE (propietario): D-AGT-01 nivel inicial (propuesta N0 copiloto: borrador verificado que recepción aprueba y envía) y compuerta SC-003 para subir; D-AGT-02 proveedor del modelo, región, retención, datos enviados y aviso al huésped (Ley 21.719) — sin ella no hay adaptador real; D-AGT-03 canal de respuesta de N1; D-AGT-04 límites de N2 (depende de D-PUB-01, v1-issue-20); D-AGT-05 tope de gasto mensual; D-AGT-06 tono e identificación del asistente. Ninguna se inventa.",
-    "tipo": "Decisión",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-29",
-    "title": "[Issue] V1-ISSUE-29 — Agente N0 (TDD): dominio, persistencia y API del copiloto de recepción con modelo guionado",
-    "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T010, T020A-C y T030A-C. Enmienda de spec-api-v1 primero; luego RED/GREEN: test_agente_unidad.py (AG-U01..U06: redacción, verificador, validación de decisiones, plantillas con cifras del servidor) y test_agente_servicio.py (AG-S01..S14: borrador igual a /hotel/oferta, sin disponibilidad, dato faltante, recotización 409, inyección escala con 0 reservas, lista cerrada de herramientas, 503 sin adaptador con consulta pendiente, tope de turnos, doble aprobación 409, aislamiento por empresa, agente sin sesión, política solo admin, idempotencia, migración 0010 idempotente). Puerto ModeloLenguaje SinAdaptador/ModeloGuionado; ninguna prueba llama a un proveedor real. HECHO relevante: POST /hotel/reservas no exige rol y usuarios.rol no tiene CHECK; la barrera del agente es la lista de herramientas y la ausencia de sesión. Depende solo de D-AGT-01 (no de D-AGT-02 ni de D-PUB-01).",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-28"
-    ]
-  },
-  {
-    "id": "v1-issue-30",
-    "title": "[Issue] V1-ISSUE-30 — Agente N0: bandeja /hotel/agente en el front y E2E desde el menú",
-    "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T040A-C. Ruta /hotel/agente para recepción y administrador (caja no): lista por estado, detalle, borrador con cifras de la herramienta, Aprobar/Editar/Descartar con useClaveOperacion, «Copiar respuesta» (N0 no envía). E2E e2e/e2e-agente.mjs AG-E01..E05 (aprobar con cifras releídas por API, inyección escalada sin reservas, modelo no configurado, caja sin permiso, oferta cambiada) con modelo guionado en servidor local; capturas propias ag-NN-*.png; no tocar resultados E2E ajenos.",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-29"
-    ]
-  },
-  {
-    "id": "v1-issue-31",
-    "title": "[Issue] V1-ISSUE-31 — Agente: adaptador real del modelo y evaluación de 50 casos (compuerta para N1/N2)",
-    "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T050A-C, T060, T070. Casos sintéticos (20 claros, 10 sin cupo, 10 ambiguos, 5 inyección, 5 datos sensibles), adaptador según D-AGT-02 con prueba de contrato sobre respuestas grabadas (sin red en CI), ejecución AG-V01 solo con autorización explícita en base sintética aislada; informe SC-003 (≥90 % sin edición de cifras, 0 cifras inventadas, 100 % inyecciones escaladas). N1 exige además D-AGT-03; N2 exige D-PUB-01, v1-issue-22 y D-AGT-04.",
-    "tipo": "Historia",
-    "estado": "Bloqueada",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-28",
-      "v1-issue-29"
-    ]
-  },
-  {
-    "id": "v1-issue-32",
-    "title": "[Issue] V1-ISSUE-32 — Cobro parcial en /hotel/pago no se registra con clave por defecto «cobro-web-1» y devuelve 201 falso positivo",
-    "body": "Auditoría técnica integral 2026-11-03. HECHO: `front/app/hotel/pago/page.js` inicializa `clave: 'cobro-web-1'` y no la rota tras un 201; `servicio/cobro.py` (`registrar_pago_manual`) deduplica en la tabla `pagos` por `(reserva_id, clave)` devolviendo 201 Created con `reintento: true` y los datos del primer pago sin verificar si `monto_clp` cambió. Reproducción: sobre una reserva de $120.000 (`RSV-efc45d0bca56`), registrar un primer abono de $50.000 (201, `PAG-58ac0c3a59b4`) y luego cambiar monto a $70.000 dejando `clave = 'cobro-web-1'`; la API responde 201 con `monto_clp: 50000, reintento: true`, la UI muestra confirmación exitosa, pero el segundo abono no se asienta y el saldo en `/hotel/reservas/{id}` sigue en $70.000 (bloqueando la salida). Criterios de aceptación: (1) en `servicio/cobro.py`, si `(reserva_id, clave)` ya existe en `pagos` con distinto `monto_clp` o `modo`, responder 409 Conflict; si es reintento idéntico, que la UI distinga el reintento; (2) en `front/app/hotel/pago/page.js`, generar/rotar la clave de cobro en cada nueva operación en lugar de fijar el literal estático `'cobro-web-1'`; (3) pruebas en `test_h4.py` y `e2e/e2e.mjs` con dos abonos parciales consecutivos que dejan `saldo_clp = 0`.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-back/h4/t2"
-    ]
-  },
-  {
-    "id": "v1-issue-33",
-    "title": "[Issue] V1-ISSUE-33 — Permitir cambio de clave propia a roles recepción y caja en /cuenta e incluir id de usuario en GET /sesion",
-    "body": "Auditoría técnica integral 2026-11-03. HECHO: `spec-api-v1.md` y `servicio/aplicacion.py:884-905` (`POST /usuarios/{id}/clave`) habilitan el cambio de clave para «el propio usuario o un administrador». Sin embargo: (1) `GET /sesion` (`servicio/aplicacion.py:349-359`) devuelve `{usuario, rol, empresa_id, totp_activado}` sin el `id` (`USR-...`) del usuario; (2) `/hotel/usuarios` (`front/app/hotel/usuarios/page.js:60-66`) bloquea toda la pantalla si `rol !== 'administrador'`; (3) `/cuenta` (`front/app/cuenta/page.js`) solo gestiona 2FA TOTP. Resultado: los operadores con rol `recepcion` o `caja` no pueden cambiar su propia contraseña desde la UI ni conocer su `USR-...`. Criterios de aceptación: (1) `GET /sesion` incluye `id: sesion.usuario_id`; (2) `/cuenta` incorpora formulario de cambio de clave propia usando `useClaveOperacion` y `POST /usuarios/{id}/clave` para cualquier rol autenticado; (3) pruebas en `test_h2.py` y E2E verificando cambio de clave propia por `recepcion` y `caja` y nuevo login con la clave actualizada.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-back/h2/t2"
-    ]
-  },
-  {
-    "id": "v1-issue-34",
-    "title": "[Issue] V1-ISSUE-34 — Eliminar desbordamiento horizontal móvil (320px–430px) en /hotel/habitaciones/[id], /hotel/reservas/[id] y /hotel/oferta",
-    "body": "Auditoría técnica integral 2026-11-03 (complementa V1-FRONT/UX-03 #278 que cubre solo `/hotel/panel`). HECHO medido en Chromium (viewports 320×568, 375×812, 390×844, 430×932): (1) `/hotel/habitaciones/[id]` desborda el documento en 320px–430px (`document.documentElement.scrollWidth = 628px` en 320px) porque sus 4 tablas `.tabla` (tarifas, reservas, tareas, auditoría) no tienen contenedor con `overflow-x: auto`; (2) `/hotel/reservas/[id]` desborda en 320px y 375px (`scrollWidth = 379px`) por sus 2 tablas `.tabla` (cargos y pagos); (3) `/hotel/oferta` con resultados desborda en 320px (`scrollWidth = 360px`) porque `.oferta-rejilla` en `front/app/globals.css:806` define `grid-template-columns: repeat(auto-fill, minmax(340px, 1fr))`. Criterios de aceptación: (1) envolver las 6 tablas `.tabla` de `/hotel/habitaciones/[id]` y `/hotel/reservas/[id]` en `.tabla-contenedor` (`overflow-x: auto`); (2) ajustar `.oferta-rejilla` a `minmax(min(100%, 320px), 1fr)`; (3) verificar con Playwright en 320, 375, 390, 430, 768, 1280 y 1440px que `document.documentElement.scrollWidth <= window.innerWidth` en las 19 rutas.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-oper-01"
-    ]
-  },
-  {
-    "id": "v1-issue-35",
-    "title": "[Issue] V1-ISSUE-35 — Precargar reserva_id y habitacion_id/fechas entre pantallas operativas y eliminar defaults inválidos en /hotel/reserva",
-    "body": "Auditoría técnica integral 2026-11-03. HECHO: (1) en `/hotel/reservas/[id]` (`front/app/hotel/reservas/[id]/page.js:21-24`), los enlaces de `SIGUIENTE_PASO` apuntan a `/hotel/estadia`, `/hotel/pago` y `/hotel/salida` sin `?reserva_id=...`, obligando al operador a copiar y pegar manualmente el `RSV-...`; (2) en `/hotel/oferta`, `TarjetaOferta` (`front/app/hotel/_componentes/tarjeta-oferta.js`) no incluye acción para ir a `/hotel/reserva` precargando `habitacion_id`, `inicio` y `fin`; (3) `/hotel/reserva` (`front/app/hotel/reserva/page.js:7-13`) inicia con `habitacion_id: 'HAB-SINT-102'`, `inicio: '2026-12-10'`, `fin: '2026-12-12'`, lo que en una base recién sembrada falla con `409 sin tarifa vigente para HAB-SINT-102 en 2026-12-10`. Criterios de aceptación: (1) `SIGUIENTE_PASO` en `/hotel/reservas/[id]` enlaza con `?reserva_id={id}` y `/hotel/pago`, `/hotel/estadia` y `/hotel/salida` precargan el campo «Reserva»; (2) `TarjetaOferta` permite abrir `/hotel/reserva` con `habitacion_id`, `inicio` y `fin` precargados; (3) prueba E2E del flujo Oferta → Reserva → Ficha → Pago → Estadía → Salida navegando por enlaces sin copiar/pegar IDs.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": [
-      "v1-oper-01"
-    ]
-  },
-  {
-    "id": "v1-issue-36",
-    "title": "[Issue] V1-ISSUE-36 — Accesibilidad y táctil: blancos >= 44×44 px, semántica de tabla en listados, foco visible, reduced-motion y confirmación en acciones destructivas",
-    "body": "Auditoría técnica integral 2026-11-03. HECHOS medidos en DOM: (1) Blancos táctiles < 44×44 px CSS: `.boton-primario` (41.6px), `.boton-secundario` (35.2px), `.entrada` (41.3px), `.nav-enlace` escritorio (38.8px) y celdas `.noche` en `/hotel/ocupacion` (33.6×32px); (2) `InventarioHabitaciones`, `ListaReservas` y `ListaUsuarios` renderizan datos multi-columna en `<ul>/<li>` con cabecera `<li aria-hidden=\"true\">`, dejando las celdas sin etiquetas de columna para lectores de pantalla; (3) `front/app/globals.css` carece de `@media (prefers-reduced-motion: reduce)` y de `:focus-visible` explícito en botones y enlaces de navegación, y `BarraNav` no asigna `aria-current=\"page\"` al enlace activo; (4) acciones destructivas («Desactivar doble factor» en `/cuenta`, «Cancelar reserva» en `/hotel/estadia`, «Dar de baja» y «Revocar sesiones» en `/hotel/usuarios`) se ejecutan al primer clic sin confirmación y los formularios no deshabilitan el botón `submit` mientras `fetch` está en vuelo. Criterios de aceptación: (1) altura mínima >= 44px en controles interactivos y botones; (2) semántica de tabla accesible (`<table>` o `role=\"table\"`/`role=\"columnheader\"`) sin `aria-hidden=\"true\"` en cabeceras; (3) `aria-current=\"page\"`, `:focus-visible` y `@media (prefers-reduced-motion: reduce)`; (4) confirmación explícita en las 4 acciones destructivas y `disabled` durante envío.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "hotel",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-37",
-    "title": "[Issue] V1-ISSUE-37 — Rendimiento: compartir estado de useSesion() para evitar 2 a 3 llamadas GET /sesion por cada carga de pantalla",
-    "body": "Auditoría técnica integral 2026-11-03. HECHO medido en red (Playwright): cada montaje de `/cuenta`, `/hotel/panel`, `/hotel/ocupacion`, `/hotel/habitaciones`, `/hotel/habitaciones/[id]`, `/hotel/reservas`, `/hotel/reservas/[id]`, `/hotel/estadia`, `/hotel/caja` y `/hotel/usuarios` dispara 3 peticiones concurrentes `GET /sesion` (y 2 en el resto de rutas) porque `BarraNav`, `MarcoHotel` y el componente de página invocan `useSesion()` (`front/lib/api.js:50-68`) sin contexto compartido ni deduplicación en vuelo. Criterios de aceptación: (1) proveer el estado de sesión mediante un `Context` o promesa compartida en `front/lib/api.js` con función de refresco explícito tras login/logout/2FA; (2) verificar en Playwright que cargar cualquier ruta `/hotel/*` o `/cuenta` emite exactamente 1 petición `GET /sesion`.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P2",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": []
-  },
-  {
-    "id": "v1-issue-38",
-    "title": "[Issue] V1-ISSUE-38 — Guardia de sesión y contenedor .pagina en /cafeteria, /inmobiliaria y /constructora, y formato clp() en /hotel/caja",
-    "body": "Auditoría técnica integral 2026-11-03 (complementa V1-ISSUE-27). HECHO: (1) las rutas `/cafeteria`, `/inmobiliaria` y `/constructora` (`front/app/{cafeteria,inmobiliaria,constructora}/page.js`) renderizan `<main><h1>...</h1></main>` sin clase `.pagina` y sin guardia de sesión, mostrando la barra lateral interna incluso a visitantes anónimos; (2) en `/hotel/caja` (`front/app/hotel/caja/page.js:48`), el encabezado muestra `Total del día: $${caja.total_clp}` sin separador de miles, mientras la tabla usa `clp()`. Criterios de aceptación: (1) `/cafeteria`, `/inmobiliaria` y `/constructora` verifican sesión igual que `/` y aplican `className=\"pagina\"`; (2) `/hotel/caja` usa `clp(caja.total_clp)` en el total del día.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P3",
-    "vertical": "transversal",
-    "padre": null,
-    "depende_de": [
-      "v1-issue-27"
-    ]
-  },
-  {
-    "id": "v1-issue-39",
-    "title": "[Issue] V1-ISSUE-39 — Blindar cancelación y operaciones de estadía ante concurrencia, doble envío y estado ya cancelado",
-    "body": "Investigación y corrección SDD+TDD del flujo de cancelación en `/hotel/estadia?reserva_id=...` (2026-11-04). HECHOS confirmados en local sobre base aislada: (1) En `servicio/cobro.py`, `_reserva_de_la_empresa` seleccionaba la fila de `reservas` sin `FOR UPDATE`, permitiendo que solicitudes concurrentes `POST /hotel/reservas/{id}/cancelacion` con distinta `Idempotency-Key` leyeran `estado = 'confirmada'` simultáneamente e insertaran reversos duplicados por cada cargo de alojamiento y múltiples cargos de penalidad por cancelación fuera de plazo; (2) En `servicio/idempotencia.py`, `ejecutar` leía `claves_idempotencia` sin bloqueo por `(empresa_id, clave)`, causando que reintentos concurrentes con la misma `Idempotency-Key` ejecutaran la operación dos veces y chocaran en el `INSERT` con `409 {\"detail\": \"conflicto de integridad\"}` (`UniqueViolation`); (3) En `front/app/hotel/estadia/page.js`, `ejecutar` llamaba a `setEnviando(true)` antes de `window.confirm` y de `camposFaltantes` (dejando los tres botones bloqueados en «Procesando…» si el operador cancelaba el diálogo o faltaba un campo), carecía de cerrojo síncrono (`useRef`) en el mismo tick de evento, no consultaba `GET /hotel/reservas/{id}` al abrir `?reserva_id=...` para mostrar el estado actual ni deshabilitar acciones incompatibles con el estado (`cancelada`, `en_estadia`, `finalizada`), y no precargaba `cargo.reserva_id`. Criterios de aceptación (verificados en `servicio/tests/test_cancelacion_estadia.py` 6/6, suite `206/206` y E2E Playwright): (1) abrir/recargar `/hotel/estadia?reserva_id=...` no dispara ninguna mutación, precarga los 3 formularios y muestra el contexto operativo de la reserva; (2) `idempotencia.ejecutar` serializa `(empresa_id, clave)` con `pg_advisory_xact_lock` y `_reserva_de_la_empresa(..., bloqueo=True)` aplica `SELECT ... FOR UPDATE`, garantizando exactamente 1 transición a `cancelada`, 1 reverso por cargo original y a lo sumo 1 penalidad aun bajo concurrencia con igual o distinta `Idempotency-Key`; (3) cancelar `window.confirm` o fallar validación no bloquea los botones; tras cancelar la reserva, los botones quedan deshabilitados y `resumenConfirmacion` explicita los reversos, la penalidad y que `reembolso: no configurado` significa sin devolución automática por pasarela.",
-    "tipo": "Tarea",
-    "estado": "Hecha",
-    "prioridad": "P1",
-    "vertical": "hotel",
-    "padre": "v1-back/h4",
-    "depende_de": [
-      "v1-oper-01"
-    ]
-  }
+ {
+  "id": "v1-api",
+  "title": "[Épica] V1-API — Contrato API (spec-api-v1)",
+  "body": "**Fuente:** `docs/arquitectura/spec-api-v1.md` (gobierna). El contrato entre el front de Vercel y el backend de Railway: 10 operaciones, empresa solo de sesión, idempotencia, 401/403/409/503. Lo sirve el backend; nada fuera de la tabla se publica.",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-back",
+  "title": "[Épica] V1-BACK — Backend en Railway (spec-backend-v1)",
+  "body": "**Fuente:** `docs/arquitectura/spec-backend-v1.md` (gobierna). Un solo servicio FastAPI + PostgreSQL 17. Arranque que carga núcleo y hotel con la misma empresa (rechaza otra). Persistencia real; puertos externos sin adaptador → 503. Hitos H1–H5.",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-front",
+  "title": "[Épica] V1-FRONT — Front en Vercel (spec-front-v1)",
+  "body": "**Fuente:** `docs/arquitectura/spec-front-v1.md` (gobierna). Un solo proyecto Next.js; 7 pantallas del hotel; solo `API_BASE_URL`; cero lógica de negocio; API apagada → error y ninguna reserva confirmada. Hitos H6a–H6c.",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-desp",
+  "title": "[Épica] V1-DESP — Integración y despliegue (H7)",
+  "body": "**Fuente:** decisión del propietario 2026-10-28; `AGENTS.md` (derogación de push solo en H7). Las tres piezas se aceptan juntas. Prerrequisito: cuentas Railway y Vercel (no verificadas desde el repo; no bloquean H1).",
+  "tipo": "Épica",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-api/h1",
+  "title": "[Historia] V1-API/H1 — Publicar el contrato ejecutable (OpenAPI 3.1)",
+  "body": "**Como** front y backend, **quiero** el contrato en OpenAPI 3.1 servido por el backend, **para** implementar leyendo solo ese documento. Criterio: las 10 operaciones de spec-api-v1 con sus reglas de sesión, idempotencia y errores; nada fuera de la tabla.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-api",
+  "depende_de": []
+ },
+ {
+  "id": "v1-api/h1/t1",
+  "title": "[Tarea] V1-API/H1/T1 — Redactar OpenAPI 3.1 de las 10 operaciones",
+  "body": "Fuente: spec-api-v1. Documento en `servicio/contrato/` con las 10 rutas, esquemas y reglas 401/403/409/503.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-api/h1",
+  "depende_de": []
+ },
+ {
+  "id": "v1-api/h1/t2",
+  "title": "[Tarea] V1-API/H1/T2 — Servir el contrato y verificar sus rutas",
+  "body": "GET /contrato.yaml devuelve el documento; prueba de contrato recorre las 10 operaciones contra el backend en local.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-api/h1",
+  "depende_de": [
+   "v1-api/h1/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h1",
+  "title": "[Historia] V1-BACK/H1 — Servicio con hueso (arranque, /salud, regla de empresa)",
+  "body": "**Como** plataforma, **quiero** un proceso FastAPI que arranca con núcleo y hotel de la misma empresa, **para** tener el primer proceso real. Criterio (prueba H1): arranca con la misma empresa y **no arranca si el hotel trae otra**; GET /salud responde 200.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": []
+ },
+ {
+  "id": "v1-back/h1/t1",
+  "title": "[Tarea] V1-BACK/H1/T1 — Esqueleto FastAPI + psycopg v3 + config por env",
+  "body": "requirements.txt (fastapi, uvicorn, psycopg[binary], argon2-cffi); configuración solo por variables de entorno; sin .env en repo.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": []
+ },
+ {
+  "id": "v1-back/h1/t2",
+  "title": "[Tarea] V1-BACK/H1/T2 — Runner de migraciones SQL numeradas",
+  "body": "Migraciones en `servicio/migraciones/` (0001_*.sql…), ejecutadas por comando; tabla schema_migrations. SQL parametrizado desde el código (nada interpolado).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": [
+   "v1-back/h1/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h1/t3",
+  "title": "[Tarea] V1-BACK/H1/T3 — Arranque con núcleo + hotel y regla de empresa",
+  "body": "construir_aplicacion carga Nucleo y ServicioHotelInventario con empresa=nucleo.empresa; rechaza el arranque con otra empresa (regla ya probada en el prototipo). GET /salud sin autenticar.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": [
+   "v1-back/h1/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h1/t4",
+  "title": "[Tarea] V1-BACK/H1/T4 — Prueba de arranque y de rechazo",
+  "body": "Prueba H1: el proceso arranca con núcleo y hotel de la misma empresa; con hotel de otra empresa el proceso no arranca.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h1",
+  "depende_de": [
+   "v1-back/h1/t3"
+  ]
+ },
+ {
+  "id": "v1-back/h2",
+  "title": "[Historia] V1-BACK/H2 — Sesión usuario/clave (argon2id, cookie sid)",
+  "body": "**Como** operador, **quiero** iniciar sesión con usuario y clave y que la empresa salga de la sesión, **para** que nada se autorice por un company_id del cliente. Criterio: clave solo como hash argon2id; admin inicial desde variables de entorno al arrancar (ningún SQL con clave); cookie sid HttpOnly/Secure/SameSite=None; 401 sin sesión; 403 otra empresa sin revelar existencia.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h1"
+  ]
+ },
+ {
+  "id": "v1-back/h2/t1",
+  "title": "[Tarea] V1-BACK/H2/T1 — Migraciones usuarios y sesiones + admin desde env",
+  "body": "Tablas usuarios (clave argon2id) y sesiones (revocables); el administrador inicial se cree al arrancar leyendo usuario/clave de variables de entorno, nunca de SQL del repo.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h2",
+  "depende_de": [
+   "v1-back/h1/t2"
+  ]
+ },
+ {
+  "id": "v1-back/h2/t2",
+  "title": "[Tarea] V1-BACK/H2/T2 — POST /sesion y DELETE /sesion",
+  "body": "Abrir y cerrar sesión; cookie sid puesta por la API; sesión server-side en PostgreSQL.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h2",
+  "depende_de": [
+   "v1-back/h2/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h2/t3",
+  "title": "[Tarea] V1-BACK/H2/T3 — Pruebas 401 y 403",
+  "body": "Sin sesión → 401; sesión de otra empresa → 403 sin revelar si el recurso existe.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h2",
+  "depende_de": [
+   "v1-back/h2/t2"
+  ]
+ },
+ {
+  "id": "v1-back/h3",
+  "title": "[Historia] V1-BACK/H3 — Reserva persistente (habitaciones, tarifas, oferta, reserva transaccional)",
+  "body": "**Como** huésped y recepción, **quiero** reservar sobre datos que sobreviven al proceso, **para** operar de verdad. Criterio: PUT habitaciones (admin) y PUT tarifas sin alterar reservas aceptadas; GET oferta con vigencia; POST reservas transaccional con constraint de no solape — 100 requests a la última unidad dejan 1 reserva y 409 al resto.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h2"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t1",
+  "title": "[Tarea] V1-BACK/H3/T1 — Migraciones y endpoints de habitaciones y tarifas",
+  "body": "Tablas habitaciones y tarifas; PUT /hotel/habitaciones/{id} (solo administrador); PUT /hotel/tarifas por fecha, sin cambiar el precio de reservas ya aceptadas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h2/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t2",
+  "title": "[Tarea] V1-BACK/H3/T2 — GET /hotel/oferta con vigencia",
+  "body": "Solo disponible, con tarifa vigente y vencimiento de la oferta.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h3/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t3",
+  "title": "[Tarea] V1-BACK/H3/T3 — POST /hotel/reservas transaccional",
+  "body": "Constraint de no solape por (unidad, fechas) dentro de la transacción de confirmación; la carrera por la última unidad la gana una sola reserva.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h3/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h3/t4",
+  "title": "[Tarea] V1-BACK/H3/T4 — Prueba de la carrera por la última unidad",
+  "body": "100 requests concurrentes sobre la última unidad: 1 reserva confirmada, 99 con 409; sin sobreventa en la base.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h3",
+  "depende_de": [
+   "v1-back/h3/t3"
+  ]
+ },
+ {
+  "id": "v1-back/h4",
+  "title": "[Historia] V1-BACK/H4 — Cobro por el núcleo, idempotencia y estadía (entrada, salida, caja)",
+  "body": "**Como** caja y recepción, **quiero** cobrar solo con efecto del núcleo y operar la estadía, **para** que el dinero pase por la única puerta. Criterio: idempotencia por clave (replay igual; cuerpo distinto → 409); pago modo manual (efectivo/transferencia que registra recepción/caja/administrador, sin consulta bancaria ni conciliación) con efecto del núcleo; modo pasarela sin adaptador → 503 y nada marcado cobrado; entrada solo con habitación lista; salida liquida la cuenta; caja del día ligada a reserva.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h2"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t1",
+  "title": "[Tarea] V1-BACK/H4/T1 — Migraciones y middleware de idempotencia",
+  "body": "Tablas claves_idempotencia, pagos y efectos; toda mutación exige Idempotency-Key: misma clave+mismo cuerpo repite respuesta; misma clave+otro cuerpo → 409.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h2/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t2",
+  "title": "[Tarea] V1-BACK/H4/T2 — POST /hotel/reservas/{id}/pagos por el núcleo",
+  "body": "modo=manual: el efecto lo registra el núcleo (si rechaza, no hay pago); roles recepción/caja/administrador. modo=pasarela sin adaptador → 503 con estado pendiente.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h4/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t3",
+  "title": "[Tarea] V1-BACK/H4/T3 — Entrada, salida y caja",
+  "body": "POST entrada (check-in solo si la habitación está lista); POST salida (liquida la cuenta); GET /hotel/caja?fecha con pagos ligados a reserva; sin movimiento bancario en esta versión.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h4/t1"
+  ]
+ },
+ {
+  "id": "v1-back/h4/t4",
+  "title": "[Tarea] V1-BACK/H4/T4 — Pruebas de idempotencia y rechazo del núcleo",
+  "body": "Misma clave de pago no crea un segundo efecto; cuerpo distinto con la misma clave → 409; si el núcleo rechaza el cobro no hay pago guardado.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-back/h4/t2",
+   "v1-back/h4/t3"
+  ]
+ },
+ {
+  "id": "v1-back/h5",
+  "title": "[Historia] V1-BACK/H5 — Persistencia tras reinicio",
+  "body": "**Como** operación, **quiero** que reserva y pago sobrevivan al reinicio del servicio, **para** que exista caja real. Criterio: cargar, registrar reserva y pago, matar el proceso, levantar: ambos siguen en PostgreSQL (fila 6 del dictamen).",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back",
+  "depende_de": [
+   "v1-back/h3",
+   "v1-back/h4"
+  ]
+ },
+ {
+  "id": "v1-back/h5/t1",
+  "title": "[Tarea] V1-BACK/H5/T1 — Prueba de reinicio con datos",
+  "body": "Prueba de aceptación: proceso A registra reserva+pago; proceso B (misma base) los ve. Todo lo escrito en H3/H4 debe salir de la memoria y vivir en PostgreSQL.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h5",
+  "depende_de": [
+   "v1-back/h3/t4",
+   "v1-back/h4/t4"
+  ]
+ },
+ {
+  "id": "v1-front/h6a",
+  "title": "[Historia] V1-FRONT/H6a — Esqueleto Next.js y login",
+  "body": "**Como** operador, **quiero** entrar con usuario y clave desde el navegador, **para** operar el hotel. Criterio: login contra POST /sesion; la sesión vive en la cookie sid de la API; ningún token en localStorage ni en código.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front",
+  "depende_de": [
+   "v1-api/h1"
+  ]
+ },
+ {
+  "id": "v1-front/h6a/t1",
+  "title": "[Tarea] V1-FRONT/H6a/T1 — Proyecto Next.js con login contra la API",
+  "body": "plataforma-salman-herencia-front: login, manejo de cookie, cliente HTTP que solo habla con API_BASE_URL.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6a",
+  "depende_de": []
+ },
+ {
+  "id": "v1-front/h6b",
+  "title": "[Historia] V1-FRONT/H6b — Las siete pantallas del hotel",
+  "body": "**Como** equipo, **queremos** las 7 pantallas del hotel leyendo y escribiendo solo por la API, **para** cumplir spec-front-v1. El front no calcula tarifa, no confirma cupo y no registra pagos.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front",
+  "depende_de": [
+   "v1-front/h6a"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t1",
+  "title": "[Tarea] V1-FRONT/H6b/T1 — /hotel/habitaciones (alta y cambio, admin)",
+  "body": "Pantalla de habitaciones y tarifas contra PUT /hotel/habitaciones/{id} y PUT /hotel/tarifas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t2",
+  "title": "[Tarea] V1-FRONT/H6b/T2 — /hotel/oferta y /hotel/reserva",
+  "body": "Consulta de oferta y confirmación con Idempotency-Key visible; reintento seguro sin doble confirmación.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t3",
+  "title": "[Tarea] V1-FRONT/H6b/T3 — /hotel/pago, /hotel/estadia y /hotel/salida",
+  "body": "Registro de pago (modo manual; ante 503 de pasarela, aviso sin marcar cobrado), operación de estadía y salida con liquidación.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6b/t4",
+  "title": "[Tarea] V1-FRONT/H6b/T4 — /hotel/caja",
+  "body": "Pagos del día ligados a reserva contra GET /hotel/caja?fecha.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-front/h6b",
+  "depende_de": [
+   "v1-front/h6a/t1"
+  ]
+ },
+ {
+  "id": "v1-front/h6c",
+  "title": "[Historia] V1-FRONT/H6c — Reglas duras: rutas vacías, una sola URL y error sin API",
+  "body": "**Como** plataforma, **quiero** que el front dependa por completo de la API, **para** que sin API no se confirme nada. Criterio de aceptación: /cafeteria, /inmobiliaria y /constructora existen vacías; la única variable es API_BASE_URL; con la API apagada el front muestra error y no confirma una reserva.",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-front",
+  "depende_de": [
+   "v1-front/h6b"
+  ]
+ },
+ {
+  "id": "v1-front/h6c/t1",
+  "title": "[Tarea] V1-FRONT/H6c/T1 — Prueba de front con API apagada",
+  "body": "Prueba: API caída → las pantallas muestran error; ninguna acción confirma efecto local; rutas de otras verticales vacías.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": "v1-front/h6c",
+  "depende_de": [
+   "v1-front/h6b/t2"
+  ]
+ },
+ {
+  "id": "v1-desp/h7",
+  "title": "[Historia] V1-DESP/H7 — Publicar rama y desplegar Railway y Vercel",
+  "body": "**Como** plataforma, **queremos** las tres piezas aceptadas juntas en producción, **para** tener la V1 real. Criterio: GET /salud responde en el dominio de Railway; las 10 operaciones pasan contra PostgreSQL; el front en Vercel usa ese origen y ningún otro. Solo aquí se deroga la prohibición de push (AGENTS.md).",
+  "tipo": "Historia",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp",
+  "depende_de": [
+   "v1-back/h5",
+   "v1-front/h6c"
+  ]
+ },
+ {
+  "id": "v1-desp/h7/t1",
+  "title": "[Tarea] V1-DESP/H7/T1 — Verificar cuentas Railway y Vercel",
+  "body": "Prerrequisito: cuentas creadas y accesibles; no están verificadas desde el repositorio y no bloquean H1.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": []
+ },
+ {
+  "id": "v1-desp/h7/t2",
+  "title": "[Tarea] V1-DESP/H7/T2 — Push de la rama de trabajo",
+  "body": "Publicar la rama de la fase V1 (derogación H7 de AGENTS.md).",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": [
+   "v1-desp/h7/t1"
+  ]
+ },
+ {
+  "id": "v1-desp/h7/t3",
+  "title": "[Tarea] V1-DESP/H7/T3 — Railway: servicio + PostgreSQL + variables",
+  "body": "Desplegar el servicio con PostgreSQL y variables de entorno (DATABASE_URL, credenciales de admin); /salud responde.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": [
+   "v1-desp/h7/t2",
+   "v1-back/h5"
+  ]
+ },
+ {
+  "id": "v1-desp/h7/t4",
+  "title": "[Tarea] V1-DESP/H7/T4 — Vercel: front con API_BASE_URL del servicio",
+  "body": "Desplegar el front con API_BASE_URL apuntando al origen de Railway; aceptación conjunta de las tres piezas.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": "v1-desp/h7",
+  "depende_de": [
+   "v1-desp/h7/t2",
+   "v1-front/h6c"
+  ]
+ },
+ {
+  "id": "v1-issue-01",
+  "title": "[Issue] V1-ISSUE-01 — 20 pruebas del servicio en rojo (deuda técnica heredada de H6/H7)",
+  "body": "Fuente: revisión E2E 2026-11-03 (suite e2e/ + unittest). 17 fallos + 3 errores en `servicio/tests`: test_h6_maduracion_operativa (revocación de sesiones, turnover sucia→check-in, listar usuarios solo admin, entrada exige documento/hora, cancelación idempotente, 3 errores de cancelación), test_preh7_seguridad (cookie producción None+Secure, origin con barra final, origin exige cookie segura, origin ajeno rechazado), test_adaptador_dominio (5: propagación del fallo del dominio, sin reglas en el SQL, estado perdura), test_oauth. La revisión E2E funcional pasó 41/41, pero estos tests documentan reglas del contrato (seguridad de cookies/CORS incluida) que hoy no se ejercen en verde. Corregir uno a uno y bajar a 0.\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-02",
+  "title": "[Issue] V1-ISSUE-02 — Cobertura E2E del alta del segundo factor (TOTP) desde la interfaz",
+  "body": "Fuente: revisión E2E 2026-11-03. `/cuenta` muestra el estado y genera secreto+URI (verificado), pero la activación con código y el login posterior con 2FA solo se ejercen en `servicio/tests/test_2fa.py`. Ampliar `e2e/e2e.mjs` para completar el ciclo en navegador (generar código TOTP del secreto mostrado, activar, cerrar sesión y entrar con totp).\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-03",
+  "title": "[Issue] V1-ISSUE-03 — El front renderiza formularios que el rol vigente no puede ejecutar",
+  "body": "Fuente: revisión E2E 2026-11-03 (matriz CAJ-01, EST-04). La API rechaza bien con 403 según el contrato, pero `/hotel/caja` se muestra completo a recepción y «cancelar reserva» se muestra a caja; el error llega solo tras intentar. Mejora UX: ocultar o deshabilitar acciones no permitidas según el rol de la sesión (patrón ya usado en `/hotel/habitaciones` y `/hotel/usuarios`). No inventar permisos: leer el rol de la sesión y aplicar las mismas reglas del contrato.\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-04",
+  "title": "[Issue] V1-ISSUE-04 — Hidratación bloqueada en `next dev` cuando falla el WebSocket HMR",
+  "body": "Fuente: diagnóstico 2026-11-03. En `next dev`, si el entorno del desarrollador bloquea `ws://` (proxy/sandbox), React no hidrata: los formularios hacen submit nativo y la aplicación «no hace nada». En producción no ocurre (sin HMR). Acciones: documentar en el runbook/spec-front y, si se confirma como patrón común, evaluar fallback de hidratación o mensaje de diagnóstico.\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-05",
+  "title": "[Issue] V1-ISSUE-05 — Procedimiento de aprobación de deploys Railway (política post-incidente NEEDS_APPROVAL)",
+  "body": "Fuente: despliegue 2026-11-03. Tras el incidente Railway 2026-10-21, los deploys del backend quedan en NEEDS_APPROVAL y requieren aprobación manual en el dashboard (o `deploymentApprove` por API con token). Documentar en `docs/arquitectura/h7-despliegue.md` el paso operativo para el propietario (dónde se aprueba y el tiempo típico), de modo que cada push no parezca «atascado».\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-06",
+  "title": "[Issue] V1-ISSUE-06 — `e2e/e2e-resultados.json` versionado queda obsoleto entre corridas",
+  "body": "Fuente: revisión E2E 2026-11-03. El JSON de resultados se regenera en cada corrida y puede desactualizarse respecto al INFORME. Decidir: regenerarlo siempre junto al informe, o excluirlo del repo y dejarlo como artefacto local (`.gitignore`).\n\n**Resuelto 2026-11-03:** ciclo de corrección completo (código + tests + E2E). Suite del servicio 129/129, dominio 180/180, E2E 44/44.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-oper-01",
+  "title": "[Historia] V1-OPER-01 — Mantenedor de habitaciones, consulta de reservas, ocupación y panel operativo",
+  "body": "Fuente: orden del propietario 2026-11-03; especificación gobernante `docs/arquitectura/spec-hotel-operacion-v1.md` (flujos por rol, métricas con fórmula/unidad/fuente/limitaciones, criterios CA-*). Contrato: spec-api-v1 pasa a 32 operaciones (`GET /hotel/habitaciones/{id}`, `POST /hotel/habitaciones/{id}/servicio`, `GET /hotel/reservas/{id}`, `GET /hotel/ocupacion`, `GET /hotel/indicadores`; `PUT /hotel/habitaciones` con `If-None-Match: *`, `cambios` y auditoría; `GET /hotel/reservas` con periodo y habitación). Migración 0009 (baja lógica `fuera_de_servicio` con motivo/fecha; `tarifas.creado_en` para desempate). Front: rutas `/hotel/panel`, `/hotel/ocupacion`, `/hotel/habitaciones/[id]`, `/hotel/reservas/[id]`. Evidencia: `servicio/tests/test_operacion_mantenedor.py` (18), `e2e/e2e-operacion.mjs` (16/16) e informe `capturas/e2e-2026-11-03/INFORME-operacion.md`. Cambio de alcance: los indicadores HU-HOT-03 estaban fuera de V1; entra solo el panel operativo, los financieros siguen fuera (V1-ISSUE-08).",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-07",
+  "title": "[Issue] V1-ISSUE-07 — Decisión D-ENT-01: ¿la entrada (y la salida) adoptan la regla de fecha/hora y documento del dominio?",
+  "body": "Reencuadrado 2026-11-03 (V1-ISSUE-14): no es un defecto contra el contrato sino una DECISIÓN PENDIENTE del propietario. HECHO (contrato vigente): spec-api-v1 «Operación de la habitación» enumera las causas de rechazo de la entrada sin hora ni documento, y test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato (test_h6) fija 200 sin documento y antes de la fecha. HECHO DOCUMENTADO (dominio): ServicioHotelInventario.check_in rechaza antes de inicio 15:00 (HORA_LLEGADA) y sin documento. Consecuencia observada: e2e/e2e.mjs (EST-01/SAL-02) hace check-in y liquida hoy una reserva que empieza en 30 días; el panel lo acota con la fecha de liquidación (spec-hotel-operacion-v1 §4.3). Preguntas al propietario: (1) ¿la entrada exige 15:00 del día de inicio? (2) ¿exige documento, y qué pasa si falta (rechazo o ingreso incompleto derivado a recepción, como el dominio)? (3) ¿se permite salida anticipada y con qué efecto en la cuenta? Si se adopta: cambio de contrato en spec-api-v1, test_h6 y casos E2E que entran antes de fecha. Mientras tanto no se cambia el comportamiento. Antes decía «corregir en cobro.entrada (409)»: eso rompería el contrato vigente.\n\n**Avance 2026-11-03:** implementada la mitad operativa sin ambigüedad — la entrada exige que la reserva haya comenzado (inicio ≤ hoy del servidor; 409 «aún no llega su día de entrada»), alineada con la regla de llegada del dominio. Spec-api-v1 actualizado como REQUISITO PROPUESTO en ratificación; prueba unitaria test_entrada_exige_que_la_reserva_haya_comenzado y caso E2E EST-01b en verde (servicio 156/156, E2E 45/45 + 16/16). La salida no valida fecha en el dominio tampoco (sin divergencia). LO QUE SIGUE PENDIENTE (decisión de producto, no se inventa): exigir documento del huésped en la entrada — hoy el front no lo recoge y el contrato lo mantiene opcional (D-ENT-01).",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-08",
+  "title": "[Issue] V1-ISSUE-08 — Decisión: indicadores financieros (ADR, RevPAR, ingresos) y rol gerencia",
+  "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §4.4 y §7 (D-ROL-01, D-IND-01, D-IND-02). El dominio calcula ADR/RevPAR con cargos de noche netos y los reserva a `gerencia`, rol que V1 no crea; V1 asienta un cargo único de alojamiento al reservar. Decidir: (1) ¿se crea `gerencia` o los ve `administrador`?; (2) ¿cómo se reconoce el ingreso por noche?; (3) ¿pagos acumulados por periodo, para qué rol y con qué advertencia de no conciliación? Relacionado: la fecha de cancelación no se guarda en `reservas` (solo en `auditoria`) y no existe estado no-show. Hasta decidir, el panel los declara en `no_disponibles`.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-09",
+  "title": "[Issue] V1-ISSUE-09 — Decisión: personas en la reserva, reasignación de habitación y catálogo de tipos",
+  "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §2.1 y §7 (D-HAB-01, D-HAB-02, D-HAB-03). La reserva no guarda cantidad de personas: bajar la capacidad de una habitación no se puede validar contra reservas futuras. No existe reasignar una reserva a otra unidad: retirar una habitación con reservas exige cancelarlas (con la regla de 48 h) y volver a reservar. El tipo es texto libre. Decidir los tres puntos; implementar con migración y prueba.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-10",
+  "title": "[Issue] V1-ISSUE-10 — Decisión: tarifas superpuestas, mantenimiento programado, denominador de ocupación y auditoría por rol",
+  "body": "Fuente: `docs/arquitectura/spec-hotel-operacion-v1.md` §2.5, §4.3, §5 y §7 (D-TAR-01, D-OCU-01, D-IND-03, D-AUD-01). (1) El dominio rechaza una tarifa superpuesta; V1 la acepta y la de inicio más reciente gana (desempate por registro): confirmar o cambiar. (2) Mantenimiento y fuera de servicio son estados actuales sin rango de fechas; ¿mantenimiento programado? (3) Una habitación retirada sigue en el denominador de ocupación (fórmula del dominio). (4) La auditoría de la habitación solo la ve administrador.",
+  "tipo": "Tarea",
+  "estado": "Lista",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-11",
+  "title": "[Issue] V1-ISSUE-11 — Aislar la base de pruebas para que trabajos concurrentes no interfieran",
+  "body": "Fuente: dos sesiones concurrentes sobre el mismo árbol (2026-11-03). HECHO: los tests de servicio usan DATABASE_URL_TEST con default plataforma_test (compartida); con otro cliente escribiendo a la vez se observaron corridas con 1 a 94 fallos (deadlocks TRUNCATE, 401, usuarios borrados a mitad de prueba). Con base dedicada no se reproduce. Ya documentado en e2e/README.md. Pendiente: guard de fail-fast en los setUp (detectar otras conexiones activas a la base de pruebas y abortar con mensaje claro) o default por proceso.\n\n**Resuelto 2026-11-03:** TDD — servicio/tests/aislamiento.py (exigir_base_libre, falla en setUp si hay otra conexión activa a la base de pruebas), test_aislamiento_pruebas.py (3 pruebas) y guard insertado en los 12 archivos de tests que truncan. Demostrado: con un cliente externo, fail-fast con mensaje claro; suite completa 155/155 en verde.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-12",
+  "title": "[Issue] V1-ISSUE-12 — Reserva sobre habitación fuera del cupo (retirada, bloqueada o en mantenimiento)",
+  "body": "Objetivo: POST /hotel/reservas aplica la misma regla de cupo que la oferta. HECHO DOCUMENTADO: el dominio rechaza reservar una unidad no vendible (ServicioHotelInventario.reservar → ESTADO_NO_VENDIBLE) y spec-api-v1 dice que el mantenimiento saca la unidad del cupo; crear_reserva no miraba el estado, así que /hotel/reserva (campo de texto libre) confirmaba reservas en una habitación retirada que después no podía hacer check-in. Spec: spec-hotel-operacion-v1 §2.7 y CA-HAB-07; fila POST /hotel/reservas de spec-api-v1. Cambio: reservas.HabitacionNoVendible; crear_reserva lee estado_operativo/mantenimiento tras el FOR UPDATE → 409 {detail}; aplicacion.py lo mapea. Front sin cambios (muestra el detail). Pruebas: servicio/tests/test_reserva_vendible.py (5: retirada→409 sin reserva/cargo/auditoría y reincorporada→201; bloqueada y mantenimiento→409 para admin y recepción; ocupada/sucia siguen vendibles; el 409 queda asociado a su clave; retiro y reserva concurrentes se serializan). RED verificado (201 en vez de 409); GREEN 5/5; mutaciones (leer el estado antes del cerrojo; ignorar mantenimiento) detectadas. Regresión servicio 155/155 en base dedicada. E2E e2e/e2e-reserva-vendible.mjs (RV-01..03, desde el menú): RED 0/3 contra 938d0b0 y GREEN 3/3 contra ca2e40a; e2e.mjs 44/44 y e2e-operacion.mjs 16/16 desde copias en scratch (sin escribir resultados compartidos). Evidencia: capturas/e2e-2026-11-03/rv-01..02*.png, e2e/e2e-reserva-vendible-resultados.json. Nota de integración: el código, la spec y las pruebas unitarias quedaron dentro del commit local ca2e40a (v1-issue-11) de otro trabajo; la E2E y este registro siguen sin commit. Limitación: el estado no tiene fechas (D-OCU-01), igual que la oferta.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-13",
+  "title": "[Issue] V1-ISSUE-13 — Front: renovar la clave de idempotencia tras un rechazo definitivo (4xx)",
+  "body": "Objetivo: que reintentar una acción después de corregir su causa la ejecute. HECHO: idempotencia.ejecutar guarda cualquier respuesta, también los 409; las fichas solo renuevan la clave tras 2xx (front/app/hotel/habitaciones/[id]/page.js enviar()). Caso 1: retiro → 409 reservas_vigentes → se cancela la reserva → reintento en la misma ficha devuelve el 409 guardado. Caso 2 (confirmado en auditoría E2E 2026-11-03): en /hotel/habitaciones (dar de alta HAB-SINT-102 → 409 ya existe → cambiar campo a HAB-201 → 409 «la clave ya fue usada con otro cuerpo») y en /hotel/usuarios (usuario repetido → 409 → cambiar nombre a otro usuario → 409 «la clave ya fue usada con otro cuerpo»); además /hotel/habitaciones, /hotel/habitaciones/[id], /hotel/estadia, /hotel/usuarios y /cuenta carecen del botón «Nueva operación» exigido por spec-front-v1. REQUISITO PROPUESTO (spec-front-v1): tras 4xx de negocio se renueva la clave (o se expone «Nueva operación» en todas las pantallas con mutación); tras error de red se conserva. Archivos: front/app/hotel/**/page.js, front/app/cuenta/page.js, front/lib/api.js (useClaveOperacion). Riesgo: no renovar ante fallo de red (duplicaría). Criterio/prueba: E2E 409 en habitaciones/usuarios/retiro → corregir dato o estado → reintento sin recargar → 200/201; unittest no aplica (la API ya es correcta).",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-14",
+  "title": "[Issue] V1-ISSUE-14 — Corregir el encuadre de V1-ISSUE-07 y docs/funcional/dominio.md (check-in)",
+  "body": "Objetivo: que la documentación no afirme reglas que el código no aplica. HECHO: spec-api-v1 «Operación de la habitación» enumera las causas de rechazo de la entrada sin hora ni documento, y test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato (test_h6, d101569) lo fija; el dominio exige 15:00 y documento. V1-ISSUE-07 pide «corregir en cobro.entrada (409)», lo que rompería el contrato vigente: debe quedar como DECISIÓN PENDIENTE del propietario (¿se adopta la regla del dominio en el contrato?). docs/funcional/dominio.md:24,57 dice HECHO DOCUMENTADO «entrada exige documento + hora» y no es lo que hace PostgreSQL. Solo documentación; sin cambio de comportamiento. Resultado (2026-11-03): spec-api-v1 registra D-ENT-01 junto a la cláusula de entrada (HECHO contrato vigente / HECHO dominio / DECISIÓN PENDIENTE) y corrige dos imprecisiones: la entrada no exige estado `disponible` (bloquean `bloqueada`/`fuera_de_servicio`; `ocupada` no bloquea el turnover, fuente: dominio check_in, cobro.entrada y test_turnover_solape_sucia_limpieza_y_siguiente_checkin) y la fila de la tabla. spec-hotel-operacion-v1 §7 agrega D-ENT-01. docs/funcional/dominio.md (tabla, diagrama y regla «Entrada», que además decía «la noche se asienta al check-in»: el alojamiento nace al confirmar) y flujos.md quedan alineados. Evidencia: test_h6 23/23 contra ca2e40a (incluye test_entrada_no_exige… y test_turnover…); estático: cobro.entrada no inserta cargos y crear_reserva sí. Sin cambio de comportamiento, sin prueba nueva. NO VERIFICADO: el render de los dos diagramas Mermaid editados (sin validador local; solo cambió el texto de etiquetas).",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-15",
+  "title": "[Issue] V1-ISSUE-15 — La salida deja la habitación disponible aunque otra estadía siga en curso",
+  "body": "HECHO: cobro.entrada permite dos reservas en_estadia en la misma habitación si sus rangos no se solapan; cobro.salida fija estado_operativo=disponible y sucia sin mirar si queda otra estadía. Depende de la decisión de V1-ISSUE-07 (si la entrada se limita a la fecha de llegada, el caso casi desaparece). Criterio: con otra en_estadia en la unidad, la salida no la marca disponible. Pruebas: unittest de servicio + releer habitación.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-07"
+  ]
+ },
+ {
+  "id": "v1-issue-16",
+  "title": "[Issue] V1-ISSUE-16 — Decisión: roles del check-in y la salida",
+  "body": "HECHO: POST /hotel/reservas/{id}/entrada y /salida no llaman _exigir_rol (cualquier rol con sesión, incluida caja); ninguna spec asigna roles a esas operaciones. DECISIÓN PENDIENTE del propietario: ¿quién registra entrada y salida? Sin decisión no se cambia el comportamiento.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-17",
+  "title": "[Issue] V1-ISSUE-17 — Decisión: tarifa de estadías que cruzan dos periodos de tarifa",
+  "body": "HECHO: oferta y crear_reserva usan la tarifa vigente de la noche de inicio × noches; la ocupación evalúa la tarifa noche por noche (sin_tarifa), igual que el dominio en buscar_disponibilidad. Una estadía que empieza con tarifa y sigue en noches sin tarifa se vende igual. DECISIÓN PENDIENTE: ¿una sola tarifa congelada (la de inicio) o suma por noche? Relacionada con D-TAR-01.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-18",
+  "title": "[Issue] V1-ISSUE-18 — Integración: orden de despliegue y empates de tarifas existentes",
+  "body": "HECHO: las migraciones corren al arrancar la API (aplicacion.py) en una transacción y sin cerrojo; Railway puede quedar en NEEDS_APPROVAL (h7-despliegue.md) mientras Vercel publica un front que llama a /hotel/indicadores, /hotel/ocupacion y fichas que la API anterior no tiene. 0009 rellena tarifas.creado_en en orden físico: si producción tiene tarifas de una misma habitación con igual fecha_desde, la vigente podría cambiar. NO VERIFICADO: requiere una consulta de solo lectura en producción (autorización). Propuesta: desplegar Railway primero, verificar /salud y la migración, después Vercel. Requiere autorización del propietario.",
+  "tipo": "Tarea",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-19",
+  "title": "[Issue] V1-ISSUE-19 — Deuda documental: hotel_sql.py sin uso, diagramas del destino anterior, rutas fuera de la tabla",
+  "body": "HECHO: servicio/hotel_sql.py no lo importa ningún módulo y su docstring dice que el dominio decide cada operación HTTP; los flujo-0*.mmd describen el destino sustituido (AGENTS.md) y ninguno cubre la operación nueva; spec-api-v1 dice «nada fuera de la tabla existe» pero existen GET /sesion, GET /cuenta/2fa/qr y GET /salud; INFORME-operacion.md llama V1-ISSUE-08 al aislamiento de pruebas (es V1-ISSUE-11). Solo documentación.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P3",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-20",
+  "title": "[Issue] V1-ISSUE-20 — Decisión D-PUB-01: ¿qué reserva puede hacer un visitante desde la landing?",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: hoy la landing solo envía una consulta a Formspree (formulario POST https://formspree.io/f/…: nombre, correo, teléfono, huéspedes 1-8, check-in, check-out, mensaje); no consulta disponibilidad ni tarifa y nada llega a la plataforma. HECHO: la plataforma no tiene superficie pública (todas las rutas /hotel/* exigen sesión interna; /hotel/oferta sin sesión → 401 en producción). DECISIÓN PENDIENTE (propietario), sin la cual no se especifica ni implementa nada del canal: (1) modalidad: solicitud con confirmación humana de recepción, o reserva confirmada en línea por el motor; (2) si es confirmada: garantía o prepago (Q-HOT-03 dice «garantía con tarjeta» pero la pasarela es solo puerto, 503) o confirmación sin garantía; (3) unidad de venta pública: tipo de habitación (la landing muestra «Doble Pequeña» y «Cama Grande») vs habitación concreta (la API vende habitacion_id); correspondencia tipo↔habitaciones; (4) ¿se muestra precio público? ¿total con IVA? (la oferta entrega tarifa_noche_clp y total_clp sin desglose); (5) datos mínimos del huésped y consentimiento/aviso de privacidad (Ley 21.719; hoy ReservaIn solo guarda nombre y documento; la landing pide correo y teléfono); (6) límites: noches máximas (P04 = 30, PROPUESTA_TECNICA) y antelación; (7) política de cancelación visible al visitante (POLITICA_CANCELACION del servicio vs 48 h de Q-HOT-03); (8) qué pasa con el formulario Formspree actual (convive, se retira o se redirige). Duplicados revisados: amplía y reemplaza en V1 a la historia del destino anterior 002-hotel-reservas-concierge/H1 «Reservar y pagar desde la web del hotel» (US-HOT-001, GitHub #63, Bloqueada en el snapshot local; estado actual en GitHub no verificado) y a RES-001/SOC-002 de docs/definicion-herencia/specs/004-reserva-directa (NO APROBADO). No hay otro issue V1 sobre el canal público.",
+  "tipo": "Decisión",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-21",
+  "title": "[Issue] V1-ISSUE-21 — Spec: superficie pública de la API (disponibilidad y solicitud sin sesión interna)",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). REQUISITO PROPUESTO, spec primero (spec-api-v1 nueva sección «Canal público», sin código). Hoy spec-api-v1 solo define rutas con sesión y su regla «nada fuera de la tabla existe». Contenido a especificar según D-PUB-01: rutas bajo prefijo propio (p. ej. /publico/…), sin cookie ni credenciales; empresa fijada por configuración, nunca por parámetro; respuesta sin datos de huéspedes ni ids internos innecesarios; validación (fechas futuras, fin>inicio, personas en rango, noches máximas); CORS: el origen https://hotelherencia.cl solo para estas rutas y sin allow_credentials (hoy ORIGEN_FRONT aplica CORS con credenciales a toda la API y el middleware origin_de_mutaciones devuelve 403 a cualquier Origin ajeno; preflight desde la landing → 400 en producción); límite de abuso por IP/clave y tamaño; idempotencia de la solicitud (clave generada por el navegador, espacio de claves separado del interno, mismo cuerpo → misma respuesta); errores 400/409/422/429 legibles. CA: CA-PUB-01 sin sesión la disponibilidad responde 200 sin datos personales; CA-PUB-02 rutas internas siguen 401 sin sesión; CA-PUB-03 Origin de la landing accede solo a /publico/*, el resto 403; CA-PUB-04 la misma clave y cuerpo no crea dos solicitudes. Pruebas: servicio/tests/test_canal_publico.py (RED antes del código, en el ciclo de v1-issue-22).",
+  "tipo": "Spec",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-20"
+  ]
+ },
+ {
+  "id": "v1-issue-22",
+  "title": "[Issue] V1-ISSUE-22 — Backend: disponibilidad pública y solicitud de reserva persistida (TDD)",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). Implementa v1-issue-21. Disponibilidad pública reutiliza reservas.oferta (misma regla de cupo, tarifa vigente y RES-VENDIBLE; agregada por tipo si D-PUB-01 lo decide); la solicitud se persiste en tabla propia (estado «recibida», origen «landing», datos mínimos decididos) y queda auditada; si D-PUB-01 elige confirmación en línea, crea la reserva por reservas.crear_reserva dentro de la misma transacción con su carrera por la última unidad, nunca una vía paralela. Migración nueva, sin datos reales. CA: CA-PUB-01..04 + CA-PUB-05 sin cupo o sin tarifa → 409 legible y sin solicitud confirmada; CA-PUB-06 dos visitantes por la última unidad → como máximo una confirmación. Pruebas: test_canal_publico.py (unidad + PostgreSQL sintético con exigir_base_libre); regresión completa del servicio.",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-21"
+  ]
+ },
+ {
+  "id": "v1-issue-23",
+  "title": "[Issue] V1-ISSUE-23 — Front: página pública /reservar que recibe fechas y personas desde la landing",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: /hotel/reserva publicado responde 200 a un visitante anónimo pero solo muestra «Sesión cerrada. Inicia sesión»; ninguna página lee parámetros de la URL (no hay useSearchParams) y el formulario interno pide un habitacion_id (por defecto HAB-SINT-102). spec-front-v1 dice «Sin sesión: pantalla de login» y «no existe otra URL que API_BASE_URL»: requiere enmienda de spec-front-v1 antes del código. Alcance: ruta pública fuera de MarcoHotel (sin menú interno), lee inicio/fin/personas de la query y los valida (no confía en ellos), consulta /publico/disponibilidad, muestra lo que el servidor responde (no calcula total), recoge los datos decididos con aviso de privacidad, envía con Idempotency-Key estable que sobrevive errores y se renueva tras 2xx, muestra el número de solicitud o reserva devuelto. CA: CA-PUB-07 deep link con parámetros precarga el formulario; CA-PUB-08 parámetros inválidos → mensaje, sin llamada de mutación; CA-PUB-09 API caída → aviso y nada confirmable. E2E: e2e/e2e-reserva-publica.mjs casos PUB-01 (landing simulada local → /reservar con parámetros → disponibilidad → solicitud → recepción la ve con mismo id, releída por API), PUB-02 sin cupo, PUB-03 doble clic/reintento no duplica, PUB-04 parámetros manipulados, PUB-05 sin sesión no se ve ninguna pantalla interna.",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-22"
+  ]
+ },
+ {
+  "id": "v1-issue-24",
+  "title": "[Issue] V1-ISSUE-24 — Recepción: bandeja de solicitudes públicas y conversión en reserva con origen trazable",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: hoy las consultas de la landing van a Formspree (fuera de la plataforma); recepción no tiene dónde verlas. Alcance (si D-PUB-01 elige solicitud con confirmación humana): listado de solicitudes por estado, ver detalle, convertir en reserva usando POST /hotel/reservas existente (la carrera por la última unidad y RES-VENDIBLE siguen en el servidor), rechazar con motivo; la reserva conserva el id de solicitud y el origen «landing». Roles: recepción y administrador; caja no. CA: CA-PUB-10 solicitud convertida aparece en /hotel/reservas con el mismo precio/fechas aceptados o con la diferencia visible; CA-PUB-11 solicitud ya convertida no se convierte dos veces (409). E2E: PUB-06 en e2e-reserva-publica.mjs (desde el menú de recepción). No notifica al huésped (correo/WhatsApp son puertos sin adaptador).",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-22"
+  ]
+ },
+ {
+  "id": "v1-issue-25",
+  "title": "[Issue] V1-ISSUE-25 — Landing: el CTA «Consultar reserva» lleva al front público con los parámetros",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: los dos «Consultar reserva» y «Hablar con recepcionista» anclan a #contacto de la misma página; el sitio es estático (Apache, assets/js/main.js) y su código NO está en este repositorio (solo se copió su CSS a front/app/globals.css). BLOQUEO: acceso al código y hosting del sitio marketing y autorización para modificarlo y publicarlo. Alcance: enlace HTTPS al front público con inicio, fin y personas (sin datos personales en la URL), mantener o retirar Formspree según D-PUB-01, medir el origen sin identificar al visitante. CA: CA-PUB-12 desde https://hotelherencia.cl el CTA abre /reservar con las fechas elegidas. E2E: PUB-07 contra un despliegue de prueba de la landing (no producción).",
+  "tipo": "Historia",
+  "estado": "En curso",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-20",
+   "v1-issue-23"
+  ]
+ },
+ {
+  "id": "v1-issue-26",
+  "title": "[Issue] V1-ISSUE-26 — Producción opera con la empresa sintética: requisito previo para abrir un canal público",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO: GET /api/salud del front publicado devuelve empresa EMP-SINTETICA-001. Una reserva pública persistiría hoy en el tenant sintético. Antes de exponer el canal: alta de la empresa real, habitaciones y tarifas reales cargadas por el propietario, política de respaldo y datos personales (Q-CORE-03, Ley 21.719) y orden de despliegue (relacionado con v1-issue-18). Requiere decisión y autorización del propietario; nada se ejecuta en producción sin ella.",
+  "tipo": "Decisión",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-18"
+  ]
+ },
+ {
+  "id": "v1-issue-27",
+  "title": "[Issue] V1-ISSUE-27 — Front: un visitante sin sesión ve el menú interno completo en vez de la pantalla de login",
+  "body": "Revisión landing→plataforma 2026-11-03 (navegación pública de https://hotelherencia.cl/ y del front publicado, sin enviar formularios). HECHO (producción): /hotel/reserva sin sesión muestra el menú de operación (Panel, Caja, Usuarios, Mi cuenta, Cerrar sesión) y el texto «Sesión cerrada. Inicia sesión»; no expone datos (la API responde 401), pero contradice spec-front-v1 «Sin sesión: pantalla de login» y revela la estructura interna. Independiente de D-PUB-01. Coordinar con el trabajo en curso sobre front/app/barra.jsx (cambios sin commit de otro proceso al 2026-11-03). CA: sin sesión, toda ruta /hotel/* muestra solo el login (o redirige a /login conservando la ruta de vuelta). E2E: caso AUT-0x en e2e.mjs o archivo propio.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P3",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-28",
+  "title": "[Issue] V1-ISSUE-28 — Decisiones D-AGT-01..06: autonomía, proveedor de modelo, canal, límites, gasto y tono del agente de reservas",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. DECISIÓN PENDIENTE (propietario): D-AGT-01 nivel inicial (propuesta N0 copiloto: borrador verificado que recepción aprueba y envía) y compuerta SC-003 para subir; D-AGT-02 proveedor del modelo, región, retención, datos enviados y aviso al huésped (Ley 21.719) — sin ella no hay adaptador real; D-AGT-03 canal de respuesta de N1; D-AGT-04 límites de N2 (depende de D-PUB-01, v1-issue-20); D-AGT-05 tope de gasto mensual; D-AGT-06 tono e identificación del asistente. Ninguna se inventa.",
+  "tipo": "Decisión",
+  "estado": "Bloqueada",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-29",
+  "title": "[Issue] V1-ISSUE-29 — Agente N0 (TDD): dominio, persistencia y API del copiloto de recepción con modelo guionado",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T010, T020A-C y T030A-C. Enmienda de spec-api-v1 primero; luego RED/GREEN: test_agente_unidad.py (AG-U01..U06: redacción, verificador, validación de decisiones, plantillas con cifras del servidor) y test_agente_servicio.py (AG-S01..S14: borrador igual a /hotel/oferta, sin disponibilidad, dato faltante, recotización 409, inyección escala con 0 reservas, lista cerrada de herramientas, 503 sin adaptador con consulta pendiente, tope de turnos, doble aprobación 409, aislamiento por empresa, agente sin sesión, política solo admin, idempotencia, migración 0010 idempotente). Puerto ModeloLenguaje SinAdaptador/ModeloGuionado; ninguna prueba llama a un proveedor real. HECHO relevante: POST /hotel/reservas no exige rol y usuarios.rol no tiene CHECK; la barrera del agente es la lista de herramientas y la ausencia de sesión. Depende solo de D-AGT-01 (no de D-AGT-02 ni de D-PUB-01).",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-28"
+  ]
+ },
+ {
+  "id": "v1-issue-30",
+  "title": "[Issue] V1-ISSUE-30 — Agente N0: bandeja /hotel/agente en el front y E2E desde el menú",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T040A-C. Ruta /hotel/agente para recepción y administrador (caja no): lista por estado, detalle, borrador con cifras de la herramienta, Aprobar/Editar/Descartar con useClaveOperacion, «Copiar respuesta» (N0 no envía). E2E e2e/e2e-agente.mjs AG-E01..E05 (aprobar con cifras releídas por API, inyección escalada sin reservas, modelo no configurado, caja sin permiso, oferta cambiada) con modelo guionado en servidor local; capturas propias ag-NN-*.png; no tocar resultados E2E ajenos.",
+  "tipo": "Historia",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-29"
+  ]
+ },
+ {
+  "id": "v1-issue-31",
+  "title": "[Issue] V1-ISSUE-31 — Agente: adaptador real del modelo y evaluación de 50 casos (compuerta para N1/N2)",
+  "body": "Spec-kit: specs/005-hotel-agente-reservas/ (spec, plan, data-model, contracts/api-agente.md, acceptance, tasks). Antecedente vinculado: specs/002-hotel-reservas-concierge historia 3 (FR-010/011/013/014, AT-010..014), histórico no ejecutado; no hay otro issue V1 sobre agentes. Tareas T050A-C, T060, T070. Casos sintéticos (20 claros, 10 sin cupo, 10 ambiguos, 5 inyección, 5 datos sensibles), adaptador según D-AGT-02 con prueba de contrato sobre respuestas grabadas (sin red en CI), ejecución AG-V01 solo con autorización explícita en base sintética aislada; informe SC-003 (≥90 % sin edición de cifras, 0 cifras inventadas, 100 % inyecciones escaladas). N1 exige además D-AGT-03; N2 exige D-PUB-01, v1-issue-22 y D-AGT-04.",
+  "tipo": "Historia",
+  "estado": "En curso",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-28",
+   "v1-issue-29"
+  ]
+ },
+ {
+  "id": "v1-issue-32",
+  "title": "[Issue] V1-ISSUE-32 — Cobro parcial en /hotel/pago no se registra con clave por defecto «cobro-web-1» y devuelve 201 falso positivo",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO: `front/app/hotel/pago/page.js` inicializa `clave: 'cobro-web-1'` y no la rota tras un 201; `servicio/cobro.py` (`registrar_pago_manual`) deduplica en la tabla `pagos` por `(reserva_id, clave)` devolviendo 201 Created con `reintento: true` y los datos del primer pago sin verificar si `monto_clp` cambió. Reproducción: sobre una reserva de $120.000 (`RSV-efc45d0bca56`), registrar un primer abono de $50.000 (201, `PAG-58ac0c3a59b4`) y luego cambiar monto a $70.000 dejando `clave = 'cobro-web-1'`; la API responde 201 con `monto_clp: 50000, reintento: true`, la UI muestra confirmación exitosa, pero el segundo abono no se asienta y el saldo en `/hotel/reservas/{id}` sigue en $70.000 (bloqueando la salida). Criterios de aceptación: (1) en `servicio/cobro.py`, si `(reserva_id, clave)` ya existe en `pagos` con distinto `monto_clp` o `modo`, responder 409 Conflict; si es reintento idéntico, que la UI distinga el reintento; (2) en `front/app/hotel/pago/page.js`, generar/rotar la clave de cobro en cada nueva operación en lugar de fijar el literal estático `'cobro-web-1'`; (3) pruebas en `test_h4.py` y `e2e/e2e.mjs` con dos abonos parciales consecutivos que dejan `saldo_clp = 0`.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-back/h4/t2"
+  ]
+ },
+ {
+  "id": "v1-issue-33",
+  "title": "[Issue] V1-ISSUE-33 — Permitir cambio de clave propia a roles recepción y caja en /cuenta e incluir id de usuario en GET /sesion",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO: `spec-api-v1.md` y `servicio/aplicacion.py:884-905` (`POST /usuarios/{id}/clave`) habilitan el cambio de clave para «el propio usuario o un administrador». Sin embargo: (1) `GET /sesion` (`servicio/aplicacion.py:349-359`) devuelve `{usuario, rol, empresa_id, totp_activado}` sin el `id` (`USR-...`) del usuario; (2) `/hotel/usuarios` (`front/app/hotel/usuarios/page.js:60-66`) bloquea toda la pantalla si `rol !== 'administrador'`; (3) `/cuenta` (`front/app/cuenta/page.js`) solo gestiona 2FA TOTP. Resultado: los operadores con rol `recepcion` o `caja` no pueden cambiar su propia contraseña desde la UI ni conocer su `USR-...`. Criterios de aceptación: (1) `GET /sesion` incluye `id: sesion.usuario_id`; (2) `/cuenta` incorpora formulario de cambio de clave propia usando `useClaveOperacion` y `POST /usuarios/{id}/clave` para cualquier rol autenticado; (3) pruebas en `test_h2.py` y E2E verificando cambio de clave propia por `recepcion` y `caja` y nuevo login con la clave actualizada.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-back/h2/t2"
+  ]
+ },
+ {
+  "id": "v1-issue-34",
+  "title": "[Issue] V1-ISSUE-34 — Eliminar desbordamiento horizontal móvil (320px–430px) en /hotel/habitaciones/[id], /hotel/reservas/[id] y /hotel/oferta",
+  "body": "Auditoría técnica integral 2026-11-03 (complementa V1-FRONT/UX-03 #278 que cubre solo `/hotel/panel`). HECHO medido en Chromium (viewports 320×568, 375×812, 390×844, 430×932): (1) `/hotel/habitaciones/[id]` desborda el documento en 320px–430px (`document.documentElement.scrollWidth = 628px` en 320px) porque sus 4 tablas `.tabla` (tarifas, reservas, tareas, auditoría) no tienen contenedor con `overflow-x: auto`; (2) `/hotel/reservas/[id]` desborda en 320px y 375px (`scrollWidth = 379px`) por sus 2 tablas `.tabla` (cargos y pagos); (3) `/hotel/oferta` con resultados desborda en 320px (`scrollWidth = 360px`) porque `.oferta-rejilla` en `front/app/globals.css:806` define `grid-template-columns: repeat(auto-fill, minmax(340px, 1fr))`. Criterios de aceptación: (1) envolver las 6 tablas `.tabla` de `/hotel/habitaciones/[id]` y `/hotel/reservas/[id]` en `.tabla-contenedor` (`overflow-x: auto`); (2) ajustar `.oferta-rejilla` a `minmax(min(100%, 320px), 1fr)`; (3) verificar con Playwright en 320, 375, 390, 430, 768, 1280 y 1440px que `document.documentElement.scrollWidth <= window.innerWidth` en las 19 rutas.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-oper-01"
+  ]
+ },
+ {
+  "id": "v1-issue-35",
+  "title": "[Issue] V1-ISSUE-35 — Precargar reserva_id y habitacion_id/fechas entre pantallas operativas y eliminar defaults inválidos en /hotel/reserva",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO: (1) en `/hotel/reservas/[id]` (`front/app/hotel/reservas/[id]/page.js:21-24`), los enlaces de `SIGUIENTE_PASO` apuntan a `/hotel/estadia`, `/hotel/pago` y `/hotel/salida` sin `?reserva_id=...`, obligando al operador a copiar y pegar manualmente el `RSV-...`; (2) en `/hotel/oferta`, `TarjetaOferta` (`front/app/hotel/_componentes/tarjeta-oferta.js`) no incluye acción para ir a `/hotel/reserva` precargando `habitacion_id`, `inicio` y `fin`; (3) `/hotel/reserva` (`front/app/hotel/reserva/page.js:7-13`) inicia con `habitacion_id: 'HAB-SINT-102'`, `inicio: '2026-12-10'`, `fin: '2026-12-12'`, lo que en una base recién sembrada falla con `409 sin tarifa vigente para HAB-SINT-102 en 2026-12-10`. Criterios de aceptación: (1) `SIGUIENTE_PASO` en `/hotel/reservas/[id]` enlaza con `?reserva_id={id}` y `/hotel/pago`, `/hotel/estadia` y `/hotel/salida` precargan el campo «Reserva»; (2) `TarjetaOferta` permite abrir `/hotel/reserva` con `habitacion_id`, `inicio` y `fin` precargados; (3) prueba E2E del flujo Oferta → Reserva → Ficha → Pago → Estadía → Salida navegando por enlaces sin copiar/pegar IDs.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": [
+   "v1-oper-01"
+  ]
+ },
+ {
+  "id": "v1-issue-36",
+  "title": "[Issue] V1-ISSUE-36 — Accesibilidad y táctil: blancos >= 44×44 px, semántica de tabla en listados, foco visible, reduced-motion y confirmación en acciones destructivas",
+  "body": "Auditoría técnica integral 2026-11-03. HECHOS medidos en DOM: (1) Blancos táctiles < 44×44 px CSS: `.boton-primario` (41.6px), `.boton-secundario` (35.2px), `.entrada` (41.3px), `.nav-enlace` escritorio (38.8px) y celdas `.noche` en `/hotel/ocupacion` (33.6×32px); (2) `InventarioHabitaciones`, `ListaReservas` y `ListaUsuarios` renderizan datos multi-columna en `<ul>/<li>` con cabecera `<li aria-hidden=\"true\">`, dejando las celdas sin etiquetas de columna para lectores de pantalla; (3) `front/app/globals.css` carece de `@media (prefers-reduced-motion: reduce)` y de `:focus-visible` explícito en botones y enlaces de navegación, y `BarraNav` no asigna `aria-current=\"page\"` al enlace activo; (4) acciones destructivas («Desactivar doble factor» en `/cuenta`, «Cancelar reserva» en `/hotel/estadia`, «Dar de baja» y «Revocar sesiones» en `/hotel/usuarios`) se ejecutan al primer clic sin confirmación y los formularios no deshabilitan el botón `submit` mientras `fetch` está en vuelo. Criterios de aceptación: (1) altura mínima >= 44px en controles interactivos y botones; (2) semántica de tabla accesible (`<table>` o `role=\"table\"`/`role=\"columnheader\"`) sin `aria-hidden=\"true\"` en cabeceras; (3) `aria-current=\"page\"`, `:focus-visible` y `@media (prefers-reduced-motion: reduce)`; (4) confirmación explícita en las 4 acciones destructivas y `disabled` durante envío.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "hotel",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-37",
+  "title": "[Issue] V1-ISSUE-37 — Rendimiento: compartir estado de useSesion() para evitar 2 a 3 llamadas GET /sesion por cada carga de pantalla",
+  "body": "Auditoría técnica integral 2026-11-03. HECHO medido en red (Playwright): cada montaje de `/cuenta`, `/hotel/panel`, `/hotel/ocupacion`, `/hotel/habitaciones`, `/hotel/habitaciones/[id]`, `/hotel/reservas`, `/hotel/reservas/[id]`, `/hotel/estadia`, `/hotel/caja` y `/hotel/usuarios` dispara 3 peticiones concurrentes `GET /sesion` (y 2 en el resto de rutas) porque `BarraNav`, `MarcoHotel` y el componente de página invocan `useSesion()` (`front/lib/api.js:50-68`) sin contexto compartido ni deduplicación en vuelo. Criterios de aceptación: (1) proveer el estado de sesión mediante un `Context` o promesa compartida en `front/lib/api.js` con función de refresco explícito tras login/logout/2FA; (2) verificar en Playwright que cargar cualquier ruta `/hotel/*` o `/cuenta` emite exactamente 1 petición `GET /sesion`.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P2",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": []
+ },
+ {
+  "id": "v1-issue-38",
+  "title": "[Issue] V1-ISSUE-38 — Guardia de sesión y contenedor .pagina en /cafeteria, /inmobiliaria y /constructora, y formato clp() en /hotel/caja",
+  "body": "Auditoría técnica integral 2026-11-03 (complementa V1-ISSUE-27). HECHO: (1) las rutas `/cafeteria`, `/inmobiliaria` y `/constructora` (`front/app/{cafeteria,inmobiliaria,constructora}/page.js`) renderizan `<main><h1>...</h1></main>` sin clase `.pagina` y sin guardia de sesión, mostrando la barra lateral interna incluso a visitantes anónimos; (2) en `/hotel/caja` (`front/app/hotel/caja/page.js:48`), el encabezado muestra `Total del día: $${caja.total_clp}` sin separador de miles, mientras la tabla usa `clp()`. Criterios de aceptación: (1) `/cafeteria`, `/inmobiliaria` y `/constructora` verifican sesión igual que `/` y aplican `className=\"pagina\"`; (2) `/hotel/caja` usa `clp(caja.total_clp)` en el total del día.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P3",
+  "vertical": "transversal",
+  "padre": null,
+  "depende_de": [
+   "v1-issue-27"
+  ]
+ },
+ {
+  "id": "v1-issue-39",
+  "title": "[Issue] V1-ISSUE-39 — Blindar cancelación y operaciones de estadía ante concurrencia, doble envío y estado ya cancelado",
+  "body": "Investigación y corrección SDD+TDD del flujo de cancelación en `/hotel/estadia?reserva_id=...` (2026-11-04). HECHOS confirmados en local sobre base aislada: (1) En `servicio/cobro.py`, `_reserva_de_la_empresa` seleccionaba la fila de `reservas` sin `FOR UPDATE`, permitiendo que solicitudes concurrentes `POST /hotel/reservas/{id}/cancelacion` con distinta `Idempotency-Key` leyeran `estado = 'confirmada'` simultáneamente e insertaran reversos duplicados por cada cargo de alojamiento y múltiples cargos de penalidad por cancelación fuera de plazo; (2) En `servicio/idempotencia.py`, `ejecutar` leía `claves_idempotencia` sin bloqueo por `(empresa_id, clave)`, causando que reintentos concurrentes con la misma `Idempotency-Key` ejecutaran la operación dos veces y chocaran en el `INSERT` con `409 {\"detail\": \"conflicto de integridad\"}` (`UniqueViolation`); (3) En `front/app/hotel/estadia/page.js`, `ejecutar` llamaba a `setEnviando(true)` antes de `window.confirm` y de `camposFaltantes` (dejando los tres botones bloqueados en «Procesando…» si el operador cancelaba el diálogo o faltaba un campo), carecía de cerrojo síncrono (`useRef`) en el mismo tick de evento, no consultaba `GET /hotel/reservas/{id}` al abrir `?reserva_id=...` para mostrar el estado actual ni deshabilitar acciones incompatibles con el estado (`cancelada`, `en_estadia`, `finalizada`), y no precargaba `cargo.reserva_id`. Criterios de aceptación (verificados en `servicio/tests/test_cancelacion_estadia.py` 6/6, suite `206/206` y E2E Playwright): (1) abrir/recargar `/hotel/estadia?reserva_id=...` no dispara ninguna mutación, precarga los 3 formularios y muestra el contexto operativo de la reserva; (2) `idempotencia.ejecutar` serializa `(empresa_id, clave)` con `pg_advisory_xact_lock` y `_reserva_de_la_empresa(..., bloqueo=True)` aplica `SELECT ... FOR UPDATE`, garantizando exactamente 1 transición a `cancelada`, 1 reverso por cargo original y a lo sumo 1 penalidad aun bajo concurrencia con igual o distinta `Idempotency-Key`; (3) cancelar `window.confirm` o fallar validación no bloquea los botones; tras cancelar la reserva, los botones quedan deshabilitados y `resumenConfirmacion` explicita los reversos, la penalidad y que `reembolso: no configurado` significa sin devolución automática por pasarela.",
+  "tipo": "Tarea",
+  "estado": "Hecha",
+  "prioridad": "P1",
+  "vertical": "hotel",
+  "padre": "v1-back/h4",
+  "depende_de": [
+   "v1-oper-01"
+  ]
+ }
 ]

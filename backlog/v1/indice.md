@@ -349,3 +349,22 @@ E2E una sola vez, sincronizado en el mismo commit.
   servicio 260/260, dominio 180/180 (5 raíces), landing unitarios 12/12,
   E2E: base 56/56, operación 20/20, reserva-publica 6/6, landing 3/3,
   leads 5/5, agente 4/4.
+
+## Sincronización de estado — 2026-11-05
+
+Retomo de la construcción sin cambios de código: la revisión del tablero
+mostró trabajo completado que el tablero aún registraba abierto.
+
+- Revisión previa: `v1-issue-19` y `v1-issue-27` ya estaban resueltas en
+  código (commits `7ae13cb` y `c170656`, con sus pruebas); faltaba solo el
+  cierre administrativo.
+- Tablero local (`construccion-v1.json`): 19, 21, 22, 23, 24, 27, 29, 30 →
+  Hecha; 25 y 31 → En curso (25 falta publicación del CTA en el hosting;
+  31 falta el adaptador, bloqueado por D-AGT-02).
+- GitHub Issues: cerrados #317, #318 y #325 con comentario de evidencia;
+  comentario de estado en #313, #319 y #324. Project n.º 2: #313 y #319
+  movidas a «In Progress».
+- Regresión servicio: 260/260 en tres corridas consecutivas; la primera
+  corrida del día tuvo 1 fallo no capturado por nombre que no reprodujo en
+  las tres siguientes — intermitente registrado, sin identidad aún.
+- Dominio: 5 raíces OK. No se tocó código de producto.
