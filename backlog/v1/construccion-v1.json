@@ -1106,7 +1106,7 @@
   "title": "[Issue] V1-AUD-09 — Reglas y dependencias con deuda de mantenibilidad",
   "body": "Auditoría de jefatura 2026-11-03 (Auditoría ARC-A01), criticidad media. Trazada a GitHub #334 el 2026-11-05 con evidencia y acción propuesta.",
   "tipo": "Issue",
-  "estado": "En curso",
+  "estado": "Hecha",
   "prioridad": "P2",
   "vertical": "transversal",
   "padre": null,
