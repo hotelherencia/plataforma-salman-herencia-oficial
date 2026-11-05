@@ -1,0 +1,51 @@
+# Estado vigente de la construcción V1
+
+**Ficha viva (DOC-A01, #335).** Sustituye a los conteos dispersos del README;
+si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo.
+Última actualización: 2026-11-05 (cierre de las correcciones de la auditoría
+de jefatura 2026-11-03).
+
+## Qué es operable hoy
+
+- **Módulo hotel completo de V1** (empresa fija): habitaciones/tarifas,
+  oferta, reserva transaccional, cobro por el núcleo, estadía (entrada/salida
+  con turnover), caja, cancelación con reversos, mantenedor auditado,
+  búsqueda, ocupación e indicadores operativos, canal público (disponibilidad,
+  solicitudes, landing con CTA y leads), agente N0 copiloto con compuerta
+  SC-003 (modelo guionado; el adaptador real espera D-AGT-02).
+- **Front** en Vercel (login con 2FA TOTP y Google opcional, las pantallas del
+  hotel, bandejas de solicitudes/leads/agente, /reservar pública) y **API +
+  backend** desplegados (API en Vercel `/api/*`, backend Railway restaurado el
+  2026-11-02).
+
+## Números vigentes (2026-11-05)
+
+| Magnitud | Valor | Fuente |
+|---|---|---|
+| Operaciones del contrato | 51 | spec-api-v1 (la tabla manda; la valida `scripts/validar_estado_v1.py`) |
+| Pruebas del servicio | 277 | `unittest discover -s servicio/tests` |
+| Pruebas del dominio | 5 raíces en verde (~180) | core + 4 verticales incremento1 |
+| Unitarios de la landing | 12 | `node --test landing/test/*.test.mjs` |
+| E2E con navegador | base 56 · operación 20 · público 6 · landing 3 · leads 5 · agente 4 | `e2e/` (corridas fechadas en `capturas/`) |
+| Tablero V1 | 92 ítems (70 hechos) | `backlog/v1/construccion-v1.json` |
+
+## Fuera de V1 (nombrado, no operable)
+
+Financieros (ADR/RevPAR/ingresos — D de propietario), verticales cafetería/
+inmobiliaria/constructora (rutas vacías con guardia), puertos externos reales
+(Webpay, Mercado Pago, SII, Booking, Airbnb, WhatsApp/Meta: sin adaptador →
+503 «no configurado», regla AGENTS.md).
+
+## Decisiones que bloquean ampliación
+
+D-ENT-01 y relacionadas (#296–#299, #304–#306), D-PUB-01 restante (#308),
+D-AGT-02..06 (#316), D-CANAL-01 (#324). Brief con opciones y recomendaciones:
+`docs/arquitectura/decisiones-pendientes-v1.md`.
+
+## Seguridad (post-auditoría 2026-11-03)
+
+Resueltas el 2026-11-05: SEC-A01..A05 y OPS-A02 (issues #326–#330, #333;
+detalle en `backlog/v1/indice.md` §«Correcciones de la auditoría»). Pendientes:
+rotación periódica de secretos (proceso; última rotación 2026-11-05, #275),
+ensayo de restauración PITR (OPS-A01, #332), ruleset de protección de rama
+(REL-A01, #331 — el CI ya corre; falta exigir el check).

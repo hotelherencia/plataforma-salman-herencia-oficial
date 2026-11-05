@@ -1,9 +1,11 @@
 # plataforma-salman-herencia
 
-Plataforma **core multi-vertical** del Grupo Salman, **en definición** para
-la **empresa base Herencia** (Hotel Herencia). Esta base **no es la vertical
-hotel**: es la plataforma compartida completa — núcleo transversal más cuatro
-verticales de negocio. La vertical hotel es solo una de las cuatro.
+Plataforma **core multi-vertical** del Grupo Salman, **en construcción V1**
+para la **empresa base Herencia** (Hotel Herencia): el módulo hotel es
+operable de punta a punta (API + backend + front + canal público + agente N0);
+las otras verticales quedan nombradas y cerradas en esta versión. El estado
+vigente (números, alcance, pendientes) vive en
+`docs/arquitectura/estado-v1.md` — citar esa ficha en lugar de copiar cifras.
 
 ## Qué contiene
 
@@ -109,44 +111,47 @@ lecciones en `docs/arquitectura/h7-despliegue.md`.
 **Pendiente de producción:** registrar la URI de redirección de Google
 **mismo-origen** (`https://plataforma-salman-herencia-oficial.vercel.app/api/auth/google/callback`)
 en Cloud Console — el backend ya la envía (2026-11-02 noche, tras el rewrite
-`/api`); sin ella el login con Google vuelve a dar 400; activar
-PITR en el servicio `postgres` (Backups → Enable PITR); rotar secretos
-(`VERCEL_TOKEN`, clave de aplicación Gmail, `ADMIN_CLAVE` productiva — expuesta
-en chat 2026-11-02). **Backend Railway (2026-11-02, orden del propietario,
-EN VIVO):** proyecto `plataforma-salman-herencia` creado por API con
+`/api`); sin ella el login con Google vuelve a dar 400. Secretos rotados el
+2026-11-05 (orden del propietario; #275 cerrada) — la rotación periódica queda
+como proceso (`docs/arquitectura/h7-despliegue.md`). **Backend Railway
+(2026-11-02, orden del propietario, EN VIVO):** proyecto
+`plataforma-salman-herencia` creado por API con
 PostgreSQL 16, repo GitHub conectado (auto-deploy en cada push) y secretos
 `ADMIN_*` fijados (detalle en
 `docs/arquitectura/h7-despliegue.md`). **PITR activado el 2026-11-02**
 (Backups → Enable PITR por el propietario): bucket `Postgres-PITR` (US West),
 `WAL_ARCHIVE_*` fijadas y pgBackRest archivando — full semanal + diferencial
-diaria, retención ~4 semanas.
+diaria, retención ~4 semanas; **el ensayo de restauración sigue pendiente**
+(OPS-A01, #332).
 
-**Construcción (2026-10-28):** backend real en `servicio/` (H1–H5 +
-maduración: validación, seguridad, contrato OpenAPI servido, auditoría;
-39 pruebas + 181 del dominio) y **front en `front/`** (H6: Next.js con login,
-las siete pantallas del hotel, rutas vacías de las otras verticales y la regla
-«API caída → error y nada confirmable», verificado con navegador contra el
-servicio real). Demo local: API en http://127.0.0.1:8080 y front en
-http://127.0.0.1:3000. H7 resuelto el 2026-10-30 (ver «Desplegado en
+**Construcción (2026-10-28 y siguientes):** backend real en `servicio/`
+(H1–H5 + maduración + operación hotel + canal público + agente N0 +
+correcciones de la auditoría 2026-11-05) y **front en `front/`** (H6 y
+siguientes). Los números vigentes de pruebas y operaciones están en la ficha
+`docs/arquitectura/estado-v1.md` (2026-11-05: 277 servicio, dominio 5 raíces,
+51 operaciones de contrato). Demo local: API en http://127.0.0.1:8080 y front
+en http://127.0.0.1:3000. H7 resuelto el 2026-10-30 (ver «Desplegado en
 producción» más arriba). El código local es en memoria y sin red: incremento 0 del hotel
-(17 pruebas OK) e incremento 1 del núcleo y de las cuatro verticales
-(9 + 102 hotel + 19 cafetería + 20 inmobiliaria + 14 constructora, todas OK,
-solo biblioteca estándar; propuesta técnica no ratificada). El 2026-10-28 se
+e incremento 1 del núcleo y de las cuatro verticales: la especificación
+ejecutable del dominio que el servicio importa (sus pruebas son parte de la
+regresión). El 2026-10-28 se
 reparó el import de `datetime` en `verticales/hotel/incremento1` que impedía
 ejecutar sus 102 pruebas; las 6 baterías se reejecutaron OK (181 pruebas).
-GitHub: repositorio privado
+GitHub: repositorio público
 `hotelherencia/plataforma-salman-herencia-oficial` y Project n.º 2 «Project
-Plataforma Hotel Herencia» con 255 ítems (2026-10-28): corpus documental
-cerrado, 16 decisiones del propietario abiertas y el backlog de construcción
-V1 en `backlog/v1/` — 211 Done, 28 Todo, 16 Decisión humana.
+Plataforma Hotel Herencia» con 326 ítems (2026-11-05): corpus documental
+cerrado, decisiones del propietario abiertas y el backlog de construcción
+V1 en `backlog/v1/` — ver `backlog/v1/indice.md` para el estado real.
 
 ## Reglas y validación
 
 Ver `AGENTS.md` (documentación de negocio en castellano; construcción autorizada
-del mínimo front / API / backend, sin datos productivos ni pasarelas). Control documental:
-`python3 scripts/validar_documentacion.py` (hoy no arranca por falta heredada de
-`docs/auditorias/originales-sha256.json`; condición conocida, no introducida por
-esta estructura).
+del mínimo front / API / backend, sin datos productivos ni pasarelas). Control
+del estado vigente: `python3 scripts/validar_estado_v1.py` (specs, tabla de
+operaciones, tablero, evidencia citada, landing, `.env`, CI). El validador del
+corpus documental heredado quedó archivado en
+`docs/archivo-no-construccion/validar_documentacion-corpus-2026-10.py` con el
+corpus cerrado.
 
 ## Procedencia
 
