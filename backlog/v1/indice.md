@@ -513,3 +513,22 @@ CI en commits propios.
   desde Railway (fork del PITR → ensayo → medir RPO/RTO → destruir). Resta el
   paso ejecutivo en Railway (dashboard; el CLI local está roto) con registro
   de RPO/RTO medidos en la issue.
+
+## Cuarta pasada — 2026-11-05 (continuación de pendientes)
+
+- [Hecha] **Épica `v1-desp` (H7) sincronizada** — las issues GitHub (#217,
+  #251–255) ya estaban cerradas y las tarjetas del Project en «Done» desde el
+  despliegue real (Railway + Vercel + API en Vercel, verificado en
+  producción); solo el tablero local (`construccion-v1.json`) las mantenía
+  «Lista». Corregido: H7 completo en los tres lugares.
+- **#332 (OPS-A01) destrallado hasta su único paso restante**: instalado el
+  CLI de Railway 5.71.0 en WSL (`~/.local/railway-cli`), pero la sesión
+  guardada está vencida («Unauthorized»). Queda documentado en la issue el
+  único paso del propietario (`railway login`, ~30 s en navegador); con eso,
+  el ensayo en solo lectura contra producción (incluida la versión real de
+  PostgreSQL) y el fork del PITR quedan listos para ejecutar.
+- **Pendientes reales del tablero tras esta pasada** (todos con dependencia
+  externa identificada): #332 (login Railway del propietario), #313
+  (publicación de la landing — acceso al hosting), #319 (adaptador del agente
+  — D-AGT-02), #324 (WhatsApp — autorización Meta), y las decisiones de
+  negocio #296–#299, #304–#306, #308, #314, #316.
