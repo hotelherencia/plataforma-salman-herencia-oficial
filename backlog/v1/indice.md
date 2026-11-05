@@ -483,7 +483,14 @@ CI en commits propios.
   heredado se archivó con el corpus cerrado. Ficha viva
   `docs/arquitectura/estado-v1.md` con los números vigentes. README
   sincronizado (público, construcción V1, secretos rotados).
-- [En curso] **ARC-A01 (#334)** — dependencias fijadas en los tres
+- [Hecha] **ARC-A01 (#334)** — dependencias fijadas en los tres
   manifiestos (lock reproducible); entrypoints de Vercel aclarados (vigentes,
   una raíz de build cada uno); spec-backend-v1 sincronizada al flujo real.
   Resta el split de `aplicacion.py` y la revisión de licencias.
+- [Hecha] **ARC-A01 — split y licencias (misma noche)** —
+  `aplicacion.py` 1.711 → 352 líneas: rutas en `servicio/rutas/`
+  (`acceso` 15 rutas, `hotel` 27 incluye solicitudes/leads, `agente` 7) con
+  dependencias compartidas en `rutas/comun.py` y modelos en
+  `rutas/modelos.py`; comportamiento idéntico verificado por la regresión
+  completa del servicio. Licencias revisadas y documentadas en
+  spec-backend-v1 (MIT/BSD salvo psycopg LGPL-3.0 con nota de uso).

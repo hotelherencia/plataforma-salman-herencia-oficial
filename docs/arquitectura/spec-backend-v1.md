@@ -45,10 +45,30 @@ vigente, de afuera hacia adentro:
    de cobro/estadía que el servicio persiste en `efectos_nucleo`; es la
    especificación ejecutable del dominio (181 pruebas, sin red).
 
-Deuda reconocida (sigue en #334): `aplicacion.py` concentra todas las rutas
-(~1.600 líneas); el split por módulos de rutas (auth/hotel/público/agente) y
-la revisión de licencias quedan como trabajo pendiente — los tests (277) son
-la red de seguridad para hacerlo.
+Split aplicado el 2026-11-05 (ARC-A01): `aplicacion.py` quedó como fábrica
+(arranque, middlewares, salud/readiness, handlers) y las rutas viven en
+`servicio/rutas/` (`acceso`, `hotel` —incluye solicitudes/leads— y `agente`)
+con las dependencias compartidas en `rutas/comun.py` y los modelos en
+`rutas/modelos.py`. Los 277 tests del servicio son la red de seguridad del
+movimiento; comportamiento idéntico, verificado por la regresión completa.
+
+## Licencias de las dependencias (revisión ARC-A01, 2026-11-05)
+
+| Paquete (fijado) | Licencia |
+|---|---|
+| fastapi 0.162.0 | MIT |
+| uvicorn 0.54.0 | BSD-3-Clause |
+| psycopg[binary] 3.3.6 | LGPL-3.0-only |
+| argon2-cffi 25.1.0 | MIT |
+| httpx 0.28.1 | BSD-3-Clause |
+| qrcode 8.2 | BSD |
+
+Todas OSI y compatibles con uso comercial. Única cautela: psycopg es
+LGPL-3.0 — el import dinámico desde CPython sin modificación del paquete es
+el modo de uso aceptado (mismo caso histórico de psycopg2); no hay código
+propietario derivado ni linking estático. Si el negocio exigiera
+alternativa permissiva, el único punto de toque es `servicio/` (el dominio
+no importa psycopg).
 
 ## Persistencia
 
