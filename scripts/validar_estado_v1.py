@@ -96,8 +96,9 @@ try:
 except OSError:
     check(True, "chequeo git de .env omitido (git no disponible)")
 
-# 6) CI (REL-A01)
-check((ROOT / ".github/workflows/ci.yml").is_file(), "workflow de CI presente")
+# 6) Verificación local previa al despliegue (REL-A01, 2026-11-05: GitHub
+# Actions descartado por orden del propietario; la compuerta es local)
+check((ROOT / "scripts/verificar_local.py").is_file(), "verificador local previo al despliegue presente")
 
 print(f"\n{ok_count} comprobaciones OK; {len(errores)} fallos")
 for e in errores:

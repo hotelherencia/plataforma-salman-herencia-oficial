@@ -424,6 +424,22 @@ Las tres piezas juntas: front de Vercel leyendo solo `API_BASE_URL`, contrato
 servido por el backend de Railway, persistencia real en su PostgreSQL;
 login usuario/clave+TOTP y login con Google funcionando en producción.
 
+## Compuerta previa al despliegue (orden del propietario, 2026-11-05)
+
+La verificación es **integral y local**, y se corre **antes** de aprobar
+cualquier deploy (GitHub Actions quedó descartado como vehículo: bloquea la
+construcción; ver #331):
+
+```bash
+.venv/bin/python scripts/verificar_local.py
+```
+
+Revisa, en orden: estado del repo (specs/contrato/tablero/evidencia), dominio
+(5 raíces), servicio (suite completa contra base dedicada creada al vuelo),
+unitarios de la landing y build de producción del front. **Solo se aprueba el
+deploy con TODO en verde**; en rojo: revisar, evaluar y corregir antes de
+desplegar.
+
 ## Operación continua (añadido 2026-11-03, de los issues v1-issue-04/05)
 
 ### Aprobación de deploys (Railway, política post-incidente)

@@ -494,3 +494,22 @@ CI en commits propios.
   `rutas/modelos.py`; comportamiento idéntico verificado por la regresión
   completa del servicio. Licencias revisadas y documentadas en
   spec-backend-v1 (MIT/BSD salvo psycopg LGPL-3.0 con nota de uso).
+
+## Tercera pasada — 2026-11-05 (órdenes del propietario)
+
+- [Hecha] **REL-A01 (#331) redirigida** — el propietario descartó GitHub
+  Actions («no me sirve si va a estar bloqueando deploy o deteniendo la
+  construcción… no aplicar»): workflow eliminado y la verificación es
+  **integral, local y previa al despliegue** — `scripts/verificar_local.py`
+  (estado del repo, dominio 5 raíces, suite del servicio contra base dedicada
+  creada al vuelo, landing, build de producción del front). Compuerta
+  documentada en `h7-despliegue.md`: solo se aprueba un deploy con TODO en
+  verde.
+- [En curso] **OPS-A01 (#332) — prueba de restauración construida** —
+  `scripts/ensayo_restauracion.py` (hechos sobre la base restaurada:
+  migraciones, 18 tablas legibles, invariantes de reservas/pagos/auditoría),
+  validado con un ciclo local completo (dump → restore → «OPERABLE»), y
+  runbook `docs/arquitectura/ensayo-restauracion-pitr.md` con el procedimiento
+  desde Railway (fork del PITR → ensayo → medir RPO/RTO → destruir). Resta el
+  paso ejecutivo en Railway (dashboard; el CLI local está roto) con registro
+  de RPO/RTO medidos en la issue.
