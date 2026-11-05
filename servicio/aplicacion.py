@@ -6,9 +6,7 @@ Con `database_url` configurada, el arranque también aplica migraciones y crea
 el administrador inicial desde variables de entorno (spec-api-v1).
 """
 import json
-import secrets
 import sys
-import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -20,9 +18,8 @@ for _ruta in (RAIZ / "core" / "incremento1", RAIZ / "verticales" / "hotel" / "in
         sys.path.insert(0, _s)
 
 import psycopg  # noqa: E402
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Path as RutaParam, Query, Request, Response  # noqa: E402
-from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
-from pydantic import BaseModel, Field, field_validator  # noqa: E402
+from fastapi import Depends, FastAPI, Header, HTTPException, Path as RutaParam, Query, Request, Response  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad  # noqa: E402
 from hotel_inventario.servicio import ROLES_DOCUMENTO, ServicioHotelInventario  # noqa: E402
@@ -44,8 +41,6 @@ from . import totp  # noqa: E402
 from . import totp_qr  # noqa: E402
 
 NOMBRE_COOKIE_SESION = "sid"
-# SEC-A05 (#330): transacción OAuth atada al navegador que inició el login.
-NOMBRE_COOKIE_OAUTH_TX = "oauth_tx"
 
 
 class ErrorArranque(Exception):
@@ -97,138 +92,16 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
         raise ErrorArranque(f"no se pudo conectar a la base de datos: {error}")
 
 
-class Credenciales(BaseModel):
-    usuario: str
-    clave: str
-    totp: str | None = Field(default=None, min_length=6, max_length=10)
-
-
-class CodigoTotpIn(BaseModel):
-    codigo: str = Field(min_length=6, max_length=10)
-
-
-class ClaveActualIn(BaseModel):
-    """SEC-A02 (#327): clave actual para reautenticar operaciones sensibles
-    del segundo factor (reemplazar el autenticador o desactivarlo). Cualquier
-    largo no vacío: la validación de la clave la hace `reautenticar_clave`
-    (401), no el esquema — un 422 aquí filtraría el chequeo de autorización."""
-    clave: str = Field(min_length=1)
-
-
-class HabitacionIn(BaseModel):
-    tipo: str = Field(min_length=1, max_length=50)
-    capacidad: int = Field(gt=0, le=30)
-
-    @field_validator("tipo")
-    @classmethod
-    def _tipo_sin_bordes(cls, valor: str) -> str:
-        valor = valor.strip()
-        if not valor:
-            raise ValueError("el tipo no puede quedar vacío")
-        return valor
-
-
-# spec-hotel-operacion-v1 §2.2: id estable y apto para URL (clave primaria).
-PATRON_ID_HABITACION = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$"
-
-
-class ServicioIn(BaseModel):
-    en_servicio: bool
-    motivo: str | None = Field(default=None, max_length=200)
-
-
-class TarifaIn(BaseModel):
-    habitacion_id: str = Field(min_length=1, max_length=50)
-    fecha_desde: date
-    fecha_hasta: date
-    tarifa_noche_clp: int = Field(gt=0, le=100_000_000)
-
-
-class HuespedIn(BaseModel):
-    nombre: str = Field(min_length=1, max_length=200)
-    documento: str | None = Field(default=None, max_length=50)
-
-
-class ReservaIn(BaseModel):
-    habitacion_id: str = Field(min_length=1, max_length=50)
-    inicio: date
-    fin: date
-    huesped: HuespedIn
-
-
-class PagoIn(BaseModel):
-    monto_clp: int = Field(gt=0, le=1_000_000_000)
-    clave: str = Field(min_length=1, max_length=100)
-    modo: str = Field(pattern="^(manual|pasarela)$")
-
-
-class UsuarioIn(BaseModel):
-    nombre: str = Field(min_length=1, max_length=100)
-    rol: str = Field(pattern="^(administrador|recepcion|caja)$")
-    clave: str = Field(min_length=6, max_length=200)
-
-
-class ClaveIn(BaseModel):
-    clave: str = Field(min_length=6, max_length=200)
-
-
-class MantenimientoIn(BaseModel):
-    abierto: bool
-
-
-class CargoIn(BaseModel):
-    concepto: str = Field(min_length=1, max_length=200)
-    monto_clp: int = Field(gt=0, le=1_000_000_000)
-
-
-class SolicitudPublicaIn(BaseModel):
-    habitacion_id: str = Field(min_length=1, max_length=50)
-    inicio: date
-    fin: date
-    personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
-    huesped_nombre: str = Field(min_length=1, max_length=120)
-    huesped_contacto: str = Field(min_length=1, max_length=120)
-
-
-class RechazoSolicitudIn(BaseModel):
-    motivo: str = Field(min_length=1, max_length=300)
-
-
-class LeadPublicoIn(BaseModel):
-    nombre: str = Field(min_length=1, max_length=leads_mod.MAX_NOMBRE)
-    correo: str = Field(min_length=1, max_length=leads_mod.MAX_CORREO)
-    telefono: str = Field(min_length=1, max_length=leads_mod.MAX_TELEFONO)
-    huespedes: int | None = Field(default=None, ge=1, le=leads_mod.MAX_PERSONAS)
-    check_in: date | None = None
-    check_out: date | None = None
-    mensaje: str | None = Field(default=None, max_length=leads_mod.MAX_MENSAJE)
-
-
-class GestionLeadIn(BaseModel):
-    estado: str = Field(min_length=1, max_length=20)
-    nota: str | None = Field(default=None, max_length=500)
-
-
-class ConsultaAgenteIn(BaseModel):
-    canal_origen: str = Field(min_length=1, max_length=20)
-    texto: str = Field(min_length=1, max_length=agente.MAX_TEXTO_CONSULTA)
-
-
-class AprobacionBorradorIn(BaseModel):
-    texto_editado: str | None = Field(default=None, max_length=4000)
-
-
-class DescarteBorradorIn(BaseModel):
-    motivo: str = Field(min_length=1, max_length=300)
-
-
-class PoliticaAgenteIn(BaseModel):
-    nivel: str | None = Field(default=None, pattern=r"^N[012]$")
-    horario: str | None = Field(default=None, max_length=100)
-    max_noches: int | None = Field(default=None, ge=1, le=30)
-    max_personas: int | None = Field(default=None, ge=1, le=30)
-    tope_mensual_clp: int | None = Field(default=None, ge=0)
-    evaluacion_ref: str | None = Field(default=None, max_length=200)
+# Modelos de entrada HTTP: viven en servicio/rutas/modelos.py (ARC-A01, #334)
+# para que los módulos de rutas los importen sin circularidad.
+from .rutas.modelos import (  # noqa: E402
+    AprobacionBorradorIn, CargoIn, ClaveActualIn, ClaveIn, CodigoTotpIn,
+    ConsultaAgenteIn, Credenciales, DescarteBorradorIn, GestionLeadIn,
+    HabitacionIn, HuespedIn, LeadPublicoIn, MantenimientoIn, PagoIn,
+    PATRON_ID_HABITACION, PoliticaAgenteIn, RechazoSolicitudIn, ReservaIn,
+    ServicioIn, SolicitudPublicaIn, TarifaIn, UsuarioIn,
+)
+from .rutas import acceso  # noqa: E402  (router de acceso; se incluye en crear_app)
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
@@ -366,6 +239,8 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             raise HTTPException(status_code=503, detail="la base de datos no responde")
         return {"estado": "listo", "migraciones": n_migraciones}
 
+    app.include_router(acceso.router)
+
     def _conexion() -> Iterator[psycopg.Connection]:
         # Sin DATABASE_URL en el arranque no hay `app.state.database_url`: se
         # responde 503 «no configurado» (convención de puertos de AGENTS.md) en
@@ -378,50 +253,6 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             )
         with psycopg.connect(database_url) as conexion:
             yield conexion
-
-    def _fijar_cookie(response: Response, sid: str) -> None:
-        config = app.state.configuracion
-        segura = config.cookie_segura if config else False
-        # spec-api-v1: en producción (Secure) SameSite=None para Vercel↔Railway;
-        # en local sin Secure el navegador rechaza SameSite=None: se usa Lax.
-        response.set_cookie(
-            NOMBRE_COOKIE_SESION,
-            sid,
-            httponly=True,
-            secure=segura,
-            samesite="none" if segura else "lax",
-            path="/",
-        )
-
-    def _borrar_cookie(response: Response) -> None:
-        # El borrado debe repetir los mismos atributos (Secure/SameSite) o el
-        # navegador no elimina la cookie cross-site de producción.
-        config = app.state.configuracion
-        segura = config.cookie_segura if config else False
-        response.set_cookie(
-            NOMBRE_COOKIE_SESION,
-            "",
-            max_age=0,
-            httponly=True,
-            secure=segura,
-            samesite="none" if segura else "lax",
-            path="/",
-        )
-
-    def _borrar_cookie_oauth_tx(response: Response) -> None:
-        """SEC-A05 (#330): la transacción OAuth se consume con el callback;
-        su cookie se elimina en los destinos (mismos atributos que al fijarla)."""
-        config = app.state.configuracion
-        segura = config.cookie_segura if config else False
-        response.set_cookie(
-            NOMBRE_COOKIE_OAUTH_TX,
-            "",
-            max_age=0,
-            httponly=True,
-            secure=segura,
-            samesite="none" if segura else "lax",
-            path="/auth",
-        )
 
     def _requerir_sesion(request: Request, conexion=Depends(_conexion)) -> seguridad.SesionActiva:
         sid = request.cookies.get(NOMBRE_COOKIE_SESION)
@@ -437,242 +268,6 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         if sesion.empresa_id != app.state.aplicacion.nucleo.empresa.id:
             raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
         return sesion
-
-    @app.post("/sesion")
-    def abrir_sesion(
-        credenciales: Credenciales,
-        response: Response,
-        request: Request,
-        conexion=Depends(_conexion),
-    ) -> dict:
-        ip = request.client.host if request.client else "desconocida"
-        freno: seguridad.FrenoDeLogins = app.state.freno_logins
-        if freno.bloqueado(ip, credenciales.usuario, time.time()) or \
-                freno.bloqueado_usuario(credenciales.usuario, time.time()):
-            raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
-        auth = seguridad.autenticar(conexion, credenciales.usuario, credenciales.clave)
-        if auth is None:
-            freno.registrar_fallo(ip, credenciales.usuario, time.time())
-            freno.registrar_fallo_usuario(credenciales.usuario, time.time())
-            seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "rechazado")
-            conexion.commit()
-            raise HTTPException(status_code=401, detail="credenciales inválidas")
-        usuario_id, empresa_id, rol, totp_activado = auth
-        config = app.state.configuracion
-        if totp_activado:
-            secreto = seguridad.secreto_totp(conexion, usuario_id)
-            if not credenciales.totp:
-                seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "falta codigo 2fa")
-                conexion.commit()
-                raise HTTPException(status_code=401, detail="codigo_totp_requerido")
-            if secreto is None or not totp.verificar(secreto, credenciales.totp):
-                freno.registrar_fallo(ip, credenciales.usuario, time.time())
-                freno.registrar_fallo_usuario(credenciales.usuario, time.time())
-                seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado")
-                conexion.commit()
-                raise HTTPException(status_code=401, detail="código 2FA inválido")
-        # SEC-A03 (#328): los contadores se reinician solo al completar TODA
-        # la autenticación. Hacerlo con la clave correcta (antes del TOTP)
-        # borraba los fallos en cada intento y dejaba el segundo factor sin
-        # freno de fuerza bruta (auditoría de jefatura 2026-11-03, SEC-A03).
-        freno.reiniciar(ip, credenciales.usuario)
-        freno.reiniciar_usuario(credenciales.usuario)
-        sid = seguridad.crear_sesion(
-            conexion, usuario_id, empresa_id,
-            horas_vigencia=config.session_horas if config else 12,
-        )
-        seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "ok")
-        conexion.commit()
-        _fijar_cookie(response, sid)
-        return {
-            "usuario": credenciales.usuario,
-            "rol": rol,
-            "empresa_id": empresa_id,
-            "totp_activado": totp_activado,
-        }
-
-    @app.delete("/sesion")
-    def cerrar_sesion(request: Request, response: Response, conexion=Depends(_conexion)) -> dict:
-        sid = request.cookies.get(NOMBRE_COOKIE_SESION)
-        if not sid:
-            raise HTTPException(status_code=401, detail="sin sesión")
-        sesion = seguridad.obtener_sesion_activa(conexion, sid)
-        if sesion is None:
-            raise HTTPException(status_code=401, detail="sesión inválida o vencida")
-        seguridad.revocar_sesion(conexion, sid)
-        conexion.commit()
-        _borrar_cookie(response)
-        return {"estado": "cerrada"}
-
-    @app.get("/sesion")
-    def ver_sesion(sesion: seguridad.SesionActiva = Depends(_requerir_sesion), conexion=Depends(_conexion)) -> dict:
-        (totp_activado,) = conexion.execute(
-            "SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)
-        ).fetchone()
-        return {
-            "id": sesion.usuario_id,
-            "usuario": sesion.nombre,
-            "rol": sesion.rol,
-            "empresa_id": sesion.empresa_id,
-            "totp_activado": totp_activado,
-        }
-
-    # --- Login con Google (OAuth 2.0 / OIDC): adaptador opcional (spec-api-v1).
-    # DECISIÓN 2026-10-29: sustituye al par usuario/clave + TOTP para la
-    # identidad vinculada; no lleva freno de fuerza bruta ni aprovisionamiento.
-
-    @app.get("/auth/google/estado")
-    def estado_login_google() -> dict:
-        return {"configurado": google_oidc.configurado(app.state.configuracion)}
-
-    @app.get("/auth/google")
-    def iniciar_login_google() -> Response:
-        config = app.state.configuracion
-        if not google_oidc.configurado(config):
-            raise HTTPException(status_code=503, detail="no configurado")
-        # SEC-A05 (#330): la transacción queda atada a una cookie HttpOnly de
-        # vida corta; el callback exige que la cookie coincida con el state.
-        tx = secrets.token_urlsafe(16)
-        estado = app.state.estados_oauth.nuevo(tx=tx)
-        url = google_oidc.url_de_consentimiento(config.google_client_id, estado, config.google_redirect_uri)
-        respuesta = RedirectResponse(url, status_code=302)
-        segura = config.cookie_segura if config else False
-        respuesta.set_cookie(
-            NOMBRE_COOKIE_OAUTH_TX,
-            tx,
-            max_age=google_oidc.VIDA_ESTADO_SEG,
-            httponly=True,
-            secure=segura,
-            samesite="none" if segura else "lax",
-            path="/auth",
-        )
-        return respuesta
-
-    @app.get("/auth/google/callback")
-    def callback_login_google(
-        request: Request,
-        state: str | None = None,
-        code: str | None = None,
-        error: str | None = None,
-        conexion=Depends(_conexion),
-    ) -> Response:
-        config = app.state.configuracion
-        if not google_oidc.configurado(config):
-            raise HTTPException(status_code=503, detail="no configurado")
-        front = config.front_url
-        if error is not None:
-            destino = RedirectResponse(f"{front}/login?error=acceso_denegado", status_code=302)
-            _borrar_cookie_oauth_tx(destino)
-            return destino
-        # El state se consume en todo intento (tomar lo extrae siempre): un
-        # rechazo por cookie ausente o distinta no deja el state reutilizable.
-        tx = request.cookies.get(NOMBRE_COOKIE_OAUTH_TX)
-        if state is None or not app.state.estados_oauth.tomar(state, tx=tx):
-            raise HTTPException(status_code=400, detail="state inválido o expirado")
-        if code is None:
-            raise HTTPException(status_code=400, detail="falta el código de autorización")
-        try:
-            tokens = google_oidc.intercambiar_codigo(
-                code, config.google_client_id, config.google_client_secret, config.google_redirect_uri
-            )
-            claims = google_oidc.verificar_id_token(tokens["id_token"], config.google_client_id)
-        except (google_oidc.ErrorGoogleOidc, KeyError) as fallo:
-            raise HTTPException(status_code=502, detail="fallo al validar la identidad con Google") from fallo
-        email = claims["email"]
-        usuario = seguridad.buscar_usuario_por_email(conexion, email)
-        if usuario is None:
-            seguridad.auditar(conexion, email, "login", "/auth/google/callback", "sin vinculo")
-            conexion.commit()
-            destino = RedirectResponse(f"{front}/login?error=cuenta_sin_vinculo", status_code=302)
-            _borrar_cookie_oauth_tx(destino)
-            return destino
-        usuario_id, empresa_id, _rol, nombre = usuario
-        sid = seguridad.crear_sesion(
-            conexion, usuario_id, empresa_id,
-            horas_vigencia=config.session_horas,
-        )
-        seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "ok")
-        conexion.commit()
-        destino = RedirectResponse(front, status_code=302)
-        _fijar_cookie(destino, sid)
-        _borrar_cookie_oauth_tx(destino)
-        return destino
-
-    @app.post("/cuenta/2fa")
-    def iniciar_2fa(
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-        cuerpo: ClaveActualIn | None = Body(default=None),
-    ) -> dict:
-        """Genera el secreto TOTP pendiente: el factor activo queda intacto
-        hasta confirmar. SEC-A02 (#327): con 2FA ya activo (reenrolamiento)
-        exige la clave actual — una sesión capturada no puede reemplazar el
-        autenticador."""
-        (activo,) = conexion.execute(
-            "SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)
-        ).fetchone()
-        if activo:
-            if cuerpo is None or not seguridad.reautenticar_clave(conexion, sesion.usuario_id, cuerpo.clave):
-                seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "reauth rechazada")
-                conexion.commit()
-                raise HTTPException(status_code=401, detail="se requiere la clave actual para reemplazar el autenticador")
-        secreto = seguridad.iniciar_alta_totp(conexion, sesion.usuario_id)
-        seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "alta iniciada")
-        conexion.commit()
-        return {
-            "secreto": secreto,
-            "uri": totp.uri_de_alta(secreto, sesion.nombre),
-        }
-
-    @app.post("/cuenta/2fa/activar")
-    def activar_2fa(
-        cuerpo: CodigoTotpIn,
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> dict:
-        secreto = seguridad.secreto_totp_pendiente(conexion, sesion.usuario_id)
-        if secreto is None:
-            raise HTTPException(status_code=400, detail="no hay alta de 2FA en curso")
-        if not totp.verificar(secreto, cuerpo.codigo):
-            seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa/activar", "rechazado")
-            conexion.commit()
-            raise HTTPException(status_code=400, detail="código 2FA inválido")
-        seguridad.activar_totp(conexion, sesion.usuario_id)
-        seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa/activar", "activado")
-        conexion.commit()
-        return {"estado": "activado"}
-
-    @app.get("/cuenta/2fa/qr")
-    def qr_2fa(
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> Response:
-        """QR (SVG) del secreto PENDIENTE: escaneable por Google Authenticator.
-
-        SEC-A02 (#327): el secreto activo nunca se expone; el QR sirve solo
-        durante el alta en curso."""
-        secreto = seguridad.secreto_totp_pendiente(conexion, sesion.usuario_id)
-        if secreto is None:
-            raise HTTPException(status_code=400, detail="no hay alta de 2FA en curso; iníciala con POST /cuenta/2fa")
-        svg = totp_qr.uri_a_svg(totp.uri_de_alta(secreto, sesion.nombre))
-        return Response(content=svg, media_type="image/svg+xml")
-
-    @app.delete("/cuenta/2fa")
-    def desactivar_2fa(
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-        cuerpo: ClaveActualIn | None = Body(default=None),
-    ) -> dict:
-        """SEC-A02 (#327): desactivar exige la clave actual (reautenticación):
-        una sesión capturada no puede eliminar el segundo factor."""
-        if cuerpo is None or not seguridad.reautenticar_clave(conexion, sesion.usuario_id, cuerpo.clave):
-            seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "reauth rechazada")
-            conexion.commit()
-            raise HTTPException(status_code=401, detail="clave de confirmación inválida")
-        seguridad.desactivar_totp(conexion, sesion.usuario_id)
-        seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa", "desactivado")
-        conexion.commit()
-        return {"estado": "desactivado"}
 
     def _exigir_admin(sesion: seguridad.SesionActiva) -> None:
         if sesion.rol != "administrador":
@@ -1049,131 +644,6 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         return cobro.detalle_reserva(
             conexion, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO
         )
-
-    @app.get("/usuarios")
-    def listar_usuarios(
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> dict:
-        _exigir_admin(sesion)
-        return {"usuarios": seguridad.listar_usuarios(conexion, sesion.empresa_id)}
-
-    @app.post("/usuarios")
-    def alta_usuario(
-        usuario: UsuarioIn,
-        idempotency_key: str | None = Header(default=None),
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> JSONResponse:
-        _exigir_admin(sesion)
-        clave = _clave_idempotencia_o_400(idempotency_key)
-        cuerpo = json.loads(usuario.model_dump_json())
-
-        def operacion() -> tuple[int, dict]:
-            existe = conexion.execute(
-                "SELECT 1 FROM usuarios WHERE empresa_id = %s AND nombre = %s",
-                (sesion.empresa_id, usuario.nombre),
-            ).fetchone()
-            if existe is not None:
-                return 409, {"detail": "nombre de usuario ya existe en la empresa"}
-            usuario_id = seguridad.crear_usuario(
-                conexion, sesion.empresa_id, usuario.nombre, usuario.rol, usuario.clave
-            )
-            seguridad.auditar(conexion, sesion.nombre, "usuario", usuario_id, "creado")
-            return 201, {"id": usuario_id, "nombre": usuario.nombre, "rol": usuario.rol, "activo": True}
-
-        try:
-            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-        except idempotencia.ConflictoIdempotencia as error:
-            raise HTTPException(status_code=409, detail=str(error))
-        conexion.commit()
-        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
-
-    @app.post("/usuarios/{usuario_id}/clave")
-    def cambiar_clave_usuario(
-        usuario_id: str,
-        cuerpo_clave: ClaveIn,
-        idempotency_key: str | None = Header(default=None),
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> JSONResponse:
-        if sesion.rol != "administrador" and sesion.usuario_id != usuario_id:
-            raise HTTPException(status_code=403, detail="acceso denegado")
-        clave = _clave_idempotencia_o_400(idempotency_key)
-        cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_clave.model_dump_json())}
-
-        def operacion() -> tuple[int, dict]:
-            seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
-            seguridad.cambiar_clave(conexion, usuario_id, cuerpo_clave.clave)
-            seguridad.auditar(conexion, sesion.nombre, "usuario-clave", usuario_id, "cambiada")
-            return 200, {"id": usuario_id, "estado": "clave actualizada"}
-
-        try:
-            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-        except idempotencia.ConflictoIdempotencia as error:
-            raise HTTPException(status_code=409, detail=str(error))
-        conexion.commit()
-        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
-
-    @app.post("/usuarios/{usuario_id}/revocacion")
-    def revocar_usuario(
-        usuario_id: str,
-        idempotency_key: str | None = Header(default=None),
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> JSONResponse:
-        _exigir_admin(sesion)
-        if usuario_id == sesion.usuario_id:
-            raise HTTPException(status_code=409, detail="para cerrar tu sesión usa DELETE /sesion")
-        clave = _clave_idempotencia_o_400(idempotency_key)
-        cuerpo = {"usuario_id": usuario_id, "operacion": "revocacion"}
-
-        def operacion() -> tuple[int, dict]:
-            seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
-            revocadas = seguridad.revocar_sesiones_de_usuario(conexion, usuario_id)
-            seguridad.auditar(conexion, sesion.nombre, "usuario-revocacion", usuario_id, f"{revocadas} sesiones")
-            return 200, {"id": usuario_id, "sesiones_revocadas": revocadas}
-
-        try:
-            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-        except idempotencia.ConflictoIdempotencia as error:
-            raise HTTPException(status_code=409, detail=str(error))
-        conexion.commit()
-        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
-
-    @app.post("/usuarios/{usuario_id}/baja")
-    def baja_usuario(
-        usuario_id: str,
-        idempotency_key: str | None = Header(default=None),
-        sesion: seguridad.SesionActiva = Depends(_requerir_sesion),
-        conexion=Depends(_conexion),
-    ) -> JSONResponse:
-        _exigir_admin(sesion)
-        if usuario_id == sesion.usuario_id:
-            raise HTTPException(status_code=409, detail="no puedes darte de baja a ti mismo")
-        clave = _clave_idempotencia_o_400(idempotency_key)
-        cuerpo = {"usuario_id": usuario_id, "operacion": "baja"}
-
-        def operacion() -> tuple[int, dict]:
-            _id, _nombre, rol, activo = seguridad.buscar_usuario_en_empresa(
-                conexion, sesion.empresa_id, usuario_id
-            )
-            if not activo:
-                return 409, {"detail": "el usuario ya está de baja"}
-            if rol == "administrador" and seguridad.contar_administradores_activos(
-                conexion, sesion.empresa_id
-            ) <= 1:
-                return 409, {"detail": "no se puede dar de baja al último administrador activo"}
-            seguridad.dar_de_baja(conexion, usuario_id)
-            seguridad.auditar(conexion, sesion.nombre, "usuario-baja", usuario_id, "de baja")
-            return 200, {"id": usuario_id, "activo": False}
-
-        try:
-            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-        except idempotencia.ConflictoIdempotencia as error:
-            raise HTTPException(status_code=409, detail=str(error))
-        conexion.commit()
-        return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
     @app.post("/hotel/habitaciones/{habitacion_id}/limpieza")
     def completar_limpieza_habitacion(
