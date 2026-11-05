@@ -50,7 +50,10 @@ def check(ok: bool, mensaje: str) -> None:
 
 def main() -> int:
     conn = psycopg.connect(URL, connect_timeout=10)
-    print(f"== ensayo de restauración contra {URL.split('@')[-1]} ==\n")
+    print(f"== ensayo de restauración contra {URL.split('@')[-1]} ==")
+    print(f"      servidor PostgreSQL: {conn.info.server_version} "
+          f"(spec-backend-v1 especifica 17: {'COINCIDE' if conn.info.server_version.startswith('17') else 'DIFIERE — anotar en la issue'})")
+    print()
 
     with conn:
         migraciones = [fila[0] for fila in conn.execute(
