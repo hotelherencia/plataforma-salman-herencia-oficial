@@ -93,11 +93,16 @@ Gemini 4 Argon vía `agy` sobre copias aisladas) y primer ciclo TDD.
   D-ENT-01 (ahora Bloqueada, a la espera del propietario); spec-api-v1,
   spec-hotel-operacion §7, `docs/funcional/dominio.md` y `flujos.md` describen
   la entrada tal como la fija el contrato vigente (sin cambio de comportamiento).
-- [Bloqueada] `v1-issue-15` (GitHub `#303`, salida con otra estadía, depende de 07),
-  `v1-issue-16` (GitHub `#304`, roles de entrada/salida), `v1-issue-17` (GitHub `#305`, tarifa de estadías
+- [Hecha, P1] `v1-issue-15` (GitHub `#303`) — la salida no deja disponible la
+  unidad si otra estadía sigue en curso (turnover no solapado): resuelta en
+  `c4f32dd` (TDD) el 2026-11-04; este índice la había listado bloqueada por
+  error — corregido en la sincronización 2026-11-05.
+- [Bloqueada] `v1-issue-16` (GitHub `#304`, roles de entrada/salida, depende de 07),
+  `v1-issue-17` (GitHub `#305`, tarifa de estadías
   que cruzan periodos), `v1-issue-18` (GitHub `#306`, orden de despliegue y empates de
   tarifas en producción; requiere autorización).
-- [Lista, P3] `v1-issue-19` (GitHub `#307`) — deuda documental.
+- [Hecha, P3] `v1-issue-19` (GitHub `#307`) — deuda documental (resuelta en
+  `7ae13cb`; el estado del tablero se corrigió el 2026-11-05).
 - Sincronizados en GitHub Issues y `hotelherencia/projects/2` (`#281`, `#301..#307`).
 
 
@@ -368,3 +373,24 @@ mostró trabajo completado que el tablero aún registraba abierto.
   corrida del día tuvo 1 fallo no capturado por nombre que no reprodujo en
   las tres siguientes — intermitente registrado, sin identidad aún.
 - Dominio: 5 raíces OK. No se tocó código de producto.
+
+## Sincronización de estado — 2026-11-05 (segunda pasada)
+
+- Se descubrió trabajo completado sin reflejar: `v1-issue-15` estaba
+  resuelta en código desde el 2026-11-04 (`c4f32dd`, TDD del turnover de
+  salida; la issue #303 fue cerrada ese día con evidencia) pero el tablero
+  local la mantenía «Bloqueada» y el Project n.º 2 en «Decisión humana»;
+  el propio índice la listaba bloqueada. Corregidos los tres lugares.
+- Épicas e hitos H1–H6 del tablero local (`v1-api`, `v1-back`, `v1-front`
+  con sus historias y tareas): «Lista» → «Hecha» según la evidencia de la
+  sección «Épicas y hitos» de este índice. Queda solo `v1-desp` (H7) como
+  «Lista», coherente con las cuentas aún no verificadas.
+- Project n.º 2: #303 y #325 movidas a «Done» (#325 cerrada hoy con
+  evidencia de `c385e0f`).
+- Landing (#313): verificada la carpeta `landing/` para publicación —
+  unitarios 12/12 en verde y `js/config.js` apuntando al front productivo.
+  La publicación en el hosting de hotelherencia.cl queda como único paso
+  restante; el repo no tiene herramienta de despliegue para ese hosting
+  (el runbook de `h7-despliegue.md` declara que no toca DNS ni
+  hotelherencia.cl), así que requiere acceso del propietario.
+- Caza del intermitente: 3 corridas adicionales del servicio en curso.
