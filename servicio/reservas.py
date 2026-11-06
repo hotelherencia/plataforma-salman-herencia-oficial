@@ -57,6 +57,19 @@ class ReservasVigentes(Exception):
         self.reservas = reservas
 
 
+class TarifaSolapadaInutil(Exception):
+    """409 (#299, DECISIÓN 2026-11-06): carga redundante de tarifa.
+
+    Reconciliación documentada con CA-HAB-03 (spec §2.3, ratificada 2026-11-03):
+    el append-only con desempate `fecha_desde DESC, creado_en DESC` ES el
+    mecanismo de cambio de precio — una tarifa nueva siempre gana al menos su
+    primera noche (misma fecha_desde gana por recencia), así que «prohibir
+    todo solape» rompería el criterio de aceptación. Lo que sí se prohíbe es
+    la carga que no aporta nada: el duplicado exacto (misma unidad y rango),
+    que solo confunde el historial (la clase de error detrás de #306).
+    """
+
+
 def sembrar_habitaciones(conexion: psycopg.Connection) -> None:
     for n in range(1, 4):
         conexion.execute(
@@ -147,6 +160,20 @@ def fijar_servicio(conexion: psycopg.Connection, habitacion_id: str, en_servicio
 def insertar_tarifa(
     conexion: psycopg.Connection, habitacion_id: str, fecha_desde: date, fecha_hasta: date, tarifa_noche_clp: int
 ) -> str:
+    # #299 (DECISIÓN 2026-11-06): se rechaza la carga idéntica (misma unidad,
+    # rango Y precio), que no aporta vigencia alguna. El solape con distinto
+    # precio o rango sigue siendo el mecanismo de cambio de precio (CA-HAB-03:
+    # gana la más reciente por `creado_en`).
+    duplicada = conexion.execute(
+        "SELECT 1 FROM tarifas WHERE habitacion_id = %s AND fecha_desde = %s AND fecha_hasta = %s "
+        "AND tarifa_noche_clp = %s LIMIT 1",
+        (habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp),
+    ).fetchone()
+    if duplicada is not None:
+        raise TarifaSolapadaInutil(
+            f"ya existe una tarifa idéntica para {habitacion_id} en [{fecha_desde}, {fecha_hasta}) "
+            f"a ${tarifa_noche_clp}/noche; la vigente ya tiene ese precio"
+        )
     tarifa_id = f"TAR-{uuid.uuid4().hex[:12]}"
     conexion.execute(
         "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "

@@ -134,6 +134,44 @@ class TarifaCadaNocheTest(unittest.TestCase):
         self.assertEqual(reserva["total_clp"], 200000)
         self.assertEqual(reserva["tarifa_noche_aceptada_clp"], 40000)
 
+    # ---- #299 (2026-11-06): carga redundante de tarifa ----
+
+    def test_duplicado_exacto_rechaza_409(self):
+        self.tarifa(5, 20, 40000)
+        duplicada = self.admin.put(
+            "/hotel/tarifas",
+            json={"habitacion_id": "HAB-T-1", "fecha_desde": iso(5), "fecha_hasta": iso(20),
+                  "tarifa_noche_clp": 40000},
+            headers=self.clave("tar-dup"),
+        )
+        self.assertEqual(duplicada.status_code, 409, duplicada.text)
+        self.assertIn("idéntica", duplicada.json()["detail"])
+
+    def test_misma_fecha_desde_es_el_cambio_de_precio_recencia(self):
+        # CA-HAB-03: mismo rango con precio distinto → gana la más reciente.
+        self.tarifa(5, 20, 40000)
+        subida = self.admin.put(
+            "/hotel/tarifas",
+            json={"habitacion_id": "HAB-T-1", "fecha_desde": iso(5), "fecha_hasta": iso(20),
+                  "tarifa_noche_clp": 60000},
+            headers=self.clave("tar-sub2"),
+        )
+        self.assertEqual(subida.status_code, 201, subida.text)
+        self.assertEqual(self.oferta(8, 9)["HAB-T-1"]["tarifa_noche_clp"], 60000)
+
+    def test_solape_hacia_adelante_permitido_es_el_cambio_de_precio(self):
+        self.tarifa(5, 20, 40000)
+        # nueva con inicio MAYOR: gana desde su fecha (evolución append-only)
+        subida = self.admin.put(
+            "/hotel/tarifas",
+            json={"habitacion_id": "HAB-T-1", "fecha_desde": iso(12), "fecha_hasta": iso(20),
+                  "tarifa_noche_clp": 60000},
+            headers=self.clave("tar-sub"),
+        )
+        self.assertEqual(subida.status_code, 201, subida.text)
+        ofrecida = self.oferta(10, 14)["HAB-T-1"]  # noches 10,11 a 40000; 12,13 a 60000
+        self.assertEqual(ofrecida["total_clp"], 200000)
+
     def test_tarifas_contiguas_se_ofrecen_y_el_total_confirmado_es_el_ofrecido(self):
         self.tarifa(5, 10, 40000)
         self.tarifa(10, 20, 60000)

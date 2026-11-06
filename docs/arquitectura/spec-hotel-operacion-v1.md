@@ -430,5 +430,6 @@ sincronizado en la misma revisión. Fórmulas distintas, nombres distintos.
 | D-HAB-03 | ¿Catálogo cerrado de tipos de habitación? | texto libre 1–50 |
 | D-TAR-01 | ¿Tarifas superpuestas: reemplazo (V1) o rechazo (dominio)? | reemplazo con regla §2.5 |
 | D-OCU-01 | ¿Mantenimiento programado por fechas? | estado actual proyectado |
+| D-OCU-02 | RATIFICADA 2026-11-06 (#299): ¿las fuera_de_servicio entran al denominador de ocupación del panel? | **excluidas** del denominador (limitación: V1 no guarda historial de estados; se excluye por estado actual) |
 | D-AUD-01 | ¿Otros roles ven la auditoría de la habitación? | solo administrador |
 | D-ENT-01 | ¿La entrada adopta la regla del dominio (desde las 15:00 del día de inicio y con documento)? (V1-ISSUE-07; registrada en spec-api-v1 «Operación de la habitación») | entrada sin hora ni documento (contrato vigente); el panel acota la estadía con la fecha de liquidación (§4.3) |

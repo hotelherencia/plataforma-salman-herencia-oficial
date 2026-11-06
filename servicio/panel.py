@@ -257,7 +257,11 @@ def indicadores(
         con_noche = [r for r in reservas if r["estado"] in ESTADOS_CON_NOCHES and _contiene(r, noche)]
         # Una habitación cuenta en la noche si ya estaba registrada o si tiene
         # una noche de reserva en ella (no hay ratio por encima de 1).
-        activas = {h["habitacion_id"] for h in habitaciones if h["registrada_el"] <= noche}
+        # D-OCU-02 (#299, DECISIÓN 2026-11-06): las fuera_de_servicio no entran
+        # al denominador de ocupación (limitación: V1 no guarda historial de
+        # estados; se excluye por estado actual).
+        activas = {h["habitacion_id"] for h in habitaciones
+                   if h["registrada_el"] <= noche and h["estado_operativo"] != "fuera_de_servicio"}
         activas |= {r["habitacion_id"] for r in con_noche}
         reservadas = len({r["habitacion_id"] for r in con_noche})
         ocupadas_estadias = None

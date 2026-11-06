@@ -87,9 +87,12 @@ def definir_tarifa(
     cuerpo = json.loads(tarifa.model_dump_json())
 
     def operacion() -> tuple[int, dict]:
-        tarifa_id = reservas_db.insertar_tarifa(
-            conexion, tarifa.habitacion_id, tarifa.fecha_desde, tarifa.fecha_hasta, tarifa.tarifa_noche_clp
-        )
+        try:
+            tarifa_id = reservas_db.insertar_tarifa(
+                conexion, tarifa.habitacion_id, tarifa.fecha_desde, tarifa.fecha_hasta, tarifa.tarifa_noche_clp
+            )
+        except reservas_db.TarifaSolapadaInutil as error:
+            return 409, {"detail": str(error)}
         seguridad.auditar(
             conexion, sesion.nombre, "tarifa", tarifa.habitacion_id,
             f"{tarifa_id} {tarifa.fecha_desde}→{tarifa.fecha_hasta} ${tarifa.tarifa_noche_clp}/noche",

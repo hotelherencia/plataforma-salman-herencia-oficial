@@ -306,13 +306,15 @@ class PanelReconciliacionTest(ReconciliacionBaseTest):
     def test_periodo_recompone_noche_a_noche_desde_el_dataset(self):
         p = self.panel(self.DESDE, self.HASTA)
         filas = self.filas_reservas()
-        creadas = {f[0]: f[1] for f in self.select("SELECT id, creado_en::date FROM habitaciones")}
+        creadas = {f[0]: (f[1], f[2]) for f in self.select("SELECT id, creado_en::date, estado_operativo FROM habitaciones")}
         esperado_reservadas = esperado_ocupadas = esperado_unidades = 0
         for s in p["serie"]:
             noche = date.fromisoformat(s["fecha"])
             con_noche = [f for f in filas if f[4] in ("confirmada", "en_estadia", "finalizada")
                          and f[2] <= noche < f[5]]
-            activas = {h for h, creada in creadas.items() if creada <= noche}
+            # D-OCU-02 (#299, 2026-11-06): fuera_de_servicio fuera del denominador.
+            activas = {h for h, (creada, estado) in creadas.items() if creada <= noche
+                       and estado != "fuera_de_servicio"}
             activas |= {f[1] for f in con_noche}
             self.assertEqual(s["unidades"], len(activas), noche)
             self.assertEqual(s["reservadas"], len({f[1] for f in con_noche}), noche)
