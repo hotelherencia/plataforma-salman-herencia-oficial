@@ -1,5 +1,15 @@
 # Decisiones pendientes V1 — brief para el propietario
 
+**ACTUALIZACIÓN 2026-11-06 — OLA DE DECISIONES RATIFICADA** («todas las ★», orden
+«adelante»). Construidas en esta fecha: §1 (D-ENT-01), §2 (roles), §3 (tarifa
+noche a noche), §4 (ingresos para administrador), §5a (personas), §6a+c
+(carga idéntica 409 y denominador sin fuera_de_servicio), §7 (mantener
+solicitud con aprobación humana). Pendientes: §5b/c (reasignación y catálogo,
+a pedido), §6b/d (mantenimiento programado y auditoría por rol, a pedido),
+ADR/RevPAR (D-IND-02), §8 D-AGT-02 (proveedor) y D-AGT-03..06 en sus valores
+por defecto de la spec salvo ajuste. Los detalles de implementación de cada
+una están en `backlog/v1/indice.md` §«Ola de decisiones 2026-11-06».
+
 **2026-11-03.** Compendio de las decisiones de negocio abiertas del backlog V1
 (GitHub #296, #304, #305, #297, #298, #299, #308 y #316). Para cada una:
 comportamiento actual con evidencia (HECHO), opciones y una recomendación

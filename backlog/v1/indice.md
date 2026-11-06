@@ -559,6 +559,41 @@ issue pendiente». Cada pendiente se llevó hasta su límite constructible:
   decisiones del propietario — brief con opciones y recomendaciones en
   `docs/arquitectura/decisiones-pendientes-v1.md`.
 
+## Ola de decisiones — 2026-11-06 (ratificación «todas las ★»)
+
+Orden del propietario («adelante») sobre la hoja de decisiones: construidas
+las ocho con contrato primero, TDD y regresión por paso. Commits: `86a5f41`
+(#305), `d405cca` (#296+#304), `c1adf11` (#297), `d0b5e25` (#298), `eea799e`
+(#299).
+
+- [Hecha] **#305** — precio noche a noche con la tarifa vigente de cada
+  noche (oferta y reserva alineadas: lo ofertado es lo cargado). Reemplaza
+  D-TAR-02.
+- [Hecha] **#296** — D-ENT-01: entrada exige documento del huésped
+  (capturable en el cuerpo de la entrada; 409 si falta en ambos).
+- [Hecha] **#304** — entrada y salida solo recepción o administrador
+  («caja cobra, recepción opera la habitación»).
+- [Hecha] **#297** — `ingresos_periodo_clp` (pagos confirmados del periodo)
+  solo para administrador; ADR/RevPAR quedan para D-IND-02.
+- [Hecha] **#298 (a)** — `personas` persistida en la reserva y validada
+  contra la capacidad al confirmar; la conversión de solicitudes la propaga.
+- [Hecha] **#299 (a, reconciliada)** — la carga de tarifa idéntica (misma
+  unidad, rango y precio) → 409. Se probó que prohibir TODO solape rompía
+  CA-HAB-03 (ratificada 2026-11-03): el append-only con desempate ES el
+  cambio de precio. Queda registrada la reconciliación en el commit.
+- [Hecha] **#299 (c)** — D-OCU-02: `fuera_de_servicio` fuera del
+  denominador de ocupación del panel (limitación: sin historial de estados).
+- [Hecha] **#308** — D-PUB-01: se mantiene la solicitud con aprobación
+  humana durante el primer mes de operación real; reevaluar con datos.
+- **#316** — D-AGT-03..06 quedan ratificadas en sus valores por defecto de
+  la spec; **D-AGT-02 (proveedor) sigue pendiente**: al nombrarlo, fijar
+  `MODELO_*` en Railway y repetir la evaluación de 50 casos (compuerta N1).
+
+Evidencia de la ola: servicio 304/304; E2E base 56/56, operación 20/20,
+tarifa-noches 3/3 (front en build de producción + API con las migraciones
+0013–0014). Los hechos de las pruebas de caracterización fueron actualizados
+al contrato ratificado.
+
 **Mejoras acordadas para aplicar de aquí en adelante** (incidente de red de
 Railway + auditoría + estado actual): postgres productivo siempre privado
 (toda verificación externa va por fork/túnel); rotar `RAILWAY_TOKEN` al
