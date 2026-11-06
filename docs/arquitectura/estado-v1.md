@@ -2,8 +2,7 @@
 
 **Ficha viva (DOC-A01, #335).** Sustituye a los conteos dispersos del README;
 si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo.
-Última actualización: 2026-11-05 (cierre de las correcciones de la auditoría
-de jefatura 2026-11-03).
+Última actualización: 2026-11-06 (ola de decisiones del propietario; cierre del día).
 
 ## Qué es operable hoy
 
@@ -23,11 +22,11 @@ de jefatura 2026-11-03).
 | Magnitud | Valor | Fuente |
 |---|---|---|
 | Operaciones del contrato | 51 | spec-api-v1 (la tabla manda; la valida `scripts/validar_estado_v1.py`) |
-| Pruebas del servicio | 277 | `unittest discover -s servicio/tests` |
+| Pruebas del servicio | 304 | `unittest discover -s servicio/tests` |
 | Pruebas del dominio | 5 raíces en verde (~180) | core + 4 verticales incremento1 |
 | Unitarios de la landing | 12 | `node --test landing/test/*.test.mjs` |
-| E2E con navegador | base 56 · operación 20 · público 6 · landing 3 · leads 5 · agente 4 | `e2e/` (corridas fechadas en `capturas/`) |
-| Tablero V1 | 92 ítems (70 hechos) | `backlog/v1/construccion-v1.json` |
+| E2E con navegador | base 56 · operación 20 · tarifa-noches 3 · público 6 · landing 3 · leads 5 · agente 4 | `e2e/` (corridas fechadas en `capturas/`) |
+| Tablero V1 | 104 ítems (92 hechos) | `backlog/v1/construccion-v1.json` |
 
 ## Fuera de V1 (nombrado, no operable)
 
@@ -36,16 +35,21 @@ inmobiliaria/constructora (rutas vacías con guardia), puertos externos reales
 (Webpay, Mercado Pago, SII, Booking, Airbnb, WhatsApp/Meta: sin adaptador →
 503 «no configurado», regla AGENTS.md).
 
-## Decisiones que bloquean ampliación
+## Decisiones resueltas en la ola del 2026-11-06
 
-D-ENT-01 y relacionadas (#296–#299, #304–#306), D-PUB-01 restante (#308),
-D-AGT-02..06 (#316), D-CANAL-01 (#324). Brief con opciones y recomendaciones:
-`docs/arquitectura/decisiones-pendientes-v1.md`.
+Ratificadas y construidas: precio noche a noche (#305), documento en entrada
+(#296), roles de entrada/salida (#304), ingresos para administrador (#297),
+personas en la reserva (#298), guarda de tarifa idéntica y denominador del
+panel (#299), solicitud con aprobación humana (#308). Pendientes: D-AGT-02
+(proveedor del modelo — el adaptador HTTP ya existe), D-IND-02 (ADR/RevPAR),
+items «a pedido» del brief. Detalle: `docs/arquitectura/decisiones-pendientes-v1.md`.
 
 ## Seguridad (post-auditoría 2026-11-03)
 
-Resueltas el 2026-11-05: SEC-A01..A05 y OPS-A02 (issues #326–#330, #333;
-detalle en `backlog/v1/indice.md` §«Correcciones de la auditoría»). Pendientes:
+Resueltas el 2026-11-05: SEC-A01..A05 y OPS-A02 (issues #326–#330, #333) más
+ARC-A01 (split y dependencias) y DOC-A01 (validador y ficha) el 2026-11-05/06 —
+todas las issues de la auditoría están cerradas salvo OPS-A01 (#332, ensayo de
+restauración) y REL-A01 (#331, verificación local por orden del propietario). Pendientes:
 rotación periódica de secretos (proceso; última rotación 2026-11-05, #275),
 ensayo de restauración PITR (OPS-A01, #332), ruleset de protección de rama
 (REL-A01, #331 — el CI ya corre; falta exigir el check).

@@ -594,6 +594,26 @@ tarifa-noches 3/3 (front en build de producción + API con las migraciones
 0013–0014). Los hechos de las pruebas de caracterización fueron actualizados
 al contrato ratificado.
 
+## Cierre del día 2026-11-06
+
+Dos jornadas de construcción quedaron registradas en este índice (sincronización
+del tablero, auditoría de jefatura traducida y corregida por completo, y la ola
+de decisiones). Balance de hoy:
+
+- **Seguridad (auditoría 2026-11-03): 10/10 issues cerradas** — SEC-A01..A05,
+  REL-A01 (verificación local), OPS-A02, ARC-A01 (split 1.711→352 líneas de
+  aplicacion.py, dependencias fijadas, licencias), DOC-A01 (validador vigente,
+  ficha `estado-v1.md`, README sincronizado). Quedan abiertas solo OPS-A01
+  (#332: dos clicks o token de cuenta del propietario) y las decisiones de
+  negocio ya listadas.
+- **Reglas de negocio: 8 decisiones del propietario construidas** en la ola
+  (sección anterior), cada una con contrato primero, TDD y cierre de issue.
+- **Números finales del día:** servicio 304/304, dominio 5 raíces, landing
+  12/12, E2E 56+20+3 en verde; tablero 104 ítems / 92 hechos.
+- **Pendiente del propietario (orden sugerido):** aprobar el deploy de Railway
+  (la ola vive en main, la aprobación es manual por política), luego #332,
+  #313 (zip de la landing listo) y #319 (proveedor del modelo).
+
 **Mejoras acordadas para aplicar de aquí en adelante** (incidente de red de
 Railway + auditoría + estado actual): postgres productivo siempre privado
 (toda verificación externa va por fork/túnel); rotar `RAILWAY_TOKEN` al
