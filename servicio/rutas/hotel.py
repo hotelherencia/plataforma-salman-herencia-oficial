@@ -208,11 +208,14 @@ def consultar_indicadores(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    """Panel operativo (spec-hotel-operacion-v1 §4); por defecto la noche de hoy."""
+    """Panel operativo (spec-hotel-operacion-v1 §4); por defecto la noche de hoy.
+    D-ROL-01 RATIFICADA 2026-11-06 (#297 opción a): el indicador financiero
+    `ingresos_periodo_clp` solo lo recibe el administrador."""
     hoy = date.today()
     desde = desde or hoy
     hasta = hasta or desde + timedelta(days=1)
-    return panel.indicadores(conexion, sesion.empresa_id, desde, hasta, hoy, tipo or None)
+    return panel.indicadores(conexion, sesion.empresa_id, desde, hasta, hoy, tipo or None,
+                             incluir_financiero=sesion.rol == "administrador")
 
 @router.post("/hotel/reservas")
 def confirmar_reserva(

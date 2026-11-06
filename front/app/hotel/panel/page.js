@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -171,6 +171,9 @@ export default function Panel() {
               <Tarjeta titulo="Ocupación reservada" indicador={p.ocupacion_reservada} valor={porcentaje(p.ocupacion_reservada.valor)} />
               <Tarjeta titulo="Noches ocupadas" indicador={p.noches_ocupadas} />
               <Tarjeta titulo="Noches reservadas" indicador={p.noches_reservadas} />
+              {p.ingresos_periodo_clp && (
+                <Tarjeta titulo="Ingresos del periodo" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
+              )}
               <Tarjeta titulo="Unidades-noche" indicador={p.unidades_noche} />
               <Tarjeta
                 titulo="Reservas canceladas"

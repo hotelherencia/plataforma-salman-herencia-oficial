@@ -180,9 +180,9 @@ def _conteo_reservas(ids: list[str], unidad_formula: str, fuente: str = "reserva
 
 NO_DISPONIBLES = [
     {
-        "indicador": "ADR, RevPAR e ingresos de hospedaje",
-        "motivo": "DECISIÓN PENDIENTE D-IND-01 y D-ROL-01: el dominio los calcula con cargos de noche netos y "
-        "los reserva a gerencia; V1 asienta un cargo único de alojamiento al reservar y no crea el rol gerencia.",
+        "indicador": "ADR y RevPAR",
+        "motivo": "requieren el reconocimiento de ingreso por noche; el precio noche a noche quedó resuelto "
+                  "(#305, 2026-11-06) pero la fórmula de ingreso reconocido sigue sin decidir (D-IND-02).",
     },
     {"indicador": "ingresos por canal", "motivo": "el modelo no registra canal de origen (dominio)."},
     {
@@ -194,9 +194,12 @@ NO_DISPONIBLES = [
 
 
 def indicadores(
-    conexion: psycopg.Connection, empresa_id: str, desde: date, hasta: date, hoy: date, tipo: str | None = None
+    conexion: psycopg.Connection, empresa_id: str, desde: date, hasta: date, hoy: date,
+    tipo: str | None = None, incluir_financiero: bool = False,
 ) -> dict:
-    """Panel operativo (spec-hotel-operacion-v1 §4)."""
+    """Panel operativo (spec-hotel-operacion-v1 §4). El indicador financiero
+    `ingresos_periodo_clp` se incluye solo cuando `incluir_financiero`
+    (D-ROL-01 RATIFICADA 2026-11-06, #297 opción a: solo administrador)."""
     noches = validar_periodo(desde, hasta, MAX_NOCHES_INDICADORES)
     habitaciones = _habitaciones(conexion, tipo)
     ids = [h["habitacion_id"] for h in habitaciones]
@@ -315,6 +318,18 @@ def indicadores(
             "por_estado": registradas,
         },
     }
+    if incluir_financiero:
+        # D-IND-01/#297 (DECISIÓN 2026-11-06): ingresos del periodo = pagos
+        # confirmados por fecha de pago (lo cobrado, no lo reservado).
+        (ingresos,) = conexion.execute(
+            "SELECT COALESCE(SUM(p.monto_clp), 0) FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' "
+            "AND p.creado_en::date >= %s AND p.creado_en::date < %s",
+            (empresa_id, desde, hasta),
+        ).fetchone()
+        periodo["ingresos_periodo_clp"] = _indicador(
+            ingresos, "CLP", "pagos confirmados por fecha de pago dentro del periodo",
+            "pagos (join reservas)", "lo cobrado, no lo reservado; fuente veraz")
     return {
         "fecha_corte": hoy.isoformat(),
         "periodo": {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "noches": len(noches)},

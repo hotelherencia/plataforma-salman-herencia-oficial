@@ -28,9 +28,10 @@ HECHO DOCUMENTADO: roles creables en V1 `administrador`, `recepcion`, `caja`
 (spec-api-v1 «Gestión de usuarios»); `ROLES_DOCUMENTO = {recepcion,
 administrador}` (dominio); configuración de habitaciones y tarifas solo
 `administrador` (dominio `ROLES_CONFIGURACION`; spec-api-v1).
-DECISIÓN PENDIENTE (D-ROL-01): el dominio reserva los indicadores a
-`gerencia`, rol que V1 no crea. Mientras no se decida, nada financiero se
-publica (§4.4).
+D-ROL-01 RATIFICADA 2026-11-06 (#297, opción a): no se crea `gerencia`; los
+indicadores financieros los ve `administrador`. Hoy publicado:
+`ingresos_periodo_clp` (pagos confirmados por fecha de pago). ADR/RevPAR
+siguen pendientes de fórmula de ingreso reconocido (D-IND-02, §4.4).
 
 | Capacidad | administrador | recepcion | caja |
 |---|---|---|---|
@@ -349,7 +350,8 @@ sincronizado en la misma revisión. Fórmulas distintas, nombres distintos.
 
 | Indicador | Motivo |
 |---|---|
-| ADR, RevPAR, ingresos de hospedaje | DECISIÓN PENDIENTE D-IND-01: el dominio los calcula con cargos de noche netos y los reserva a `gerencia` (D-ROL-01); V1 asienta un cargo único de alojamiento al reservar (HECHO: `reservas.crear_reserva`), cuyo reconocimiento por noche no está definido. Presentarlo sería inventar la fórmula. |
+| ingresos_periodo_clp | DECISIÓN 2026-11-06 (#297, opción a): pagos confirmados por fecha de pago dentro del periodo (`pagos` join `reservas`, `estado = 'confirmado'`). Solo administrador (D-ROL-01 ratificada). Es lo cobrado, no lo reservado. |
+| ADR, RevPAR | DECISIÓN PENDIENTE D-IND-02: requieren el reconocimiento de ingreso por noche; el precio noche a noche quedó resuelto (#305) pero la fórmula de ingreso reconocido sigue sin decidir. Presentarlo sería inventar la fórmula. |
 | Ingresos por canal | HECHO: «el modelo no registra canal de origen» (dominio). |
 | Pagos y caja del periodo | ya cubierto por `GET /hotel/caja` por día (caja/administrador). Un acumulado por periodo es DECISIÓN PENDIENTE D-IND-02 (rol y conciliación: los pagos manuales no están conciliados). |
 | No-show | V1 no tiene ese estado; se informa `llegadas_vencidas`. |
@@ -419,7 +421,7 @@ sincronizado en la misma revisión. Fórmulas distintas, nombres distintos.
 
 | Id | Pregunta | Mientras tanto |
 |---|---|---|
-| D-ROL-01 | ¿Se crea el rol `gerencia` de HU-HOT-03, o los indicadores financieros los ve `administrador`? | sin indicadores financieros |
+| D-ROL-01 | RATIFICADA 2026-11-06 (#297, opción a): no se crea `gerencia`; los indicadores financieros los ve `administrador` (hoy: `ingresos_periodo_clp`). | — |
 | D-IND-01 | ¿Cómo se reconoce el ingreso de hospedaje por noche (cargo único al reservar vs. noche asentada)? | sin ADR/RevPAR |
 | D-IND-02 | ¿Pagos acumulados por periodo, para qué rol, y con qué advertencia de no conciliación? | caja por día |
 | D-IND-03 | ¿Una habitación retirada sale del denominador de ocupación desde su retiro? | fórmula del dominio (cuenta) |
