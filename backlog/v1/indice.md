@@ -532,3 +532,54 @@ CI en commits propios.
   (publicación de la landing — acceso al hosting), #319 (adaptador del agente
   — D-AGT-02), #324 (WhatsApp — autorización Meta), y las decisiones de
   negocio #296–#299, #304–#306, #308, #314, #316.
+
+## Quinta pasada — 2026-11-06 (bucle de pendientes, nuevo ciclo)
+
+Orden del propietario: «comienza un nuevo bucle para aplicar y construir cada
+issue pendiente». Cada pendiente se llevó hasta su límite constructible:
+
+- [En curso, avance] **#319 — adaptador HTTP genérico del modelo** —
+  `servicio/modelo_http.py` implementa el contrato `decidir()` contra
+  cualquier endpoint OpenAI-compatible, agnóstico de proveedor (la decisión
+  D-AGT-02 se sigue tomando al fijar `MODELO_BASE_URL`/`MODELO_API_KEY`/
+  `MODELO_NOMBRE`; sin ellas, 503 igual que antes). Selección en crear_app:
+  guion > http > sin adaptador. 10 pruebas nuevas con stub local (sin red);
+  regresión 287/287. Cuando el proveedor se nombre: repetir AG-V01 (50 casos)
+  contra el adaptador real como compuerta SC-003 para N1.
+- [En curso, avance] **#313 — paquete de publicación de la landing** —
+  `scripts/empaquetar_landing.py` genera el zip del sitio (9 archivos) +
+  INSTRUCCIONES de subida y checklist de verificación para el hosting de
+  hotelherencia.cl. Resta la subida con acceso del propietario.
+- **#332** — sin cambios constructibles nuevos: sigue requiriendo (A) dos
+  clicks del propietario (fork + public networking en el fork) o (B) token de
+  cuenta. Hallazgo del mapeo de permisos: toda la superficie de
+  volúmenes/PITR es de nivel workspace (el token de proyecto no alcanza) y no
+  existe mutación de proxy TCP en la API.
+- Las demás pendientes (#296–#299, #304–#306, #308, #314, #316, #324) son
+  decisiones del propietario — brief con opciones y recomendaciones en
+  `docs/arquitectura/decisiones-pendientes-v1.md`.
+
+**Mejoras acordadas para aplicar de aquí en adelante** (incidente de red de
+Railway + auditoría + estado actual): postgres productivo siempre privado
+(toda verificación externa va por fork/túnel); rotar `RAILWAY_TOKEN` al
+cerrar #332; `scripts/verificar_local.py` antes de cada aprobación de deploy;
+ensayo de restauración trimestral (runbook listo); si dashboard/API dejan de
+responder desde esta red, es el incidente de bloqueo de IPs — cambiar de red;
+revisión trimestral de versiones fijadas.
+
+- [Hecha] **Épica `v1-desp` (H7) sincronizada** — las issues GitHub (#217,
+  #251–255) ya estaban cerradas y las tarjetas del Project en «Done» desde el
+  despliegue real (Railway + Vercel + API en Vercel, verificado en
+  producción); solo el tablero local (`construccion-v1.json`) las mantenía
+  «Lista». Corregido: H7 completo en los tres lugares.
+- **#332 (OPS-A01) destrallado hasta su único paso restante**: instalado el
+  CLI de Railway 5.71.0 en WSL (`~/.local/railway-cli`), pero la sesión
+  guardada está vencida («Unauthorized»). Queda documentado en la issue el
+  único paso del propietario (`railway login`, ~30 s en navegador); con eso,
+  el ensayo en solo lectura contra producción (incluida la versión real de
+  PostgreSQL) y el fork del PITR quedan listos para ejecutar.
+- **Pendientes reales del tablero tras esta pasada** (todos con dependencia
+  externa identificada): #332 (login Railway del propietario), #313
+  (publicación de la landing — acceso al hosting), #319 (adaptador del agente
+  — D-AGT-02), #324 (WhatsApp — autorización Meta), y las decisiones de
+  negocio #296–#299, #304–#306, #308, #314, #316.
