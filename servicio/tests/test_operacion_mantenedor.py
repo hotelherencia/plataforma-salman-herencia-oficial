@@ -453,14 +453,18 @@ class IndicadoresTest(BaseOperacion):
         self.assertIsNone(vacio["ocupacion"]["valor"])
         self.assertIsNone(vacio["ocupacion_reservada"]["valor"])
 
-    def test_ca_ind_02_financieros_no_publicados_y_roles(self):
+    def test_ca_ind_02_financieros_segun_rol(self):
+        # D-ROL-01 RATIFICADA 2026-11-06 (#297): `ingresos_periodo_clp` lo ve
+        # solo administrador; ADR/RevPAR siguen en no_disponibles (D-IND-02).
         cuerpo = self.indicadores("")
         self.assertEqual(cuerpo["periodo"], {"desde": HOY.isoformat(), "hasta": iso(1), "noches": 1})
         self.assertTrue(any("ADR" in x["indicador"] for x in cuerpo["no_disponibles"]))
+        self.assertIn("ingresos_periodo_clp", cuerpo["periodo_indicadores"])  # admin lo recibe
         texto = str(cuerpo["periodo_indicadores"]) + str(cuerpo["hoy"])
-        self.assertNotIn("_clp", texto)
+        self.assertEqual(texto.count("_clp"), 1)  # solo el ingreso; nada más financiero
         for usuario, clave in (("recepcion1", "clave-recepcion"), ("caja1", "clave-caja")):
-            self.indicadores("", self.login(usuario, clave))
+            vista = self.indicadores("", self.login(usuario, clave))
+            self.assertNotIn("ingresos_periodo_clp", vista["periodo_indicadores"])
         self.assertEqual(TestClient(self.app).get("/hotel/indicadores").status_code, 401)
         self.assertEqual(self.admin.get(f"/hotel/indicadores?desde={iso(0)}&hasta={iso(93)}").status_code, 422)
 

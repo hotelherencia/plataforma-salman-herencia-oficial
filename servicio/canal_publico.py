@@ -196,7 +196,7 @@ def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None) -
 
 def _solicitud_de_la_empresa(conexion: psycopg.Connection, solicitud_id: str, empresa_id: str):
     fila = conexion.execute(
-        "SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre "
+        "SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas "
         "FROM solicitudes WHERE id = %s AND empresa_id = %s",
         (solicitud_id, empresa_id),
     ).fetchone()
@@ -215,7 +215,8 @@ def convertir(
         raise TransicionInvalida(f"la solicitud está {solicitud[1]}")
     try:
         reserva = reservas_db.crear_reserva(
-            conexion, empresa_id, solicitud[2], solicitud[3], solicitud[4], solicitud[5], None
+            conexion, empresa_id, solicitud[2], solicitud[3], solicitud[4], solicitud[5], None,
+            personas=solicitud[6],
         )
     except (reservas_db.SinCupo, reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:
         raise SinCupoOSinTarifa(str(error)) from error

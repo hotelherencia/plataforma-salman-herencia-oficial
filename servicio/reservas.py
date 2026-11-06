@@ -424,14 +424,19 @@ def crear_reserva(
     fin: date,
     huesped_nombre: str,
     huesped_documento: str | None,
+    personas: int | None = None,
 ) -> dict:
     # El estado se lee tras el cerrojo: un retiro concurrente y esta reserva se
     # serializan sobre la fila (spec-hotel-operacion-v1 §2.7, misma regla que la oferta).
     habitacion = conexion.execute(
-        "SELECT estado_operativo, mantenimiento FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
+        "SELECT estado_operativo, mantenimiento, capacidad FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
     ).fetchone()
     if habitacion is not None and (habitacion[1] or habitacion[0] in ESTADOS_NO_VENDIBLES):
         raise HabitacionNoVendible(f"{habitacion_id} está fuera del cupo: no admite reservas nuevas")
+    # #298 (DECISIÓN 2026-11-06): las personas se validan contra la capacidad
+    # al confirmar, igual que la oferta las filtra.
+    if personas is not None and habitacion is not None and habitacion[2] < personas:
+        raise SinCupo(f"la unidad {habitacion_id} admite hasta {habitacion[2]} personas")
     # Cada noche necesita tarifa (§2.8) y cada noche se cobra con su tarifa
     # vigente (#305, DECISIÓN 2026-11-06; reemplaza D-TAR-02).
     descubierta = primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin)
@@ -443,8 +448,8 @@ def crear_reserva(
         with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
             conexion.execute(
                 "INSERT INTO reservas (id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, "
-                "tarifa_noche_aceptada_clp) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa),
+                "tarifa_noche_aceptada_clp, personas) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa, personas),
             )
             conexion.execute(
                 "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
@@ -460,4 +465,5 @@ def crear_reserva(
         "estado": "confirmada",
         "tarifa_noche_aceptada_clp": tarifa,
         "total_clp": total,
+        "personas": personas,
     }

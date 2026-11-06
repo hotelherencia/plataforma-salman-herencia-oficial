@@ -241,6 +241,7 @@ def confirmar_reserva(
                 fin=reserva.fin,
                 huesped_nombre=reserva.huesped.nombre,
                 huesped_documento=reserva.huesped.documento,
+                personas=reserva.personas,
             )
         except reservas_db.SinCupo as error:
             return 409, {"detail": str(error)}

@@ -68,6 +68,9 @@ class ReservaIn(BaseModel):
     inicio: date
     fin: date
     huesped: HuespedIn
+    # #298 (DECISIÓN 2026-11-06): se persiste y se valida contra la capacidad
+    # al confirmar; opcional porque no todo flujo lo conoce (conversiones).
+    personas: int | None = Field(default=None, ge=1, le=30)
 
 
 class PagoIn(BaseModel):
