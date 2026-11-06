@@ -100,15 +100,15 @@ class CaracterizacionBaseTest(unittest.TestCase):
 class TarifaCruzadaTest(CaracterizacionBaseTest):
     """Hechos 1 y 2: precio con cambio de tarifa entre noches."""
 
-    def test_precio_es_tarifa_de_inicio_por_noches_sin_prorrateo(self):
-        # Tarifa sube a mitad del rango: noches [d, d+1) a 50000, [d+1, d+3) a 80000.
+    def test_precio_es_suma_noche_a_noche_con_cada_tarifa(self):
+        # DECISIÓN #305 (propietario 2026-11-06, opción b): tarifa cruzada.
         d = HOY + timedelta(days=10)
         self.tarifa("TAR-CARA", "HAB-SINT-101", str(d + timedelta(days=1)), "2027-12-31", 80000)
         r = self.reservar(d, d + timedelta(days=3))  # 3 noches: [d, d+3)
         self.assertEqual(r.status_code, 201, r.text)
-        # HECHO: cada noche tiene tarifa (pasa §2.8) pero el total usa tarifa(inicio) × noches:
-        # 50000 × 3 = 150000, no 50000+80000+80000.
-        self.assertEqual(r.json()["total_clp"], 150000)
+        # 50000 (noche d) + 80000 + 80000: lo ofertado es lo cargado, sin prorrateo
+        # de la tarifa de inicio (reemplaza D-TAR-02, hecho ratificado).
+        self.assertEqual(r.json()["total_clp"], 210000)
 
     def test_noche_sin_tarifa_rechaza_y_no_persiste(self):
         d = HOY + timedelta(days=20)

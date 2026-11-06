@@ -165,6 +165,25 @@ def tarifa_vigente(conexion: psycopg.Connection, habitacion_id: str, fecha: date
     return fila[0] if fila else None
 
 
+def precio_noches(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> tuple[int, int]:
+    """(tarifa de la primera noche, total noche a noche).
+
+    DECISIÓN del propietario 2026-11-06 (#305, opción b, ratificada): cada
+    noche se cobra con la tarifa vigente de esa noche; la oferta y la reserva
+    quedan alineadas (lo ofertado es lo cargado). `tarifa_noche_aceptada_clp`
+    conserva su significado de referencia: tarifa de la noche de inicio
+    (base de la penalidad de cancelación, spec-hotel-operacion §3).
+    Reemplaza la regla provisional D-TAR-02 (tarifa de inicio × noches).
+    """
+    tarifa_primera = tarifa_vigente(conexion, habitacion_id, inicio)
+    total = 0
+    noche = inicio
+    while noche < fin:
+        total += tarifa_vigente(conexion, habitacion_id, noche)
+        noche += timedelta(days=1)
+    return tarifa_primera, total
+
+
 def tarifas_por_noche(conexion: psycopg.Connection, desde: date, hasta: date) -> dict[tuple[str, date], int]:
     """Tarifa vigente de cada (habitación, noche) en [desde, hasta), con la
     misma regla que `tarifa_vigente` (una sola consulta para la rejilla)."""
@@ -208,20 +227,19 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
         "ORDER BY id",
         (personas, list(ESTADOS_NO_VENDIBLES)),
     ).fetchall()
-    noches = (fin - inicio).days
     items = []
     for habitacion_id, tipo, _capacidad in unidades:
         if primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin) is not None or not _libre(
             conexion, habitacion_id, inicio, fin
         ):
             continue
-        tarifa = tarifa_vigente(conexion, habitacion_id, inicio)
+        tarifa, total = precio_noches(conexion, habitacion_id, inicio, fin)
         items.append(
             {
                 "habitacion_id": habitacion_id,
                 "tipo": tipo,
                 "tarifa_noche_clp": tarifa,
-                "total_clp": tarifa * noches,
+                "total_clp": total,
                 "politica_cancelacion": POLITICA_CANCELACION,
                 "vigente_hasta": (ahora + VIGENCIA_OFERTA).isoformat(),
             }
@@ -414,14 +432,13 @@ def crear_reserva(
     ).fetchone()
     if habitacion is not None and (habitacion[1] or habitacion[0] in ESTADOS_NO_VENDIBLES):
         raise HabitacionNoVendible(f"{habitacion_id} está fuera del cupo: no admite reservas nuevas")
-    # Cada noche necesita tarifa (§2.8); el precio sigue siendo el de la noche
-    # de inicio × noches hasta D-TAR-02 (v1-issue-17).
+    # Cada noche necesita tarifa (§2.8) y cada noche se cobra con su tarifa
+    # vigente (#305, DECISIÓN 2026-11-06; reemplaza D-TAR-02).
     descubierta = primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin)
     if descubierta is not None:
         raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {descubierta}")
-    tarifa = tarifa_vigente(conexion, habitacion_id, inicio)
+    tarifa, total = precio_noches(conexion, habitacion_id, inicio, fin)
     reserva_id = f"RSV-{uuid.uuid4().hex[:12]}"
-    total = tarifa * (fin - inicio).days
     try:
         with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
             conexion.execute(

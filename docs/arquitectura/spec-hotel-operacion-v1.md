@@ -233,11 +233,12 @@ que solo miraban la primera noche.
   - `POST /hotel/reservas` con alguna noche sin tarifa → **409** «sin tarifa
     vigente para `<hab>` la noche `<d>`» (primera noche descubierta), sin
     reserva, cargo ni auditoría de reserva.
-- **Fuera de esta regla:** cómo se calcula el precio de una estadía que cruza
-  dos tarifas. Sigue el HECHO vigente, tarifa de la noche de inicio × noches
-  y congelada en la reserva, hasta la DECISIÓN PENDIENTE D-TAR-02
-  (v1-issue-17). Esta regla no cambia ningún precio: solo deja de vender
-  noches sin tarifa.
+- **Fuera de esta regla (RESUELTA 2026-11-06):** el precio de una estadía que
+  cruza dos tarifas se cobra **noche a noche con la tarifa vigente de cada
+  noche** (DECISIÓN del propietario, #305 opción b; reemplaza D-TAR-02). La
+  oferta publica `total_clp` con esa suma: lo ofertado es lo cargado.
+  `tarifa_noche_aceptada_clp` conserva su significado de referencia (tarifa de
+  la primera noche, base de la penalidad de cancelación §3).
 - Reservas existentes no se tocan; la regla rige para ofrecer y confirmar.
 
 ## 3. Consulta y análisis de reservas

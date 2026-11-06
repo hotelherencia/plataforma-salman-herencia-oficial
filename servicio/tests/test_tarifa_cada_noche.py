@@ -120,6 +120,20 @@ class TarifaCadaNocheTest(unittest.TestCase):
         self.assertEqual(self.reservar(6, 11).status_code, 409)
         self.assertEqual(self.efectos(), (0, 0, 0))
 
+    # ---- DECISIÓN #305 (2026-11-06): precio noche a noche ----
+
+    def test_precio_cruza_tarifas_suma_cada_noche(self):
+        self.tarifa(5, 10, 40000)
+        self.tarifa(10, 20, 60000)
+        ofrecida = self.oferta(8, 12)["HAB-T-1"]  # noches 8,9 a 40000; 10,11 a 60000
+        self.assertEqual(ofrecida["total_clp"], 200000)
+        self.assertEqual(ofrecida["tarifa_noche_clp"], 40000)  # primera noche
+        respuesta = self.reservar(8, 12)
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        reserva = respuesta.json()
+        self.assertEqual(reserva["total_clp"], 200000)
+        self.assertEqual(reserva["tarifa_noche_aceptada_clp"], 40000)
+
     def test_tarifas_contiguas_se_ofrecen_y_el_total_confirmado_es_el_ofrecido(self):
         self.tarifa(5, 10, 40000)
         self.tarifa(10, 20, 60000)
