@@ -8,6 +8,11 @@ propietario ratifique, en el orden en que lo ratifique.
 
 ## 1. D-ENT-01 — regla de fecha/hora y documento en entrada y salida (#296)
 
+> Hechos ejecutables (2026-11-06): `servicio/tests/test_caracterizacion_decisiones.py`
+> (6 pruebas que documentan el comportamiento vigente; avisarán en rojo si una
+> decisión lo cambia). La salida anticipada no prorratea: la reserva finaliza
+> con su fin original y el precio aceptado completo (no hay cargo proporcional).
+
 - **HECHO:** la entrada exige que la reserva haya comenzado (`inicio ≤ hoy`
   del servidor; 409 «aún no llega su día de entrada» — en ratificación,
   commit 34862d7). El documento del huésped es opcional y no se exige en
