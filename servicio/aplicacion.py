@@ -114,6 +114,17 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     )
     if configuracion is not None and configuracion.agente_guion_json:
         app.state.modelo_agente = ModeloGuionado(json.loads(configuracion.agente_guion_json))
+    elif configuracion is not None and configuracion.modelo_base_url and configuracion.modelo_api_key:
+        # #319: adaptador HTTP genérico (spec 005). Sin guion y con
+        # MODELO_BASE_URL + MODELO_API_KEY en el entorno, el agente habla con
+        # un endpoint OpenAI-compatible. La ausencia de ambas deja el puerto
+        # en SinAdaptador (503 «modelo no configurado», D-AGT-02 pendiente).
+        from .modelo_http import ModeloHttp
+        app.state.modelo_agente = ModeloHttp(
+            base_url=configuracion.modelo_base_url,
+            api_key=configuracion.modelo_api_key,
+            modelo=configuracion.modelo_nombre or "modelo",
+        )
     else:
         app.state.modelo_agente = SinAdaptador()
     app.state.estados_oauth = google_oidc.EstadosOAuth()

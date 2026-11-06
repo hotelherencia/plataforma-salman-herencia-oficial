@@ -45,6 +45,12 @@ class Configuracion:
     origen_landing: str | None = None
     publico_max_por_minuto: int = 6
     agente_guion_json: str | None = None
+    # Modelo del agente vía HTTP (spec 005, #319): con ambas variables el
+    # proceso arranca con ModeloHttp contra un endpoint OpenAI-compatible;
+    # sin ellas sigue SinAdaptador (503). Nombra el proveedor = D-AGT-02.
+    modelo_base_url: str | None = None
+    modelo_api_key: str | None = None
+    modelo_nombre: str | None = None
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -79,4 +85,7 @@ def cargar_desde_entorno() -> Configuracion:
         origen_landing=_normalizar_origenes(os.environ.get("ORIGEN_LANDING")),
         publico_max_por_minuto=int(os.environ.get("PUBLICO_MAX_POR_MINUTO", "6")),
         agente_guion_json=os.environ.get("AGENTE_GUION_JSON"),
+        modelo_base_url=os.environ.get("MODELO_BASE_URL"),
+        modelo_api_key=os.environ.get("MODELO_API_KEY"),
+        modelo_nombre=os.environ.get("MODELO_NOMBRE"),
     )
