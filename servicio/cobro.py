@@ -117,11 +117,13 @@ def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> 
     return {"fecha": fecha.isoformat(), "pagos": pagos, "total_clp": sum(p["monto_clp"] for p in pagos)}
 
 
-def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> dict:
+def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, documento: str | None = None) -> dict:
     """Check-in (spec-api-v1 «Operación de la habitación»): en la misma
     transacción valida mantenimiento, disponibilidad, preparación y que ninguna
     otra estadía ocupe la unidad; al pasar, la reserva queda en_estadia y la
-    habitación ocupada."""
+    habitación ocupada. D-ENT-01 (DECISIÓN 2026-11-06, #296): exige el
+    documento del huésped antes de `en_estadia`; si la reserva aún no lo trae
+    (p. ej. conversión de solicitud pública), la entrada lo captura."""
     _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     if _reserva[2] != "confirmada":
         raise TransicionInvalida(f"la reserva está {_reserva[2]}")
@@ -133,6 +135,17 @@ def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> d
     ).fetchone()
     if inicio > date.today():
         raise TransicionInvalida(f"aún no llega su día de entrada ({inicio.isoformat()})")
+    # D-ENT-01: documento exigido antes de en_estadia (después de la regla de
+    # inicio para no enmascarar el 409 de «aún no llega su día»).
+    (documento_guardado,) = conexion.execute(
+        "SELECT huesped_documento FROM reservas WHERE id = %s", (reserva_id,)
+    ).fetchone()
+    if not documento_guardado:
+        if not documento or not documento.strip():
+            raise TransicionInvalida("registra el documento del huésped para pasar la entrada")
+        conexion.execute(
+            "UPDATE reservas SET huesped_documento = %s WHERE id = %s", (documento.strip(), reserva_id)
+        )
     habitacion = conexion.execute(
         "SELECT estado_operativo, estado_preparacion, mantenimiento FROM habitaciones WHERE id = %s FOR UPDATE",
         (_reserva[1],),

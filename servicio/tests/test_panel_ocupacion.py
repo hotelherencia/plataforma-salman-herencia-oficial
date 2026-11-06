@@ -79,7 +79,7 @@ class ReconciliacionBaseTest(unittest.TestCase):
         r = self.cliente.post(
             "/hotel/reservas",
             json={"habitacion_id": hab_id, "inicio": str(inicio), "fin": str(fin),
-                  "huesped": {"nombre": nombre}},
+                  "huesped": {"nombre": nombre, "documento": "DOC-PANEL"}},
             headers={"Idempotency-Key": self.clave()},
         )
         self.assertEqual(r.status_code, 201, r.text)

@@ -143,3 +143,12 @@ class PoliticaAgenteIn(BaseModel):
     max_personas: int | None = Field(default=None, ge=1, le=30)
     tope_mensual_clp: int | None = Field(default=None, ge=0)
     evaluacion_ref: str | None = Field(default=None, max_length=200)
+
+
+class DocumentoHuespedIn(BaseModel):
+    """D-ENT-01 (DECISIÓN 2026-11-06, #296 opción b): documento exigido antes
+    de `en_estadia`. Las solicitudes públicas convierten sin documento, así
+    que la entrada lo captura cuando la reserva aún no lo trae. El campo es
+    opcional en el esquema (un cuerpo vacío es legal y lo resuelve el
+    dominio con 409); la obligatoriedad la fija `cobro.entrada`."""
+    documento: str | None = Field(default=None, min_length=1, max_length=50)

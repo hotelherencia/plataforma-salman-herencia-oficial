@@ -443,7 +443,7 @@ try {
 
   // ===== J. Estadía: entrada, cargo, cancelación =====
   await caso('EST-01', '/hotel/estadia', 'check-in deja la unidad ocupada', 'recepcion', 'reserva en_estadia; inventario «ocupada»', async () => {
-    const r = await api('POST', `/hotel/reservas/${reservaId}/entrada`, { cookie: cookieRecepcion, clave: K('e2e-ent-1'), cuerpo: {} })
+    const r = await api('POST', `/hotel/reservas/${reservaId}/entrada`, { cookie: cookieRecepcion, clave: K('e2e-ent-1'), cuerpo: { documento: '11.111.111-1' } })
     if (r.estado !== 200) throw new Error(`${r.estado} ${JSON.stringify(r.datos)}`)
     const inv = await api('GET', '/hotel/habitaciones', { cookie: cookieRecepcion })
     const hab101 = inv.datos.habitaciones.find((h) => h.habitacion_id === HAB_A)

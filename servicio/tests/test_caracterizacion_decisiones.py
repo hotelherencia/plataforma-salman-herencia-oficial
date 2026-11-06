@@ -96,6 +96,19 @@ class CaracterizacionBaseTest(unittest.TestCase):
         )
         self.assertEqual(pago.status_code, 201, pago.text)
 
+    def crear_usuario(self, nombre, rol, clave="clave-usuario-1"):
+        r = self.cliente.post(
+            "/usuarios", json={"nombre": nombre, "rol": rol, "clave": clave},
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(r.status_code, 201, r.text)
+
+    def login(self, nombre, clave):
+        cliente = TestClient(self.app)
+        r = cliente.post("/sesion", json={"usuario": nombre, "clave": clave})
+        self.assertEqual(r.status_code, 200, r.text)
+        return cliente
+
 
 class TarifaCruzadaTest(CaracterizacionBaseTest):
     """Hechos 1 y 2: precio con cambio de tarifa entre noches."""
@@ -136,6 +149,7 @@ class SalidaAnticipadaTest(CaracterizacionBaseTest):
         self.assertEqual(r.status_code, 201, r.text)
         rid = r.json()["reserva_id"]
         entrada = self.cliente.post(f"/hotel/reservas/{rid}/entrada",
+                                    json={"documento": "DOC-CAR-1"},
                                     headers={"Idempotency-Key": self.clave()})
         self.assertEqual(entrada.status_code, 200, entrada.text)
         self.pagar(self.cliente, rid, 200000)  # 4 noches × 50000: la salida exige cuenta en cero
@@ -160,6 +174,7 @@ class FechasSinHoraTest(CaracterizacionBaseTest):
         self.assertEqual(r.status_code, 201, r.text)
         rid = r.json()["reserva_id"]
         entrada = self.cliente.post(f"/hotel/reservas/{rid}/entrada",
+                                    json={"documento": "DOC-CAR-1"},
                                     headers={"Idempotency-Key": self.clave()})
         self.assertEqual(entrada.status_code, 200, entrada.text)
 
@@ -167,12 +182,15 @@ class FechasSinHoraTest(CaracterizacionBaseTest):
         r = self.reservar(HOY + timedelta(days=3), HOY + timedelta(days=5))
         rid = r.json()["reserva_id"]
         entrada = self.cliente.post(f"/hotel/reservas/{rid}/entrada",
+                                    json={"documento": "DOC-CAR-1"},
                                     headers={"Idempotency-Key": self.clave()})
         self.assertEqual(entrada.status_code, 409, entrada.text)
 
 
 class RolesEntradaSalidaTest(CaracterizacionBaseTest):
-    """Hecho 5 (#304): cualquier rol autenticado puede entrar y salir hoy."""
+    """Hecho 5 (#304, RATIFICADA 2026-11-06 opción a): entrada y salida las
+    registran recepción o administrador; caja queda fuera («caja cobra,
+    recepción opera la habitación»)."""
 
     def _usuario(self, rol):
         nombre = f"user-{rol}-{uuid.uuid4().hex[:6]}"
@@ -183,16 +201,25 @@ class RolesEntradaSalidaTest(CaracterizacionBaseTest):
         self.assertEqual(r.status_code, 200, r.text)
         return cliente
 
-    def test_caja_puede_entrar_y_salir(self):
+    def test_caja_no_puede_entrar_ni_salir(self):
         d = HOY - timedelta(days=1)
         r = self.reservar(d, d + timedelta(days=2))
         rid = r.json()["reserva_id"]
         caja = self._usuario("caja")
-        entrada = caja.post(f"/hotel/reservas/{rid}/entrada", headers={"Idempotency-Key": self.clave()})
-        self.assertEqual(entrada.status_code, 200, entrada.text)  # HECHO: caja entra (solo pide sesión)
-        self.pagar(caja, rid, 100000)  # 2 noches × 50000: la salida exige cuenta en cero
-        salida = caja.post(f"/hotel/reservas/{rid}/salida", headers={"Idempotency-Key": self.clave()})
-        self.assertEqual(salida.status_code, 200, salida.text)
+        entrada = caja.post(f"/hotel/reservas/{rid}/entrada",
+                              json={"documento": "DOC-CAR-3"},
+                              headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(entrada.status_code, 403, entrada.text)
+        salida = caja.post(f"/hotel/reservas/{rid}/salida",
+                             headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(salida.status_code, 403, salida.text)
+        # recepción sí puede (contrato ratificado #304):
+        self.crear_usuario("recepcion1", "recepcion")
+        recepcion = self.login("recepcion1", "clave-usuario-1")
+        entrada_ok = recepcion.post(f"/hotel/reservas/{rid}/entrada",
+                                    json={"documento": "DOC-CAR-4"},
+                                    headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(entrada_ok.status_code, 200, entrada_ok.text)
 
 
 if __name__ == "__main__":

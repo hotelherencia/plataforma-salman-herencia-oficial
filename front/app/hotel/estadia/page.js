@@ -88,13 +88,22 @@ export default function Estadia() {
     setSalida(null)
     const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
     if (falta) { setError(falta); return }
+    // D-ENT-01 (2026-11-06): la entrada exige documento del huésped. Si la
+    // reserva no lo trae (p. ej. conversión de solicitud pública), se pide
+    // aquí y se reintenta con el cuerpo.
+    let documento = null
+    if (detalleReserva && !detalleReserva.huesped_documento) {
+      const pedido = window.prompt('Documento del huésped (obligatorio para el check-in):')
+      if (!pedido || !pedido.trim()) { setError('El documento del huésped es obligatorio para la entrada.'); return }
+      documento = pedido.trim()
+    }
     enVueloRef.current = true
     setEnviando(true)
     try {
       const r = await api(`/hotel/reservas/${reservaId.trim()}/entrada`, {
         metodo: 'POST',
         claveIdempotencia: claveEntrada,
-        cuerpo: {},
+        cuerpo: documento ? { documento } : {},
       })
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))

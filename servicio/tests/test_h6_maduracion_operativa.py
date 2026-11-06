@@ -94,10 +94,11 @@ class MaduracionOperativaTest(unittest.TestCase):
             headers={"Idempotency-Key": idem},
         )
 
-    def entrada(self, reserva_id, clave="ent-1"):
+    def entrada(self, reserva_id, clave="ent-1", documento=None):
+        cuerpo = {"documento": documento} if documento else {}
         return self.cliente.post(
             f"/hotel/reservas/{reserva_id}/entrada",
-            json={},
+            json=cuerpo,
             headers={"Idempotency-Key": clave},
         )
 
@@ -419,12 +420,23 @@ class MaduracionOperativaTest(unittest.TestCase):
         ).json()["oferta"]
         self.assertNotIn("HAB-SINT-101", {i["habitacion_id"] for i in solapada})
 
-    def test_entrada_no_exige_documento_ni_hora_de_llegada_en_el_contrato(self):
-        # spec-api-v1 «Operación de la habitación»: la entrada solo se niega
-        # por mantenimiento/disponible/preparación/otra estadía solapada. El
-        # documento es nullable y la hora de llegada no es condición HTTP.
+    def test_entrada_exige_documento_del_huesped(self):
+        # D-ENT-01 RATIFICADA 2026-11-06 (#296, opción b): sin documento en la
+        # reserva ni en el cuerpo → 409; con documento en el cuerpo → 200 y
+        # queda persistido; con documento en la reserva → 200 sin cuerpo.
         sin_doc = self.reservar("HAB-SINT-103", P1, P3, "Elías", documento=None, clave="r-sd")
-        self.assertEqual(self.entrada(sin_doc, "ent-sd").status_code, 200)
+        rechazo = self.entrada(sin_doc, "ent-sd")
+        self.assertEqual(rechazo.status_code, 409)
+        self.assertIn("documento", rechazo.json()["detail"])
+        ok = self.entrada(sin_doc, "ent-sd-2", documento="12.345.678-9")
+        self.assertEqual(ok.status_code, 200, ok.text)
+        with psycopg.connect(URL_TEST) as conexion:
+            (guardado,) = conexion.execute(
+                "SELECT huesped_documento FROM reservas WHERE id = %s", (sin_doc,)
+            ).fetchone()
+        self.assertEqual(guardado, "12.345.678-9")
+        con_doc = self.reservar("HAB-SINT-101", P1, P3, "Eloísa", documento="9.876.543-2", clave="r-cd")
+        self.assertEqual(self.entrada(con_doc, "ent-cd").status_code, 200)
 
     def test_entrada_exige_que_la_reserva_haya_comenzado(self):
         # REQUISITO PROPUESTO 2026-11-03 (v1-issue-07, en ratificación): la

@@ -56,7 +56,7 @@ class CobroEstadiaTest(unittest.TestCase):
     def reservar(self, clave="res-1", habitacion_id="HAB-SINT-101"):
         respuesta = self.cliente.post(
             "/hotel/reservas",
-            json={"habitacion_id": habitacion_id, **RANGO, "huesped": {"nombre": "Huésped"}},
+            json={"habitacion_id": habitacion_id, **RANGO, "huesped": {"nombre": "Huésped", "documento": "DOC-H4"}},
             headers={"Idempotency-Key": clave},
         )
         self.assertEqual(respuesta.status_code, 201, respuesta.text)

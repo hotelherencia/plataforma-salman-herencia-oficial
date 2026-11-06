@@ -7,7 +7,7 @@ búsqueda, ocupación, indicadores, solicitudes públicas (bandeja) y leads
 import json
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
 from fastapi.responses import JSONResponse
 from hotel_inventario.servicio import ROLES_DOCUMENTO
 
@@ -20,7 +20,7 @@ from .. import reservas as reservas_db
 from .. import seguridad
 from . import comun
 from .modelos import (
-    CargoIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
+    CargoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
     PagoIn, PATRON_ID_HABITACION, RechazoSolicitudIn, ReservaIn, ServicioIn,
     SolicitudPublicaIn, TarifaIn,
 )
@@ -306,20 +306,25 @@ def check_in(
     idempotency_key: str | None = Header(default=None),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
+    cuerpo: DocumentoHuespedIn | None = Body(default=None),
 ) -> JSONResponse:
+    # D-ROL-ENT (DECISIÓN 2026-11-06, #304 opción a): la entrada la registran
+    # recepción o administrador («caja cobra, recepción opera la habitación»).
+    comun.exigir_rol(sesion, ("recepcion", "administrador"))
     clave = comun.clave_idempotencia_o_400(idempotency_key)
-    cuerpo = {"reserva_id": reserva_id}
+    cuerpo_idem = {"reserva_id": reserva_id}
 
     def operacion() -> tuple[int, dict]:
         try:
-            ingreso = cobro.entrada(conexion, sesion.empresa_id, reserva_id)
+            ingreso = cobro.entrada(conexion, sesion.empresa_id, reserva_id,
+                                    documento=cuerpo.documento if cuerpo else None)
         except (cobro.HabitacionNoLista, cobro.TransicionInvalida) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "entrada", reserva_id, "en_estadia")
         return 200, ingreso
 
     try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo_idem, operacion)
     except idempotencia.ConflictoIdempotencia as error:
         raise HTTPException(status_code=409, detail=str(error))
     conexion.commit()
@@ -332,6 +337,9 @@ def check_out(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
+    # D-ROL-ENT (DECISIÓN 2026-11-06, #304 opción a): la salida la registran
+    # recepción o administrador, igual que la entrada.
+    comun.exigir_rol(sesion, ("recepcion", "administrador"))
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"reserva_id": reserva_id}
 
