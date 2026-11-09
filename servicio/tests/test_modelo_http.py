@@ -46,7 +46,10 @@ class ServidorStub:
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 if stub.payload is not None:
-                    self.wfile.write(json.dumps(stub.payload).encode("utf-8"))
+                    try:
+                        self.wfile.write(json.dumps(stub.payload).encode("utf-8"))
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
 
             def log_message(self, *args):
                 pass
@@ -90,6 +93,20 @@ class ModeloHttpTest(unittest.TestCase):
         self.assertEqual(roles[1], "user")
         self.assertIn("cotizar", cuerpo["messages"][0]["content"])
 
+    def test_traduce_el_mensaje_del_orquestador(self):
+        """procesar() manda {rol, texto}; el endpoint exige {role, content}."""
+        decision = {"herramienta": "cotizar", "argumentos": {}}
+        with ServidorStub(payload=payload_openai(json.dumps(decision))) as stub:
+            modelo = ModeloHttp(stub.base_url, api_key="k", modelo="prueba")
+            modelo.decidir(
+                [{"rol": "user", "texto": "llegada 1 de diciembre"}],
+                ["cotizar"],
+            )
+        self.assertEqual(
+            stub.ultima["cuerpo"]["messages"][1],
+            {"role": "user", "content": "llegada 1 de diciembre"},
+        )
+
     def test_http_500_es_modelo_fallo(self):
         with ServidorStub(status=500, payload={"error": "boom"}) as stub:
             modelo = ModeloHttp(stub.base_url, api_key="k")
@@ -115,7 +132,9 @@ class ModeloHttpTest(unittest.TestCase):
                 modelo.decidir([{"role": "user", "content": "x"}], ["cotizar"])
 
     def test_timeout_es_modelo_fallo(self):
-        with ServidorStub(payload=payload_openai("{}"), latencia_seg=0.4) as stub:
+        with ServidorStub(payload=payload_openai(json.dumps(
+            {"herramienta": "cotizar", "argumentos": {}}
+        )), latencia_seg=2) as stub:
             modelo = ModeloHttp(stub.base_url, api_key="k", timeout_seg=1)
             with self.assertRaises(ModeloFallo):
                 modelo.decidir([{"role": "user", "content": "x"}], ["cotizar"])

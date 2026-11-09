@@ -247,11 +247,23 @@ def revocar_sesion(conexion: psycopg.Connection, sid: str) -> None:
     )
 
 
-def revocar_sesiones_de_usuario(conexion: psycopg.Connection, usuario_id: str) -> int:
-    """Revoca todas las sesiones vivas del usuario; devuelve cuántas cayeron."""
+def revocar_sesiones_de_usuario(
+    conexion: psycopg.Connection, usuario_id: str, conservar_sid: str | None = None
+) -> int:
+    """Revoca las sesiones vivas del usuario; devuelve cuántas cayeron.
+
+    `conservar_sid` deja viva esa sesión (el cambio de clave propio, #322).
+    Sin ella caen todas, que es la baja y la revocación explícita.
+    """
+    if conservar_sid is None:
+        return conexion.execute(
+            "UPDATE sesiones SET revocada_en = now() WHERE usuario_id = %s AND revocada_en IS NULL",
+            (usuario_id,),
+        ).rowcount
     return conexion.execute(
-        "UPDATE sesiones SET revocada_en = now() WHERE usuario_id = %s AND revocada_en IS NULL",
-        (usuario_id,),
+        "UPDATE sesiones SET revocada_en = now() "
+        "WHERE usuario_id = %s AND revocada_en IS NULL AND id <> %s",
+        (usuario_id, conservar_sid),
     ).rowcount
 
 

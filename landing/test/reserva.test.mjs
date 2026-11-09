@@ -51,6 +51,7 @@ test('validarRango rechaza personas fuera de 1..30', () => {
   assert.match(validarRango(MANANA, EN_4, 0), /1 y 30/)
   assert.match(validarRango(MANANA, EN_4, 31), /1 y 30/)
   assert.match(validarRango(MANANA, EN_4, 'x'), /1 y 30/)
+  assert.match(validarRango(MANANA, EN_4, 2.5), /1 y 30/)
 })
 
 test('construirEnlaceReserva arma el deep link del front público', () => {

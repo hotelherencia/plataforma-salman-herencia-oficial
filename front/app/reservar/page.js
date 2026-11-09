@@ -17,8 +17,10 @@ function validar(inicio, fin, personas) {
   if (!inicio || !fin) return 'Indica las fechas de tu estadía.'
   if (fin <= inicio) return 'La salida debe ser posterior a la llegada.'
   if (inicio < hoyLocal()) return 'La llegada no puede ser una fecha pasada.'
-  if ((new Date(fin) - new Date(inicio)) / 86400000 > 30) return 'El rango supera las 30 noches.'
-  if (!personas || Number(personas) < 1 || Number(personas) > 30) return 'Personas debe estar entre 1 y 30.'
+  if ((new Date(`${fin}T00:00:00`) - new Date(`${inicio}T00:00:00`)) / 86400000 > 30)
+    return 'El rango supera las 30 noches.'
+  const n = Number(personas)
+  if (!Number.isInteger(n) || n < 1 || n > 30) return 'Personas debe estar entre 1 y 30.'
   return null
 }
 

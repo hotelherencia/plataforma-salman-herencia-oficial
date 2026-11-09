@@ -119,7 +119,9 @@ nombre)`; la clave solo se guarda como hash argon2id
 - `POST /usuarios {nombre, rol, clave}`: solo `administrador`. Crea con hash
   argon2id. Nombre repetido en la empresa → **409**.
 - `POST /usuarios/{id}/clave {clave}`: el propio usuario o un `administrador`.
-  La clave nueva reemplaza el hash.
+  La clave nueva reemplaza el hash y revoca las demás sesiones de ese
+  usuario (#322): la sesión que ejecuta el cambio sigue viva si es de él.
+  Respuesta `{"id","estado":"clave actualizada","sesiones_revocadas"}`.
 - `POST /usuarios/{id}/revocacion`: solo `administrador`, sobre **otro**
   usuario: pone `revocada_en` en todas sus sesiones. La sesión propia se
   sigue cerrando con `DELETE /sesion`.
@@ -366,7 +368,12 @@ su barrera es la lista cerrada de herramientas, no los roles de sesión.
 
 - `POST /hotel/agente/consultas` — `{canal_origen: manual|landing|correo|whatsapp, texto: 1..4000}`.
   201 `{consulta, borrador?}`: el borrador queda `pendiente_aprobacion` (o
-  `escalado` con motivo). Sin adaptador del modelo (D-AGT-02 pendiente) → 503
+  `escalado` con motivo). Con política N1 y borrador solo informativo, el
+  puerto del canal intenta el envío; sin adaptador (D-AGT-03 sin canal
+  nombrado) → 503 `{"detail":"canal no configurado","estado":"pendiente_envio"}`
+  y el borrador queda `pendiente_envio` (T060). Datos sensibles, plantilla
+  `escalar` u horario definido caen a N0 (`pendiente_aprobacion`). Sin
+  adaptador del modelo (D-AGT-02 pendiente) → 503
   `{"detail":"modelo no configurado","estado":"pendiente"}` con la consulta
   guardada; recepción la atiende como hoy. El texto se guarda **redactado**
   (NFR-A03: sin RUT, tarjetas, correos ni teléfonos). Misma clave y cuerpo →
@@ -395,7 +402,10 @@ pedir_dato, escalar} con referencias a ítems del turno y saludo ≤ 280 sin
 dígitos). En N0 son exactamente estas dos: una decisión que nombra
 `crear_reserva`, pagos, caja, usuarios, cancelación, entrada, salida o
 habitaciones se rechaza sin ejecutar y la consulta escala. `crear_solicitud`
-llega solo en N2 (D-PUB-01 y D-AGT-04). El modelo jamás envía `empresa_id`,
+llega solo en N2: crea una solicitud `recibida` con origen `agente` por la
+misma operación del canal público (no cobra ni confirma la reserva; una sola
+por consulta). Sin cupo o sobre `max_noches`/`max_personas`, escala y no
+persiste. El modelo jamás envía `empresa_id`,
 rol, tarifa ni total como argumento.
 
 ## Operaciones de esta versión (51)
@@ -416,7 +426,7 @@ rol, tarifa ni total como argumento.
 | `GET /auth/google/callback` | Valida `state` **consumiéndolo en todo intento** y exigiendo que la cookie `oauth_tx` coincida con la que originó el login (state de otro navegador → 400, SEC-A05); intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |
 | `GET /usuarios` | Lista `id`, `nombre`, `rol`, `activo` de la empresa. Solo administrador. |
 | `POST /usuarios` | Alta `{nombre, rol, clave}` con hash argon2id. Solo administrador. Nombre repetido → 409. |
-| `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash). El propio usuario o un administrador. |
+| `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |
 | `POST /usuarios/{id}/baja` | `activo=false` y revoca sesiones. Solo administrador, sobre otro usuario; no al último administrador activo (409). |
 | `PUT /hotel/habitaciones/{id}` | Alta o cambio de habitación: tipo, capacidad (con `If-None-Match: *` solo alta). Devuelve `creada` y `cambios`; auditado. Solo administrador. |

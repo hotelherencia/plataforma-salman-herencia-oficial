@@ -39,12 +39,23 @@ def registrar_consulta_agente(
         )
         politica = agente.politica_de(conexion, sesion.empresa_id)
         try:
-            resultado = agente.procesar(conexion, consulta, request.app.state.modelo_agente, politica)
+            resultado = agente.procesar(
+                conexion, consulta, request.app.state.modelo_agente, politica,
+                texto_original=cuerpo_consulta.texto,
+                canal=getattr(request.app.state, "canal_agente", None),
+            )
         except NoConfigurado:
             return 503, {"detail": "modelo no configurado", "estado": "pendiente", "consulta": consulta}
         detalle = agente.detalle_consulta(conexion, sesion.empresa_id, consulta["consulta_id"])
         if resultado.get("estado") == "escalado":
             return 201, {"consulta": detalle, "motivo": resultado["motivo"]}
+        if resultado.get("estado") == "pendiente_envio":
+            return 503, {
+                "detail": "canal no configurado",
+                "estado": "pendiente_envio",
+                "consulta": detalle,
+                "borrador": resultado,
+            }
         return 201, {"consulta": detalle, "borrador": resultado}
 
     codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)

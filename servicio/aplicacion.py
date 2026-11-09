@@ -127,6 +127,8 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         )
     else:
         app.state.modelo_agente = SinAdaptador()
+    from .canal_salida import SinCanal
+    app.state.canal_agente = SinCanal()
     app.state.estados_oauth = google_oidc.EstadosOAuth()
 
     if configuracion is not None and configuracion.origen_front:

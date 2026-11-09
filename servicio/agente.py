@@ -20,6 +20,7 @@ from datetime import date, datetime
 
 import psycopg
 
+from . import canal_publico
 from . import reservas
 from . import seguridad
 from .modelo_lenguaje import NoConfigurado
@@ -27,11 +28,12 @@ from .modelo_lenguaje import NoConfigurado
 MAX_TURNOS = 3
 MAX_SALUDO = 280
 MAX_TEXTO_CONSULTA = 4000
-VERSION_PROMPT = "n0-2026-11-04"
+VERSION_PROMPT = "n0-2026-11-09"
 VERSION_POLITICA = "n0-2026-11-04"
 
 CANALES = frozenset({"manual", "landing", "correo", "whatsapp"})
 PLANTILLAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato", "escalar"})
+PLANTILLAS_INFORMATIVAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato"})
 ROLES_GESTION = frozenset({"recepcion", "administrador"})
 
 # Lista cerrada de herramientas por nivel (FR-A02). En N0 el modelo solo puede
@@ -149,7 +151,23 @@ def validar_decision(decision: dict, politica: dict, herramientas_permitidas) ->
             raise DecisionInvalida(f"saludo invalido (maximo {MAX_SALUDO} caracteres)")
         if not isinstance(argumentos.get("campos") or {}, dict):
             raise DecisionInvalida("campos invalidos")
+    elif herramienta == "crear_solicitud":
+        ref = argumentos.get("oferta_item_ref")
+        if isinstance(ref, bool) or not isinstance(ref, int) or ref < 0:
+            raise DecisionInvalida("oferta_item_ref invalida")
+        if not isinstance(argumentos.get("nombre"), str) or not argumentos["nombre"].strip():
+            raise DecisionInvalida("nombre es obligatorio")
+        if not isinstance(argumentos.get("contacto"), str) or not argumentos["contacto"].strip():
+            raise DecisionInvalida("contacto es obligatorio")
     return {"herramienta": herramienta, "argumentos": argumentos}
+
+
+def _argumentos_traza(argumentos: dict) -> dict:
+    """La traza no guarda correo, teléfono, RUT ni tarjeta."""
+    return {
+        clave: redactar(valor) if isinstance(valor, str) else valor
+        for clave, valor in (argumentos or {}).items()
+    }
 
 
 def _clp(monto: int) -> str:
@@ -364,7 +382,108 @@ def _escalar(conexion, consulta_id: str, motivo: str) -> dict:
     return {"estado": "escalado", "motivo": motivo}
 
 
-def procesar(conexion: psycopg.Connection, consulta: dict, modelo, politica: dict) -> dict:
+def envio_automatico(politica: dict, plantilla: str, texto_original: str) -> bool:
+    """N1 envía solo información y cae a N0 si la política no lo permite.
+
+    Horario definido y sin regla de evaluación: no se envía (no se inventa
+    la ventana). Datos sensibles en el texto original: no se envía.
+    """
+    if politica.get("nivel") != "N1":
+        return False
+    if plantilla not in PLANTILLAS_INFORMATIVAS:
+        return False
+    if politica.get("horario"):
+        return False
+    if redactar(texto_original or "") != (texto_original or ""):
+        return False
+    return True
+
+
+def resumen_oferta_para_el_modelo(argumentos: dict, oferta: dict) -> dict:
+    """Lo mínimo para el turno siguiente: índices y tipo, sin cifras.
+
+    El servidor sigue siendo quien compone tarifa y total. El modelo solo
+    necesita saber si hay ítems y cuál referenciar.
+    """
+    items = [
+        {"item": indice, "tipo": item.get("tipo")}
+        for indice, item in enumerate(oferta.get("oferta") or [])
+    ]
+    return {
+        "herramienta": "consultar_disponibilidad",
+        "inicio": argumentos.get("inicio"),
+        "fin": argumentos.get("fin"),
+        "personas": argumentos.get("personas"),
+        "n_items": len(items),
+        "items": items,
+    }
+
+
+def notas_de_herramienta(decision: dict, resumen: dict) -> list[dict]:
+    """Decisión ya ejecutada y su resultado, en el mismo dialecto {rol, texto}."""
+    return [
+        {
+            "rol": "assistant",
+            "texto": json.dumps(
+                {"herramienta": decision["herramienta"], "argumentos": decision["argumentos"]},
+                ensure_ascii=False,
+            ),
+        },
+        {"rol": "user", "texto": json.dumps(resumen, ensure_ascii=False)},
+    ]
+
+
+def _crear_solicitud_del_turno(
+    conexion, empresa_id: str, consulta_id: str, turno: int, argumentos: dict,
+    resultados: dict, politica: dict, modelo_nombre: str,
+) -> dict:
+    """N2: la misma operación del canal público, una sola vez por consulta.
+
+    No cobra (Q-HOT-03: 0 CLP sin aprobación humana). El cupo lo decide
+    `crear_solicitud`. La traza guarda el contacto redactado.
+    """
+    rango = resultados.get("rango")
+    oferta = (resultados.get("consultar_disponibilidad") or {}).get("oferta") or []
+    ref = argumentos["oferta_item_ref"]
+    traza_args = _argumentos_traza(argumentos)
+
+    def rechazar(motivo: str) -> dict:
+        _trazar(conexion, consulta_id, turno, "crear_solicitud", traza_args, {},
+                "rechazada", motivo, modelo_nombre)
+        return {"escalar": True, "motivo": motivo}
+
+    if rango is None or not isinstance(ref, int) or not 0 <= ref < len(oferta):
+        return rechazar("crear_solicitud sin oferta del turno")
+    inicio = _como_fecha(rango["inicio"])
+    fin = _como_fecha(rango["fin"])
+    personas = rango["personas"]
+    if (personas > int(politica.get("max_personas") or 30)
+            or (fin - inicio).days > int(politica.get("max_noches") or 30)):
+        return rechazar("supera el limite de la politica")
+    try:
+        solicitud = canal_publico.crear_solicitud(
+            conexion, empresa_id, oferta[ref]["habitacion_id"], inicio, fin, personas,
+            argumentos["nombre"].strip(), argumentos["contacto"].strip(),
+            f"agente:{consulta_id}", origen="agente",
+        )
+    except (canal_publico.SinCupoOSinTarifa, canal_publico.SolicitudInvalida,
+            canal_publico.ClaveEnConflicto) as error:
+        return rechazar(str(error))
+    reintento = bool(solicitud.get("reintento"))
+    _trazar(conexion, consulta_id, turno, "crear_solicitud", traza_args,
+            {"solicitud_id": solicitud["solicitud_id"], "reintento": reintento},
+            "ejecutada", "ok", modelo_nombre)
+    return {
+        "escalar": False,
+        "solicitud_id": solicitud["solicitud_id"],
+        "reintento": reintento,
+    }
+
+
+def procesar(
+    conexion: psycopg.Connection, consulta: dict, modelo, politica: dict,
+    texto_original: str | None = None, canal=None,
+) -> dict:
     """Orquestador del turno (FR-A02, FR-A09, NFR-A05): a lo sumo MAX_TURNOS
     llamadas al modelo; la última decisión debe proponer un borrador que
     supere el verificador. Todo queda en la traza con `actor='agente:<id>'`."""
@@ -374,10 +493,11 @@ def procesar(conexion: psycopg.Connection, consulta: dict, modelo, politica: dic
     permitidas = NIVELES.get(nivel, NIVELES["N0"])
     resultados: dict = {}
     fallos_modelo = 0
+    mensajes = [{"rol": "user", "texto": consulta["texto_redactado"]}]
     for turno in range(1, MAX_TURNOS + 1):
         try:
             decision = modelo.decidir(
-                mensajes=[{"rol": "user", "texto": consulta["texto_redactado"]}],
+                mensajes=list(mensajes),
                 herramientas=list(permitidas),
             )
         except NoConfigurado:
@@ -393,7 +513,8 @@ def procesar(conexion: psycopg.Connection, consulta: dict, modelo, politica: dic
             normalizada = validar_decision(decision, politica, permitidas)
         except DecisionInvalida as error:
             _trazar(conexion, consulta_id, turno, decision.get("herramienta", "?"),
-                    decision.get("argumentos"), {}, "rechazada", f"rechazo:{error}", modelo.nombre)
+                    _argumentos_traza(decision.get("argumentos") or {}), {}, "rechazada",
+                    f"rechazo:{error}", modelo.nombre)
             seguridad.auditar(conexion, f"agente:{consulta_id}", "agente_decision_rechazada",
                               consulta_id, str(error))
             return _escalar(conexion, consulta_id, f"decision invalida: {error}")
@@ -405,11 +526,30 @@ def procesar(conexion: psycopg.Connection, consulta: dict, modelo, politica: dic
                 argumentos["personas"], datetime.now(),
             )
             resultados["consultar_disponibilidad"] = oferta
+            resultados["rango"] = {
+                "inicio": argumentos["inicio"], "fin": argumentos["fin"],
+                "personas": argumentos["personas"],
+            }
             _trazar(conexion, consulta_id, turno, herramienta, argumentos,
                     {"n_items": len(oferta["oferta"]), "emitida_en": oferta["emitida_en"]},
                     "ejecutada", "ok", modelo.nombre)
+            mensajes.extend(notas_de_herramienta(
+                normalizada, resumen_oferta_para_el_modelo(argumentos, oferta)
+            ))
             continue
-        # proponer_borrador (crear_solicitud solo existe en N2)
+        if herramienta == "crear_solicitud":
+            creado = _crear_solicitud_del_turno(
+                conexion, empresa_id, consulta_id, turno, argumentos, resultados, politica,
+                modelo.nombre,
+            )
+            if creado.get("escalar"):
+                return _escalar(conexion, consulta_id, creado["motivo"])
+            mensajes.extend(notas_de_herramienta(
+                {"herramienta": "crear_solicitud", "argumentos": {"oferta_item_ref": argumentos["oferta_item_ref"]}},
+                {"herramienta": "crear_solicitud", "solicitud_id": creado["solicitud_id"],
+                 "reintento": creado["reintento"]},
+            ))
+            continue
         propuesta = {
             "plantilla": argumentos["plantilla"],
             "campos": argumentos.get("campos") or {},
@@ -440,6 +580,28 @@ def procesar(conexion: psycopg.Connection, consulta: dict, modelo, politica: dic
         )
         seguridad.auditar(conexion, f"agente:{consulta_id}", "agente_borrador_propuesto",
                           borrador_id, "pendiente_aprobacion")
+        origen = consulta["texto_redactado"] if texto_original is None else texto_original
+        if envio_automatico(politica, propuesta["plantilla"], origen):
+            from .canal_salida import CanalNoConfigurado, SinCanal
+
+            puerto = canal or SinCanal()
+            try:
+                puerto.enviar(
+                    {"consulta_id": consulta_id, "canal_origen": consulta["canal_origen"]},
+                    texto,
+                )
+                estado_envio = "enviado"
+                detalle_envio = getattr(puerto, "nombre", "canal")
+            except CanalNoConfigurado:
+                estado_envio = "pendiente_envio"
+                detalle_envio = "canal no configurado"
+            conexion.execute(
+                "UPDATE borradores_agente SET estado = %s WHERE id = %s AND estado = 'pendiente_aprobacion'",
+                (estado_envio, borrador_id),
+            )
+            seguridad.auditar(
+                conexion, f"agente:{consulta_id}", "agente_borrador_envio", borrador_id, detalle_envio
+            )
         borrador = _fila_borrador(conexion, borrador_id)
         borrador["consulta"] = _fila_consulta(conexion, empresa_id, consulta_id)
         return borrador
@@ -544,11 +706,11 @@ def _recotizar(conexion, borrador: dict, actor: str) -> dict:
 
 def descartar(conexion, empresa_id, borrador_id, motivo, actor) -> dict:
     borrador = _borrador_de_la_empresa(conexion, empresa_id, borrador_id)
-    if borrador["estado"] != "pendiente_aprobacion":
+    if borrador["estado"] not in ("pendiente_aprobacion", "pendiente_envio"):
         raise TransicionInvalida("el borrador ya esta resuelto")
     actualizado = conexion.execute(
-        "UPDATE borradores_agente SET estado = 'descartado' WHERE id = %s AND estado = 'pendiente_aprobacion'",
-        (borrador_id,),
+        "UPDATE borradores_agente SET estado = 'descartado' WHERE id = %s AND estado = %s",
+        (borrador_id, borrador["estado"]),
     )
     if actualizado.rowcount == 0:
         raise TransicionInvalida("el borrador ya esta resuelto")

@@ -334,6 +334,169 @@ class AgenteServicioBaseTest(unittest.TestCase):
         self.assertEqual(con_ref.status_code, 200, con_ref.text)
         self.assertEqual(self.cliente.get("/hotel/agente/politica").json()["nivel"], "N1")
 
+    def _poner_nivel(self, nivel, **extra):
+        cuerpo = {"nivel": nivel, "evaluacion_ref": "AGV-2026-11-04-1e038fb4a9"}
+        cuerpo.update(extra)
+        alta = self.cliente.put("/hotel/agente/politica", json=cuerpo)
+        self.assertEqual(alta.status_code, 200, alta.text)
+
+    def _n_solicitudes(self):
+        with psycopg.connect(URL_TEST) as conexion:
+            (n,) = conexion.execute("SELECT count(*) FROM solicitudes").fetchone()
+            (reservas,) = conexion.execute("SELECT count(*) FROM reservas").fetchone()
+        return n, reservas
+
+    def test_n2_crea_una_solicitud_sin_reserva_ni_contacto_en_la_traza(self):
+        self._poner_nivel("N2")
+        self.usar_guion([
+            {"herramienta": "consultar_disponibilidad",
+             "argumentos": {"inicio": MANANA.isoformat(), "fin": EN_3.isoformat(), "personas": 2}},
+            {"herramienta": "crear_solicitud",
+             "argumentos": {"oferta_item_ref": 0, "nombre": "Ana", "contacto": "ana@example.com"}},
+            {"herramienta": "proponer_borrador",
+             "argumentos": {"plantilla": "cotizacion", "campos": {"item": 0}, "saludo": "Hola"}},
+        ])
+        respuesta = self.crear_consulta(texto="Ana viaja, 2 personas")
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertEqual(respuesta.json()["borrador"]["estado"], "pendiente_aprobacion")
+        solicitudes, reservas = self._n_solicitudes()
+        self.assertEqual(solicitudes, 1)
+        self.assertEqual(reservas, 0)
+        with psycopg.connect(URL_TEST) as conexion:
+            origen, estado = conexion.execute(
+                "SELECT origen, estado FROM solicitudes"
+            ).fetchone()
+            traza = conexion.execute("SELECT argumentos::text FROM trazas_agente").fetchall()
+        self.assertEqual(origen, "agente")
+        self.assertEqual(estado, "recibida")
+        self.assertNotIn("ana@example.com", str(traza))
+
+    def test_n2_un_segundo_turno_no_duplica_la_solicitud(self):
+        self._poner_nivel("N2")
+        crear = {"herramienta": "crear_solicitud",
+                 "argumentos": {"oferta_item_ref": 0, "nombre": "Ana", "contacto": "ana@example.com"}}
+        self.usar_guion([
+            {"herramienta": "consultar_disponibilidad",
+             "argumentos": {"inicio": MANANA.isoformat(), "fin": EN_3.isoformat(), "personas": 2}},
+            crear,
+            crear,
+        ])
+        self.crear_consulta(texto="Ana viaja, 2 personas")
+        solicitudes, _reservas = self._n_solicitudes()
+        self.assertEqual(solicitudes, 1)
+
+    def test_n2_sin_cupo_no_persiste_solicitud(self):
+        class Agota:
+            nombre = "agota"
+
+            def __init__(self):
+                self.n = 0
+
+            def decidir(self, mensajes, herramientas):
+                self.n += 1
+                if self.n == 1:
+                    return {"herramienta": "consultar_disponibilidad",
+                            "argumentos": {"inicio": MANANA.isoformat(), "fin": EN_3.isoformat(), "personas": 2}}
+                with psycopg.connect(URL_TEST) as conexion:
+                    conexion.execute("UPDATE habitaciones SET mantenimiento = true")
+                    conexion.commit()
+                return {"herramienta": "crear_solicitud",
+                        "argumentos": {"oferta_item_ref": 0, "nombre": "Ana", "contacto": "ana@example.com"}}
+
+        self._poner_nivel("N2")
+        self.app.state.modelo_agente = Agota()
+        respuesta = self.crear_consulta(texto="Ana viaja, 2 personas")
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertIn("cupo", respuesta.json()["motivo"])
+        solicitudes, _reservas = self._n_solicitudes()
+        self.assertEqual(solicitudes, 0)
+
+    def test_n2_sobre_el_limite_de_personas_escala(self):
+        self._poner_nivel("N2", max_personas=1)
+        self.usar_guion([
+            {"herramienta": "consultar_disponibilidad",
+             "argumentos": {"inicio": MANANA.isoformat(), "fin": EN_3.isoformat(), "personas": 2}},
+            {"herramienta": "crear_solicitud",
+             "argumentos": {"oferta_item_ref": 0, "nombre": "Ana", "contacto": "ana@example.com"}},
+        ])
+        respuesta = self.crear_consulta(texto="Ana viaja, 2 personas")
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertIn("limite", respuesta.json()["motivo"])
+        solicitudes, _reservas = self._n_solicitudes()
+        self.assertEqual(solicitudes, 0)
+
+    def test_n0_no_crea_solicitud(self):
+        self.usar_guion([
+            {"herramienta": "crear_solicitud",
+             "argumentos": {"oferta_item_ref": 0, "nombre": "Ana", "contacto": "ana@example.com"}},
+        ])
+        respuesta = self.crear_consulta(texto="Ana viaja, 2 personas")
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertIn("no permitida", respuesta.json()["motivo"])
+        solicitudes, _reservas = self._n_solicitudes()
+        self.assertEqual(solicitudes, 0)
+
+    def test_n1_sin_canal_queda_pendiente_envio(self):
+        alta = self.cliente.put(
+            "/hotel/agente/politica",
+            json={"nivel": "N1", "evaluacion_ref": "AGV-2026-11-04-1e038fb4a9"},
+        )
+        self.assertEqual(alta.status_code, 200, alta.text)
+        self.usar_guion(guion_cotizacion())
+        respuesta = self.crear_consulta(texto="2 personas del 10 al 12 de diciembre")
+        self.assertEqual(respuesta.status_code, 503, respuesta.text)
+        cuerpo = respuesta.json()
+        self.assertEqual(cuerpo["detail"], "canal no configurado")
+        self.assertEqual(cuerpo["estado"], "pendiente_envio")
+        self.assertEqual(cuerpo["borrador"]["estado"], "pendiente_envio")
+        descarte = self.cliente.post(
+            f"/hotel/agente/borradores/{cuerpo['borrador']['borrador_id']}/descarte",
+            json={"motivo": "lo enviaré a mano"},
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(descarte.status_code, 200, descarte.text)
+        self.assertEqual(descarte.json()["estado"], "descartado")
+
+    def test_n1_con_datos_sensibles_cae_a_n0(self):
+        alta = self.cliente.put(
+            "/hotel/agente/politica",
+            json={"nivel": "N1", "evaluacion_ref": "AGV-2026-11-04-1e038fb4a9"},
+        )
+        self.assertEqual(alta.status_code, 200, alta.text)
+        self.usar_guion(guion_cotizacion())
+        respuesta = self.crear_consulta(texto="2 personas, correo juan@example.com")
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertEqual(respuesta.json()["borrador"]["estado"], "pendiente_aprobacion")
+
+    def test_el_segundo_turno_recibe_el_resultado_sin_cifras(self):
+        class Recuerda:
+            nombre = "recuerda"
+
+            def __init__(self):
+                self.vistos = []
+                self._resto = guion_cotizacion()
+
+            def decidir(self, mensajes, herramientas):
+                self.vistos.append(json.loads(json.dumps(mensajes)))
+                return self._resto.pop(0)
+
+        modelo = Recuerda()
+        self.app.state.modelo_agente = modelo
+        respuesta = self.crear_consulta(texto="2 personas del 10 al 12 de diciembre")
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertEqual(len(modelo.vistos), 2)
+        self.assertEqual(len(modelo.vistos[0]), 1)
+        self.assertEqual(modelo.vistos[0][0]["rol"], "user")
+        resumen = json.loads(modelo.vistos[1][-1]["texto"])
+        self.assertEqual(resumen["herramienta"], "consultar_disponibilidad")
+        self.assertEqual(resumen["n_items"], 1)
+        self.assertEqual(resumen["items"], [{"item": 0, "tipo": "doble"}])
+        segundo = json.dumps(modelo.vistos[1], ensure_ascii=False)
+        self.assertNotIn("tarifa_noche_clp", segundo)
+        self.assertNotIn("total_clp", segundo)
+        self.assertNotIn("50000", segundo)
+        self.assertNotIn("100000", segundo)
+
     def test_ag_s13_idempotencia_sin_segunda_llamada_al_modelo(self):
         modelo = self.usar_guion(guion_cotizacion())
         clave = self.clave()

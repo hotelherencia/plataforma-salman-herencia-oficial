@@ -15,6 +15,18 @@ import urllib.request
 
 from .modelo_lenguaje import ModeloFallo
 
+
+def _mensaje_openai(mensaje: dict) -> dict:
+    """El orquestador habla {rol, texto}; el endpoint exige {role, content}.
+
+    Si el mensaje ya viene en la forma del endpoint, se reenvía tal cual.
+    """
+    if "role" in mensaje and "content" in mensaje:
+        return {"role": mensaje["role"], "content": mensaje["content"]}
+    rol = mensaje.get("rol") or "user"
+    return {"role": rol, "content": mensaje.get("texto", "")}
+
+
 _INSTRUCCION = (
     "Eres el modelo del agente de reservas del hotel. Responde EXCLUSIVAMENTE "
     "con un objeto JSON de la forma {\"herramienta\": <nombre>, \"argumentos\": "
@@ -25,8 +37,9 @@ _INSTRUCCION = (
 class ModeloHttp:
     """Puerto ModeloLenguaje sobre un endpoint /chat/completions.
 
-    `decidir` envía los mensajes con una instrucción que obliga a responder
-    JSON, y devuelve {"herramienta", "argumentos"}. Cualquier desviación del
+    `decidir` traduce los mensajes del orquestador ({rol, texto}) al formato
+    del endpoint ({role, content}), añade la instrucción que obliga a
+    responder JSON, y devuelve {"herramienta", "argumentos"}. Cualquier desviación del
     contrato (HTTP != 200, cuerpo inválido, JSON sin la forma exigida) se
     reporta como ModeloFallo: el orquestador ya sabe reintentar una vez y
     escalar sin efectos (spec 005).
@@ -44,7 +57,7 @@ class ModeloHttp:
         system = {"role": "system", "content": _INSTRUCCION + " Herramientas: " + ", ".join(herramientas)}
         cuerpo = json.dumps({
             "model": self._modelo,
-            "messages": [system, *mensajes],
+            "messages": [system, *[_mensaje_openai(m) for m in mensajes]],
             "temperature": 0,
         }).encode("utf-8")
         peticion = urllib.request.Request(
@@ -60,6 +73,9 @@ class ModeloHttp:
             with urllib.request.urlopen(peticion, timeout=self._timeout) as respuesta:
                 payload = json.loads(respuesta.read().decode("utf-8"))
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
+            cerrar = getattr(error, "close", None)
+            if cerrar is not None:
+                cerrar()
             raise ModeloFallo(f"el modelo no respondió usable: {error}") from error
         try:
             contenido = payload["choices"][0]["message"]["content"]

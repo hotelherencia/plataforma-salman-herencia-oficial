@@ -265,6 +265,27 @@ class GestionUsuariosTest(OperacionBaseTest):
                                       headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200)
 
+    def test_cambio_de_clave_revoca_las_demas_sesiones(self):
+        uid = self.crear_usuario("recepcion1", "recepcion", clave="clave-vieja-1")
+        esta = self.login("recepcion1", "clave-vieja-1")
+        otra = self.login("recepcion1", "clave-vieja-1")
+        respuesta = esta.post(
+            f"/usuarios/{uid}/clave", json={"clave": "clave-nueva-1"},
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        self.assertEqual(respuesta.json()["sesiones_revocadas"], 1)
+        self.assertEqual(esta.get("/sesion").status_code, 200)
+        self.assertEqual(otra.get("/sesion").status_code, 401)
+        respuesta = self.cliente.post(
+            f"/usuarios/{uid}/clave", json={"clave": "clave-admin-1"},
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        self.assertGreaterEqual(respuesta.json()["sesiones_revocadas"], 1)
+        self.assertEqual(esta.get("/sesion").status_code, 401)
+        self.assertEqual(self.cliente.get("/sesion").status_code, 200)
+
     def test_revocacion_cierra_todas_las_sesiones(self):
         uid = self.crear_usuario("recepcion1", "recepcion")
         self.login("recepcion1", "clave-usuario-1")

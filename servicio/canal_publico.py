@@ -106,6 +106,7 @@ def crear_solicitud(
     huesped_nombre: str,
     huesped_contacto: str,
     clave: str,
+    origen: str = "landing",
 ) -> dict:
     """Persiste la solicitud con la regla de la oferta. Reintento (misma clave
     y cuerpo) devuelve la solicitud original con reintento=true; misma clave y
@@ -146,9 +147,9 @@ def crear_solicitud(
     conexion.execute(
         "INSERT INTO solicitudes (id, empresa_id, habitacion_id, inicio, fin, personas, "
         "huesped_nombre, huesped_contacto, estado, origen, idempotency_key, cuerpo_hash) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'recibida', 'landing', %s, %s)",
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s)",
         (solicitud_id, empresa_id, habitacion_id, inicio, fin, personas,
-         nombre, contacto, clave, cuerpo_hash),
+         nombre, contacto, origen, clave, cuerpo_hash),
     )
     seguridad.auditar(conexion, f"publico:{solicitud_id}", "solicitud_recibida",
                       solicitud_id, "recibida")

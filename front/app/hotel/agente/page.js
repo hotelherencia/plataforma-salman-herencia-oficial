@@ -69,9 +69,10 @@ export default function Agente() {
         metodo: 'POST', cuerpo: { canal_origen: canal, texto }, claveIdempotencia: claveConsulta,
       })
       if (r.estado === 503) {
-        // «modelo no configurado»: la consulta queda pendiente para cuando el
-        // puerto tenga adaptador; la bandeja la muestra en ese estado.
+        // Sin modelo la consulta queda pendiente; sin canal (N1) el borrador
+        // queda pendiente_envio. En ambos la bandeja sigue mostrando la consulta.
         setError(mensajeDeError(r.datos, r.estado))
+        if (r.datos && r.datos.consulta) setDetalle(r.datos.consulta)
         cargar(estado)
         return
       }
@@ -271,6 +272,26 @@ export default function Agente() {
                 {b.vigente_hasta ? ` · vigente hasta ${b.vigente_hasta}` : ''}
               </p>
               <pre className="texto-borrador">{b.texto_compuesto}</pre>
+              {b.estado === 'pendiente_envio' && (
+                <div className="acciones-fila">
+                  <p className="campo-ayuda">
+                    El canal automático no está configurado. Copia la respuesta y envíala por el canal actual.
+                  </p>
+                  <button type="button" className="boton-secundario" onClick={() => copiar(b)}>
+                    Copiar respuesta
+                  </button>
+                  <input
+                    className="entrada"
+                    placeholder="Motivo del descarte"
+                    value={motivos[b.borrador_id] || ''}
+                    onChange={(e) => setMotivos({ ...motivos, [b.borrador_id]: e.target.value })}
+                  />
+                  <button type="button" className="boton-secundario" onClick={() => descartar(b)}>
+                    Descartar
+                  </button>
+                  {copiado === b.borrador_id && <span className="estado">Respuesta copiada.</span>}
+                </div>
+              )}
               {b.estado === 'pendiente_aprobacion' && (
                 <div className="acciones-fila">
                   <textarea

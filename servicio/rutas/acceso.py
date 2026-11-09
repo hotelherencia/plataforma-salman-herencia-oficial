@@ -321,8 +321,18 @@ def cambiar_clave_usuario(
     def operacion() -> tuple[int, dict]:
         seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
         seguridad.cambiar_clave(conexion, usuario_id, cuerpo_clave.clave)
-        seguridad.auditar(conexion, sesion.nombre, "usuario-clave", usuario_id, "cambiada")
-        return 200, {"id": usuario_id, "estado": "clave actualizada"}
+        conservar = sesion.sid if sesion.usuario_id == usuario_id else None
+        revocadas = seguridad.revocar_sesiones_de_usuario(
+            conexion, usuario_id, conservar_sid=conservar
+        )
+        seguridad.auditar(
+            conexion, sesion.nombre, "usuario-clave", usuario_id, f"cambiada; {revocadas} sesiones"
+        )
+        return 200, {
+            "id": usuario_id,
+            "estado": "clave actualizada",
+            "sesiones_revocadas": revocadas,
+        }
 
     try:
         codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)

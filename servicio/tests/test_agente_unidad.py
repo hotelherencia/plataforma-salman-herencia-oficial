@@ -12,7 +12,10 @@ from servicio.agente import (
     MAX_SALUDO,
     NIVELES,
     componer,
+    envio_automatico,
+    notas_de_herramienta,
     redactar,
+    resumen_oferta_para_el_modelo,
     validar_decision,
     verificar,
 )
@@ -181,6 +184,36 @@ class PuertoModeloTest(unittest.TestCase):
         ])
         decision = guionado.decidir(mensajes=[], herramientas=["consultar_disponibilidad"])
         self.assertEqual(decision["herramienta"], "consultar_disponibilidad")
+
+
+class ContextoDelTurnoTest(unittest.TestCase):
+    def test_el_resultado_que_vuelve_al_modelo_no_lleva_cifras(self):
+        decision = {
+            "herramienta": "consultar_disponibilidad",
+            "argumentos": {"inicio": MANANA.isoformat(), "fin": EN_3.isoformat(), "personas": 2},
+        }
+        resumen = resumen_oferta_para_el_modelo(decision["argumentos"], OFERTA_EJEMPLO)
+        self.assertEqual(resumen["n_items"], 1)
+        self.assertEqual(resumen["items"], [{"item": 0, "tipo": "doble"}])
+        texto = str(notas_de_herramienta(decision, resumen))
+        self.assertNotIn("50000", texto)
+        self.assertNotIn("100000", texto)
+        self.assertNotIn("tarifa_noche_clp", texto)
+        self.assertNotIn("total_clp", texto)
+        self.assertIn("consultar_disponibilidad", texto)
+
+
+class EnvioAutomaticoTest(unittest.TestCase):
+    def test_n0_no_envia(self):
+        self.assertFalse(envio_automatico({"nivel": "N0"}, "cotizacion", "2 personas"))
+
+    def test_n1_informativo_envia(self):
+        self.assertTrue(envio_automatico({"nivel": "N1"}, "cotizacion", "2 personas mañana"))
+
+    def test_n1_escalar_o_datos_sensibles_o_horario_cae_a_n0(self):
+        self.assertFalse(envio_automatico({"nivel": "N1"}, "escalar", "2 personas"))
+        self.assertFalse(envio_automatico({"nivel": "N1"}, "cotizacion", "correo a@b.cl"))
+        self.assertFalse(envio_automatico({"nivel": "N1", "horario": "09-18"}, "cotizacion", "2 personas"))
 
 
 if __name__ == "__main__":

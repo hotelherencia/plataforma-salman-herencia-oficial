@@ -56,10 +56,11 @@ Las tareas con [P] pueden hacerse en paralelo con la anterior.
   corte para que el corpus no envejezca) y el ejecutor
   `servicio/evaluacion_agente.py` con el informe SC-003. [P] con T040.
 - [ ] T050B Adaptador del proveedor elegido en D-AGT-02, cargado solo si la
-  configuración lo nombra. Mitad CI-segura hecha (2026-11-04): `ModeloGrabado`
-  con `desde_archivo` — respuestas grabadas reproducibles sin red — y la
-  evaluación mide cualquier SUT con el mismo contrato `decidir()`; falta el
-  proveedor (D-AGT-02 sigue abierta).
+  configuración lo nombra. Hecho y corregido en código (2026-11-09): el
+  adaptador HTTP genérico traduce `{rol, texto}` a `{role, content}`, cierra
+  el error HTTP y el orquestador devuelve al modelo el resultado del turno
+  sin cifras. Falta nombrar el proveedor (D-AGT-02) y repetir AG-V01 contra
+  ese adaptador.
 - [x] T050C AG-V01 ejecutada en base sintética aislada (`plataforma_eval_agente`)
   con autorización del propietario (2026-11-04): compuerta SC-003 APROBADA con
   el SUT grabado (`AGV-2026-11-04-1e038fb4a9`, informe en
@@ -71,12 +72,15 @@ Las tareas con [P] pueden hacerse en paralelo con la anterior.
 
 ## Fase 5 — N1 y N2 (cada una con su propia decisión)
 
-- [ ] T060 N1: D-AGT-03 (canal) más SC-003 aprobado; pruebas de
-  `pendiente_envio` con el puerto del canal sin adaptador; luego el adaptador
-  autorizado.
-- [ ] T070 N2: depende de D-PUB-01, v1-issue-22 y D-AGT-04; pruebas de la
-  herramienta `crear_solicitud` (idempotencia por turno, carrera por la
-  última unidad, límites) antes de habilitarla.
+- [ ] T060 N1: D-AGT-03 (canal) más SC-003 aprobado. Hecho el puerto sin
+  adaptador (2026-11-09): con política N1 el borrador informativo queda
+  `pendiente_envio` y la API responde 503 «canal no configurado»; datos
+  sensibles, `escalar` u horario definido caen a N0. Falta el adaptador del
+  canal cuando D-AGT-03 lo nombre.
+- [ ] T070 N2: la herramienta `crear_solicitud` ya llama a la operación del
+  canal público (2026-11-09): una solicitud por consulta, sin cobro, sin
+  cupo no persiste, sobre `max_personas` escala. El nivel por defecto sigue
+  N0. Falta el tope de monto de D-AGT-04 si el propietario lo fija.
 
 No se despliega nada de este paquete sin autorización explícita del
 propietario, como en H7.

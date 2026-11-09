@@ -959,7 +959,7 @@ try {
   })
 
   // ===== CLV. Cambio de clave propia del administrador (spec-api-v1 «Gestión de usuarios») =====
-  await caso('CLV-01', '/cuenta', 'el administrador cambia su propia clave desde «Mi cuenta»', 'administrador', 'formulario visible y 200; la vieja clave deja de servir y la nueva abre sesión', async () => {
+  await caso('CLV-01', '/cuenta', 'el administrador cambia su propia clave desde «Mi cuenta»', 'administrador', 'formulario visible y 200; la otra sesión queda 401, la actual sigue, la vieja clave deja de servir y la nueva abre sesión', async () => {
     const sesionAdmin = await api('POST', '/sesion', { cuerpo: { usuario: 'admin_e2e', clave: process.env.ADMIN_CLAVE_E2E || 'E2eClave123' } })
     if (sesionAdmin.estado !== 200) throw new Error(`login admin: ${sesionAdmin.estado}`)
     const nombre = `admin_clv_${RUN}`
@@ -969,6 +969,8 @@ try {
       cuerpo: { nombre, rol: 'administrador', clave: claveVieja }, clave: K('clv-alta'), cookie: sesionAdmin.cookie,
     })
     if (alta.estado !== 201) throw new Error(`alta admin dedicado: ${alta.estado} ${JSON.stringify(alta.datos)}`)
+    const otra = await api('POST', '/sesion', { cuerpo: { usuario: nombre, clave: claveVieja } })
+    if (otra.estado !== 200) throw new Error(`segunda sesión: ${otra.estado}`)
     const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 1280, height: 720 } })
     const page = await ctx.newPage()
     await loginUi(page, nombre, claveVieja)
@@ -979,7 +981,7 @@ try {
     await page.getByRole('textbox', { name: 'Clave nueva' }).fill(claveNueva)
     await page.getByRole('button', { name: 'Cambiar clave' }).click()
     await page.waitForSelector('[role=status]', { timeout: 8000 })
-    // el contrato vigente no revoca sesiones al cambiar la clave: la sesión actual sigue activa
+    const otraAhora = await api('GET', '/sesion', { cookie: otra.cookie })
     await page.goto(`${FRONT}/hotel/usuarios`)
     await page.waitForTimeout(1500)
     const sigue = await page.getByText(nombre).count()
@@ -990,10 +992,11 @@ try {
     await loginUi(page, nombre, claveNueva)
     const ruta = new URL(page.url()).pathname
     await ctx.close()
+    if (otraAhora.estado !== 401) throw new Error(`la otra sesión siguió viva: ${otraAhora.estado}`)
     if (sigue === 0) throw new Error('la sesión vigente no siguió activa tras el cambio')
     if (alertaVieja === 0) throw new Error('la vieja clave siguió sirviendo')
     if (ruta !== '/') throw new Error(`con la clave nueva no abrió sesión: ${ruta}`)
-    return 'formulario → 200 → vieja rechazada → nueva abre sesión; sesión vigente intacta'
+    return 'formulario → 200 → otra sesión 401 → sesión actual viva → vieja rechazada → nueva abre sesión'
   })
 } finally {
   await navegador.close()
