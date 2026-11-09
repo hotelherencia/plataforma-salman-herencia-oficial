@@ -114,6 +114,13 @@ class DisponibilidadPublicaTest(CanalPublicoBaseTest):
         self.assertIn("tarifa_noche_clp", cuerpo["oferta"][0])
         self.assertNotIn("huesped", json.dumps(cuerpo).lower())
 
+    def test_cp01b_rechaza_parametros_ajenos_y_fechas_mal_formadas(self):
+        base = {"inicio": str(MANANA), "fin": str(EN_3), "personas": 2}
+        ajeno = self.anonima.get("/publico/disponibilidad", params={**base, "correo": "a@b.test"})
+        self.assertEqual(ajeno.status_code, 422, ajeno.text)
+        mala = self.anonima.get("/publico/disponibilidad", params={**base, "inicio": "09-11-2026"})
+        self.assertEqual(mala.status_code, 422, mala.text)
+
     def test_cp02_disponibilidad_valida_fechas_y_personas(self):
         for params in (
             {"inicio": str(EN_3), "fin": str(MANANA), "personas": 2},      # fin <= inicio

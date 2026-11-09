@@ -24,16 +24,7 @@ export function inicializarFormulario(documento) {
     boton.disabled = true
     estado.textContent = 'Enviando…'
     const datos = Object.fromEntries(new FormData(formulario).entries())
-    // el HTML conserva los names históricos con guion; la API usa snake_case
-    const cuerpo = mapearCuerpo({
-      nombre: datos.nombre,
-      correo: datos.correo,
-      telefono: datos.telefono,
-      huespedes: datos.huespedes,
-      check_in: datos['check-in'],
-      check_out: datos['check-out'],
-      mensaje: datos.mensaje,
-    })
+    const cuerpo = mapearCuerpo(datos)
     try {
       const respuesta = await fetch(`${API_URL.replace(/\/+$/, '')}/publico/leads`, {
         method: 'POST',

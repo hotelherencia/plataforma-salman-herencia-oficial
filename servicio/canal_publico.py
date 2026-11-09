@@ -8,6 +8,7 @@ operación y la misma carrera por la última unidad, nunca una vía paralela.
 """
 import hashlib
 import json
+import os
 import threading
 import time
 import uuid
@@ -53,24 +54,128 @@ class TransicionInvalida(Exception):
 
 
 class FrenoDeSolicitudes:
-    """Freno de abuso en memoria por proceso: max_por_minuto solicitudes por
-    IP y ventana de 60 s (patrón de seguridad.FrenoDeLogins)."""
+    """Freno de abuso en memoria por proceso: max_por_minuto por clave y
+    cinco veces eso para todo el proceso, en una ventana de 60 s.
+
+    Una llamada puede nombrar varias claves (IP, correo, teléfono). Si
+    cualquiera ya llenó su ventana, no se anota ninguna. El tope global
+    sigue al valor actual de max_por_minuto, así una prueba que lo sube
+    también abre el techo del proceso."""
 
     def __init__(self, max_por_minuto: int = 6) -> None:
         self.max_por_minuto = max_por_minuto
         self._intentos: dict[str, list[float]] = {}
+        self._global: list[float] = []
         self._cerrojo = threading.Lock()
 
-    def permite(self, ip: str) -> bool:
+    def _recientes(self, marcas: list[float], ahora: float) -> list[float]:
+        return [t for t in marcas if ahora - t < 60]
+
+    def permite(self, *claves: str) -> bool:
+        if not claves:
+            return False
         ahora = time.monotonic()
         with self._cerrojo:
-            ventana = [t for t in self._intentos.get(ip, []) if ahora - t < 60]
-            if len(ventana) >= self.max_por_minuto:
-                self._intentos[ip] = ventana
+            if len(self._intentos) > 4096:
+                self._intentos = {
+                    clave: self._recientes(marcas, ahora)
+                    for clave, marcas in self._intentos.items()
+                    if self._recientes(marcas, ahora)
+                }
+            self._global = self._recientes(self._global, ahora)
+            if len(self._global) >= self.max_por_minuto * 5:
                 return False
-            ventana.append(ahora)
-            self._intentos[ip] = ventana
+            ventanas: dict[str, list[float]] = {}
+            for clave in claves:
+                ventana = self._recientes(self._intentos.get(clave, []), ahora)
+                if len(ventana) >= self.max_por_minuto:
+                    self._intentos[clave] = ventana
+                    return False
+                ventanas[clave] = ventana
+            self._global.append(ahora)
+            for clave, ventana in ventanas.items():
+                ventana.append(ahora)
+                self._intentos[clave] = ventana
             return True
+
+
+def ip_visible(request) -> str:
+    """IP del visitante. Sin proxy de confianza se usa el par de la conexión,
+    y se ignora X-Forwarded-For (el cliente podría inventarlo). Con
+    RAILWAY_ENVIRONMENT o CONFIAR_PROXY=1 se toma el último salto: el proxy
+    lo agrega y el primero de la lista puede venir del cliente."""
+    peer = request.client.host if request.client else "desconocida"
+    confiar = bool(os.environ.get("RAILWAY_ENVIRONMENT")) or os.environ.get("CONFIAR_PROXY") == "1"
+    if not confiar:
+        return peer
+    partes = [p.strip() for p in (request.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
+    if not partes:
+        return peer
+    return partes[-1][:64]
+
+
+class TopeCuerpoPublico:
+    """Corta un POST /publico/* que supere 8 KB, haya o no Content-Length."""
+
+    def __init__(self, app, tope: int = TOPE_CUERPO_BYTES) -> None:
+        self.app = app
+        self.tope = tope
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or scope.get("method") != "POST":
+            await self.app(scope, receive, send)
+            return
+        if not str(scope.get("path", "")).startswith("/publico/"):
+            await self.app(scope, receive, send)
+            return
+        cabeceras = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+        declarado = cabeceras.get("content-length")
+        if declarado:
+            try:
+                if int(declarado) > self.tope:
+                    await _responder_413(send)
+                    return
+            except ValueError:
+                await _responder_413(send)
+                return
+        recibido = 0
+        trozos: list[bytes] = []
+        while True:
+            mensaje = await receive()
+            if mensaje["type"] != "http.request":
+                continue
+            bloque = mensaje.get("body", b"") or b""
+            recibido += len(bloque)
+            if recibido > self.tope:
+                await _responder_413(send)
+                return
+            trozos.append(bloque)
+            if not mensaje.get("more_body", False):
+                break
+        cuerpo = b"".join(trozos)
+        ya = False
+
+        async def repetir():
+            nonlocal ya
+            if ya:
+                return {"type": "http.request", "body": b"", "more_body": False}
+            ya = True
+            return {"type": "http.request", "body": cuerpo, "more_body": False}
+
+        await self.app(scope, repetir, send)
+
+
+async def _responder_413(send) -> None:
+    cuerpo = b'{"detail":"el cuerpo supera el tama\xc3\xb1o permitido"}'
+    await send({
+        "type": "http.response.start",
+        "status": 413,
+        "headers": [
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(cuerpo)).encode()),
+        ],
+    })
+    await send({"type": "http.response.body", "body": cuerpo})
 
 
 def _validar_rango(inicio: date, fin: date, personas: int) -> None:

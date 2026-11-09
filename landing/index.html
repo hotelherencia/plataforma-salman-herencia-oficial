@@ -1,311 +1,625 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-CL">
+
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hotel en Chillán | Hotel Herencia cerca del centro</title>
-  <meta name="description" content="Hotel Herencia es un hotel en Chillán con desayuno, estacionamiento y WiFi, a pasos de Avenida Argentina. Consulta disponibilidad y reserva directa.">
-  <link rel="stylesheet" href="css/landing.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel en Chillán | Hotel Herencia cerca del centro</title>
+    <meta name="description"
+        content="Hotel en Chillán con desayuno, estacionamiento, WiFi y habitaciones cómodas cerca del centro, la Plaza de Armas y la estación de trenes.">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <meta name="theme-color" content="#173326">
+    <link rel="canonical" href="https://hotelherencia.cl/">
+    <link rel="alternate" hreflang="es-CL" href="https://hotelherencia.cl/">
+    <link rel="alternate" hreflang="x-default" href="https://hotelherencia.cl/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Hotel Herencia">
+    <meta property="og:locale" content="es_CL">
+    <meta property="og:title" content="Hotel en Chillán | Hotel Herencia cerca del centro">
+    <meta property="og:description"
+        content="Hotel en Chillán con desayuno, estacionamiento, WiFi y habitaciones cómodas cerca del centro y la estación de trenes.">
+    <meta property="og:url" content="https://hotelherencia.cl/">
+    <meta property="og:image" content="https://hotelherencia.cl/assets/img/hotel-herencia.jpg">
+    <meta property="og:image:width" content="1024">
+    <meta property="og:image:height" content="685">
+    <meta property="og:image:alt" content="Hotel Herencia en Chillán">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Hotel en Chillán | Hotel Herencia cerca del centro">
+    <meta name="twitter:description"
+        content="Hotel en Chillán con desayuno, estacionamiento, WiFi y habitaciones cómodas cerca del centro y la estación.">
+    <meta name="twitter:image" content="https://hotelherencia.cl/assets/img/hotel-herencia.jpg">
+    <meta name="twitter:image:alt" content="Fachada principal de Hotel Herencia en Chillán">
+    <link rel="icon" type="image/x-icon" href="assets/img/herencia_favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script>document.documentElement.classList.add('js');</script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Hotel",
+      "name": "Hotel Herencia",
+      "url": "https://hotelherencia.cl/",
+      "mainEntityOfPage": "https://hotelherencia.cl/",
+      "description": "Hotel en Chillán con desayuno, estacionamiento, WiFi y habitaciones cómodas cerca del centro, la Plaza de Armas y la estación de trenes.",
+      "image": "https://hotelherencia.cl/assets/img/hotel-herencia.jpg",
+      "hasMap": "https://maps.app.goo.gl/XYgS4ZHtKSHauBpj8",
+      "areaServed": [
+        "Chillán",
+        "Región de Ñuble"
+      ],
+      "availableLanguage": [
+        "es"
+      ],
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Calle Diego de Almagro 751",
+        "addressLocality": "Chillán",
+        "addressRegion": "Ñuble",
+        "addressCountry": "CL"
+      },
+      "amenityFeature": [
+        {
+          "@type": "LocationFeatureSpecification",
+          "name": "WiFi",
+          "value": true
+        },
+        {
+          "@type": "LocationFeatureSpecification",
+          "name": "Estacionamiento",
+          "value": true
+        },
+        {
+          "@type": "LocationFeatureSpecification",
+          "name": "Desayuno",
+          "value": true
+        },
+        {
+          "@type": "LocationFeatureSpecification",
+          "name": "Aire acondicionado",
+          "value": true
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Dónde se ubica Hotel Herencia en Chillán?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Hotel Herencia se ubica en Calle Diego de Almagro 751, Chillán, a aproximadamente 1,5 a 1,7 kilómetros de la Plaza de Armas y a 2,8 kilómetros de la estación de trenes."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿El hotel cuenta con estacionamiento?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sí. Hotel Herencia dispone de estacionamiento para facilitar la llegada y salida de huéspedes que viajan en auto dentro de Chillán."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿La estadía incluye desayuno?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sí. El hotel ofrece desayuno junto con WiFi, aire acondicionado y una propuesta pensada para una estadía cómoda en Chillán."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Qué tipos de habitaciones ofrece Hotel Herencia?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "En la página se muestran la Habitación Doble Pequeña con dos camas individuales y la Habitación con Cama Grande, ambas pensadas para viajes de descanso o trabajo."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Cómo consultar disponibilidad o reservar?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Puedes enviar tus fechas, cantidad de huéspedes y requerimientos desde el formulario de contacto de esta página. Respondemos a la brevedad."
+          }
+        }
+      ]
+    }
+    </script>
 </head>
+
 <body>
-  <main>
-    <!-- Hero + widget de reserva directa (CA-PUB-12, V1-ISSUE-25) -->
-    <section class="hero">
-      <div class="hero-texto">
-        <p class="rotulo">Hotel en Chillán</p>
-        <h1>Hotel en Chillán para descansar cerca del centro.</h1>
-        <p class="bajada">
-          Hotel Herencia es un <strong>hotel en Chillán con desayuno, estacionamiento y WiFi</strong>,
-          ubicado <strong>a pasos de Avenida Argentina</strong>, punto neurálgico de la cultura
-          gastronómica y recreativa de Chillán.
-        </p>
-        <ul class="atributos" aria-label="Atributos principales del hotel">
-          <li>WiFi</li>
-          <li>Terraza en habitaciones</li>
-          <li>Estacionamiento</li>
-          <li>Desayuno</li>
-          <li>Aire acondicionado</li>
-          <li>Servicio de habitaciones</li>
-          <li>Habitaciones familiares</li>
-        </ul>
-        <form class="widget-reserva" data-widget-reserva>
-          <p class="widget-titulo">Consulta tu reserva</p>
-          <div class="widget-campos">
-            <label class="campo">
-              <span class="campo-etiqueta">Llegada</span>
-              <input type="date" name="inicio">
-            </label>
-            <label class="campo">
-              <span class="campo-etiqueta">Salida</span>
-              <input type="date" name="fin">
-            </label>
-            <label class="campo campo-angosto">
-              <span class="campo-etiqueta">Huéspedes</span>
-              <input type="number" name="personas" value="2" inputmode="numeric">
-            </label>
-            <button type="submit" class="boton-primario">Consultar reserva</button>
-          </div>
-          <p class="widget-nota">Consulta disponibilidad real: recepción confirma tu solicitud. Huéspedes: entre 1 y 30.</p>
-          <p role="alert" class="alerta" hidden></p>
-        </form>
-        <p class="hero-acciones">
-          <a class="boton-secundario" href="#contacto">Hablar con recepcionista</a>
-          <a class="boton-secundario" href="#ubicacion">Ver ubicación</a>
-        </p>
-      </div>
-      <figure class="hero-figura">
-        <div class="foto-marcador" role="img" aria-label="Exterior del Hotel Herencia con jardines y fachada principal"></div>
-        <figcaption>
-          <strong>Ubicación práctica</strong>
-          <span>A minutos de puntos clave de la ciudad</span>
-          <strong>Excelentes valoraciones</strong>
-          <span>8,3 puntos en Booking</span>
-        </figcaption>
-      </figure>
-    </section>
 
-    <!-- Ubicación -->
-    <section id="ubicacion" class="seccion">
-      <p class="rotulo">Ubicación</p>
-      <h2>Hotel en Chillán con ubicación práctica</h2>
-      <p>
-        Si buscas un hotel en Chillán cerca del centro, nuestra ubicación combina acceso práctico
-        a la Plaza de Armas, conectividad con la estación de trenes y cercanía a servicios para
-        moverte con facilidad por la ciudad.
-      </p>
-      <div class="duo">
-        <article class="tarjeta-info">
-          <p class="rotulo">Dirección</p>
-          <p>Calle Diego de Almagro 751, Chillán, Región de Ñuble</p>
-        </article>
-        <article class="tarjeta-info">
-          <p class="rotulo">Centro y estación</p>
-          <p>Nos encontramos a aproximadamente 1,5 a kilómetros de la Plaza de Armas y a 2,8 kilómetros de la estación de trenes de Chillán.</p>
-        </article>
-      </div>
-      <p><a class="boton-secundario" href="https://maps.app.goo.gl/XYgS4ZHtKSHauBpj8">Abrir en Google Maps</a></p>
-    </section>
+    <main id="contenido">
+        <section class="hero" id="inicio">
+            <div class="container hero__grid">
+                <div class="hero__copy" data-reveal>
+                    <p class="eyebrow">Hotel en Chillán</p>
+                    <h1>Hotel en Chillán para descansar cerca del centro.</h1>
+                    <p class="hero__lede">
+                        Hotel Herencia es un <strong>hotel en Chillán con desayuno, estacionamiento y WiFi</strong>,
+                        ubicado <strong>a pasos de Avenida Argentina</strong>, punto neurálgico de la cultura gastronómica y recreativa de Chillán.
+                    </p>
 
-    <!-- Servicios -->
-    <section class="seccion seccion-alterna">
-      <p class="rotulo">Servicios</p>
-      <h2>Servicios y ventajas para tu estadía en Chillán</h2>
-      <p>
-        Hotel Herencia reúne atributos que suelen definir la elección de un hotel en Chillán:
-        ubicación práctica, desayuno, estacionamiento, WiFi y habitaciones cómodas para descansar o trabajar.
-      </p>
-      <div class="trio">
-        <article class="tarjeta-info">
-          <p class="rotulo">Desayuno + WiFi</p>
-          <h3>Comodidad desde la mañana</h3>
-          <p>Para quienes priorizan una estadía simple, el hotel ofrece desayuno, WiFi y aire acondicionado, tres de los servicios más buscados al reservar un hotel en Chillán.</p>
-        </article>
-        <article class="tarjeta-info">
-          <p class="rotulo">Ubicación</p>
-          <h3>Cerca del centro y con buena conectividad</h3>
-          <p>La ubicación en Diego de Almagro 751 permite llegar con facilidad al centro de Chillán, a la Plaza de Armas y a la estación de trenes, algo especialmente útil para viajes cortos o de trabajo.</p>
-        </article>
-        <article class="tarjeta-info">
-          <p class="rotulo">Descanso</p>
-          <h3>Habitaciones para trabajo o pausa</h3>
-          <p>Las habitaciones están pensadas para quienes necesitan una base cómoda en la ciudad, ya sea para una escapada, una visita familiar o una estadía laboral en Chillán.</p>
-        </article>
-      </div>
-    </section>
+                    <div class="hero__chips" aria-label="Atributos principales del hotel">
+                        <span>WiFi</span>
+                        <span>Terraza en habitaciones</span>
+                        <span>Estacionamiento</span>
+                        <span>Desayuno</span>
+                        <span>Aire acondicionado</span>
+                        <span>Servicio de habitaciones</span>
+                        <span>Habitaciones familiares</span>
+                    </div>
 
-    <!-- Habitaciones -->
-    <section class="seccion">
-      <p class="rotulo">Habitaciones</p>
-      <h2>Habitaciones para tu estadía en Chillán</h2>
-      <p>Conoce opciones de habitación para quienes buscan un hotel en Chillán con buena ubicación, ambiente cálido y una experiencia de descanso simple.</p>
+                    <div class="hero__actions">
+                        <a class="button button--primary" href="#contacto">Consultar reserva</a>
+                        <a class="button button--primary" href="#contacto">Hablar con recepcionista</a>
+                        <a class="button button--ghost" href="#ubicacion">Ver ubicación</a>
+                    </div>
 
-      <article class="habitacion" data-carrusel>
-        <header>
-          <p class="rotulo">2 camas individuales</p>
-          <h3>Habitación Doble Pequeña</h3>
-        </header>
-        <div class="carrusel">
-          <figure data-carrusel-lamina>
-            <div class="foto-marcador" role="img" aria-label="Habitación doble pequeña con dos camas individuales, velador central y lámpara"></div>
-            <figcaption>Vista general</figcaption>
-          </figure>
-          <figure data-carrusel-lamina hidden>
-            <div class="foto-marcador" role="img" aria-label="Vista frontal de la habitación doble pequeña"></div>
-            <figcaption>Vista frontal</figcaption>
-          </figure>
-          <div class="carrusel-controles">
-            <button type="button" data-carrusel-anterior>Ver imagen anterior de Habitación Doble Pequeña</button>
-            <button type="button" data-carrusel-siguiente>Ver siguiente imagen de Habitación Doble Pequeña</button>
-            <div class="carrusel-vinetas" role="group" aria-label="Selector de imágenes de Habitación Doble Pequeña">
-              <button type="button" data-carrusel-vineta aria-pressed="true" aria-label="Mostrar imagen 1 de Habitación Doble Pequeña"></button>
-              <button type="button" data-carrusel-vineta aria-pressed="false" aria-label="Mostrar imagen 2 de Habitación Doble Pequeña"></button>
+                </div>
+
+                <figure class="hero__media" data-reveal>
+                    <div class="hero__photo-frame">
+                        <img src="assets/img/hotel-herencia.jpg"
+                            alt="Exterior del Hotel Herencia con jardines y fachada principal" class="hero__photo"
+                            width="1200" height="1500" fetchpriority="high">
+                    </div>
+                    <figcaption class="hero__media-note">
+                        Habitaciones cómodas, espacios acogedores y una ubicación práctica para recorrer Chillán.
+                    </figcaption>
+                    <div class="hero__media-stat hero__media-stat--top">
+                        <strong>Ubicación práctica</strong>
+                        <span>A minutos de puntos clave de la ciudad</span>
+                    </div>
+                    <div class="hero__media-stat hero__media-stat--bottom">
+                        <strong>Excelentes valoraciones</strong>
+                        <span>8,3 puntos en Booking</span>
+                    </div>
+                </figure>
             </div>
-          </div>
-        </div>
-      </article>
+        </section>
 
-      <article class="habitacion" data-carrusel>
-        <header>
-          <p class="rotulo">Cama grande</p>
-          <h3>Habitación con Cama Grande</h3>
-        </header>
-        <div class="carrusel">
-          <figure data-carrusel-lamina>
-            <div class="foto-marcador" role="img" aria-label="Habitación con cama grande, veladores laterales y lámparas encendidas"></div>
-            <figcaption>Cama principal</figcaption>
-          </figure>
-          <figure data-carrusel-lamina hidden>
-            <div class="foto-marcador" role="img" aria-label="Interior y baño de la habitación con cama grande"></div>
-            <figcaption>Interior y baño</figcaption>
-          </figure>
-          <div class="carrusel-controles">
-            <button type="button" data-carrusel-anterior>Ver imagen anterior de Habitación con Cama Grande</button>
-            <button type="button" data-carrusel-siguiente>Ver siguiente imagen de Habitación con Cama Grande</button>
-            <div class="carrusel-vinetas" role="group" aria-label="Selector de imágenes de Habitación con Cama Grande">
-              <button type="button" data-carrusel-vineta aria-pressed="true" aria-label="Mostrar imagen 1 de Habitación con Cama Grande"></button>
-              <button type="button" data-carrusel-vineta aria-pressed="false" aria-label="Mostrar imagen 2 de Habitación con Cama Grande"></button>
+        <section class="section section--location" id="ubicacion">
+            <div class="container location">
+                <div class="location__copy" data-reveal>
+                    <p class="eyebrow">Ubicación</p>
+                    <h2>Hotel en Chillán con ubicación práctica</h2>
+                    <p>
+                        Si buscas un hotel en Chillán cerca del centro, nuestra ubicación combina acceso práctico a la
+                        Plaza de Armas, conectividad con la estación de trenes y cercanía a servicios para moverte con
+                        facilidad por la ciudad.
+                    </p>
+
+                    <div class="location__details">
+                        <article>
+                            <p class="location__label">Dirección</p>
+                            <p>Calle Diego de Almagro 751, Chillán, Región de Ñuble</p>
+                        </article>
+                        <article>
+                            <p class="location__label">Centro y estación</p>
+                            <p>Nos encontramos a aproximadamente 1,5 a kilómetros de la Plaza de Armas y a 2,8
+                                kilómetros de la estación de trenes de Chillán.</p>
+                        </article>
+                    </div>
+
+                    <a class="button button--ghost" href="https://maps.app.goo.gl/XYgS4ZHtKSHauBpj8" target="_blank"
+                        rel="noopener noreferrer">
+                        Abrir en Google Maps
+                    </a>
+                </div>
+
+                <div class="map-card" data-reveal aria-hidden="true">
+                    <img class="location__image" src="assets/img/maps.png"
+                        alt="Mapa de ubicación de Hotel Herencia en Chillán" width="745" height="475" loading="lazy">
+                </div>
             </div>
-          </div>
-        </div>
-      </article>
+        </section>
 
-      <article class="habitacion" data-carrusel>
-        <header>
-          <p class="rotulo">Galería del hotel</p>
-          <h3>Espacios comunes de Hotel Herencia</h3>
-          <p>Recorre recepción, salas interiores, comedor y cocina para conocer mejor el ambiente del hotel antes de consultar tu estadía en Chillán.</p>
-        </header>
-        <div class="carrusel">
-          <figure data-carrusel-lamina>
-            <div class="foto-marcador" role="img" aria-label="Sala interior del hotel con sofá, sillón y decoración"></div>
-            <figcaption>Espacio interior</figcaption>
-          </figure>
-          <figure data-carrusel-lamina hidden>
-            <div class="foto-marcador" role="img" aria-label="Sala interior del hotel"></div>
-            <figcaption>Sala interior</figcaption>
-          </figure>
-          <figure data-carrusel-lamina hidden>
-            <div class="foto-marcador" role="img" aria-label="Recepción del hotel"></div>
-            <figcaption>Recepción</figcaption>
-          </figure>
-          <figure data-carrusel-lamina hidden>
-            <div class="foto-marcador" role="img" aria-label="Comedor del hotel"></div>
-            <figcaption>Comedor</figcaption>
-          </figure>
-          <figure data-carrusel-lamina hidden>
-            <div class="foto-marcador" role="img" aria-label="Cocina equipada del hotel"></div>
-            <figcaption>Cocina equipada</figcaption>
-          </figure>
-          <div class="carrusel-controles">
-            <button type="button" data-carrusel-anterior>Ver imagen anterior de la galería del hotel</button>
-            <button type="button" data-carrusel-siguiente>Ver siguiente imagen de la galería del hotel</button>
-            <div class="carrusel-vinetas" role="group" aria-label="Selector de imágenes de la galería del hotel">
-              <button type="button" data-carrusel-vineta aria-pressed="true" aria-label="Mostrar imagen 1 de la galería del hotel"></button>
-              <button type="button" data-carrusel-vineta aria-pressed="false" aria-label="Mostrar imagen 2 de la galería del hotel"></button>
-              <button type="button" data-carrusel-vineta aria-pressed="false" aria-label="Mostrar imagen 3 de la galería del hotel"></button>
-              <button type="button" data-carrusel-vineta aria-pressed="false" aria-label="Mostrar imagen 4 de la galería del hotel"></button>
-              <button type="button" data-carrusel-vineta aria-pressed="false" aria-label="Mostrar imagen 5 de la galería del hotel"></button>
+        <section class="section section--benefits" id="servicios">
+            <div class="container">
+                <div class="section-heading" data-reveal>
+                    <p class="eyebrow">Servicios</p>
+                    <h2>Servicios y ventajas para tu estadía en Chillán</h2>
+                    <p>
+                        Hotel Herencia reúne atributos que suelen definir la elección de un hotel en Chillán:
+                        ubicación práctica, desayuno, estacionamiento, WiFi y habitaciones cómodas para descansar o
+                        trabajar.
+                    </p>
+                </div>
+
+                <div class="benefits-grid">
+                    <article class="feature-card" data-reveal>
+                        <p class="feature-card__kicker">Desayuno + WiFi</p>
+                        <h3>Comodidad desde la mañana</h3>
+                        <p>
+                            Para quienes priorizan una estadía simple, el hotel ofrece desayuno, WiFi y aire
+                            acondicionado, tres de los servicios más buscados al reservar un hotel en Chillán.
+                        </p>
+                    </article>
+
+                    <article class="feature-card" data-reveal>
+                        <p class="feature-card__kicker">Ubicación</p>
+                        <h3>Cerca del centro y con buena conectividad</h3>
+                        <p>
+                            La ubicación en Diego de Almagro 751 permite llegar con facilidad al centro de Chillán, a
+                            la Plaza de Armas y a la estación de trenes, algo especialmente útil para viajes cortos o
+                            de trabajo.
+                        </p>
+                    </article>
+
+                    <article class="feature-card" data-reveal>
+                        <p class="feature-card__kicker">Descanso</p>
+                        <h3>Habitaciones para trabajo o pausa</h3>
+                        <p>
+                            Las habitaciones están pensadas para quienes necesitan una base cómoda en la ciudad, ya sea
+                            para una escapada, una visita familiar o una estadía laboral en Chillán.
+                        </p>
+                    </article>
+                </div>
             </div>
-          </div>
-        </div>
-      </article>
-    </section>
+        </section>
 
-    <!-- Preguntas frecuentes -->
-    <section class="seccion seccion-alterna">
-      <p class="rotulo">Preguntas frecuentes</p>
-      <h2>Información útil antes de reservar</h2>
-      <p>Estas respuestas resumen dudas comunes de quienes buscan un hotel en Chillán con desayuno, estacionamiento y ubicación cercana al centro.</p>
-      <div class="duo">
-        <article class="tarjeta-info">
-          <h3>¿Dónde se ubica Hotel Herencia en Chillán?</h3>
-          <p>Estamos en Calle Diego de Almagro 751, Chillán, a aproximadamente 1,5 a 1,7 km de la Plaza de Armas y a 2,8 km de la estación de trenes.</p>
-        </article>
-        <article class="tarjeta-info">
-          <h3>¿El hotel cuenta con estacionamiento?</h3>
-          <p>Sí. Hotel Herencia dispone de estacionamiento para facilitar la llegada y salida de huéspedes que viajan en auto.</p>
-        </article>
-        <article class="tarjeta-info">
-          <h3>¿La estadía incluye desayuno?</h3>
-          <p>Sí. El hotel ofrece desayuno junto con WiFi y aire acondicionado para una experiencia de estadía cómoda en Chillán.</p>
-        </article>
-        <article class="tarjeta-info">
-          <h3>¿Qué tipos de habitaciones ofrece Hotel Herencia?</h3>
-          <p>Contamos con la Habitación Doble Pequeña con dos camas individuales y la Habitación con Cama Grande, pensadas para descanso o viajes de trabajo.</p>
-        </article>
-        <article class="tarjeta-info">
-          <h3>¿Cómo consultar disponibilidad o reservar?</h3>
-          <p>Elige tus fechas y huéspedes arriba y pulsa «Consultar reserva»: verás la disponibilidad real y dejarás tu solicitud, que recepción confirma contigo a la brevedad.</p>
-        </article>
-      </div>
-    </section>
+        <section class="section section--rooms" id="habitaciones">
+            <div class="container">
+                <div class="section-heading" data-reveal>
+                    <p class="eyebrow">Habitaciones</p>
+                    <h2>Habitaciones para tu estadía en Chillán</h2>
+                    <p>
+                        Conoce opciones de habitación para quienes buscan un hotel en Chillán con buena ubicación,
+                        ambiente cálido y una experiencia de descanso simple.
+                    </p>
+                </div>
 
-    <!-- Contacto -->
-    <section id="contacto" class="seccion">
-      <div class="duo">
-        <div>
-          <p class="rotulo">Contacto</p>
-          <h2>Consulta disponibilidad en Hotel Herencia</h2>
-          <p>
-            Si buscas un hotel en Chillán con desayuno, estacionamiento y habitaciones cómodas,
-            envíanos tus fechas, número de huéspedes y requerimientos para responderte a la brevedad.
-          </p>
-          <p class="hero-acciones">
-            <a class="boton-secundario" href="tel:+56956491501">Llamar</a>
-            <a class="boton-secundario" href="https://wa.me/56956491501">Hablar por WhatsApp</a>
-            <a class="boton-secundario" href="https://www.instagram.com/hotelherencia?igsh=aDZxNTdybHFpeDhh">Instagram</a>
-          </p>
-        </div>
-        <form class="formulario-contacto" data-formulario-contacto>
-          <label class="campo">
-            <span class="campo-etiqueta">Nombre completo</span>
-            <input type="text" name="nombre" autocomplete="name" required>
-          </label>
-          <label class="campo">
-            <span class="campo-etiqueta">Correo electrónico</span>
-            <input type="email" name="correo" autocomplete="email" required>
-          </label>
-          <label class="campo">
-            <span class="campo-etiqueta">Teléfono</span>
-            <input type="tel" name="telefono" autocomplete="tel" required>
-          </label>
-          <label class="campo campo-angosto">
-            <span class="campo-etiqueta">Huéspedes</span>
-            <input type="number" name="huespedes" min="1" max="30" value="2" required>
-          </label>
-          <label class="campo">
-            <span class="campo-etiqueta">Check-in</span>
-            <input type="date" name="check-in" required>
-          </label>
-          <label class="campo">
-            <span class="campo-etiqueta">Check-out</span>
-            <input type="date" name="check-out" required>
-          </label>
-          <label class="campo">
-            <span class="campo-etiqueta">Mensaje o requerimientos</span>
-            <textarea name="mensaje" placeholder="Cuéntanos si viajas en familia, si necesitas una llegada especial o cualquier detalle útil para responder tu consulta."></textarea>
-          </label>
-          <p class="widget-nota">Responderemos a la brevedad</p>
-          <button type="submit" class="boton-primario">Enviar consulta</button>
-          <p role="status" class="estado-formulario"></p>
-        </form>
-      </div>
-    </section>
-  </main>
+                <div class="room-showcase-grid">
+                    <article class="feature-card room-showcase" data-reveal>
+                        <div class="room-showcase__copy">
+                            <p class="feature-card__kicker">2 camas individuales</p>
+                            <h3>Habitación Doble Pequeña</h3>
+                        </div>
 
-  <footer class="pie">
-    <p>Hotel Herencia · Calle Diego de Almagro 751, Chillán, Región de Ñuble ·
-      <a href="tel:+56956491501">+56 9 5649 1501</a></p>
-  </footer>
+                        <div class="rooms-carousel rooms-carousel--gallery" data-carousel>
+                            <div class="rooms-carousel__viewport">
+                                <div class="rooms-carousel__track" data-room-track>
+                                    <article class="room-slide room-slide--gallery" data-room-slide>
+                                        <figure class="room-slide__media">
+                                            <img src="assets/img/124823346.jpg"
+                                                alt="Habitación doble pequeña con dos camas individuales, velador central y lámpara"
+                                                width="1024" height="685" loading="eager">
+                                            <figcaption class="room-slide__caption">Vista general</figcaption>
+                                        </figure>
+                                    </article>
 
-  <script type="module">
-    import { inicializarWidget } from './js/widget.js'
-    import { inicializarCarruseles } from './js/galeria.js'
-    import { inicializarFormulario } from './js/formulario.js'
+                                    <article class="room-slide room-slide--gallery" data-room-slide>
+                                        <figure class="room-slide__media">
+                                            <img src="assets/img/124823348.jpg"
+                                                alt="Vista frontal de la habitación doble pequeña con dos camas individuales"
+                                                width="1024" height="685" loading="lazy">
+                                            <figcaption class="room-slide__caption">Vista frontal</figcaption>
+                                        </figure>
+                                    </article>
+                                </div>
+                            </div>
 
-    inicializarWidget(document)
-    inicializarCarruseles(document)
-    inicializarFormulario(document)
-  </script>
+                            <div class="rooms-carousel__footer">
+                                <div class="rooms-carousel__controls">
+                                    <button class="rooms-carousel__button" type="button" data-room-prev
+                                        aria-label="Ver imagen anterior de Habitación Doble Pequeña">
+                                        Anterior
+                                    </button>
+                                    <button class="rooms-carousel__button" type="button" data-room-next
+                                        aria-label="Ver siguiente imagen de Habitación Doble Pequeña">
+                                        Siguiente
+                                    </button>
+                                </div>
+
+                                <div class="rooms-carousel__dots"
+                                    aria-label="Selector de imágenes de Habitación Doble Pequeña">
+                                    <button class="rooms-carousel__dot is-active" type="button" data-room-dot="0"
+                                        aria-label="Mostrar primera imagen de Habitación Doble Pequeña"
+                                        aria-pressed="true"></button>
+                                    <button class="rooms-carousel__dot" type="button" data-room-dot="1"
+                                        aria-label="Mostrar segunda imagen de Habitación Doble Pequeña"
+                                        aria-pressed="false"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="feature-card room-showcase" data-reveal>
+                        <div class="room-showcase__copy">
+                            <p class="feature-card__kicker">Cama grande</p>
+                            <h3>Habitación con Cama Grande</h3>
+                        </div>
+
+                        <div class="rooms-carousel rooms-carousel--gallery" data-carousel>
+                            <div class="rooms-carousel__viewport">
+                                <div class="rooms-carousel__track" data-room-track>
+                                    <article class="room-slide room-slide--gallery" data-room-slide>
+                                        <figure class="room-slide__media">
+                                            <img src="assets/img/124822057.jpg"
+                                                alt="Habitación con cama grande, veladores laterales y lámparas encendidas"
+                                                width="1024" height="685" loading="lazy">
+                                            <figcaption class="room-slide__caption">Cama principal</figcaption>
+                                        </figure>
+                                    </article>
+
+                                    <article class="room-slide room-slide--gallery" data-room-slide>
+                                        <figure class="room-slide__media">
+                                            <img src="assets/img/124822020.jpg"
+                                                alt="Vista interior de la habitación con cama grande, clóset y acceso al baño"
+                                                width="1024" height="685" loading="lazy">
+                                            <figcaption class="room-slide__caption">Interior y baño</figcaption>
+                                        </figure>
+                                    </article>
+                                </div>
+                            </div>
+
+                            <div class="rooms-carousel__footer">
+                                <div class="rooms-carousel__controls">
+                                    <button class="rooms-carousel__button" type="button" data-room-prev
+                                        aria-label="Ver imagen anterior de Habitación con Cama Grande">
+                                        Anterior
+                                    </button>
+                                    <button class="rooms-carousel__button" type="button" data-room-next
+                                        aria-label="Ver siguiente imagen de Habitación con Cama Grande">
+                                        Siguiente
+                                    </button>
+                                </div>
+
+                                <div class="rooms-carousel__dots"
+                                    aria-label="Selector de imágenes de Habitación con Cama Grande">
+                                    <button class="rooms-carousel__dot is-active" type="button" data-room-dot="0"
+                                        aria-label="Mostrar primera imagen de Habitación con Cama Grande"
+                                        aria-pressed="true"></button>
+                                    <button class="rooms-carousel__dot" type="button" data-room-dot="1"
+                                        aria-label="Mostrar segunda imagen de Habitación con Cama Grande"
+                                        aria-pressed="false"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <article class="feature-card hotel-gallery" data-reveal>
+                    <div class="hotel-gallery__copy">
+                        <p class="feature-card__kicker">Galería del hotel</p>
+                        <h3>Espacios comunes de Hotel Herencia</h3>
+                        <p>
+                            Recorre recepción, salas interiores, comedor y cocina para conocer mejor el ambiente del
+                            hotel antes de consultar tu estadía en Chillán.
+                        </p>
+                    </div>
+
+                    <div class="rooms-carousel rooms-carousel--gallery rooms-carousel--hotel" data-carousel>
+                        <div class="rooms-carousel__viewport">
+                            <div class="rooms-carousel__track" data-room-track>
+
+                                <article class="room-slide room-slide--gallery" data-room-slide>
+                                    <figure class="room-slide__media">
+                                        <img src="assets/img/124824164.jpg"
+                                            alt="Sala interior del hotel con sofá, sillón y decoración" width="1024"
+                                            height="685" loading="lazy">
+                                        <figcaption class="room-slide__caption">Espacio interior</figcaption>
+                                    </figure>
+                                </article>
+
+                                <article class="room-slide room-slide--gallery" data-room-slide>
+                                    <figure class="room-slide__media">
+                                        <img src="assets/img/124825874.jpg"
+                                            alt="Sala interior del hotel con sofá turquesa y mesa auxiliar" width="1024"
+                                            height="685" loading="lazy">
+                                        <figcaption class="room-slide__caption">Sala interior</figcaption>
+                                    </figure>
+                                </article>
+
+                                <article class="room-slide room-slide--gallery" data-room-slide>
+                                    <figure class="room-slide__media">
+                                        <img src="assets/img/124825882.jpg"
+                                            alt="Recepción interior del hotel con sofá y mostrador" width="1024"
+                                            height="685" loading="lazy">
+                                        <figcaption class="room-slide__caption">Recepción</figcaption>
+                                    </figure>
+                                </article>
+
+                                <article class="room-slide room-slide--gallery" data-room-slide>
+                                    <figure class="room-slide__media">
+                                        <img src="assets/img/cocina.jpg"
+                                            alt="Comedor común de Hotel Herencia con mesas y sillas" width="1024" height="685"
+                                            loading="lazy">
+                                        <figcaption class="room-slide__caption">Comedor</figcaption>
+                                    </figure>
+                                </article>
+
+                                <article class="room-slide room-slide--gallery" data-room-slide>
+                                    <figure class="room-slide__media">
+                                        <img src="assets/img/124824018.jpg"
+                                            alt="Cocina equipada de Hotel Herencia con barra y electrodomésticos" width="1024" height="685"
+                                            loading="lazy">
+                                        <figcaption class="room-slide__caption">Cocina equipada</figcaption>
+                                    </figure>
+                                </article>
+                            </div>
+                        </div>
+
+                        <div class="rooms-carousel__footer">
+                            <div class="rooms-carousel__controls">
+                                <button class="rooms-carousel__button" type="button" data-room-prev
+                                    aria-label="Ver imagen anterior de la galería del hotel">
+                                    Anterior
+                                </button>
+                                <button class="rooms-carousel__button" type="button" data-room-next
+                                    aria-label="Ver siguiente imagen de la galería del hotel">
+                                    Siguiente
+                                </button>
+                            </div>
+
+                            <div class="rooms-carousel__dots" aria-label="Selector de imágenes de la galería del hotel">
+                                <button class="rooms-carousel__dot is-active" type="button" data-room-dot="0"
+                                    aria-label="Mostrar primera imagen de la galería del hotel"
+                                    aria-pressed="true"></button>
+                                <button class="rooms-carousel__dot" type="button" data-room-dot="1"
+                                    aria-label="Mostrar segunda imagen de la galería del hotel"
+                                    aria-pressed="false"></button>
+                                <button class="rooms-carousel__dot" type="button" data-room-dot="2"
+                                    aria-label="Mostrar tercera imagen de la galería del hotel"
+                                    aria-pressed="false"></button>
+                                <button class="rooms-carousel__dot" type="button" data-room-dot="3"
+                                    aria-label="Mostrar cuarta imagen de la galería del hotel"
+                                    aria-pressed="false"></button>
+                                <button class="rooms-carousel__dot" type="button" data-room-dot="4"
+                                    aria-label="Mostrar quinta imagen de la galería del hotel"
+                                    aria-pressed="false"></button>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="section section--faq" id="preguntas-frecuentes">
+            <div class="container">
+                <div class="section-heading" data-reveal>
+                    <p class="eyebrow">Preguntas frecuentes</p>
+                    <h2>Información útil antes de reservar</h2>
+                    <p>
+                        Estas respuestas resumen dudas comunes de quienes buscan un hotel en Chillán con desayuno,
+                        estacionamiento y ubicación cercana al centro.
+                    </p>
+                </div>
+
+                <div class="faq-grid">
+                    <article class="feature-card faq-card" data-reveal>
+                        <h3>¿Dónde se ubica Hotel Herencia en Chillán?</h3>
+                        <p>
+                            Estamos en Calle Diego de Almagro 751, Chillán, a aproximadamente 1,5 a 1,7 km de la Plaza
+                            de Armas y a 2,8 km de la estación de trenes.
+                        </p>
+                    </article>
+
+                    <article class="feature-card faq-card" data-reveal>
+                        <h3>¿El hotel cuenta con estacionamiento?</h3>
+                        <p>
+                            Sí. Hotel Herencia dispone de estacionamiento para facilitar la llegada y salida de
+                            huéspedes que viajan en auto.
+                        </p>
+                    </article>
+
+                    <article class="feature-card faq-card" data-reveal>
+                        <h3>¿La estadía incluye desayuno?</h3>
+                        <p>
+                            Sí. El hotel ofrece desayuno junto con WiFi y aire acondicionado para una experiencia de
+                            estadía cómoda en Chillán.
+                        </p>
+                    </article>
+
+                    <article class="feature-card faq-card" data-reveal>
+                        <h3>¿Qué tipos de habitaciones ofrece Hotel Herencia?</h3>
+                        <p>
+                            Contamos con la Habitación Doble Pequeña con dos camas individuales y la
+                            Habitación con Cama Grande, pensadas para descanso o viajes de trabajo.
+                        </p>
+                    </article>
+
+                    <article class="feature-card faq-card" data-reveal>
+                        <h3>¿Cómo consultar disponibilidad o reservar?</h3>
+                        <p>
+                            Puedes enviar tus fechas, cantidad de huéspedes y requerimientos desde el formulario de
+                            contacto. Respondemos a la brevedad.
+                        </p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section section--contact" id="contacto">
+            <div class="container contact">
+                <div class="contact__intro" data-reveal>
+                    <p class="eyebrow">Contacto</p>
+                    <h2>Consulta disponibilidad en Hotel Herencia</h2>
+                    <p>
+                        Si buscas un hotel en Chillán con desayuno, estacionamiento y habitaciones cómodas, envíanos
+                        tus fechas, número de huéspedes y requerimientos para responderte a la brevedad.
+                    </p>
+
+                    <a class="button button--primary" href="tel:+56956491501" target="_blank" rel="noopener noreferrer">Llamar</a>
+                    <a class="button button--primary" href="https://wa.me/56956491501" target="_blank" rel="noopener noreferrer">Hablar por WhatsApp</a>
+                    <a class="button button--ghost" href="https://www.instagram.com/hotelherencia?igsh=aDZxNTdybHFpeDhh" target="_blank" rel="noopener noreferrer">Instagram</a>
+                </div>
+
+                <div class="contact__form-wrap" data-reveal>
+                    <form class="contact-form" data-formulario-contacto novalidate>
+                        <div class="contact-form__grid">
+                            <label class="field">
+                                <span>Nombre completo</span>
+                                <input type="text" id="name" name="name" autocomplete="name" required>
+                            </label>
+
+                            <label class="field">
+                                <span>Correo electrónico</span>
+                                <input type="email" id="email" name="email" autocomplete="email" required>
+                            </label>
+
+                            <label class="field">
+                                <span>Teléfono</span>
+                                <input type="tel" id="phone" name="phone" autocomplete="tel" required>
+                            </label>
+
+                            <label class="field">
+                                <span>Huéspedes</span>
+                                <input type="number" id="guests" name="guests" min="1" max="8" value="2" required>
+                            </label>
+
+                            <label class="field">
+                                <span>Check-in</span>
+                                <input type="date" id="checkin" name="checkin" required>
+                            </label>
+
+                            <label class="field">
+                                <span>Check-out</span>
+                                <input type="date" id="checkout" name="checkout" required>
+                            </label>
+                        </div>
+
+                        <label class="field field--full">
+                            <span>Mensaje o requerimientos</span>
+                            <textarea id="message" name="message" rows="5"
+                                placeholder="Cuéntanos si viajas en familia, si necesitas una llegada especial o cualquier detalle útil para responder tu consulta."></textarea>
+                        </label>
+
+                        <div class="contact-form__footer">
+                            <p class="contact-form__note">Responderemos a la brevedad</p>
+                            <div class="contact-form__actions">
+                                <button class="button button--ghost" type="button" data-ver-disponibilidad>Ver disponibilidad</button>
+                                <button class="button button--primary button--submit" type="submit">Enviar consulta</button>
+                            </div>
+                        </div>
+
+                        <p class="form-status" role="alert" data-disponibilidad-estado hidden></p>
+                        <p class="form-status" role="status" aria-live="polite"></p>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <a class="sticky-cta" href="#contacto">Consultar reserva</a>
+
+    <script src="assets/js/main.js" defer></script>
+    <script type="module">
+        import { inicializarFormulario } from './js/formulario.js'
+        import { inicializarDisponibilidad } from './js/widget.js'
+
+        inicializarFormulario(document)
+        inicializarDisponibilidad(document)
+    </script>
 </body>
+
 </html>

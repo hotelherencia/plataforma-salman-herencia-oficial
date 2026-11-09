@@ -27,3 +27,32 @@ export function inicializarWidget(documento) {
     window.location.assign(construirEnlaceReserva(PLATAFORMA_URL, inicio, fin, personas))
   })
 }
+
+/**
+ * «Ver disponibilidad» del formulario real (#checkin, #checkout, #guests).
+ * Los enlaces «Consultar reserva» siguen en #contacto. La URL lleva solo
+ * inicio, fin y personas.
+ */
+export function inicializarDisponibilidad(documento) {
+  const boton = documento.querySelector('[data-ver-disponibilidad]')
+  if (!boton) return
+  const formulario = boton.closest('form') || documento
+  const alerta = formulario.querySelector('[data-disponibilidad-estado]')
+  const valor = (id) => documento.getElementById(id)?.value ?? ''
+
+  boton.addEventListener('click', () => {
+    const inicio = valor('checkin')
+    const fin = valor('checkout')
+    const personas = valor('guests')
+    const problema = validarRango(inicio, fin, personas)
+    if (problema) {
+      if (alerta) {
+        alerta.textContent = problema
+        alerta.hidden = false
+      }
+      return
+    }
+    if (alerta) alerta.hidden = true
+    window.location.assign(construirEnlaceReserva(PLATAFORMA_URL, inicio, fin, personas))
+  })
+}

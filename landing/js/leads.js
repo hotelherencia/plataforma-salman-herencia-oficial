@@ -6,18 +6,32 @@
  *
  * El formulario postea a `{API_URL}/publico/leads` (spec del contrato): los
  * campos usan snake_case y las fechas viajan como YYYY-MM-DD o null; el
- * HTML conserva los names históricos con guion (check-in/check-out), así que
- * el mapeo vive aquí y queda probado.
+ * HTML del sitio real usa name, email, phone, guests, checkin, checkout y
+ * message. El marcador anterior usaba nombre, correo, telefono, huespedes,
+ * check-in y check-out. El mapeo vive aquí y queda probado; el cuerpo que
+ * sale hacia la API sigue en snake_case.
  */
+function textoPresente(datos, ...claves) {
+  for (const clave of claves) {
+    if (datos[clave] == null) continue
+    const limpio = String(datos[clave]).trim()
+    if (limpio !== '') return limpio
+  }
+  return ''
+}
+
 export function mapearCuerpo(datos) {
+  const huespedes = textoPresente(datos, 'huespedes', 'guests')
+  const checkIn = textoPresente(datos, 'check_in', 'checkin', 'check-in')
+  const checkOut = textoPresente(datos, 'check_out', 'checkout', 'check-out')
   return {
-    nombre: (datos.nombre || '').trim(),
-    correo: (datos.correo || '').trim(),
-    telefono: (datos.telefono || '').trim(),
-    huespedes: datos.huespedes === '' || datos.huespedes == null ? null : Number(datos.huespedes),
-    check_in: datos.check_in || null,
-    check_out: datos.check_out || null,
-    mensaje: (datos.mensaje || '').trim() || null,
+    nombre: textoPresente(datos, 'nombre', 'name'),
+    correo: textoPresente(datos, 'correo', 'email'),
+    telefono: textoPresente(datos, 'telefono', 'phone'),
+    huespedes: huespedes === '' ? null : Number(huespedes),
+    check_in: checkIn || null,
+    check_out: checkOut || null,
+    mensaje: textoPresente(datos, 'mensaje', 'message') || null,
   }
 }
 

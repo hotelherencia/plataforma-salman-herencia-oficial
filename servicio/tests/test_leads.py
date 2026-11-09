@@ -117,6 +117,9 @@ class LeadsPublicosTest(LeadsBaseTest):
         lead_id = cuerpo["lead"]["id"]
         # CA-LEAD-01: la respuesta no lleva datos del lead ni de terceros
         self.assertNotIn("correo", cuerpo["lead"])
+        self.assertNotIn("nombre", cuerpo["lead"])
+        self.assertRegex(cuerpo["referencia"], r"^[A-Za-z0-9_-]{20,128}$")
+        self.assertNotIn("visitante@example.test", cuerpo["referencia"])
         filas = self.select(
             "SELECT empresa_id, nombre, correo, telefono, estado, origen FROM leads WHERE id = %s", (lead_id,)
         )
@@ -172,6 +175,9 @@ class LeadsPublicosTest(LeadsBaseTest):
             {**self.cuerpo_lead(), "check_out": str(MANANA)},  # fin == inicio
             {**self.cuerpo_lead(), "check_in": None, "check_out": str(EN_3)},  # fecha suelta
             {**self.cuerpo_lead(), "mensaje": "x" * 2001},
+            {**self.cuerpo_lead(), "telefono": "abc"},
+            {**self.cuerpo_lead(), "check_in": str(HOY - timedelta(days=1)), "check_out": str(HOY)},
+            {**self.cuerpo_lead(), "check_in": str(MANANA), "check_out": str(MANANA + timedelta(days=31))},
         ]
         for i, cuerpo in enumerate(casos):
             respuesta = self.anonima.post(
@@ -205,6 +211,52 @@ class LeadsPublicosTest(LeadsBaseTest):
         ]
         self.assertEqual(estados[:2], [201, 201])
         self.assertEqual(estados[2], 429)
+
+    def test_ld08_captcha_obligatorio_si_hay_secreto_y_no_persiste(self):
+        from servicio.recaptcha import CaptchaRechazado
+
+        config = Configuracion(
+            host="127.0.0.1", puerto=0, database_url=URL_TEST, cookie_segura=False,
+            origen_front=None, origen_landing=LANDING,
+            admin_usuario=ADMIN[0], admin_clave=ADMIN[1],
+            recaptcha_secret_key="secreto-de-prueba",
+        )
+        app = crear_app(configuracion=config)
+        app.state.freno_solicitudes.max_por_minuto = 100
+        anonima = TestClient(app)
+        sin_token = anonima.post(
+            "/publico/leads", json=self.cuerpo_lead(),
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(sin_token.status_code, 403, sin_token.text)
+        self.assertEqual(self.select("SELECT count(*) FROM leads")[0][0], 0)
+
+        def aceptar(token, secreto, accion, ip):
+            if token != "token-ok" or accion != "consulta" or secreto != "secreto-de-prueba":
+                raise CaptchaRechazado()
+
+        app.state.verificar_recaptcha = aceptar
+        con_token = anonima.post(
+            "/publico/leads", json=self.cuerpo_lead(correo="otro@example.test"),
+            headers={"Idempotency-Key": self.clave(), "X-Recaptcha-Token": "token-ok"},
+        )
+        self.assertEqual(con_token.status_code, 201, con_token.text)
+
+    def test_ld09_la_referencia_recupera_contacto_sin_ponerlo_en_la_url(self):
+        creada = self.anonima.post(
+            "/publico/leads", json=self.cuerpo_lead(), headers={"Idempotency-Key": self.clave()}
+        )
+        self.assertEqual(creada.status_code, 201, creada.text)
+        token = creada.json()["referencia"]
+        lectura = self.anonima.get("/publico/referencia", params={"token": token})
+        self.assertEqual(lectura.status_code, 200, lectura.text)
+        self.assertEqual(lectura.json()["nombre"], "Visitante Sintético")
+        self.assertEqual(lectura.json()["correo"], "visitante@example.test")
+        self.assertNotIn("mensaje", lectura.json())
+        ajena = self.anonima.get("/publico/referencia", params={"token": token, "correo": "otro@example.test"})
+        self.assertEqual(ajena.status_code, 422, ajena.text)
+        invalida = self.anonima.get("/publico/referencia", params={"token": "corta"})
+        self.assertEqual(invalida.status_code, 422, invalida.text)
 
 
 class LeadsCorsTest(LeadsBaseTest):

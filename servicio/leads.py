@@ -14,6 +14,7 @@ sale a un modelo externo, que este canal no hace. La gestión nunca borra.
 import hashlib
 import json
 import re
+import secrets
 import uuid
 from datetime import date
 
@@ -26,9 +27,11 @@ MAX_CORREO = 320
 MAX_TELEFONO = 40
 MAX_MENSAJE = 2000
 MAX_PERSONAS = 30
+MAX_NOCHES = 30
 ESTADOS = ("nuevo", "contactado", "cerrado")
 ROLES_GESTION = frozenset({"recepcion", "administrador"})
 _RE_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_RE_REFERENCIA = re.compile(r"^[A-Za-z0-9_-]{20,128}$")
 _TRANSICIONES = {"nuevo": frozenset({"contactado", "cerrado"}), "contactado": frozenset({"cerrado"})}
 
 
@@ -59,12 +62,19 @@ def _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje) 
         raise LeadInvalido("correo es obligatorio y debe tener formato de correo")
     if not telefono or len(telefono) > MAX_TELEFONO:
         raise LeadInvalido(f"telefono es obligatorio (máx. {MAX_TELEFONO})")
+    digitos = re.sub(r"\D", "", telefono)
+    if len(digitos) < 8 or len(digitos) > 15:
+        raise LeadInvalido("telefono debe incluir entre 8 y 15 dígitos")
     if huespedes is not None and (huespedes < 1 or huespedes > MAX_PERSONAS):
         raise LeadInvalido(f"huespedes debe estar entre 1 y {MAX_PERSONAS}")
     if (check_in is None) != (check_out is None):
         raise LeadInvalido("check_in y check_out vienen juntos o ninguno")
     if check_in is not None and check_out <= check_in:
         raise LeadInvalido("check_out debe ser mayor que check_in")
+    if check_in is not None and check_in < date.today():
+        raise LeadInvalido("check_in debe ser hoy o una fecha futura")
+    if check_in is not None and (check_out - check_in).days > MAX_NOCHES:
+        raise LeadInvalido(f"el rango supera las {MAX_NOCHES} noches")
     if mensaje is not None and len(mensaje) > MAX_MENSAJE:
         raise LeadInvalido(f"mensaje supera los {MAX_MENSAJE} caracteres")
 
@@ -104,24 +114,50 @@ def crear_lead(
     }
     cuerpo_hash = _hash_cuerpo(cuerpo)
     existente = conexion.execute(
-        "SELECT id, cuerpo_hash FROM leads WHERE empresa_id = %s AND idempotency_key = %s",
+        "SELECT id, cuerpo_hash, token_consulta FROM leads WHERE empresa_id = %s AND idempotency_key = %s",
         (empresa_id, clave),
     ).fetchone()
     if existente is not None:
         if existente[1] != cuerpo_hash:
             raise ClaveEnConflicto("esa clave ya se usó con otros datos")
-        return {"lead": _resumen(conexion, existente[0]), "reintento": True}
+        token = existente[2] or _nueva_referencia(conexion, existente[0])
+        return {"lead": _resumen(conexion, existente[0]), "referencia": token, "reintento": True}
 
     lead_id = f"LEAD-{uuid.uuid4().hex[:12]}"
+    token = secrets.token_urlsafe(32)
     conexion.execute(
         "INSERT INTO leads (id, empresa_id, nombre, correo, telefono, huespedes, check_in, "
-        "check_out, mensaje, estado, origen, idempotency_key, cuerpo_hash) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'nuevo', 'landing', %s, %s)",
+        "check_out, mensaje, estado, origen, idempotency_key, cuerpo_hash, token_consulta) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'nuevo', 'landing', %s, %s, %s)",
         (lead_id, empresa_id, nombre, correo, telefono, huespedes, check_in, check_out,
-         mensaje, clave, cuerpo_hash),
+         mensaje, clave, cuerpo_hash, token),
     )
     seguridad.auditar(conexion, f"publico:{lead_id}", "lead_recibido", lead_id, "nuevo")
-    return {"lead": _resumen(conexion, lead_id), "reintento": False}
+    return {"lead": _resumen(conexion, lead_id), "referencia": token, "reintento": False}
+
+
+def _nueva_referencia(conexion: psycopg.Connection, lead_id: str) -> str:
+    token = secrets.token_urlsafe(32)
+    conexion.execute(
+        "UPDATE leads SET token_consulta = %s WHERE id = %s AND token_consulta IS NULL",
+        (token, lead_id),
+    )
+    fila = conexion.execute("SELECT token_consulta FROM leads WHERE id = %s", (lead_id,)).fetchone()
+    return fila[0]
+
+
+def por_referencia(conexion: psycopg.Connection, token: str) -> dict | None:
+    """Devuelve solo nombre, correo y teléfono de esa referencia. El token
+    no se escribe en el resultado."""
+    if not token or not _RE_REFERENCIA.fullmatch(token):
+        raise LeadInvalido("referencia inválida")
+    fila = conexion.execute(
+        "SELECT nombre, correo, telefono FROM leads WHERE token_consulta = %s",
+        (token,),
+    ).fetchone()
+    if fila is None:
+        return None
+    return {"nombre": fila[0], "correo": fila[1], "telefono": fila[2]}
 
 
 def _resumen(conexion: psycopg.Connection, lead_id: str) -> dict:

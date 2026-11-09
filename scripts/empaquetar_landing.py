@@ -29,9 +29,11 @@ Fecha del paquete: {HOY}
 
 3. VERIFICACIÓN tras publicar (desde una ventana de incógnito):
    [ ] https://hotelherencia.cl/ carga: hero, servicios, habitaciones, FAQ.
-   [ ] Elegir llegada/salida en el widget y pulsar «Consultar reserva»
-       abre  https://plataforma-salman-herencia-oficial.vercel.app/reservar
+   [ ] Elegir check-in, check-out y huéspedes en #contacto y pulsar
+       «Ver disponibilidad»: abre
+       https://plataforma-salman-herencia-oficial.vercel.app/reservar
        con inicio/fin/personas en la URL (nada de datos personales).
+       «Consultar reserva» del hero y del sticky sigue en #contacto.
    [ ] Rango inválido (salida antes de llegada) muestra aviso y NO navega.
    [ ] El formulario de contacto (#contacto) envía y muestra «Consulta enviada».
    [ ] https://hotelherencia.cl/reservar no existe en el hosting (la reserva

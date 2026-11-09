@@ -2,7 +2,7 @@
  * E2E de la landing → plataforma — V1-ISSUE-25 (CA-PUB-12).
  *
  * Sirve `landing/` (sitio estático del repo) en un puerto efímero y, con
- * navegador real (Chromium), verifica que el CTA «Consultar reserva» abre
+ * navegador real (Chromium), verifica que «Ver disponibilidad» abre
  * `/reservar` del front con inicio, fin y personas en la query, y que los
  * rangos inválidos se rechazan en la landing sin navegar (misma regla que
  * `front/app/reservar/page.js`). El consumo del deep link por `/reservar`
@@ -116,13 +116,13 @@ try {
   const page = await ctx.newPage()
 
   // ---------- PUB-07: el CTA abre /reservar con las fechas elegidas (CA-PUB-12) ----------
-  await caso('PUB-07', '/', 'desde la landing, elegir fechas y huéspedes y pulsar «Consultar reserva» abre /reservar con inicio, fin y personas', 'visitante', `navega a /reservar?inicio=${MANANA}&fin=${EN_4}&personas=3 y el formulario llega precargado`, async () => {
+  await caso('PUB-07', '/', 'desde la landing, elegir fechas y huéspedes y pulsar «Ver disponibilidad» abre /reservar con inicio, fin y personas', 'visitante', `navega a /reservar?inicio=${MANANA}&fin=${EN_4}&personas=3 y el formulario llega precargado`, async () => {
     await page.goto(LANDING)
-    const widget = page.locator('[data-widget-reserva]')
-    await widget.getByLabel('Llegada').fill(MANANA)
-    await widget.getByLabel('Salida').fill(EN_4)
-    await widget.getByLabel('Huéspedes').fill('3')
-    await widget.getByRole('button', { name: 'Consultar reserva' }).click()
+    const formulario = page.locator('[data-formulario-contacto]')
+    await formulario.locator('#checkin').fill(MANANA)
+    await formulario.locator('#checkout').fill(EN_4)
+    await formulario.locator('#guests').fill('3')
+    await formulario.getByRole('button', { name: 'Ver disponibilidad' }).click()
     await page.waitForURL(`**/reservar?inicio=${MANANA}&fin=${EN_4}&personas=3`, { timeout: 15000 })
     esperar(page.url().startsWith(`${FRONT}/reservar`), `destino inesperado: ${page.url()}`)
     const llegada = await page.getByLabel('Llegada').inputValue()
@@ -138,10 +138,10 @@ try {
   // ---------- PUB-08: rango inválido se rechaza en la landing ----------
   await caso('PUB-08', '/', 'salida anterior a la llegada: mensaje local y sin navegación', 'visitante', 'alerta «salida posterior» y la URL sigue en la landing', async () => {
     await page.goto(LANDING)
-    const widget = page.locator('[data-widget-reserva]')
-    await widget.getByLabel('Llegada').fill(EN_4)
-    await widget.getByLabel('Salida').fill(MANANA)
-    await widget.getByRole('button', { name: 'Consultar reserva' }).click()
+    const formulario = page.locator('[data-formulario-contacto]')
+    await formulario.locator('#checkin').fill(EN_4)
+    await formulario.locator('#checkout').fill(MANANA)
+    await formulario.getByRole('button', { name: 'Ver disponibilidad' }).click()
     const alerta = page.getByRole('alert')
     await alerta.waitFor({ state: 'visible', timeout: 5000 })
     const texto = await alerta.textContent()
@@ -154,8 +154,8 @@ try {
   // ---------- PUB-09: fechas vacías se rechazan en la landing ----------
   await caso('PUB-09', '/', 'fechas sin completar: mensaje local y sin navegación', 'visitante', 'alerta «indica las fechas» y la URL sigue en la landing', async () => {
     await page.goto(LANDING)
-    const widget = page.locator('[data-widget-reserva]')
-    await widget.getByRole('button', { name: 'Consultar reserva' }).click()
+    const formulario = page.locator('[data-formulario-contacto]')
+    await formulario.getByRole('button', { name: 'Ver disponibilidad' }).click()
     const alerta = page.getByRole('alert')
     await alerta.waitFor({ state: 'visible', timeout: 5000 })
     const texto = await alerta.textContent()

@@ -13,6 +13,53 @@ function hoyLocal() {
   return `${d.getFullYear()}-${m}-${dia}`
 }
 
+const CLAVE_SITIO_RECAPTCHA = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LcKehguAAAAAG07HWp0QQOHJyMxQeWfQl3epp7n'
+
+function prepararRecaptcha() {
+  if (document.querySelector('script[data-recaptcha]')) return
+  const script = document.createElement('script')
+  script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(CLAVE_SITIO_RECAPTCHA)}`
+  script.async = true
+  script.dataset.recaptcha = 'v3'
+  document.head.append(script)
+}
+
+function tokenRecaptcha(accion) {
+  return new Promise((resolve) => {
+    const inicio = Date.now()
+    const ejecutar = () => {
+      window.grecaptcha.ready(() => {
+        window.grecaptcha.execute(CLAVE_SITIO_RECAPTCHA, { action: accion }).then(resolve).catch(() => resolve(''))
+      })
+    }
+    if (window.grecaptcha) {
+      ejecutar()
+      return
+    }
+    const reloj = window.setInterval(() => {
+      if (window.grecaptcha) {
+        window.clearInterval(reloj)
+        ejecutar()
+      } else if (Date.now() - inicio > 8000) {
+        window.clearInterval(reloj)
+        resolve('')
+      }
+    }, 50)
+  })
+}
+
+function fechaIso(valor) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(valor)
+}
+
+function personasValidas(valor) {
+  return /^\d{1,2}$/.test(String(valor)) && Number(valor) >= 1 && Number(valor) <= 30
+}
+
+function referenciaValida(valor) {
+  return /^[A-Za-z0-9_-]{20,128}$/.test(valor)
+}
+
 function validar(inicio, fin, personas) {
   if (!inicio || !fin) return 'Indica las fechas de tu estadía.'
   if (fin <= inicio) return 'La salida debe ser posterior a la llegada.'
@@ -30,9 +77,13 @@ function validar(inicio, fin, personas) {
  *  solicitud con Idempotency-Key estable. */
 function Reservar() {
   const params = useSearchParams()
-  const [inicio, setInicio] = useState(params.get('inicio') || '')
-  const [fin, setFin] = useState(params.get('fin') || '')
-  const [personas, setPersonas] = useState(params.get('personas') || '2')
+  const inicioParam = params.get('inicio') || ''
+  const finParam = params.get('fin') || ''
+  const personasParam = params.get('personas') || ''
+  const [inicio, setInicio] = useState(fechaIso(inicioParam) ? inicioParam : '')
+  const [fin, setFin] = useState(fechaIso(finParam) ? finParam : '')
+  const [personas, setPersonas] = useState(personasValidas(personasParam) ? String(Number(personasParam)) : '2')
+  const [datosDeLaLanding, setDatosDeLaLanding] = useState(false)
   const [oferta, setOferta] = useState(null)
   const [elegida, setElegida] = useState('')
   const [nombre, setNombre] = useState('')
@@ -70,13 +121,35 @@ function Reservar() {
 
   // Deep link desde la landing (CA-PUB-07): precarga y consulta al entrar.
   useEffect(() => {
-    const i = params.get('inicio') || ''
-    const f = params.get('fin') || ''
-    const p = params.get('personas') || ''
+    prepararRecaptcha()
+  }, [])
+
+  useEffect(() => {
+    const i = fechaIso(inicioParam) ? inicioParam : ''
+    const f = fechaIso(finParam) ? finParam : ''
+    const p = personasValidas(personasParam) ? String(Number(personasParam)) : ''
+    if (!fechaIso(inicioParam) && inicioParam) setError('La llegada indicada en el enlace no es válida.')
+    else if (!fechaIso(finParam) && finParam) setError('La salida indicada en el enlace no es válida.')
+    else if (personasParam && !personasValidas(personasParam)) setError('La cantidad de personas del enlace no es válida.')
     if (i) setInicio(i)
     if (f) setFin(f)
     if (p) setPersonas(p)
     if (i && f) buscar(i, f, p || '2')
+
+    const ref = params.get('ref') || ''
+    if (!referenciaValida(ref)) return
+    let vigente = true
+    api(`/publico/referencia?token=${encodeURIComponent(ref)}`)
+      .then((r) => {
+        if (!vigente || r.estado !== 200) return
+        if (r.datos.nombre) setNombre(r.datos.nombre)
+        if (r.datos.correo) setContacto(r.datos.correo)
+        setDatosDeLaLanding(true)
+      })
+      .catch(() => {})
+    return () => {
+      vigente = false
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
@@ -99,6 +172,9 @@ function Reservar() {
     }
     setEnviando(true)
     try {
+      const cabeceras = {}
+      const token = await tokenRecaptcha('reserva')
+      if (token) cabeceras['X-Recaptcha-Token'] = token
       const r = await api('/publico/solicitudes', {
         metodo: 'POST',
         cuerpo: {
@@ -106,6 +182,7 @@ function Reservar() {
           huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
         },
         claveIdempotencia: clave,
+        cabeceras,
       })
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
@@ -183,6 +260,9 @@ function Reservar() {
                 ))}
               </div>
               <form className="formulario" onSubmit={enviar}>
+                {datosDeLaLanding && (
+                  <p className="estado">Tomamos tu nombre y tu correo de la consulta que ya enviaste. No hace falta repetirlos.</p>
+                )}
                 <Campo etiqueta="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
                 <Campo
                   etiqueta="Correo o teléfono"

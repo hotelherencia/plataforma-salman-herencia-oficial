@@ -15,6 +15,7 @@ from .. import canal_publico
 from .. import cobro
 from .. import idempotencia
 from .. import leads as leads_mod
+from .. import recaptcha
 from .. import panel
 from .. import reservas as reservas_db
 from .. import seguridad
@@ -518,14 +519,81 @@ def asentar_cargo_reserva(
     return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
 # --- Canal público (spec-api-v1 «Canal público», V1-ISSUE-22/24) ---
+def _clave_publica(idempotency_key: str | None) -> str:
+    if not idempotency_key or not idempotency_key.strip():
+        raise HTTPException(status_code=422, detail="falta la cabecera Idempotency-Key")
+    clave = idempotency_key.strip()
+    if len(clave) > 128:
+        raise HTTPException(status_code=422, detail="Idempotency-Key demasiado larga")
+    return clave
+
+
+def _solo_parametros(request: Request, permitidos: frozenset[str]) -> None:
+    if any(clave not in permitidos for clave in request.query_params.keys()):
+        raise HTTPException(status_code=422, detail="parámetro no permitido")
+
+
+def _fecha_iso(valor: str) -> date:
+    if len(valor) != 10 or valor[4] != "-" or valor[7] != "-":
+        raise HTTPException(status_code=422, detail="fecha inválida")
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="fecha inválida")
+
+
+def _exigir_captcha(request: Request, accion: str, ip: str) -> None:
+    config = getattr(request.app.state, "configuracion", None)
+    secreto = getattr(config, "recaptcha_secret_key", None) if config else None
+    if not secreto:
+        return
+    verificador = getattr(request.app.state, "verificar_recaptcha", recaptcha.verificar)
+    try:
+        verificador(request.headers.get("x-recaptcha-token"), secreto, accion, ip)
+    except recaptcha.CaptchaRechazado:
+        raise HTTPException(status_code=403, detail="no se pudo verificar el envío")
+
+
 @router.get("/publico/disponibilidad")
 def disponibilidad_publica(
-    inicio: date,
-    fin: date,
-    personas: int = Query(gt=0, le=canal_publico.MAX_PERSONAS),
+    request: Request,
+    inicio: str = Query(min_length=10, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    fin: str = Query(min_length=10, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    personas: int = Query(ge=1, le=canal_publico.MAX_PERSONAS),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    return canal_publico.disponibilidad(conexion, inicio, fin, personas, datetime.now())
+    _solo_parametros(request, frozenset({"inicio", "fin", "personas"}))
+    freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
+    if not freno.permite(f"ip:{canal_publico.ip_visible(request)}"):
+        raise HTTPException(
+            status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+        )
+    return canal_publico.disponibilidad(
+        conexion, _fecha_iso(inicio), _fecha_iso(fin), personas, datetime.now()
+    )
+
+
+@router.get("/publico/referencia")
+def leer_referencia_publica(
+    request: Request,
+    token: str = Query(min_length=20, max_length=128),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Recupera nombre, correo y teléfono con la referencia opaca. No acepta
+    esos datos por la URL."""
+    _solo_parametros(request, frozenset({"token"}))
+    freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
+    if not freno.permite(f"ip:{canal_publico.ip_visible(request)}"):
+        raise HTTPException(
+            status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+        )
+    try:
+        datos = leads_mod.por_referencia(conexion, token)
+    except leads_mod.LeadInvalido as error:
+        raise HTTPException(status_code=422, detail=error.detalle)
+    if datos is None:
+        raise HTTPException(status_code=404, detail="no encontramos esa consulta")
+    return datos
 
 @router.post("/publico/solicitudes")
 def crear_solicitud_publica(
@@ -534,21 +602,21 @@ def crear_solicitud_publica(
     idempotency_key: str | None = Header(default=None),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    if not idempotency_key or not idempotency_key.strip():
-        raise HTTPException(status_code=422, detail="falta la cabecera Idempotency-Key")
+    clave = _clave_publica(idempotency_key)
     longitud = request.headers.get("content-length")
     if longitud and int(longitud) > canal_publico.TOPE_CUERPO_BYTES:
         raise HTTPException(status_code=413, detail="el cuerpo supera el tamaño permitido")
-    ip = request.client.host if request.client else "desconocida"
+    ip = canal_publico.ip_visible(request)
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
-    if not freno.permite(ip):
+    if not freno.permite(f"ip:{ip}", f"contacto:{solicitud.huesped_contacto.strip().lower()}"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
+    _exigir_captcha(request, "reserva", ip)
     resultado = canal_publico.crear_solicitud(
         conexion, request.app.state.aplicacion.nucleo.empresa.id, solicitud.habitacion_id, solicitud.inicio,
         solicitud.fin, solicitud.personas, solicitud.huesped_nombre,
-        solicitud.huesped_contacto, idempotency_key.strip(),
+        solicitud.huesped_contacto, clave,
     )
     codigo = 200 if resultado.get("reintento") else 201
     conexion.commit()
@@ -629,22 +697,24 @@ def crear_lead_publico(
     idempotency_key: str | None = Header(default=None),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    if not idempotency_key or not idempotency_key.strip():
-        raise HTTPException(status_code=422, detail="falta la cabecera Idempotency-Key")
+    clave = _clave_publica(idempotency_key)
     longitud = request.headers.get("content-length")
     if longitud and int(longitud) > canal_publico.TOPE_CUERPO_BYTES:
         raise HTTPException(status_code=413, detail="el cuerpo supera el tamaño permitido")
-    ip = request.client.host if request.client else "desconocida"
+    ip = canal_publico.ip_visible(request)
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
-    if not freno.permite(ip):
+    correo = (lead.correo or "").strip().lower()
+    telefono = "".join(c for c in (lead.telefono or "") if c.isdigit())
+    if not freno.permite(f"ip:{ip}", f"correo:{correo}", f"tel:{telefono}"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
+    _exigir_captcha(request, "consulta", ip)
     try:
         resultado = leads_mod.crear_lead(
             conexion, request.app.state.aplicacion.nucleo.empresa.id, lead.nombre, lead.correo, lead.telefono,
             lead.huespedes, lead.check_in, lead.check_out, lead.mensaje,
-            idempotency_key.strip(),
+            clave,
         )
     except leads_mod.LeadInvalido as error:
         raise HTTPException(status_code=422, detail=error.detalle)

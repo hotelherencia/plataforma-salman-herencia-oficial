@@ -25,6 +25,31 @@ test('mapearCuerpo mapea los names del formulario histórico a snake_case', () =
   })
 })
 
+test('mapearCuerpo acepta los names del sitio real y no los copia al cuerpo', () => {
+  const cuerpo = mapearCuerpo({
+    name: '  Ana Pérez ',
+    email: ' ana@example.test ',
+    phone: ' +56 9 5555 5555 ',
+    guests: '3',
+    checkin: '2026-12-10',
+    checkout: '2026-12-12',
+    message: ' Viajamos con un bebé ',
+    _subject: 'no debe viajar',
+  })
+  assert.deepEqual(cuerpo, {
+    nombre: 'Ana Pérez',
+    correo: 'ana@example.test',
+    telefono: '+56 9 5555 5555',
+    huespedes: 3,
+    check_in: '2026-12-10',
+    check_out: '2026-12-12',
+    mensaje: 'Viajamos con un bebé',
+  })
+  assert.equal('name' in cuerpo, false)
+  assert.equal('email' in cuerpo, false)
+  assert.equal('message' in cuerpo, false)
+})
+
 test('mapearCuerpo deja opcionales en null cuando el campo viene vacío', () => {
   const cuerpo = mapearCuerpo({
     nombre: 'Ana',
