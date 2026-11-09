@@ -1,5 +1,6 @@
 # Secretos y archivos ajenos al repositorio (no versionar)
 .env
+.env*.local
 Untitled
 __pycache__/
 .venv/
