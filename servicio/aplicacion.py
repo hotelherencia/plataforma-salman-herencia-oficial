@@ -98,6 +98,7 @@ from .rutas.modelos import (  # noqa: E402
 )
 from .rutas import acceso, hotel  # noqa: E402  (routers incluidos en crear_app)
 from .rutas import agente as rutas_agente  # noqa: E402  (alias: `agente` sigue siendo el dominio)
+from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
@@ -128,7 +129,21 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     else:
         app.state.modelo_agente = SinAdaptador()
     from .canal_salida import SinCanal
+    from .mensajeria import PuertoWhatsapp
     app.state.canal_agente = SinCanal()
+    if (
+        configuracion is not None
+        and configuracion.whatsapp_app_secret
+        and configuracion.whatsapp_verify_token
+        and configuracion.whatsapp_phone_number_id
+    ):
+        app.state.mensajeria = PuertoWhatsapp(
+            configuracion.whatsapp_app_secret,
+            configuracion.whatsapp_verify_token,
+            configuracion.whatsapp_phone_number_id,
+        )
+    else:
+        app.state.mensajeria = None
     app.state.estados_oauth = google_oidc.EstadosOAuth()
 
     if configuracion is not None and configuracion.origen_front:
@@ -251,6 +266,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     app.include_router(acceso.router)
     app.include_router(hotel.router)
     app.include_router(rutas_agente.router)
+    app.include_router(rutas_mensajeria.router)
 
     @app.exception_handler(cobro.RecursoAjenoOInexistente)
     @app.exception_handler(cobro.PagoRechazadoPorNucleo)

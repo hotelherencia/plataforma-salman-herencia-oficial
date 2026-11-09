@@ -51,6 +51,11 @@ class Configuracion:
     modelo_base_url: str | None = None
     modelo_api_key: str | None = None
     modelo_nombre: str | None = None
+    # Puerto WhatsApp (spec 006, #324). Las tres juntas encienden el webhook;
+    # falta una y el puerto sigue apagado (503, sin persistir).
+    whatsapp_app_secret: str | None = None
+    whatsapp_verify_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -88,4 +93,7 @@ def cargar_desde_entorno() -> Configuracion:
         modelo_base_url=os.environ.get("MODELO_BASE_URL"),
         modelo_api_key=os.environ.get("MODELO_API_KEY"),
         modelo_nombre=os.environ.get("MODELO_NOMBRE"),
+        whatsapp_app_secret=os.environ.get("WHATSAPP_APP_SECRET"),
+        whatsapp_verify_token=os.environ.get("WHATSAPP_VERIFY_TOKEN"),
+        whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID"),
     )

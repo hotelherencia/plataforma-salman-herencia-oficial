@@ -409,7 +409,22 @@ por consulta). Sin cupo o sobre `max_noches`/`max_personas`, escala y no
 persiste. El modelo jamás envía `empresa_id`,
 rol, tarifa ni total como argumento.
 
-## Operaciones de esta versión (51)
+## Canal WhatsApp (2026-11-09, spec 006, #324)
+
+Puerto de mensajería del servicio, no del front. El hotel lo consume: un
+mensaje de texto válido se guarda como consulta del agente con
+`canal_origen = whatsapp` y el texto ya redactado. El identificador externo
+del mensaje y el de la conversación viven en `mensajes_whatsapp` para no
+duplicar un reintento de Meta; un mensaje posterior de la misma conversación
+incluye el texto redactado del anterior. Adjuntos y avisos de entrega no
+crean consulta. La salida hacia el hilo sigue en el puerto vacío
+(`canal no configurado`) hasta que el canal de N1 y la cuenta de Meta estén
+autorizados (D-AGT-03, D-WSP-01). Sin las tres variables
+`WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID`
+el puerto responde 503 «no configurado» y no persiste nada. Ninguna prueba
+llama a Meta.
+
+## Operaciones de esta versión (53)
 
 | Operación | Efecto |
 |---|---|
@@ -464,6 +479,8 @@ rol, tarifa ni total como argumento.
 | `POST /hotel/agente/borradores/{id}/descarte` | Descarta el borrador con motivo; ya resuelto → 409. Roles recepción o administrador. |
 | `GET /hotel/agente/politica` | Política de autonomía de la empresa. Roles recepción o administrador. |
 | `PUT /hotel/agente/politica` | Cambia la política; solo administrador (recepción → 403); subir de nivel sin `evaluacion_ref` → 409 (SC-003). |
+| `GET /mensajeria/whatsapp/webhook` | Verificación del puerto. Sin las tres variables → 503 «no configurado». Con el puerto, el token correcto devuelve `hub.challenge` en texto plano; otro token → 403. Sin sesión. |
+| `POST /mensajeria/whatsapp/webhook` | Entrada firmada (`X-Hub-Signature-256`). Firma inválida o `phone_number_id` distinto del autorizado → 403 y nada se persiste. Texto válido → consulta `whatsapp`, id externo guardado, 200. El mismo id no crea otra consulta. Sin modelo, la consulta queda `pendiente` y la respuesta sigue en 200. Por remitente aplica el freno del canal público (429). |
 
 ## Criterio de aceptación
 

@@ -649,5 +649,15 @@ revisión trimestral de versiones fijadas.
   El nivel por defecto sigue N0. Sigue abierto hasta D-AGT-02 y repetir AG-V01.
 - **Siguen fuera de código:** #313 (subir el zip al hosting), #314 (empresa
   real), #316 (proveedor del modelo), #323 (roles de otros módulos), #324
-  (Meta) y las decisiones Q-* de cafetería, inmobiliaria, constructora,
+  (cuenta Meta) y las decisiones Q-* de cafetería, inmobiliaria, constructora,
   Q-HOT-04 y Q-CORE-04.
+
+## Séptima pasada — 2026-11-09 (puerto WhatsApp)
+
+- [En curso] **#324** — el webhook de entrada vive en el servicio
+  (`GET`/`POST /mensajeria/whatsapp/webhook`). Sin
+  `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` y
+  `WHATSAPP_PHONE_NUMBER_ID` responde 503 y no persiste. Con un emisor de
+  prueba (ninguna llamada a Meta) la firma y el número se comprueban, el
+  texto entra como consulta `whatsapp` y el id externo no se duplica. La
+  salida al hilo y la cuenta real siguen en D-WSP-01 y D-AGT-03.

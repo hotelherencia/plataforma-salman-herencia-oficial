@@ -1,15 +1,15 @@
 # Especificación — Canal público WhatsApp del hotel
 
 Feature: `006-hotel-canal-whatsapp`. Fecha: 2026-11-04.
-Estado: **PROPUESTA DISEÑADA, NO CONSTRUIDA** — responde al issue #324 del
-backlog v1 y a la orden del propietario del 2026-11-04 («el canal público
-puede ser WhatsApp, algún agente que reciba la petición de reserva y responda
-a consultas derivando a 1 agente; crear historias de usuario para integrar
-Meta; lo mínimo es integrar asistencia por IA»). Ninguna historia de este
-paquete se construye hasta que el propietario autorice el adaptador Meta
-(D-WSP-01). La regla vigente no cambia: Meta/WhatsApp existe solo como
-puerto; sin adaptador responde 503 «no configurado» y la operación queda
-pendiente (AGENTS.md).
+Estado: **ENTRADA CONSTRUIDA, CUENTA REAL PENDIENTE** — responde al issue
+#324. El 2026-11-09 el puerto quedó en el servicio (`GET`/`POST
+/mensajeria/whatsapp/webhook`): sin `WHATSAPP_APP_SECRET`,
+`WHATSAPP_VERIFY_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID` responde 503 «no
+configurado» y no persiste nada; con esas variables, un emisor de prueba
+(nunca Meta) verifica la firma, guarda el mensaje como consulta
+`canal_origen = whatsapp` y deduplica por id externo. La salida al hilo y la
+cuenta real siguen pendientes de D-WSP-01 y de D-AGT-03. La regla vigente no
+cambia: sin adaptador no hay envío.
 
 Antecedentes que este paquete acota y reemplaza para V1: historia 3 de
 `specs/002-hotel-reservas-concierge` («Concierge agéntico por WhatsApp»),
@@ -76,7 +76,7 @@ contrato-primero que cualquier cambio de contrato.
 | Fase | Qué es | Estado |
 |---|---|---|
 | F0 — entrada manual | Recepción vuelca el mensaje de WhatsApp con `canal_origen = 'whatsapp'`; el agente N0 procesa y recepción responde por su celular | **EXISTE** (specs/005, V1-ISSUE-29) |
-| F1 — entrada automática | Webhook inbound de Meta crea la consulta con `canal_origen = 'whatsapp'` y la deja en la bandeja del agente | Propuesta (este paquete); requiere D-WSP-01 |
+| F1 — entrada automática | Webhook inbound crea la consulta con `canal_origen = 'whatsapp'` y la deja en la bandeja del agente | Construida el 2026-11-09 contra un emisor falso. La cuenta Meta (D-WSP-01) la deja apagada: sin las tres variables responde 503 |
 | F2 — salida asistida | El borrador aprobado sale por el puerto de Meta (respuesta al hilo); sin adaptador → 503 y estado `pendiente_envio` | Propuesta; depende de F1 + D-AGT-03 (canal N1) |
 
 La asistencia por IA (el «agente que responde a consultas») no se construye

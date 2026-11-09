@@ -129,7 +129,7 @@ diaria, retención ~4 semanas; **el ensayo de restauración sigue pendiente**
 correcciones de la auditoría 2026-11-05) y **front en `front/`** (H6 y
 siguientes). Los números vigentes de pruebas y operaciones están en la ficha
 `docs/arquitectura/estado-v1.md` (2026-11-05: 277 servicio, dominio 5 raíces,
-51 operaciones de contrato). Demo local: API en http://127.0.0.1:8080 y front
+53 operaciones de contrato; el webhook de WhatsApp se sumó el 2026-11-09). Demo local: API en http://127.0.0.1:8080 y front
 en http://127.0.0.1:3000. H7 resuelto el 2026-10-30 (ver «Desplegado en
 producción» más arriba). El código local es en memoria y sin red: incremento 0 del hotel
 e incremento 1 del núcleo y de las cuatro verticales: la especificación

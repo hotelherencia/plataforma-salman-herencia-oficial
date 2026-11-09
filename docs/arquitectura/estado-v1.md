@@ -24,7 +24,7 @@ si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo
 
 | Magnitud | Valor | Fuente |
 |---|---|---|
-| Operaciones del contrato | 51 | spec-api-v1 (la tabla manda; la valida `scripts/validar_estado_v1.py`) |
+| Operaciones del contrato | 53 | spec-api-v1 (la tabla manda; la valida `scripts/validar_estado_v1.py`). El 2026-11-09 se sumó el webhook de WhatsApp. |
 | Pruebas del servicio | 304 | `unittest discover -s servicio/tests` |
 | Pruebas del dominio | 5 raíces en verde (~180) | core + 4 verticales incremento1 |
 | Unitarios de la landing | 12 | `node --test landing/test/*.test.mjs` |
