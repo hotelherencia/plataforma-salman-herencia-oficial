@@ -2,7 +2,7 @@
 
 **Ficha viva (DOC-A01, #335).** Sustituye a los conteos dispersos del README;
 si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo.
-Última actualización: 2026-11-06 (ola de decisiones del propietario; cierre del día).
+Última actualización: 2026-11-09 (cierre #322 en main; agente N1/N2 sin subir el nivel por defecto).
 
 ## Qué es operable hoy
 
@@ -10,8 +10,11 @@ si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo
   oferta, reserva transaccional, cobro por el núcleo, estadía (entrada/salida
   con turnover), caja, cancelación con reversos, mantenedor auditado,
   búsqueda, ocupación e indicadores operativos, canal público (disponibilidad,
-  solicitudes, landing con CTA y leads), agente N0 copiloto con compuerta
-  SC-003 (modelo guionado; el adaptador real espera D-AGT-02).
+  solicitudes, landing con CTA y leads),   agente N0 copiloto con compuerta
+  SC-003 (modelo guionado; el adaptador HTTP espera D-AGT-02). Con la política
+  en N1 el borrador informativo queda `pendiente_envio` si no hay canal; en N2
+  puede crear una solicitud de origen `agente` sin reserva ni cobro. El nivel
+  por defecto sigue N0. Cambiar la clave revoca las demás sesiones (#322).
 - **Front** en Vercel (login con 2FA TOTP y Google opcional, las pantallas del
   hotel, bandejas de solicitudes/leads/agente, /reservar pública) y **API +
   backend** desplegados (API en Vercel `/api/*`, backend Railway restaurado el

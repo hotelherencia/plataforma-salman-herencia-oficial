@@ -332,6 +332,7 @@ export default function Agente() {
                     <th>Decisión</th>
                     <th>Verificación</th>
                     <th>Modelo</th>
+                    <th>Solicitud</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -342,6 +343,11 @@ export default function Agente() {
                       <td>{t.decision}</td>
                       <td>{t.verificacion}</td>
                       <td>{t.modelo}</td>
+                      <td>
+                        {t.solicitud_id ? (
+                          <a href="/hotel/solicitudes">{t.solicitud_id}</a>
+                        ) : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

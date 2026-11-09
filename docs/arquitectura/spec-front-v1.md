@@ -58,11 +58,14 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
     de `/hotel/reservas` suma periodo y habitación (2026-11-03).
 14. `/hotel/solicitudes` — bandeja de solicitudes públicas con conversión a
     reserva y rechazo (recepción o administrador, 2026-11-03, v1-issue-24).
+    La columna Origen distingue `landing` de `agente`.
 15. `/hotel/agente` — bandeja del agente de reservas (N0, 2026-11-04,
     V1-ISSUE-30): recepción pega la consulta entrante, ve el borrador con las
     cifras releídas por API, aprueba (con «Copiar respuesta»), edita o
     descarta; «modelo no configurado» cuando el puerto no tiene adaptador.
-    Recepción o administrador; el ítem del menú no se muestra a otros roles.
+    Si un turno creó una solicitud, la traza muestra su `solicitud_id` y
+    enlaza a la bandeja. Recepción o administrador; el ítem del menú no se
+    muestra a otros roles.
 
 Reglas de las rutas 10–13 (spec-hotel-operacion-v1): el front pinta lo que
 la API decide —estado de cada noche, saldo, valor de cada indicador— y no

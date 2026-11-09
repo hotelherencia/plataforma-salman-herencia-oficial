@@ -638,3 +638,16 @@ revisión trimestral de versiones fijadas.
   (publicación de la landing — acceso al hosting), #319 (adaptador del agente
   — D-AGT-02), #324 (WhatsApp — autorización Meta), y las decisiones de
   negocio #296–#299, #304–#306, #308, #314, #316.
+
+## Sexta pasada — 2026-11-09 (en main)
+
+- [Hecha] **#322** — cambiar la clave revoca las demás sesiones; la que hace
+  el cambio sigue viva. Cerrada en `f7308e5`.
+- [En curso] **#319** — adaptador HTTP, N1 sin canal (`pendiente_envio`, 503)
+  y N2 que crea una solicitud `origen=agente` sin reserva ni cobro. El detalle
+  de la consulta expone `solicitud_id` y `/hotel/solicitudes` muestra Origen.
+  El nivel por defecto sigue N0. Sigue abierto hasta D-AGT-02 y repetir AG-V01.
+- **Siguen fuera de código:** #313 (subir el zip al hosting), #314 (empresa
+  real), #316 (proveedor del modelo), #323 (roles de otros módulos), #324
+  (Meta) y las decisiones Q-* de cafetería, inmobiliaria, constructora,
+  Q-HOT-04 y Q-CORE-04.

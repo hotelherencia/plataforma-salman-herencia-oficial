@@ -129,6 +129,7 @@ export default function Solicitudes() {
                   <th>Personas</th>
                   <th>Huésped</th>
                   <th>Contacto</th>
+                  <th>Origen</th>
                   <th>Estado</th>
                   <th>Reserva</th>
                   <th>Acciones</th>
@@ -144,6 +145,7 @@ export default function Solicitudes() {
                     <td>{s.personas}</td>
                     <td>{s.huesped_nombre}</td>
                     <td>{s.huesped_contacto}</td>
+                    <td>{s.origen || '—'}</td>
                     <td>{s.estado}</td>
                     <td>{s.reserva_id || '—'}</td>
                     <td>

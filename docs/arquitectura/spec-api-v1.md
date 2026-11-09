@@ -381,7 +381,8 @@ su barrera es la lista cerrada de herramientas, no los roles de sesión.
 - `GET /hotel/agente/consultas?estado=` — lista por estado (`pendiente`,
   `procesada`, `escalada`) sin texto completo.
 - `GET /hotel/agente/consultas/{id}` — consulta con sus borradores y traza
-  resumida; ajena o inexistente → 403.
+  resumida; ajena o inexistente → 403. Si un turno creó una solicitud, la
+  traza incluye solo `solicitud_id` (sin nombre ni contacto).
 - `POST /hotel/agente/borradores/{id}/aprobacion` — `{texto_editado?}`.
   Si la oferta del borrador venció (> 15 min), el servidor **recotiza**:
   cifra distinta → 409 «la oferta cambió» con borrador nuevo; igual → 200

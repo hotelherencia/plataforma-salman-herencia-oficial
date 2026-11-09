@@ -347,19 +347,29 @@ def detalle_consulta(conexion: psycopg.Connection, empresa_id: str, consulta_id:
         (consulta_id,),
     ).fetchall()
     trazas = conexion.execute(
-        "SELECT turno, herramienta, decision, verificacion, modelo, creada_en "
+        "SELECT turno, herramienta, decision, verificacion, modelo, creada_en, resultado "
         "FROM trazas_agente WHERE consulta_id = %s ORDER BY turno, creada_en",
         (consulta_id,),
     ).fetchall()
     return {
         **consulta,
         "borradores": [_fila_borrador(conexion, fila[0]) for fila in borradores],
-        "traza": [
-            {"turno": t[0], "herramienta": t[1], "decision": t[2], "verificacion": t[3],
-             "modelo": t[4], "creada_en": t[5].isoformat()}
-            for t in trazas
-        ],
+        "traza": [_resumen_traza(t) for t in trazas],
     }
+
+
+def _resumen_traza(fila) -> dict:
+    """La bandeja ve el identificador de la solicitud creada, no el contacto."""
+    resumen = {
+        "turno": fila[0], "herramienta": fila[1], "decision": fila[2], "verificacion": fila[3],
+        "modelo": fila[4], "creada_en": fila[5].isoformat(),
+    }
+    resultado = fila[6]
+    if isinstance(resultado, str):
+        resultado = json.loads(resultado)
+    if isinstance(resultado, dict) and resultado.get("solicitud_id"):
+        resumen["solicitud_id"] = resultado["solicitud_id"]
+    return resumen
 
 
 def _trazar(conexion, consulta_id, turno, herramienta, argumentos, resultado, decision, verificacion, modelo):

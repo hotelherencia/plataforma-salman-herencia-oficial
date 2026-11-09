@@ -370,6 +370,17 @@ class AgenteServicioBaseTest(unittest.TestCase):
         self.assertEqual(origen, "agente")
         self.assertEqual(estado, "recibida")
         self.assertNotIn("ana@example.com", str(traza))
+        consulta_id = respuesta.json()["consulta"]["consulta_id"]
+        detalle = self.cliente.get(f"/hotel/agente/consultas/{consulta_id}")
+        self.assertEqual(detalle.status_code, 200, detalle.text)
+        creadas = [t for t in detalle.json()["traza"] if t["herramienta"] == "crear_solicitud"]
+        self.assertEqual(len(creadas), 1)
+        self.assertTrue(creadas[0]["solicitud_id"].startswith("SOL-"))
+        self.assertNotIn("ana@example.com", detalle.text)
+        bandeja = self.cliente.get("/hotel/solicitudes")
+        self.assertEqual(bandeja.status_code, 200, bandeja.text)
+        self.assertEqual(bandeja.json()["solicitudes"][0]["solicitud_id"], creadas[0]["solicitud_id"])
+        self.assertEqual(bandeja.json()["solicitudes"][0]["origen"], "agente")
 
     def test_n2_un_segundo_turno_no_duplica_la_solicitud(self):
         self._poner_nivel("N2")
