@@ -513,7 +513,10 @@ complete (todo requiere su decisión o sus datos reales):
 - [ ] Deploy Railway del lote actual aprobado (sección anterior).
 - [ ] **Empresa real**: alta y configuración del establecimiento real (hoy
       `GET /salud` responde `EMP-SINTETICA-001`: una solicitud pública
-      persistiría en el tenant sintético).
+      persistiría en el tenant sintético). Giro aportado el 2026-11-09,
+      inicio 27-02-2017, rubro de alojamiento y servicio de comidas:
+      `551001` hoteles y `561000` restaurantes. Siguen faltando la razón
+      social y el RUT; el identificador del núcleo no cambia hasta entonces.
 - [ ] **Habitaciones y tarifas reales** cargadas por el propietario (el
       siembra sintético no se ofrece al público: sin tarifa no hay oferta).
 - [ ] **ORIGEN_LANDING=https://hotelherencia.cl** en las variables de Railway

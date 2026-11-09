@@ -661,3 +661,14 @@ revisión trimestral de versiones fijadas.
   prueba (ninguna llamada a Meta) la firma y el número se comprueban, el
   texto entra como consulta `whatsapp` y el id externo no se duplica. La
   salida al hilo y la cuenta real siguen en D-WSP-01 y D-AGT-03.
+
+## Octava pasada — 2026-11-09 (giro SII, #314)
+
+- El deploy `ab19d38` quedó en producción: `/salud` 200,
+  `/readiness` con 15 migraciones y el webhook de WhatsApp en 503.
+- El propietario aportó el giro registrado en el SII, inicio 27-02-2017,
+  rubro «Actividades de alojamiento y de servicio de comidas»:
+  `551001` hoteles y `561000` restaurantes y servicio móvil de comidas.
+- Eso no reemplaza `EMP-SINTETICA-001`. Faltan la razón social, el RUT,
+  las habitaciones y las tarifas reales. La actividad `561000` no abre
+  la vertical de cafetería.
