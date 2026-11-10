@@ -86,7 +86,7 @@
     "flujo": "alta desde la UI aparece en el inventario",
     "rol": "administrador",
     "esperado": "HAB-201 creada y listada",
-    "observado": "HAB-mw2iippb-201 listada tras el alta",
+    "observado": "HAB-mwannvht-201 listada tras el alta",
     "estado": "APROBADO"
   },
   {
@@ -158,7 +158,7 @@
     "flujo": "crear reserva desde la UI",
     "rol": "recepcion",
     "esperado": "201 confirmada; aparece en la búsqueda",
-    "observado": "Reserva RSV-5042075dff87: estado «confirmada»",
+    "observado": "Reserva RSV-2286827ade9f: estado «confirmada»",
     "estado": "APROBADO"
   },
   {
@@ -167,7 +167,7 @@
     "flujo": "reserva sin tarifa vigente es rechazada",
     "rol": "recepcion",
     "esperado": "409 con mensaje «sin tarifa vigente»",
-    "observado": "sin tarifa vigente para HAB-mw2iippb-201 la noche 2026-12-04",
+    "observado": "sin tarifa vigente para HAB-mwannvht-201 la noche 2026-12-10",
     "estado": "APROBADO"
   },
   {
@@ -176,7 +176,7 @@
     "flujo": "solape en misma unidad y fechas",
     "rol": "recepcion",
     "esperado": "409 sin cupo (la carrera la gana una)",
-    "observado": "sin cupo para HAB-mw2iippb-A en [2026-11-04, 2026-11-07)",
+    "observado": "sin cupo para HAB-mwannvht-A en [2026-11-10, 2026-11-13)",
     "estado": "APROBADO"
   },
   {
@@ -212,7 +212,7 @@
     "flujo": "pago manual de caja registra efecto",
     "rol": "caja",
     "esperado": "201 confirmado; la caja del día lo lista",
-    "observado": "Pago PAG-3e8da36b490b de $100000: estado «confirmado»",
+    "observado": "Pago PAG-9ba86abe26cb de $100000: estado «confirmado»",
     "estado": "APROBADO"
   },
   {
@@ -230,7 +230,7 @@
     "flujo": "pago duplicado con misma clave y cuerpo",
     "rol": "caja",
     "esperado": "mismo resultado, un solo efecto",
-    "observado": "mismo pago PAG-cfb961c4596f",
+    "observado": "mismo pago PAG-d7233b925e5c",
     "estado": "APROBADO"
   },
   {
@@ -248,7 +248,7 @@
     "flujo": "check-in de una reserva que aún no comienza",
     "rol": "recepcion",
     "esperado": "409 «aún no llega su día de entrada» (v1-issue-07)",
-    "observado": "aún no llega su día de entrada (2026-12-14)",
+    "observado": "aún no llega su día de entrada (2026-12-20)",
     "estado": "APROBADO"
   },
   {
@@ -257,7 +257,7 @@
     "flujo": "cargo de minibar en estadía",
     "rol": "caja",
     "esperado": "201 cargo; entra en la liquidación",
-    "observado": "CRG-8f071f9daee9",
+    "observado": "CRG-e000f3830c96",
     "estado": "APROBADO"
   },
   {
@@ -302,7 +302,7 @@
     "flujo": "pago del resto y liquidación",
     "rol": "administrador",
     "esperado": "liquidación con saldo 0; unidad sucia + tarea",
-    "observado": "Reserva RSV-5042075dff87: estado «liquidada»; HAB-101 sucia con tarea",
+    "observado": "Reserva RSV-2286827ade9f: estado «liquidada»; HAB-101 sucia con tarea",
     "estado": "APROBADO"
   },
   {
@@ -371,10 +371,10 @@
   {
     "id": "TFA-01",
     "ruta": "/cuenta",
-    "flujo": "alta del segundo factor y login con TOTP",
+    "flujo": "alta del segundo factor, login con TOTP y baja con reautenticación",
     "rol": "recepcion",
-    "esperado": "secreto mostrado, activación con código, login exigiendo totp",
-    "observado": "2FA activado y login con código",
+    "esperado": "secreto mostrado, activación con código, login exigiendo totp; desactivar exige la clave actual (SEC-A02)",
+    "observado": "2FA activado, login con código y baja exigiendo la clave",
     "estado": "APROBADO"
   },
   {
@@ -419,7 +419,7 @@
     "flujo": "oferta → reserva → detalle → pago con campos precargados",
     "rol": "recepcion",
     "esperado": "sin copiar/pegar IDs: la query precarga y el «Siguiente paso» también",
-    "observado": "flujo completo precargado (RSV-ec0ba0f3cf29)",
+    "observado": "flujo completo precargado (RSV-45a005febf38)",
     "estado": "APROBADO"
   },
   {
@@ -482,7 +482,7 @@
     "flujo": "visitante sin sesión: solo la pantalla de acceso, jamás el menú interno",
     "rol": "anonimo",
     "esperado": "login visible y menú ausente; al entrar aparece la página en la misma ruta",
-    "observado": "solo login + vuelta en misma ruta (capturas/e2e-2026-11-04/12-aut-01-sin-sesion.png)",
+    "observado": "solo login + vuelta en misma ruta (capturas/e2e-2026-11-10/12-aut-01-sin-sesion.png)",
     "estado": "APROBADO"
   },
   {
@@ -499,8 +499,8 @@
     "ruta": "/cuenta",
     "flujo": "el administrador cambia su propia clave desde «Mi cuenta»",
     "rol": "administrador",
-    "esperado": "formulario visible y 200; la vieja clave deja de servir y la nueva abre sesión",
-    "observado": "formulario → 200 → vieja rechazada → nueva abre sesión; sesión vigente intacta",
+    "esperado": "formulario visible y 200; la otra sesión queda 401, la actual sigue, la vieja clave deja de servir y la nueva abre sesión",
+    "observado": "formulario → 200 → otra sesión 401 → sesión actual viva → vieja rechazada → nueva abre sesión",
     "estado": "APROBADO"
   }
 ]

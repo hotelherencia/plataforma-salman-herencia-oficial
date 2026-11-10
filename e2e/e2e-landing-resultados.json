@@ -1,15 +1,15 @@
 {
-  "fecha": "2026-11-04",
-  "landing": "http://127.0.0.1:41397",
+  "fecha": "2026-11-10",
+  "landing": "http://127.0.0.1:50829",
   "front": "http://127.0.0.1:3000",
   "resultados": [
     {
       "id": "PUB-07",
       "ruta": "/",
-      "flujo": "desde la landing, elegir fechas y huéspedes y pulsar «Consultar reserva» abre /reservar con inicio, fin y personas",
+      "flujo": "desde la landing, elegir fechas y huéspedes y pulsar «Ver disponibilidad» abre /reservar con inicio, fin y personas",
       "rol": "visitante",
-      "esperado": "navega a /reservar?inicio=2026-11-05&fin=2026-11-08&personas=3 y el formulario llega precargado",
-      "observado": "http://127.0.0.1:3000/reservar?inicio=2026-11-05&fin=2026-11-08&personas=3",
+      "esperado": "navega a /reservar?inicio=2026-11-11&fin=2026-11-14&personas=3 y el formulario llega precargado",
+      "observado": "http://127.0.0.1:3000/reservar?inicio=2026-11-11&fin=2026-11-14&personas=3",
       "estado": "APROBADO"
     },
     {

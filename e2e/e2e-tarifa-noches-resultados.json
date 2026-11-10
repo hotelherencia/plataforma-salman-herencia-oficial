@@ -5,7 +5,7 @@
     "flujo": "desde el menú, estadía con noches sin tarifa",
     "rol": "recepcion",
     "esperado": "la habitación no aparece en la oferta (API y pantalla)",
-    "observado": "HAB-mw1lguw1-TN ausente en pantalla y en GET /hotel/oferta",
+    "observado": "HAB-mwanw9yh-TN ausente en pantalla y en GET /hotel/oferta",
     "estado": "APROBADO"
   },
   {
@@ -13,8 +13,8 @@
     "ruta": "/hotel/reserva",
     "flujo": "desde el menú, reservar la misma estadía",
     "rol": "recepcion",
-    "esperado": "409: alerta «sin tarifa vigente … la noche 2026-12-19»; la API no registra reserva",
-    "observado": "sin tarifa vigente para HAB-mw1lguw1-TN la noche 2026-12-19 · 0 reservas releídas",
+    "esperado": "409: alerta «sin tarifa vigente … la noche 2026-12-25»; la API no registra reserva",
+    "observado": "sin tarifa vigente para HAB-mwanw9yh-TN la noche 2026-12-25 · 0 reservas releídas",
     "estado": "APROBADO"
   },
   {
@@ -23,7 +23,7 @@
     "flujo": "registrar la tarifa siguiente en la ficha, ofrecer y confirmar",
     "rol": "administrador → recepcion",
     "esperado": "se ofrece; el total y la tarifa confirmados son los ofrecidos y el cargo coincide",
-    "observado": "RSV-7eeeb57b8e3d: $41000/noche, total $164000 = cargos",
+    "observado": "RSV-09817d635a36: $41000/noche, total $208000 = cargos",
     "estado": "APROBADO"
   }
 ]

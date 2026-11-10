@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-04",
+  "fecha": "2026-11-10",
   "landing": "http://127.0.0.1:4173",
   "front": "http://127.0.0.1:3000",
   "api": "http://127.0.0.1:8080",
@@ -10,8 +10,8 @@
       "flujo": "enviar el formulario de contacto: el lead queda nuevo en la plataforma",
       "rol": "visitante",
       "esperado": "mensaje «Consulta enviada» y lead nuevo persistido con los datos enviados (origen landing)",
-      "observado": "capturas/e2e-2026-11-04/01-lead-e2e-01-formulario-enviado.png",
-      "estado": "APROBADO"
+      "observado": "excepción: locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('[data-formulario-contacto]').locator('[role=\"status\"]').filter({ hasText: /Consulta enviada/ }) to be visible\n",
+      "estado": "FALLIDO"
     },
     {
       "id": "LEAD-E2E-02",
@@ -19,8 +19,8 @@
       "flujo": "fechas invertidas: mensaje local y nada se persiste",
       "rol": "visitante",
       "esperado": "mensaje «Revisa los datos» y el conteo de leads no cambia",
-      "observado": "Revisa los datos del formulario e inténtalo de nuevo. · leads 1 → 1",
-      "estado": "APROBADO"
+      "observado": "excepción: locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('[data-formulario-contacto]').locator('[role=\"status\"]').filter({ hasText: /Revisa los datos/ }) to be visible\n",
+      "estado": "FALLIDO"
     },
     {
       "id": "LEAD-E2E-03",
@@ -28,8 +28,8 @@
       "flujo": "la bandeja muestra el lead con sus datos de contacto",
       "rol": "administrador",
       "esperado": "fila con nombre, correo, teléfono, fechas y mensaje únicos de la corrida",
-      "observado": "capturas/e2e-2026-11-04/02-lead-e2e-03-bandeja.png",
-      "estado": "APROBADO"
+      "observado": "excepción: locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for getByRole('row', { name: /Lead E2E mwantmdf/ }) to be visible\n",
+      "estado": "FALLIDO"
     },
     {
       "id": "LEAD-E2E-04",
@@ -37,8 +37,8 @@
       "flujo": "marcar contactado con nota de gestión",
       "rol": "administrador",
       "esperado": "la fila queda contactada con la nota y gestion_por del administrador",
-      "observado": "capturas/e2e-2026-11-04/03-lead-e2e-04-contactado.png",
-      "estado": "APROBADO"
+      "observado": "excepción: locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('row', { name: /Lead E2E mwantmdf/ }).getByRole('textbox', { name: 'Nota de gestión' })\n",
+      "estado": "FALLIDO"
     },
     {
       "id": "LEAD-E2E-05",
@@ -46,8 +46,8 @@
       "flujo": "cerrar el lead: queda cerrado y sin acciones de reapertura",
       "rol": "administrador",
       "esperado": "estado cerrado con nota y la fila ya no ofrece Contactado/Cerrar",
-      "observado": "capturas/e2e-2026-11-04/04-lead-e2e-05-cerrado.png",
-      "estado": "APROBADO"
+      "observado": "excepción: locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('row', { name: /Lead E2E mwantmdf/ }).getByRole('textbox', { name: 'Nota de gestión' })\n",
+      "estado": "FALLIDO"
     }
   ]
 }

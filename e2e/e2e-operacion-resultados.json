@@ -14,7 +14,7 @@
     "flujo": "alta duplicada no sobrescribe (If-None-Match)",
     "rol": "administrador",
     "esperado": "alerta «ya existe»; tipo y capacidad intactos",
-    "observado": "la habitación HAB-mw2im6vu-M ya existe",
+    "observado": "la habitación HAB-mwanrw5r-M ya existe",
     "estado": "APROBADO"
   },
   {
@@ -32,7 +32,7 @@
     "flujo": "editar tipo y capacidad con reserva previa",
     "rol": "administrador",
     "esperado": "cambio aplicado y auditado; reserva intacta",
-    "observado": "Habitación HAB-mw2im6vu-M: tipo doble → suite · capacidad 2 → 3",
+    "observado": "Habitación HAB-mwanrw5r-M: tipo doble → suite · capacidad 2 → 3",
     "estado": "APROBADO"
   },
   {
@@ -50,7 +50,7 @@
     "flujo": "retiro bloqueado por reserva vigente",
     "rol": "administrador",
     "esperado": "409 con enlace a la reserva; la unidad sigue en servicio",
-    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-db33d4c9883d",
+    "observado": "la habitación tiene reservas vigentes Reservas vigentes: RSV-b2096c1efb4a",
     "estado": "APROBADO"
   },
   {
@@ -122,7 +122,7 @@
     "flujo": "panel coincide con un recuento independiente",
     "rol": "administrador",
     "esperado": "en_casa, llegadas y noches reservadas = recuento desde /hotel/reservas",
-    "observado": "en_casa 0, llegadas 0, noches 3, ocupación reservada 2.7 %",
+    "observado": "en_casa 0, llegadas 1, noches 3, ocupación reservada 2.7 %",
     "estado": "APROBADO"
   },
   {
@@ -176,7 +176,7 @@
     "flujo": "los KPI y la serie muestran los valores del servidor sin recalcular",
     "rol": "administrador",
     "esperado": "cada tarjeta y cada fila de la serie coinciden con /hotel/indicadores del mismo periodo",
-    "observado": "19 KPI y 11 noches idénticos a la API",
+    "observado": "20 KPI y 11 noches idénticos a la API",
     "estado": "APROBADO"
   }
 ]
