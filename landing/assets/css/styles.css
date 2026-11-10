@@ -692,6 +692,44 @@ button {
     margin-top: 1.2rem;
 }
 
+.aviso-tratamiento {
+    margin: 1.2rem 0 0;
+    max-width: 42rem;
+    color: var(--ink);
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+.aviso-tratamiento a,
+.politica a {
+    margin-top: 0;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+.politica {
+    max-width: 42rem;
+}
+
+.politica p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.politica h1 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    line-height: 1.05;
+    margin: 0.35rem 0 0.8rem;
+}
+
+.politica h2 {
+    font-size: 1.15rem;
+    line-height: 1.3;
+    margin: 1.5rem 0 0.35rem;
+}
+
 .contact-form__note {
     margin: 0;
     max-width: 20rem;
@@ -831,6 +869,16 @@ button {
 
     .sticky-cta {
         display: inline-flex;
+    }
+
+    .section--contact {
+        padding-bottom: 8rem;
+    }
+
+    .aviso-tratamiento,
+    .aviso-tratamiento a,
+    .contact-form__actions {
+        scroll-margin-bottom: 7rem;
     }
 }
 

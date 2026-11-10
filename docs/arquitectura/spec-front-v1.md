@@ -20,7 +20,8 @@ Consume y solo consume [spec-api-v1.md](spec-api-v1.md) en el origen
 - Sin sesión: pantalla de login contra `POST /sesion`. V1-ISSUE-27
   (2026-11-03): la guardia vive en el `Lienzo` (layout raíz) — sin sesión,
   toda ruta interna muestra solo ese formulario y jamás el menú de operación;
-  la única ruta pública sin sesión es `/login` (lista `RUTAS_PUBLICAS`). Al
+  las rutas públicas sin sesión son `/login`, `/reservar` y `/privacidad`
+  (lista `RUTAS_PUBLICAS`). Al
   entrar, la sesión compartida actualiza el Lienzo y la página protegida
   aparece en la misma ruta, sin redirección.
 
@@ -78,11 +79,18 @@ recalcula ninguno; las acciones que el rol no puede ejecutar no se muestran.
    `inicio`, `fin` y `personas` de la query y los valida antes de usarlos (no
    confía en ellos); consulta `GET /publico/disponibilidad` y muestra lo que
    el servidor responde —no calcula totales—; recoge huésped y contacto con
-   aviso de privacidad y envía `POST /publico/solicitudes` con
+   el aviso de tratamiento versión 2026-11-10-aviso-02, enlazado a
+   `/privacidad` antes de «Enviar solicitud», y envía `POST /publico/solicitudes` con
    `Idempotency-Key` estable que sobrevive errores y se renueva tras 2xx;
    muestra el número de solicitud devuelto. Parámetros inválidos → mensaje,
-   sin llamada de mutación; API caída → aviso y nada confirmable.
-2. El CTA «Consultar reserva» de la landing apunta a
+   sin llamada de mutación; API caída → aviso y nada confirmable. Enviar no
+   confirma la estadía.
+2. `/privacidad` — política de tratamiento, pública y sin sesión. El
+   responsable es Herencia SpA, RUT 76.707.504-9, domicilio 5 de Abril 441,
+   oficina 3, Chillán, Región de Ñuble. Los derechos se piden en ese domicilio
+   o al +56 9 5649 1501. La conservación dura la respuesta de la consulta y,
+   si recepción confirma, la estadía hasta el cierre de esa cuenta.
+3. El CTA «Consultar reserva» de la landing apunta a
    `/reservar?inicio=…&fin=…&personas=…` (deep link precargado).
 
 ## Idempotencia en el cliente

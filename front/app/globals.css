@@ -746,6 +746,30 @@ a.boton-primario {
   margin-top: 0.6rem;
 }
 
+.aviso-tratamiento {
+  margin: 0.8rem 0 1rem;
+  color: var(--tinta);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.aviso-tratamiento a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.pagina-publica {
+  margin: 0 auto;
+  padding: 2.5rem 1.4rem 5rem;
+}
+
+.politica-texto {
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 40rem;
+}
+
 .nota-clave code {
   font-family: var(--mono);
   font-size: 0.78rem;
