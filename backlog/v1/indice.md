@@ -672,3 +672,26 @@ revisión trimestral de versiones fijadas.
 - Eso no reemplaza `EMP-SINTETICA-001`. Faltan la razón social, el RUT,
   las habitaciones y las tarifas reales. La actividad `561000` no abre
   la vertical de cafetería.
+
+## Novena pasada — 2026-11-10 (historias canal público / operación)
+
+Historias declaradas en GitHub a partir del trabajo de reserva, privacidad,
+inventario, cuenta hotelera y Maps (issues creados; el alta al Project 2
+requiere permiso `AddProjectV2ItemById` que `cherrera0001` no tiene — hay
+que arrastrarlas al tablero con una cuenta con rol en el proyecto):
+
+- [Lista, P1] `v1-issue-41` (GitHub `#336`) — Inventario real en la oferta
+  pública (habitaciones y tarifas del hotel; sacar `HAB-SINT-*` de la
+  oferta). Depende del listado del propietario; relacionada con #314.
+- [Lista, P1] `v1-issue-42` (GitHub `#337`) — Continuidad landing →
+  `/reservar` con `ref` opaca (sin PII en la URL; aviso si falta `ref`).
+  Relacionada con #313.
+- [Lista, P2] `v1-issue-43` (GitHub `#338`) — Cuenta administradora nominada
+  del hotel (alta operativa con rol `administrador` existente; sin rol
+  nuevo; 2FA). #323 sigue fuera de V1.
+- [Lista, P2] `v1-issue-44` (GitHub `#339`) — Enlace de reserva desde Google
+  Maps / Business Profile hacia `/reservar` (no Reserve with Google).
+
+También en `main` el 2026-11-10: aviso de tratamiento
+`2026-11-10-aviso-02` (`6f3d06f`), continuidad de consulta con `ref`
+(`c012eea`) y correcciones de clave/idempotencia (`cb63bb7`).
