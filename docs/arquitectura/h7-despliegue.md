@@ -519,12 +519,63 @@ complete (todo requiere su decisión o sus datos reales):
       social y el RUT; el identificador del núcleo no cambia hasta entonces.
 - [ ] **Habitaciones y tarifas reales** cargadas por el propietario (el
       siembra sintético no se ofrece al público: sin tarifa no hay oferta).
+      Ver «Inventario real (V1-ISSUE-41)» más abajo.
 - [ ] **ORIGEN_LANDING=https://hotelherencia.cl** en las variables de Railway
       (sin ella la landing no tiene CORS hacia `/publico/*`).
 - [ ] **Política de respaldo y datos personales** (Q-CORE-03, Ley 21.719):
       las solicitudes guardan nombre y contacto del huésped; definir
       retención y quién los procesa.
-- [ ] **CTA de la landing** (v1-issue-25): apuntar el botón a
-      `/reservar?inicio=…&fin=…&personas=…` solo después de lo anterior.
+- [ ] **CTA de la landing** (v1-issue-25 / V1-ISSUE-42): el enlace a
+      `/reservar` debe llevar `ref` tras la consulta; no publicar el CTA
+      hacia producción sintética.
 - [ ] Freno de abuso vigente (`PUBLICO_MAX_POR_MINUTO`, por defecto 6).
+- [ ] **Cuenta administradora nominada** (V1-ISSUE-43): ver sección abajo.
+- [ ] **Enlace Google Business Profile / Maps** (V1-ISSUE-44): ver sección abajo.
+
+### Inventario real (V1-ISSUE-41 / #336)
+
+La oferta pública es exactamente lo que hay en `habitaciones` + `tarifas`
+con estado vendible. No se inventa el listado en código.
+
+1. El propietario entrega por cada unidad: identificador (p. ej. `HAB-101`),
+   tipo, capacidad y tarifa noche (desde, hasta, monto CLP).
+2. Un `administrador` entra a `/hotel/habitaciones`, da de alta o edita cada
+   unidad (`PUT /hotel/habitaciones/{id}`) y carga la tarifa vigente.
+3. Las sintéticas `HAB-SINT-101..103` se sacan de la oferta **sin borrar
+   historial**: `POST /hotel/habitaciones/HAB-SINT-10x/servicio` con
+   `fuera_de_servicio` y motivo («inventario de prueba») o se les retira la
+   tarifa vigente. La siembra al arranque (`sembrar_habitaciones`) solo hace
+   `ON CONFLICT DO NOTHING`; no recrea tarifas.
+4. Comprobar: `GET /publico/disponibilidad?inicio&fin&personas` no lista
+   ningún `HAB-SINT-*`.
+5. Bloqueo: sin el listado del propietario esta historia no se cierra. #314
+   (razón social/RUT) sigue aparte.
+
+### Cuenta administradora del hotel (V1-ISSUE-43 / #338)
+
+No hay rol nuevo. El rol es `administrador` de la empresa del núcleo.
+
+1. Entrar con un administrador existente → `/hotel/usuarios`.
+2. Alta: nombre nominado, rol `administrador`, clave temporal (≥ 6).
+3. La persona entra en `/login`, cambia la clave en `/cuenta` (pide la clave
+   actual) y activa 2FA.
+4. Puede: habitaciones/tarifas, reservas (con documento), entrada/salida,
+   leads, solicitudes, agente, alta de `recepcion`/`caja`.
+5. Evidencia: anotar en #338 el nombre de usuario y la fecha (sin clave ni
+   TOTP). #323 (roles fuera del hotel) sigue fuera de V1.
+
+### Enlace Maps / Business Profile (V1-ISSUE-44 / #339)
+
+Google Maps no llama a nuestra API. El botón sale del Business Profile.
+
+URL de reserva (ajustar dominio cuando el CTA publicado apunte aquí):
+
+`https://plataforma-salman-herencia-oficial.vercel.app/reservar?utm_source=google_maps&utm_medium=organic&utm_campaign=perfil_negocio`
+
+Pasos: Business Profile → sitio web / enlace de reserva → pegar esa URL →
+guardar. No activar «Reserve with Google» en esta historia (exige partner y
+confirmación en línea; V1 mantiene solicitud con aprobación humana).
+Evidencia: captura de la ficha o del campo de enlace en #339 (sin
+credenciales de Google). No mandar tráfico de Maps a producción mientras el
+inventario y la empresa sigan sintéticos (#336, #314).
 

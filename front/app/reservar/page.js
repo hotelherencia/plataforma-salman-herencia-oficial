@@ -86,6 +86,7 @@ function Reservar() {
   const [fin, setFin] = useState(fechaIso(finParam) ? finParam : '')
   const [personas, setPersonas] = useState(personasValidas(personasParam) ? String(Number(personasParam)) : '2')
   const [datosDeLaLanding, setDatosDeLaLanding] = useState(false)
+  const [avisoSinRef, setAvisoSinRef] = useState(false)
   const [oferta, setOferta] = useState(null)
   const [elegida, setElegida] = useState('')
   const [nombre, setNombre] = useState('')
@@ -139,17 +140,29 @@ function Reservar() {
     if (i && f) buscar(i, f, p || '2')
 
     const ref = params.get('ref') || ''
-    if (!referenciaValida(ref)) return
+    if (!referenciaValida(ref)) {
+      // V1-ISSUE-42: fechas sin `ref` no son un fallo silencioso — el visitante
+      // debe saber que tendrá que escribir el contacto otra vez.
+      if (i && f) setAvisoSinRef(true)
+      return
+    }
     let vigente = true
     api(`/publico/referencia?token=${encodeURIComponent(ref)}`)
       .then((r) => {
-        if (!vigente || r.estado !== 200) return
+        if (!vigente) return
+        if (r.estado !== 200) {
+          setAvisoSinRef(true)
+          return
+        }
         if (r.datos.nombre) setNombre(r.datos.nombre)
         if (r.datos.correo) setContacto(r.datos.correo)
         else if (r.datos.telefono) setContacto(r.datos.telefono)
         setDatosDeLaLanding(true)
+        setAvisoSinRef(false)
       })
-      .catch(() => {})
+      .catch(() => {
+        if (vigente) setAvisoSinRef(true)
+      })
     return () => {
       vigente = false
     }
@@ -265,6 +278,11 @@ function Reservar() {
               <form className="formulario" onSubmit={enviar}>
                 {datosDeLaLanding && (
                   <p className="estado">Tomamos tu nombre y tu correo de la consulta que ya enviaste. No hace falta repetirlos.</p>
+                )}
+                {avisoSinRef && !datosDeLaLanding && (
+                  <p className="estado" role="status" data-aviso-sin-ref>
+                    Esta página no trajo tu consulta previa. Completa nombre y correo o teléfono aquí, o vuelve al formulario de contacto de la landing y usa «Continuar con la reserva» para no escribirlos otra vez.
+                  </p>
                 )}
                 <Campo etiqueta="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
                 <Campo

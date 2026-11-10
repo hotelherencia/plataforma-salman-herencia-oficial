@@ -695,3 +695,20 @@ que arrastrarlas al tablero con una cuenta con rol en el proyecto):
 También en `main` el 2026-11-10: aviso de tratamiento
 `2026-11-10-aviso-02` (`6f3d06f`), continuidad de consulta con `ref`
 (`c012eea`) y correcciones de clave/idempotencia (`cb63bb7`).
+
+### Avance de construcción — 2026-11-10 (tarde)
+
+- **#337 (V1-ISSUE-42):** en este repo, `/reservar` avisa si no hay `ref`;
+  «Ver disponibilidad» con contacto completo crea el lead y navega con
+  `ref`; sin contacto navega solo con fechas y el aviso aparece en
+  `/reservar`. «Enviar consulta» ya ofrecía «Continuar con la reserva».
+  Sigue pendiente alinear y publicar el repo marketing
+  `landinpage_hotelherencia` y el CTA en hotelherencia.cl (#313).
+- **#336 (V1-ISSUE-41):** procedimiento de carga y retiro de `HAB-SINT-*`
+  documentado en `h7-despliegue.md`. Bloqueada por el listado real del
+  propietario (no inventar habitaciones ni tarifas).
+- **#338 (V1-ISSUE-43):** runbook de alta de `administrador` nominado en
+  `h7-despliegue.md`. Cierre con evidencia cuando exista la persona.
+- **#339 (V1-ISSUE-44):** URL con UTM y pasos de Business Profile en
+  `h7-despliegue.md`. Cierre con captura del perfil (acceso Google del
+  propietario).
