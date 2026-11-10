@@ -45,7 +45,7 @@ export function inicializarDisponibilidad(documento) {
   const formulario = boton.closest('form') || documento
   const alerta = formulario.querySelector('[data-disponibilidad-estado]')
 
-  boton.addEventListener('click', async () => {
+  const abrirConFechasDelFormulario = async () => {
     const datos = Object.fromEntries(new FormData(formulario).entries())
     const cuerpo = mapearCuerpo(datos)
     const problemaFechas = validarRango(
@@ -139,5 +139,24 @@ export function inicializarDisponibilidad(documento) {
     } finally {
       boton.disabled = false
     }
+  }
+
+  boton.addEventListener('click', () => {
+    abrirConFechasDelFormulario()
+  })
+
+  documento.querySelectorAll('[data-cta-reserva]').forEach((enlace) => {
+    enlace.addEventListener('click', (evento) => {
+      const checkin = formulario.querySelector('#checkin, [name="checkin"], [name="inicio"]')
+      const checkout = formulario.querySelector('#checkout, [name="checkout"], [name="fin"]')
+      const guests = formulario.querySelector('#guests, [name="guests"], [name="personas"]')
+      const inicio = checkin?.value || ''
+      const fin = checkout?.value || ''
+      const personas = guests?.value || '1'
+      const problemaFechas = validarRango(inicio || null, fin || null, personas)
+      if (problemaFechas) return
+      evento.preventDefault()
+      abrirConFechasDelFormulario()
+    })
   })
 }
