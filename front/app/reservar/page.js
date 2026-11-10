@@ -20,6 +20,7 @@ function prepararRecaptcha() {
   const script = document.createElement('script')
   script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(CLAVE_SITIO_RECAPTCHA)}`
   script.async = true
+  script.referrerPolicy = 'origin'
   script.dataset.recaptcha = 'v3'
   document.head.append(script)
 }
@@ -144,6 +145,7 @@ function Reservar() {
         if (!vigente || r.estado !== 200) return
         if (r.datos.nombre) setNombre(r.datos.nombre)
         if (r.datos.correo) setContacto(r.datos.correo)
+        else if (r.datos.telefono) setContacto(r.datos.telefono)
         setDatosDeLaLanding(true)
       })
       .catch(() => {})

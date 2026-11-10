@@ -175,6 +175,7 @@ try {
   await ctx.addInitScript(({ front, api: apiBase }) => {
     window.LANDING_PLATAFORMA_URL = front
     window.LANDING_API_URL = apiBase
+    window.LANDING_RECAPTCHA_SITE_KEY = ''
   }, { front: FRONT, api: API })
   const page = await ctx.newPage()
 

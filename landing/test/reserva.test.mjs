@@ -67,3 +67,20 @@ test('construirEnlaceReserva normaliza personas a entero', () => {
 test('construirEnlaceReserva rechaza el mismo rango inválido que el front', () => {
   assert.throws(() => construirEnlaceReserva('https://plataforma.test', EN_4, MANANA, 2), /posterior/)
 })
+
+test('construirEnlaceReserva agrega la referencia opaca y no el contacto', () => {
+  const referencia = 'a'.repeat(32)
+  const enlace = construirEnlaceReserva('https://plataforma.test/', MANANA, EN_4, 2, referencia)
+  assert.equal(
+    enlace,
+    `https://plataforma.test/reservar?inicio=${MANANA}&fin=${EN_4}&personas=2&ref=${referencia}`,
+  )
+  assert.equal(enlace.includes('@'), false)
+})
+
+test('construirEnlaceReserva rechaza una referencia que no es opaca', () => {
+  assert.throws(
+    () => construirEnlaceReserva('https://plataforma.test', MANANA, EN_4, 2, 'ana@example.test'),
+    /referencia/,
+  )
+})

@@ -112,6 +112,7 @@ try {
   const ctx = await navegador.newContext({ viewport: { width: 1280, height: 720 } })
   await ctx.addInitScript((base) => {
     window.LANDING_PLATAFORMA_URL = base
+    window.LANDING_RECAPTCHA_SITE_KEY = ''
   }, FRONT)
   const page = await ctx.newPage()
 

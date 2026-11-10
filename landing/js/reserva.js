@@ -34,9 +34,14 @@ export function validarRango(inicio, fin, personas) {
  * Deep link al front público: `{base}/reservar?inicio=…&fin=…&personas=…`.
  * Lanza Error con el mismo mensaje de validarRango si el rango no es vendible.
  */
-export function construirEnlaceReserva(base, inicio, fin, personas) {
+const REFERENCIA = /^[A-Za-z0-9_-]{20,128}$/
+
+export function construirEnlaceReserva(base, inicio, fin, personas, referencia) {
   const problema = validarRango(inicio, fin, personas)
   if (problema) throw new Error(problema)
   const raiz = String(base || '').replace(/\/+$/, '')
-  return `${raiz}/reservar?inicio=${inicio}&fin=${fin}&personas=${Number(personas)}`
+  let enlace = `${raiz}/reservar?inicio=${inicio}&fin=${fin}&personas=${Number(personas)}`
+  if (referencia == null || referencia === '') return enlace
+  if (!REFERENCIA.test(referencia)) throw new Error('La referencia de la consulta no es válida.')
+  return `${enlace}&ref=${encodeURIComponent(referencia)}`
 }

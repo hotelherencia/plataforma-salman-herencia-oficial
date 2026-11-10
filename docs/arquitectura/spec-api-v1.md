@@ -331,8 +331,12 @@ parámetro).
   contacto se guardan **tal cual**: son el objeto de la gestión comercial
   (igual que `solicitudes.huesped_contacto`); la redacción NFR-A03 aplica solo
   si el texto se envía a un modelo externo, que este canal no hace.
-- Respuesta 201 `{lead: {id, estado, creado_en}}` sin datos de terceros ni
-  identificadores internos ajenos.
+- Respuesta 201 `{lead: {id, estado, creado_en}, referencia}` sin datos de
+  terceros ni identificadores internos ajenos. `referencia` es opaca. La
+  landing, al confirmar, ofrece continuar en `/reservar` con las fechas y
+  `ref`: el nombre, el correo y el teléfono no viajan en la URL. La
+  Idempotency-Key se conserva si la red no confirma el resultado y se renueva
+  en 2xx o 4xx, para no crear otro lead al reintentar.
 - Gestión interna (recepción o administrador; 401 sin sesión, 403 con otro
   rol): `GET /hotel/leads?estado=` — bandeja por estado (`nuevo|contactado|
   cerrado`; sin filtro, todas) orden `creado_en` DESC, con los datos de
