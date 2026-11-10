@@ -251,6 +251,26 @@ try {
     return 'página pública limpia y guardia intacta'
   })
 
+  // ---------- PUB-REF: fechas sin ref → aviso (V1-ISSUE-42) ----------
+  await caso('PUB-REF', '/reservar', 'URL solo con fechas: campos vacíos y aviso de consulta previa ausente', 'visitante', '[data-aviso-sin-ref] visible; Nombre y contacto vacíos; sin PII en la URL', async () => {
+    const ctx = await navegador.newContext({ baseURL: FRONT, viewport: { width: 1280, height: 720 } })
+    const page = await ctx.newPage()
+    await page.goto(`${FRONT}/reservar?inicio=${MANANA}&fin=${EN_3}&personas=2`)
+    await page.waitForSelector('.lista-opciones', { timeout: 8000 })
+    const aviso = page.locator('[data-aviso-sin-ref]')
+    esperar((await aviso.count()) === 1, 'falta el aviso sin ref')
+    const textoAviso = await aviso.innerText()
+    esperar(textoAviso.includes('consulta previa'), `aviso inesperado: ${textoAviso.slice(0, 120)}`)
+    const nombre = await page.getByRole('textbox', { name: 'Nombre' }).inputValue()
+    const contacto = await page.getByRole('textbox', { name: 'Correo o teléfono' }).inputValue()
+    esperar(nombre === '' && contacto === '', `contacto precargado sin ref: «${nombre}» / «${contacto}»`)
+    const url = page.url()
+    esperar(!/[?&](nombre|correo|telefono|email|phone)=/i.test(url), `PII en URL: ${url}`)
+    await evidencia(page, 'pub-ref-aviso-sin-ref')
+    await ctx.close()
+    return 'aviso sin ref + campos vacíos'
+  })
+
   // ---------- BAN-01: rechazo con motivo ----------
   await caso('BAN-01', '/hotel/solicitudes', 'recepción rechaza con motivo; la conversión posterior es 409', 'recepcion', 'estado rechazada + motivo; convertir → 409', async () => {
     const creada = await api('POST', '/publico/solicitudes', {
