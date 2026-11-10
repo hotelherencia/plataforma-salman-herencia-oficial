@@ -87,6 +87,10 @@ class UsuarioIn(BaseModel):
 
 class ClaveIn(BaseModel):
     clave: str = Field(min_length=6, max_length=200)
+    # Obligatoria cuando la sesión cambia su propia clave. Un administrador
+    # que cambia la de otro usuario no la envía: es un reemplazo, no una
+    # reautenticación.
+    clave_actual: str | None = None
 
 
 class MantenimientoIn(BaseModel):

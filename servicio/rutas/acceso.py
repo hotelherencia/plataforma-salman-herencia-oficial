@@ -317,6 +317,18 @@ def cambiar_clave_usuario(
         raise HTTPException(status_code=403, detail="acceso denegado")
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_clave.model_dump_json())}
+    try:
+        previa = idempotencia.respuesta_previa(conexion, sesion.empresa_id, clave, cuerpo)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    if previa is not None:
+        return JSONResponse(status_code=previa[0], content=previa[1])
+    if sesion.usuario_id == usuario_id and not seguridad.reautenticar_clave(
+        conexion, sesion.usuario_id, cuerpo_clave.clave_actual or ""
+    ):
+        seguridad.auditar(conexion, sesion.nombre, "usuario-clave", usuario_id, "reauth rechazada")
+        conexion.commit()
+        raise HTTPException(status_code=401, detail="clave de confirmación inválida")
 
     def operacion() -> tuple[int, dict]:
         seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)

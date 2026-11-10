@@ -9,6 +9,7 @@ export default function Cuenta() {
   const [codigo, setCodigo] = useState('')
   const [exito, setExito] = useState('')
   const [error, setError] = useState('')
+  const [claveActual, setClaveActual] = useState('')
   const [claveNueva, setClaveNueva] = useState('')
   const [claveReauth, setClaveReauth] = useState('')
   const [claveOk, setClaveOk] = useState('')
@@ -30,6 +31,10 @@ export default function Cuenta() {
     e.preventDefault()
     setClaveError('')
     setClaveOk('')
+    if (!claveActual) {
+      setClaveError('Escribe tu clave actual.')
+      return
+    }
     if (claveNueva.trim().length < 6) {
       setClaveError('La clave nueva debe tener al menos 6 caracteres.')
       return
@@ -38,12 +43,13 @@ export default function Cuenta() {
     try {
       const r = await api(`/usuarios/${sesion.id}/clave`, {
         metodo: 'POST',
-        cuerpo: { clave: claveNueva },
+        cuerpo: { clave: claveNueva, clave_actual: claveActual },
         claveIdempotencia: claveCambio,
       })
       if (r.estado >= 400) setClaveError(r.datos?.detail ?? 'No se pudo cambiar la clave')
       else {
         setClaveOk('Clave actualizada. Usa la clave nueva en tu próximo acceso.')
+        setClaveActual('')
         setClaveNueva('')
         renovarClaveCambio()
       }
@@ -139,6 +145,13 @@ export default function Cuenta() {
             próximos accesos.
           </p>
           <form className="formulario" onSubmit={cambiarClave}>
+            <Campo
+              etiqueta="Clave actual"
+              type="password"
+              autoComplete="current-password"
+              value={claveActual}
+              onChange={(e) => setClaveActual(e.target.value)}
+            />
             <Campo
               etiqueta="Clave nueva"
               type="password"

@@ -250,9 +250,23 @@ class GestionUsuariosTest(OperacionBaseTest):
         uid = self.crear_usuario("recepcion1", "recepcion", clave="clave-vieja-1")
         # el propio usuario cambia su clave
         propio = self.login("recepcion1", "clave-vieja-1")
-        respuesta = propio.post(f"/usuarios/{uid}/clave", json={"clave": "clave-nueva-1"},
-                                headers={"Idempotency-Key": self.clave()})
+        clave_op = self.clave()
+        sin_actual = propio.post(f"/usuarios/{uid}/clave", json={"clave": "clave-nueva-1"},
+                                 headers={"Idempotency-Key": clave_op})
+        self.assertEqual(sin_actual.status_code, 401, sin_actual.text)
+        self.login("recepcion1", "clave-vieja-1")
+        respuesta = propio.post(
+            f"/usuarios/{uid}/clave",
+            json={"clave": "clave-nueva-1", "clave_actual": "clave-vieja-1"},
+            headers={"Idempotency-Key": clave_op},
+        )
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        repetida = propio.post(
+            f"/usuarios/{uid}/clave",
+            json={"clave": "clave-nueva-1", "clave_actual": "clave-vieja-1"},
+            headers={"Idempotency-Key": clave_op},
+        )
+        self.assertEqual(repetida.status_code, 200, repetida.text)
         self.assertFalse(seguridad.verificar_clave(
             self.select("SELECT clave_hash FROM usuarios WHERE id=%s", (uid,))[0][0], "clave-vieja-1"))
         self.login("recepcion1", "clave-nueva-1")  # la nueva abre sesión
@@ -270,7 +284,8 @@ class GestionUsuariosTest(OperacionBaseTest):
         esta = self.login("recepcion1", "clave-vieja-1")
         otra = self.login("recepcion1", "clave-vieja-1")
         respuesta = esta.post(
-            f"/usuarios/{uid}/clave", json={"clave": "clave-nueva-1"},
+            f"/usuarios/{uid}/clave",
+            json={"clave": "clave-nueva-1", "clave_actual": "clave-vieja-1"},
             headers={"Idempotency-Key": self.clave()},
         )
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
@@ -336,6 +351,19 @@ class GestionUsuariosTest(OperacionBaseTest):
 
 
 class HabitacionOperacionTest(OperacionBaseTest):
+    def test_la_clave_de_entrada_no_liquida_la_salida(self):
+        rid = self.reservar()
+        clave = self.clave()
+        entrada = self.cliente.post(
+            f"/hotel/reservas/{rid}/entrada", headers={"Idempotency-Key": clave}
+        )
+        self.assertEqual(entrada.status_code, 200, entrada.text)
+        salida = self.cliente.post(
+            f"/hotel/reservas/{rid}/salida", headers={"Idempotency-Key": clave}
+        )
+        self.assertEqual(salida.status_code, 409, salida.text)
+        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (rid,))[0][0], "en_estadia")
+
     def test_la_prueba_que_decide_el_fallo_de_operacion(self):
         # Turnover (DECISIÓN 2026-10-30, fuente check_in del dominio): una
         # reserva no solapada puede hacer check-in aunque la unidad esté

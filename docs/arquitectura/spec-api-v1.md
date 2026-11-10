@@ -118,9 +118,12 @@ nombre)`; la clave solo se guarda como hash argon2id
   Jamás devuelve `clave_hash`.
 - `POST /usuarios {nombre, rol, clave}`: solo `administrador`. Crea con hash
   argon2id. Nombre repetido en la empresa → **409**.
-- `POST /usuarios/{id}/clave {clave}`: el propio usuario o un `administrador`.
-  La clave nueva reemplaza el hash y revoca las demás sesiones de ese
-  usuario (#322): la sesión que ejecuta el cambio sigue viva si es de él.
+- `POST /usuarios/{id}/clave {clave, clave_actual?}`: el propio usuario o un
+  `administrador`. Quien cambia su propia clave envía `clave_actual`; si no
+  coincide, **401** y el hash no cambia. Un administrador que cambia la clave
+  de otro usuario no la envía. La clave nueva reemplaza el hash y revoca las
+  demás sesiones de ese usuario (#322): la sesión que ejecuta el cambio sigue
+  viva si es de él.
   Respuesta `{"id","estado":"clave actualizada","sesiones_revocadas"}`.
 - `POST /usuarios/{id}/revocacion`: solo `administrador`, sobre **otro**
   usuario: pone `revocada_en` en todas sus sesiones. La sesión propia se
@@ -442,7 +445,7 @@ llama a Meta.
 | `GET /auth/google/callback` | Valida `state` **consumiéndolo en todo intento** y exigiendo que la cookie `oauth_tx` coincida con la que originó el login (state de otro navegador → 400, SEC-A05); intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |
 | `GET /usuarios` | Lista `id`, `nombre`, `rol`, `activo` de la empresa. Solo administrador. |
 | `POST /usuarios` | Alta `{nombre, rol, clave}` con hash argon2id. Solo administrador. Nombre repetido → 409. |
-| `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
+| `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión propia exige `clave_actual` (401 si no coincide). La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |
 | `POST /usuarios/{id}/baja` | `activo=false` y revoca sesiones. Solo administrador, sobre otro usuario; no al último administrador activo (409). |
 | `PUT /hotel/habitaciones/{id}` | Alta o cambio de habitación: tipo, capacidad (con `If-None-Match: *` solo alta). Devuelve `creada` y `cambios`; auditado. Solo administrador. |

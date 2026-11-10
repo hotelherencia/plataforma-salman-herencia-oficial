@@ -99,7 +99,8 @@ export default function Usuarios() {
         <p className="nota-clave">Clave: <code>{claveAlta}</code></p>
       </section>
       <section className="tarjeta">
-        <h2>Cambio de clave (el propio usuario o un administrador)</h2>
+        <h2>Cambio de clave de otro usuario</h2>
+        <p className="estado">Un administrador reemplaza la clave de otra persona. La tuya se cambia en Mi cuenta, con la clave actual.</p>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${claveCambio.id}/clave`, { clave: claveCambio.clave }, claveCambioOp, renovarClaveCambio, e)}>
           <Campo etiqueta="Usuario (id)" value={claveCambio.id} onChange={(e) => setClaveCambio({ ...claveCambio, id: e.target.value })} />
           <Campo etiqueta="Clave nueva" type="password" value={claveCambio.clave} onChange={(e) => setClaveCambio({ ...claveCambio, clave: e.target.value })} />

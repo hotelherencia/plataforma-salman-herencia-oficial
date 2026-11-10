@@ -13,6 +13,30 @@ def hash_cuerpo(cuerpo: dict) -> str:
     return hashlib.sha256(json.dumps(cuerpo, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
+def respuesta_previa(conexion, empresa_id: str, clave: str, cuerpo: dict) -> tuple[int, dict] | None:
+    """Devuelve la respuesta ya guardada para esta clave y este cuerpo.
+
+    None si la clave es nueva. Misma clave con otro cuerpo: ConflictoIdempotencia.
+    El cerrojo es el de `ejecutar`, así que la lectura y la escritura siguientes
+    quedan en la misma transacción.
+    """
+    digest = hash_cuerpo(cuerpo)
+    conexion.execute(
+        "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+        (empresa_id, clave),
+    )
+    fila = conexion.execute(
+        "SELECT hash_cuerpo, codigo_respuesta, cuerpo_respuesta "
+        "FROM claves_idempotencia WHERE empresa_id = %s AND clave = %s",
+        (empresa_id, clave),
+    ).fetchone()
+    if fila is None:
+        return None
+    if fila[0] != digest:
+        raise ConflictoIdempotencia("la clave ya fue usada con otro cuerpo")
+    return fila[1], fila[2]
+
+
 def ejecutar(conexion, empresa_id: str, clave: str, cuerpo: dict, operacion) -> tuple[int, dict]:
     """Ejecuta `operacion()` una sola vez por clave y devuelve (código, cuerpo).
 

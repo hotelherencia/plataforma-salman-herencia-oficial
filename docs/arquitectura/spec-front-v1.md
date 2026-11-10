@@ -111,8 +111,9 @@ corregido ejecuta con clave nueva. El front no calcula tarifa, cupo ni saldo.
   muestra solo si `GET /auth/google/estado` responde `configurado: true`
   (DECISIÓN, 2026-10-29, ver spec-api-v1, «Login con Google»); la misma
   pantalla anuncia `?error=cuenta_sin_vinculo` y `?error=acceso_denegado`.
-- `/cuenta` — alta y baja del segundo factor (Google Authenticator): genera
-  el secreto, muestra la clave de configuración y confirma con un código.
+- `/cuenta` — cambio de la propia clave (pide la clave actual) y alta y baja
+  del segundo factor (Google Authenticator): genera el secreto, muestra la
+  clave de configuración y confirma con un código.
 
 ## Criterio de aceptación
 

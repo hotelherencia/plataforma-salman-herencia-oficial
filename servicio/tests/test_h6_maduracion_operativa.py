@@ -225,7 +225,9 @@ class MaduracionOperativaTest(unittest.TestCase):
         )
         self.assertEqual(respuesta.status_code, 403)
         respuesta = propio.post(
-            f"/usuarios/{uid1}/clave", json={"clave": "clave-cambiada"}, headers={"Idempotency-Key": "cl-propia"}
+            f"/usuarios/{uid1}/clave",
+            json={"clave": "clave-cambiada", "clave_actual": "clave-rec"},
+            headers={"Idempotency-Key": "cl-propia"},
         )
         self.assertEqual(respuesta.status_code, 200)
         self.cliente_como("recepcion1", "clave-cambiada")

@@ -320,7 +320,11 @@ def check_in(
     # recepción o administrador («caja cobra, recepción opera la habitación»).
     comun.exigir_rol(sesion, ("recepcion", "administrador"))
     clave = comun.clave_idempotencia_o_400(idempotency_key)
-    cuerpo_idem = {"reserva_id": reserva_id}
+    cuerpo_idem = {
+        "operacion": "entrada",
+        "reserva_id": reserva_id,
+        "documento": cuerpo.documento if cuerpo else None,
+    }
 
     def operacion() -> tuple[int, dict]:
         try:
@@ -349,7 +353,7 @@ def check_out(
     # recepción o administrador, igual que la entrada.
     comun.exigir_rol(sesion, ("recepcion", "administrador"))
     clave = comun.clave_idempotencia_o_400(idempotency_key)
-    cuerpo = {"reserva_id": reserva_id}
+    cuerpo = {"operacion": "salida", "reserva_id": reserva_id}
 
     def operacion() -> tuple[int, dict]:
         try:

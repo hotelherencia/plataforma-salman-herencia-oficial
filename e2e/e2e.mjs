@@ -978,6 +978,7 @@ try {
     await page.waitForTimeout(1800)
     if ((await page.getByRole('textbox', { name: 'Clave nueva' }).count()) === 0)
       throw new Error('sin formulario de cambio de clave en /cuenta')
+    await page.getByRole('textbox', { name: 'Clave actual' }).fill(claveVieja)
     await page.getByRole('textbox', { name: 'Clave nueva' }).fill(claveNueva)
     await page.getByRole('button', { name: 'Cambiar clave' }).click()
     await page.waitForSelector('[role=status]', { timeout: 8000 })
