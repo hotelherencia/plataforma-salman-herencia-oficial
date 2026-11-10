@@ -557,12 +557,17 @@ No hay rol nuevo. El rol es `administrador` de la empresa del núcleo.
 
 1. Entrar con un administrador existente → `/hotel/usuarios`.
 2. Alta: nombre nominado, rol `administrador`, clave temporal (≥ 6).
-3. La persona entra en `/login`, cambia la clave en `/cuenta` (pide la clave
-   actual) y activa 2FA.
-4. Puede: habitaciones/tarifas, reservas (con documento), entrada/salida,
+3. La persona entra en `/login` (usuario/clave **o** «Entrar con Google» si
+   su correo está en `usuarios.email`) y cambia la clave en `/cuenta` (pide
+   la clave actual).
+4. **TOTP / autenticador no es obligatorio.** En producción el admin operativo
+   tiene `totp_activado=false` (validado 2026-11-10): el dueño no habilitó
+   un segundo factor distinto del correo vía Google. Activar TOTP en `/cuenta`
+   queda opcional; no se exige para cerrar esta historia.
+5. Puede: habitaciones/tarifas, reservas (con documento), entrada/salida,
    leads, solicitudes, agente, alta de `recepcion`/`caja`.
-5. Evidencia: anotar en #338 el nombre de usuario y la fecha (sin clave ni
-   TOTP). #323 (roles fuera del hotel) sigue fuera de V1.
+6. Evidencia: anotar en #338 el nombre de usuario y la fecha (sin clave).
+   #323 (roles fuera del hotel) sigue fuera de V1.
 
 ### Enlace Maps / Business Profile (V1-ISSUE-44 / #339)
 
