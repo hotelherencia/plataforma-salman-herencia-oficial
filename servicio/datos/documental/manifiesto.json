@@ -1,0 +1,185 @@
+{
+  "fecha": "2026-11-11",
+  "version": "1.0",
+  "clasificacion": "GENERAL_DEPURADO",
+  "fuentes_originales_incluidas": false,
+  "datos_reservados_incluidos": false,
+  "controles": "control_calidad_paquete.json",
+  "archivos": [
+    {
+      "archivo": "control_calidad_paquete.json",
+      "bytes": 1325,
+      "sha256": "5c02f822de928f9e41df426ed74a21c9316f043ee84849c3e93312f310eeb1a9"
+    },
+    {
+      "archivo": "csv/activos_comunes.csv",
+      "bytes": 4504,
+      "sha256": "45f0f9ddef5d0106db50520cf1919e5e8cd65d7596d35882f3b3d4715e3ad8f9"
+    },
+    {
+      "archivo": "csv/activos_digitales.csv",
+      "bytes": 1299,
+      "sha256": "3a758c0c1cae7384b5cf19b644ad9ae7222295bfa99ca5c2570597aa093d4071"
+    },
+    {
+      "archivo": "csv/cobertura_hojas.csv",
+      "bytes": 456,
+      "sha256": "2319668a5aa06a653d55ef29776b9b240cec953cfc6b48f1d648b7713183e33f"
+    },
+    {
+      "archivo": "csv/condiciones_habitacion.csv",
+      "bytes": 61290,
+      "sha256": "aac6f83a495dc9b1d8403913a6c1059373bdd1d9b7adecc4ea27274ebd66c04d"
+    },
+    {
+      "archivo": "csv/control_ocupacion.csv",
+      "bytes": 2348,
+      "sha256": "179a1a1cae980245880c377a6e609b48168bcc94d195b1e8192d07e400e45b04"
+    },
+    {
+      "archivo": "csv/diccionario_datos.csv",
+      "bytes": 34633,
+      "sha256": "9bf33c76b7f0c10aed951cc6167728fd139c3fc648457e38177aed3b804bd7b0"
+    },
+    {
+      "archivo": "csv/fuentes.csv",
+      "bytes": 393,
+      "sha256": "f6d0b2df59e74c0fac2dcdd57ff0bb36dd206f2d9bdbdbfb82d84c722c8900ed"
+    },
+    {
+      "archivo": "csv/habitaciones.csv",
+      "bytes": 1737,
+      "sha256": "e501c0c3a036db380127b11fe18a7d2e1367b9328e839b7a702f00df5d4d83d9"
+    },
+    {
+      "archivo": "csv/insumos.csv",
+      "bytes": 11767,
+      "sha256": "0b43f4bbc43079459896c7651914e28bec1623bfa61930f2ebb5fcce8fd4eee5"
+    },
+    {
+      "archivo": "csv/matriz_cumplimiento.csv",
+      "bytes": 29275,
+      "sha256": "3ae9f8eff4c3527a6c5a0f41a6fa39731042a87ed232514678cae308f4fc0fee"
+    },
+    {
+      "archivo": "csv/observaciones_operativas.csv",
+      "bytes": 2001,
+      "sha256": "1917828be772089fc9a542b87e03855288e483a7443bb94e1ce8222ec4eedcd2"
+    },
+    {
+      "archivo": "csv/ocupacion_reportada.csv",
+      "bytes": 29402,
+      "sha256": "e9047c9064454c99db6997442ffd34d16d2402951a6069bcf9f37fea0b228151"
+    },
+    {
+      "archivo": "csv/pendientes.csv",
+      "bytes": 17880,
+      "sha256": "47680077aa26c70067086171131a1c622a69078b9aaa83cd46ab156dce439fc6"
+    },
+    {
+      "archivo": "csv/politicas_declaradas.csv",
+      "bytes": 4954,
+      "sha256": "fa257a8174dd4cc0e6cc1e82a4366fe017d21d767f710a0c71ecbb00d1ced9ec"
+    },
+    {
+      "archivo": "csv/proveedores.csv",
+      "bytes": 2199,
+      "sha256": "0bd7ca1d72da1dcdeb467d183a71f09b3c8fe26ead8b79619be3e2a3947d6b9e"
+    },
+    {
+      "archivo": "csv/riesgos.csv",
+      "bytes": 4777,
+      "sha256": "6cae0c32ee315620476de368d2e7330a60315adfc7d343351303e00522568e9a"
+    },
+    {
+      "archivo": "csv/servicios.csv",
+      "bytes": 1405,
+      "sha256": "5a346ca97a7c36e3e6c2d52c0b74d9969501b1afa648e90898a12ee44fab2181"
+    },
+    {
+      "archivo": "csv/tarifas_declaradas.csv",
+      "bytes": 890,
+      "sha256": "581dede51c4974fa06809d794d663924fba0262317d88ff4a4450cf1a69b0d0b"
+    },
+    {
+      "archivo": "csv/textiles.csv",
+      "bytes": 5128,
+      "sha256": "03b59bcd00cc62d37f4c55c83868b5182f291e7b528b3a72edc4afc9cc16686a"
+    },
+    {
+      "archivo": "csv/validaciones.csv",
+      "bytes": 3215,
+      "sha256": "53fab77a4f4006c1a40ce9ce3d5529b3d0bab876d30d887213c706cb45d95de3"
+    },
+    {
+      "archivo": "datos_normalizados.json",
+      "bytes": 739573,
+      "sha256": "635f8345cc3f3c21895e75f16493c8c03d03935805468925776be7c719f7ae59"
+    },
+    {
+      "archivo": "esquema_importacion.json",
+      "bytes": 30040,
+      "sha256": "4c0dcb34b30d8f3c04d8075208887eac2d1e51741bf131df2d68515963b27a55"
+    },
+    {
+      "archivo": "Informe_revision_Hotel_Herencia.html",
+      "bytes": 46976,
+      "sha256": "2b2d3d5eabb89cbc1518c830f6dbb9522c211cc6a25ce92973991149513e828f"
+    },
+    {
+      "archivo": "LEEME_importacion_segura.txt",
+      "bytes": 8254,
+      "sha256": "440ce03ada097f4a8c2c781a78ba9b04cbd720a6a75bd424b488d843e9fcb3f1"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/contrato_datos_reservados.json",
+      "bytes": 13895,
+      "sha256": "6da678464166ecf82ebf8e481387488610b05783a3dc09d50bc0e0397b831807"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/contratos_permisos.csv",
+      "bytes": 147,
+      "sha256": "28887b887751a53a5547814dfa056c18b70f0c69a222f3d129db8a560643bf70"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/cuentas_cobrar_pagar.csv",
+      "bytes": 181,
+      "sha256": "9a5c36c9a97d1029093af1ecc9896977f1a7808f5426924ac15d337093e4096c"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/diccionario_reservado_sin_datos.csv",
+      "bytes": 8219,
+      "sha256": "47a443cc8b662a62f6c1e76d967d6f7a54885b2f0b4b302b3bd7ce437304a153"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/garantias_devoluciones.csv",
+      "bytes": 122,
+      "sha256": "406038c33408d69b68aa6ee0002a6da342951f4d978d20423aa81b298d7dfeb9"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/liquidacion_traspaso.csv",
+      "bytes": 134,
+      "sha256": "92c54fbbaea97ddcbe81a5d709057a8c39809363451bc472f3a8b6c605f4b29c"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/pagos.csv",
+      "bytes": 163,
+      "sha256": "f20bd889c924b52d596893c147c56a0922d7677001f009fa41563ab973d16f6d"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/personal.csv",
+      "bytes": 190,
+      "sha256": "27f1a6b6501ff4d2a58df1065cb17b2c7286774447af24a316311a7445a3ee31"
+    },
+    {
+      "archivo": "plantillas_reservadas_sin_datos/reservas.csv",
+      "bytes": 237,
+      "sha256": "a0c32771191838ae6af5e0a25d1223b19f2fc761d2ef65cacbda031c406ff376"
+    },
+    {
+      "archivo": "Revision_Hotel_Herencia.xlsx",
+      "bytes": 50680,
+      "sha256": "31f84f42e33d3031a27de402a466bb7ccf9a9becfb31d7403cb6d93e11e1616a"
+    }
+  ]
+}

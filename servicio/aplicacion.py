@@ -29,6 +29,7 @@ from .empresa_titular import (  # noqa: E402
     EMPRESA_TITULAR_MARCA,
     EMPRESA_TITULAR_RUT,
 )
+from . import documental  # noqa: E402
 from . import inventario_documental  # noqa: E402
 from .migracion import aplicar_migraciones  # noqa: E402
 from . import seguridad  # noqa: E402
@@ -118,6 +119,7 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
                     conexion,
                     establecimiento_id=inventario_documental.ESTABLECIMIENTO_HERENCIA,
                 )
+                documental.sembrar_paquete_documental(conexion)
             conexion.commit()
     except RuntimeError as error:
         raise ErrorArranque(str(error))

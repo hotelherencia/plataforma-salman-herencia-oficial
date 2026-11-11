@@ -522,12 +522,13 @@ complete (todo requiere su decisión o sus datos reales):
       devolver `EMP-SINTETICA-001`. La migración `0017_empresa_titular`
       reetiqueta el tenant en la base.
 - [ ] **Habitaciones y tarifas reales** (V1-ISSUE-41): con
-      `INVENTARIO_DOCUMENTAL=1` (y titular activo) el arranque siembra
-      HAB-01..17 como `fuera_de_servicio` desde
-      `docs/datos/herencia-revision-2026-11-11/lote_b1_inventario_propuesto.json`
-      (capacidad propuesta desde tipo; sin tarifas → no oferta pública).
-      El dueño verifica capacidad (sobre todo HAB-08/16 «Matrimonial +1»),
-      pone en servicio y carga tarifas con vigencia. Ver sección inventario.
+      `INVENTARIO_DOCUMENTAL=1` (y titular activo) el arranque:
+      1) siembra HAB-01..17 como `fuera_de_servicio` (sin tarifas → no oferta);
+      2) carga el paquete documental completo a tablas `doc_*` (migración
+      `0018`) desde `servicio/datos/documental/paquete_2026-11-11.json`
+      (ocupación histórica, condiciones, textiles, etc.) consultable en
+      `/hotel/documental/*`. El dueño verifica capacidad (HAB-08/16), pone
+      en servicio y carga tarifas operativas con vigencia. Ver sección inventario.
 - [ ] **ORIGEN_LANDING=https://hotelherencia.cl** en las variables de Railway
       (sin ella la landing no tiene CORS hacia `/publico/*`).
 - [ ] **Política de respaldo y datos personales** (Q-CORE-03, Ley 21.719):

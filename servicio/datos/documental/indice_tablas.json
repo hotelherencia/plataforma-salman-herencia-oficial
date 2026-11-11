@@ -1,0 +1,25 @@
+{
+  "paquete_id": "DOC-PKG-2026-11-11",
+  "tablas": {
+    "habitaciones": 17,
+    "condiciones_habitacion": 442,
+    "textiles": 38,
+    "activos_comunes": 39,
+    "insumos": 66,
+    "proveedores": 7,
+    "tarifas_declaradas": 5,
+    "politicas_declaradas": 26,
+    "ocupacion_reportada": 204,
+    "control_ocupacion": 12,
+    "activos_digitales": 8,
+    "servicios": 13,
+    "observaciones_operativas": 14,
+    "matriz_cumplimiento": 85,
+    "riesgos": 12,
+    "pendientes": 85,
+    "validaciones": 18,
+    "fuentes": 2,
+    "cobertura_hojas": 12,
+    "diccionario_datos": 198
+  }
+}

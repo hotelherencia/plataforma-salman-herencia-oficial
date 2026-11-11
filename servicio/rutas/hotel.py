@@ -13,6 +13,7 @@ from hotel_inventario.servicio import ROLES_DOCUMENTO
 
 from .. import canal_publico
 from .. import cobro
+from .. import documental
 from .. import idempotencia
 from .. import leads as leads_mod
 from .. import recaptcha
@@ -203,6 +204,67 @@ def consultar_ocupacion(
     desde = desde or hoy
     hasta = hasta or desde + timedelta(days=14)
     return panel.ocupacion(conexion, sesion.empresa_id, desde, hasta, hoy)
+
+
+@router.get("/hotel/documental/resumen")
+def documental_resumen(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Paquete documental cargado (ZIP 2026-11-11). No es oferta ni cobro."""
+    return documental.resumen(conexion)
+
+
+@router.get("/hotel/documental/habitaciones")
+def documental_habitaciones(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    return {"habitaciones": documental.listar_habitaciones(conexion)}
+
+
+@router.get("/hotel/documental/tarifas")
+def documental_tarifas(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    return {"tarifas": documental.listar_tarifas(conexion), "publicar_activas": False}
+
+
+@router.get("/hotel/documental/ocupacion")
+def documental_ocupacion(
+    periodo: str | None = Query(default=None, pattern=r"^2026-(0[1-9]|1[0-2])$"),
+    habitacion_id: str | None = Query(default=None, max_length=50),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Histórico reportado del ZIP. `es_kpi` siempre false hasta unidad confirmada."""
+    return {
+        "ocupacion": documental.listar_ocupacion(conexion, periodo=periodo, habitacion_id=habitacion_id),
+        "es_kpi": False,
+    }
+
+
+@router.get("/hotel/documental/control-ocupacion")
+def documental_control_ocupacion(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    return {"control": documental.listar_control_ocupacion(conexion), "es_kpi": False}
+
+
+@router.get("/hotel/documental/tablas/{tabla}")
+def documental_tabla(
+    tabla: str,
+    limite: int = Query(default=500, ge=1, le=2000),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    try:
+        return documental.listar_tabla(conexion, tabla, limite=limite)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+
 
 @router.get("/hotel/indicadores")
 def consultar_indicadores(

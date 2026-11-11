@@ -1,0 +1,22 @@
+{
+  "fecha": "2026-11-11",
+  "controles_ejecutados": [
+    "Conteos y trazabilidad de 12 hojas; 119 párrafos y 4 tablas de requerimientos",
+    "17 habitaciones únicas; 442 condiciones; 38 registros textiles; 39 líneas activos; 66 insumos",
+    "PK únicas y FK válidas en tablas normalizadas",
+    "Todas las celdas de condiciones y ocupación preservadas respecto de origen; suma de valores reportados enero-octubre 2997, unidad por confirmar",
+    "CSV y JSON equivalentes campo por campo; tipos conformes al esquema",
+    "Nuevo XLSX reabierto con lector independiente; valores y fórmulas guardados comprobados",
+    "Siete vistas de hojas revisadas visualmente; campos largos conservados para lectura y filtrado",
+    "Sin errores de fórmula en nuevo XLSX; ocupación mensual vacía no convertida a cero en recálculo",
+    "Sin contraseñas del origen, nombres/RUT de trabajadores, correos ni RUT en entregables generales",
+    "Siete plantillas reservadas sin filas de datos"
+  ],
+  "no_ejecutado": [
+    "Inspección física",
+    "Conciliación con bancos o intermediarios",
+    "Comprobación de contratos y certificados no entregados",
+    "Pruebas de integración, permisos y reversión en plataforma de destino"
+  ],
+  "resultado": "CONTROLES_DEL_PAQUETE_OK_CON_PENDIENTES_DE_ORIGEN"
+}

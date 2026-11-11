@@ -11,11 +11,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .empresa_titular import EMPRESA_TITULAR_MARCA
-
 LOTE_RELATIVO = Path("docs/datos/herencia-revision-2026-11-11/lote_b1_inventario_propuesto.json")
 ESTABLECIMIENTO_HERENCIA = "EST-HERENCIA-001"
 MOTIVO_SINTETICO = "inventario de prueba; reemplazado por documental 2026-11-11"
+MARCA_HERENCIA = "Hotel Herencia"
 
 
 def ruta_lote(raiz: Path | None = None) -> Path:
@@ -44,7 +43,7 @@ def sembrar_inventario_documental(
         tipo = hab["tipo_salman"]
         capacidad = int(hab["capacidad_propuesta"])
         motivo = hab.get("motivo_fuera_de_servicio") or (
-            f"inventario documental pendiente verificación ({EMPRESA_TITULAR_MARCA})"
+            f"inventario documental pendiente verificación ({MARCA_HERENCIA})"
         )
         antes = conexion.execute(
             "SELECT 1 FROM habitaciones WHERE id = %s", (habitacion_id,)
