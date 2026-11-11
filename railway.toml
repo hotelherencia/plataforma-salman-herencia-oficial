@@ -7,7 +7,9 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "python -m servicio"
+# Titular real: el admin en BD es EMP-HERENCIA-001; sin estas banderas el
+# núcleo queda EMP-SINTETICA-001 y GET /sesion invalida la cookie tras el login.
+startCommand = "EMPRESA_TITULAR=1 EMPRESA_ES_SINTETICA=0 EMPRESA_RUT=76.707.504-9 INVENTARIO_DOCUMENTAL=1 python -m servicio"
 healthcheckPath = "/salud"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
