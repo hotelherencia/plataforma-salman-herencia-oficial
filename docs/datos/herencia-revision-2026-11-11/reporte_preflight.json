@@ -1,0 +1,420 @@
+{
+  "fecha_analisis": "2026-11-11T14:41:10Z",
+  "paquete": {
+    "ruta": "F:\\Code\\plataforma-salman-herencia-oficial-main\\Hotel_Herencia_Revision_y_Datos_2026-11-11.zip",
+    "fecha_manifiesto": "2026-11-11",
+    "version": "1.0",
+    "clasificacion": "GENERAL_DEPURADO",
+    "fuentes_originales_incluidas": false,
+    "datos_reservados_incluidos": false
+  },
+  "destino_codigo": {
+    "repo": "hotelherencia/plataforma-salman-herencia-oficial",
+    "rama": "main",
+    "commit": "e8671e5c9b54155d3e30e938ffc138f9069e4f9e"
+  },
+  "preflight": {
+    "hashes_ok": 35,
+    "hashes_fail": [],
+    "faltantes_manifiesto": [],
+    "extra_en_zip_no_manifiesto": [
+      "manifiesto.json"
+    ],
+    "g0_integridad": true,
+    "validar_herencia_py": "NO_ENCONTRADO",
+    "equivalencia_controles_paquete": {
+      "fecha": "2026-11-11",
+      "controles_ejecutados": [
+        "Conteos y trazabilidad de 12 hojas; 119 párrafos y 4 tablas de requerimientos",
+        "17 habitaciones únicas; 442 condiciones; 38 registros textiles; 39 líneas activos; 66 insumos",
+        "PK únicas y FK válidas en tablas normalizadas",
+        "Todas las celdas de condiciones y ocupación preservadas respecto de origen; suma de valores reportados enero-octubre 2997, unidad por confirmar",
+        "CSV y JSON equivalentes campo por campo; tipos conformes al esquema",
+        "Nuevo XLSX reabierto con lector independiente; valores y fórmulas guardados comprobados",
+        "Siete vistas de hojas revisadas visualmente; campos largos conservados para lectura y filtrado",
+        "Sin errores de fórmula en nuevo XLSX; ocupación mensual vacía no convertida a cero en recálculo",
+        "Sin contraseñas del origen, nombres/RUT de trabajadores, correos ni RUT en entregables generales",
+        "Siete plantillas reservadas sin filas de datos"
+      ],
+      "no_ejecutado": [
+        "Inspección física",
+        "Conciliación con bancos o intermediarios",
+        "Comprobación de contratos y certificados no entregados",
+        "Pruebas de integración, permisos y reversión en plataforma de destino"
+      ],
+      "resultado": "CONTROLES_DEL_PAQUETE_OK_CON_PENDIENTES_DE_ORIGEN"
+    }
+  },
+  "conteos": {
+    "archivos_zip": 36,
+    "csv": {
+      "csv/activos_comunes.csv": {
+        "filas": 39,
+        "columnas": 13
+      },
+      "csv/activos_digitales.csv": {
+        "filas": 8,
+        "columnas": 9
+      },
+      "csv/cobertura_hojas.csv": {
+        "filas": 12,
+        "columnas": 5
+      },
+      "csv/condiciones_habitacion.csv": {
+        "filas": 442,
+        "columnas": 13
+      },
+      "csv/control_ocupacion.csv": {
+        "filas": 12,
+        "columnas": 7
+      },
+      "csv/diccionario_datos.csv": {
+        "filas": 198,
+        "columnas": 7
+      },
+      "csv/fuentes.csv": {
+        "filas": 2,
+        "columnas": 5
+      },
+      "csv/habitaciones.csv": {
+        "filas": 17,
+        "columnas": 11
+      },
+      "csv/insumos.csv": {
+        "filas": 66,
+        "columnas": 20
+      },
+      "csv/matriz_cumplimiento.csv": {
+        "filas": 85,
+        "columnas": 16
+      },
+      "csv/observaciones_operativas.csv": {
+        "filas": 14,
+        "columnas": 9
+      },
+      "csv/ocupacion_reportada.csv": {
+        "filas": 204,
+        "columnas": 12
+      },
+      "csv/pendientes.csv": {
+        "filas": 85,
+        "columnas": 11
+      },
+      "csv/politicas_declaradas.csv": {
+        "filas": 26,
+        "columnas": 9
+      },
+      "csv/proveedores.csv": {
+        "filas": 7,
+        "columnas": 5
+      },
+      "csv/riesgos.csv": {
+        "filas": 12,
+        "columnas": 10
+      },
+      "csv/servicios.csv": {
+        "filas": 13,
+        "columnas": 12
+      },
+      "csv/tarifas_declaradas.csv": {
+        "filas": 5,
+        "columnas": 14
+      },
+      "csv/textiles.csv": {
+        "filas": 38,
+        "columnas": 12
+      },
+      "csv/validaciones.csv": {
+        "filas": 18,
+        "columnas": 5
+      }
+    },
+    "habitaciones": 17,
+    "tarifas_declaradas": 5,
+    "ocupacion_reportada": 204,
+    "pendientes": 85,
+    "pendientes_abiertos": 85,
+    "pendientes_alta_abiertos_muestra": [
+      "PEN-001",
+      "PEN-002",
+      "PEN-003",
+      "PEN-004",
+      "PEN-005",
+      "PEN-006",
+      "PEN-007",
+      "PEN-008",
+      "PEN-009",
+      "PEN-010",
+      "PEN-011",
+      "PEN-013",
+      "PEN-014",
+      "PEN-015",
+      "PEN-016",
+      "PEN-017",
+      "PEN-018",
+      "PEN-019",
+      "PEN-020",
+      "PEN-022"
+    ],
+    "plantillas_reservadas": {
+      "plantillas_reservadas_sin_datos/contrato_datos_reservados.json": "json",
+      "plantillas_reservadas_sin_datos/contratos_permisos.csv": 0,
+      "plantillas_reservadas_sin_datos/cuentas_cobrar_pagar.csv": 0,
+      "plantillas_reservadas_sin_datos/diccionario_reservado_sin_datos.csv": 94,
+      "plantillas_reservadas_sin_datos/garantias_devoluciones.csv": 0,
+      "plantillas_reservadas_sin_datos/liquidacion_traspaso.csv": 0,
+      "plantillas_reservadas_sin_datos/pagos.csv": 0,
+      "plantillas_reservadas_sin_datos/personal.csv": 0,
+      "plantillas_reservadas_sin_datos/reservas.csv": 0
+    }
+  },
+  "nulos_criticos": {
+    "habitaciones": {
+      "capacidad_personas_vacia": 17,
+      "numero_camas_vacio": 17,
+      "estado_venta_vacio": 17,
+      "tipos": {
+        "Matrimonial": 9,
+        "Doble": 4,
+        "Single": 1,
+        "Matrimonial +1": 2,
+        "Triple": 1
+      },
+      "ids": [
+        "HAB-01",
+        "HAB-02",
+        "HAB-03",
+        "HAB-04",
+        "HAB-05",
+        "HAB-06",
+        "HAB-07",
+        "HAB-08",
+        "HAB-09",
+        "HAB-10",
+        "HAB-11",
+        "HAB-12",
+        "HAB-13",
+        "HAB-14",
+        "HAB-15",
+        "HAB-16",
+        "HAB-17"
+      ],
+      "numeros": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17"
+      ]
+    },
+    "tarifas_sin_vigencia": 5,
+    "ocupacion_unidad_vacia": 204,
+    "ocupacion_nov_dic_sin_valor": 34
+  },
+  "reglas_R04_R06": {
+    "R04_tarifas": {
+      "veredicto": "HISTORICO_DOCUMENTAL_INACTIVO",
+      "detalle": "5 tarifas con monto CLP; vigente_desde/hasta vacios; canal DIRECTO_POR_CONFIRMAR_MAPEO; no aptas para cobro Salman (exige habitacion_id + fechas + tarifa_noche_clp>0).",
+      "tarifas": [
+        {
+          "tarifa_id": "TAR-03",
+          "tipo_comercial": "Single",
+          "monto_clp": "47000",
+          "moneda": "CLP",
+          "vigente_desde_vacio": true,
+          "vigente_hasta_vacio": true,
+          "aprobada_2027": "false",
+          "canal": "DIRECTO_POR_CONFIRMAR_MAPEO",
+          "iva_incluido_declarado": "true"
+        },
+        {
+          "tarifa_id": "TAR-04",
+          "tipo_comercial": "Doble",
+          "monto_clp": "55000",
+          "moneda": "CLP",
+          "vigente_desde_vacio": true,
+          "vigente_hasta_vacio": true,
+          "aprobada_2027": "false",
+          "canal": "DIRECTO_POR_CONFIRMAR_MAPEO",
+          "iva_incluido_declarado": "true"
+        },
+        {
+          "tarifa_id": "TAR-05",
+          "tipo_comercial": "Matrimonial",
+          "monto_clp": "55000",
+          "moneda": "CLP",
+          "vigente_desde_vacio": true,
+          "vigente_hasta_vacio": true,
+          "aprobada_2027": "false",
+          "canal": "DIRECTO_POR_CONFIRMAR_MAPEO",
+          "iva_incluido_declarado": "true"
+        },
+        {
+          "tarifa_id": "TAR-06",
+          "tipo_comercial": "Triple",
+          "monto_clp": "65000",
+          "moneda": "CLP",
+          "vigente_desde_vacio": true,
+          "vigente_hasta_vacio": true,
+          "aprobada_2027": "false",
+          "canal": "DIRECTO_POR_CONFIRMAR_MAPEO",
+          "iva_incluido_declarado": "true"
+        },
+        {
+          "tarifa_id": "TAR-07",
+          "tipo_comercial": "Cuadruple",
+          "monto_clp": "82000",
+          "moneda": "CLP",
+          "vigente_desde_vacio": true,
+          "vigente_hasta_vacio": true,
+          "aprobada_2027": "false",
+          "canal": "DIRECTO_POR_CONFIRMAR_MAPEO",
+          "iva_incluido_declarado": "true"
+        }
+      ]
+    },
+    "R05_celdas_vacias_nov_dic": {
+      "veredicto": "NULL_NO_CERO",
+      "celdas_sin_valor_nov_dic_ids": [
+        "OCU-2026-11-01",
+        "OCU-2026-12-01",
+        "OCU-2026-11-02",
+        "OCU-2026-12-02",
+        "OCU-2026-11-03",
+        "OCU-2026-12-03",
+        "OCU-2026-11-04",
+        "OCU-2026-12-04",
+        "OCU-2026-11-05",
+        "OCU-2026-12-05",
+        "OCU-2026-11-06",
+        "OCU-2026-12-06",
+        "OCU-2026-11-07",
+        "OCU-2026-12-07",
+        "OCU-2026-11-08",
+        "OCU-2026-12-08",
+        "OCU-2026-11-09",
+        "OCU-2026-12-09",
+        "OCU-2026-11-10",
+        "OCU-2026-12-10",
+        "OCU-2026-11-11",
+        "OCU-2026-12-11",
+        "OCU-2026-11-12",
+        "OCU-2026-12-12",
+        "OCU-2026-11-13",
+        "OCU-2026-12-13",
+        "OCU-2026-11-14",
+        "OCU-2026-12-14",
+        "OCU-2026-11-15",
+        "OCU-2026-12-15",
+        "OCU-2026-11-16",
+        "OCU-2026-12-16",
+        "OCU-2026-11-17",
+        "OCU-2026-12-17"
+      ],
+      "conteo": 34,
+      "nota": "No imputar 0."
+    },
+    "R06_ocupacion_unidad": {
+      "veredicto": "NO_KPI",
+      "unidad_confirmada_vacia": 204,
+      "total_registros": 204,
+      "suma_valores_ene_oct_documental": 2997.0,
+      "n_valores_ene_oct": 170,
+      "anomalias_denominador_31_en_mes_corto": [],
+      "interpretacion_propuesta_dominante": "NOCHES_OCUPADAS_POR_CONFIRMAR"
+    }
+  },
+  "timezone_documental_paquete": "America/Santiago",
+  "tablas_esquema_importacion": [
+    "habitaciones",
+    "condiciones_habitacion",
+    "textiles",
+    "activos_comunes",
+    "insumos",
+    "proveedores",
+    "tarifas_declaradas",
+    "politicas_declaradas",
+    "ocupacion_reportada",
+    "control_ocupacion",
+    "activos_digitales",
+    "servicios",
+    "observaciones_operativas",
+    "matriz_cumplimiento",
+    "riesgos",
+    "pendientes",
+    "validaciones",
+    "fuentes",
+    "cobertura_hojas",
+    "diccionario_datos"
+  ],
+  "bloqueos": [
+    {
+      "id": "B-HASH-OK",
+      "ok": true,
+      "msg": "Hashes manifiesto OK"
+    },
+    {
+      "id": "B-CAPACIDAD",
+      "ok": false,
+      "msg": "17/17 habitaciones sin capacidad_personas; no cargar a oferta Salman (#336 / PEN-001)."
+    },
+    {
+      "id": "B-TARIFAS",
+      "ok": false,
+      "msg": "Tarifas sin vigencia; solo staging inactivo (R04)."
+    },
+    {
+      "id": "B-OCUPACION-UNIDAD",
+      "ok": false,
+      "msg": "unidad_confirmada vacia en ocupacion_reportada; no KPI (R06)."
+    },
+    {
+      "id": "B-RESERVAS",
+      "ok": false,
+      "msg": "Plantillas reservadas sin filas de datos; no crear reservas/pagos."
+    },
+    {
+      "id": "B-EMPRESA-314",
+      "ok": false,
+      "msg": "Issue #314 razon social/RUT: no cerrar canal publico con empresa incompleta."
+    },
+    {
+      "id": "B-INVENTARIO-336",
+      "ok": false,
+      "msg": "Issue #336 listado real verificado por dueno pendiente."
+    },
+    {
+      "id": "B-COMPOSICION",
+      "ok": false,
+      "msg": "Salman V1 no modela room_composition; oferta cuadruple bloqueada hasta decision."
+    },
+    {
+      "id": "B-VALIDAR-SCRIPT",
+      "ok": true,
+      "msg": "validar_herencia.py no encontrado en repo ni F:\\\\Code (depth 3); equivalencia via manifiesto + control_calidad_paquete.json."
+    }
+  ],
+  "capas": {
+    "A_staging_documental": "APTO_CON_HASH_OK",
+    "B_alta_salman_v1": "BLOQUEADO_HASTA_DUENO",
+    "C_analitica_kpi_forecast": "BLOQUEADO_SIN_UNIDAD_NI_HECHOS"
+  },
+  "no_ejecutado": [
+    "Conexion DB/API Salman",
+    "INSERT/PUT produccion",
+    "Inspeccion fisica",
+    "Conciliacion bancaria"
+  ]
+}
