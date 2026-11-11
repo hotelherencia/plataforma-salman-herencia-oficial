@@ -152,7 +152,7 @@ from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
     if aplicacion is None:
         aplicacion = construir_aplicacion(nucleo=Nucleo(empresa=empresa_desde_config(configuracion)))
-    app = FastAPI(title="plataforma-salman-herencia-api", version="0.1.0")
+    app = FastAPI(title="plataforma-salman-herencia-api", version="1.1.0")
     app.add_middleware(canal_publico.TopeCuerpoPublico)
     app.state.aplicacion = aplicacion
     app.state.configuracion = configuracion

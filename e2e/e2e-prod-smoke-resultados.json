@@ -1,0 +1,36 @@
+{
+  "front": "https://plataforma-salman-herencia-oficial.vercel.app",
+  "fecha": "2026-11-11T16:13:58.530Z",
+  "resultados": [
+    {
+      "id": "ICON-SVG",
+      "estado": "APROBADO",
+      "observado": "200 image/svg+xml"
+    },
+    {
+      "id": "ICON-PNG",
+      "estado": "APROBADO",
+      "observado": "200 image/png bytes=360"
+    },
+    {
+      "id": "FAVICON-ICO",
+      "estado": "APROBADO",
+      "observado": "200 image/vnd.microsoft.icon bytes=835"
+    },
+    {
+      "id": "SESION-SIN-COOKIE",
+      "estado": "APROBADO",
+      "observado": "401 sin sesión"
+    },
+    {
+      "id": "OAUTH-COOKIE-PATH",
+      "estado": "APROBADO",
+      "observado": "cookie Path=/; location google"
+    },
+    {
+      "id": "BROWSER-HOME-LOGIN",
+      "estado": "APROBADO",
+      "observado": "login visible; iconos sin 404/HTML"
+    }
+  ]
+}
