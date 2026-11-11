@@ -150,7 +150,9 @@ def listar_habitaciones(
     habitaciones = reservas_db.listar_habitaciones(conexion)
     if not request.app.state.aplicacion.nucleo.empresa.es_sintetico:
         habitaciones = [
-            h for h in habitaciones if inventario_documental.es_id_inventario_real(h["id"])
+            h
+            for h in habitaciones
+            if inventario_documental.es_id_inventario_real(h.get("habitacion_id") or h.get("id") or "")
         ]
     return {"habitaciones": habitaciones}
 
