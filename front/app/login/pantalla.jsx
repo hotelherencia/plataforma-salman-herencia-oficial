@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, urlApi, refrescarSesion } from '../../lib/api'
+import { api, urlApi, refrescarSesion, useSesion, mensajeMotivoSesion, mensajeDeError } from '../../lib/api'
 
 /** Formulario de acceso compartido (V1-ISSUE-27): lo usa la ruta /login y el
  *  Lienzo, que lo muestra en cualquier ruta interna cuando no hay sesión, en
@@ -14,6 +14,7 @@ export default function PantallaAcceso({ despues } = {}) {
   const [fase, setFase] = useState('clave')
   const [error, setError] = useState('')
   const [googleDisponible, setGoogleDisponible] = useState(false)
+  const sesion = useSesion()
 
   useEffect(() => {
     api('/auth/google/estado')
@@ -27,8 +28,17 @@ export default function PantallaAcceso({ despues } = {}) {
       setError('Tu cuenta de Google no está vinculada a un usuario de la plataforma.')
     } else if (params.get('error') === 'acceso_denegado') {
       setError('Acceso con Google cancelado o denegido.')
+    } else if (params.get('error') === 'sesion_empresa_ajena') {
+      setError(mensajeMotivoSesion('sesion_empresa_ajena'))
     }
   }, [])
+
+  // Cookie presente pero rechazada (p. ej. tras Google o redeploy titular):
+  // no dejar al usuario adivinando por un 401 silencioso en la consola.
+  useEffect(() => {
+    const aviso = mensajeMotivoSesion(sesion.motivo)
+    if (aviso) setError(aviso)
+  }, [sesion.motivo])
 
   async function entrar(e) {
     e.preventDefault()
@@ -41,7 +51,15 @@ export default function PantallaAcceso({ despues } = {}) {
       }
       const r = await api('/sesion', { metodo: 'POST', cuerpo })
       if (r.estado === 200) {
-        await refrescarSesion()
+        const estado = await refrescarSesion()
+        if (estado.fase !== 'ok') {
+          setError(
+            mensajeMotivoSesion(estado.motivo) ||
+              mensajeDeError({ detail: estado.motivo }, 401) ||
+              'El servidor aceptó la clave pero no pudo abrir la sesión. Revisa el despliegue.',
+          )
+          return
+        }
         if (despues) despues()
         return
       }
@@ -51,7 +69,7 @@ export default function PantallaAcceso({ despues } = {}) {
       }
       if (r.estado === 429) setError('Demasiados intentos. Espera unos minutos.')
       else if (r.datos?.detail === 'código 2FA inválido') setError('Código del autenticador inválido.')
-      else setError('Credenciales inválidas o sesión no disponible.')
+      else setError(mensajeDeError(r.datos, r.estado) || 'Credenciales inválidas o sesión no disponible.')
     } catch {
       setError('La API no está disponible')
     }
@@ -111,7 +129,11 @@ export default function PantallaAcceso({ despues } = {}) {
             Entrar con Google
           </a>
         )}
-        {error && <p role="alert" className="alerta">{error}</p>}
+        {error && (
+          <p role="alert" className="alerta" data-aviso-sesion={sesion.motivo || 'manual'}>
+            {error}
+          </p>
+        )}
       </form>
     </main>
   )

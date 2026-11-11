@@ -4,6 +4,9 @@ Extraídos de las closures de `aplicacion.py`: las dependencias FastAPI
 reciben `Request` y leen el estado de la app desde `request.app.state`, así
 los módulos de rutas no necesitan capturar la fábrica.
 """
+from __future__ import annotations
+
+import logging
 from typing import Iterator
 
 import psycopg
@@ -14,6 +17,8 @@ from .. import seguridad
 NOMBRE_COOKIE_SESION = "sid"
 # SEC-A05 (#330): transacción OAuth atada al navegador que inició el login.
 NOMBRE_COOKIE_OAUTH_TX = "oauth_tx"
+DETALLE_SESION_EMPRESA_AJENA = "sesion_empresa_ajena"
+_log = logging.getLogger("servicio.sesion")
 
 
 def conexion(request: Request) -> Iterator[psycopg.Connection]:
@@ -46,13 +51,30 @@ def requerir_sesion(
     # que la base no puede contenerla (auditoría 2026-11-03). Antes de
     # multiempresa el invariante vive aquí, no en cada consulta.
     # Si el sid quedó de otro núcleo (redeploy / titular↔sintético), se
-    # limpia la cookie: GET /sesion deja de devolver 403 recurrente y el
-    # front puede volver a login (las demás rutas siguen en 403 vía
-    # ErrorPermiso si alguien reinyecta el sid a mano).
-    if sesion.empresa_id != request.app.state.aplicacion.nucleo.empresa.id:
+    # limpia la cookie y se responde un detail ESPECÍFICO (no «sesión
+    # inválida» genérico): el front y el log monitor deben poder decir
+    # qué falló sin adivinar.
+    nucleo_id = request.app.state.aplicacion.nucleo.empresa.id
+    if sesion.empresa_id != nucleo_id:
+        _log.warning(
+            "sesion_empresa_ajena actor=%s sid_empresa=%s nucleo=%s path=%s method=%s",
+            sesion.nombre,
+            sesion.empresa_id,
+            nucleo_id,
+            request.url.path,
+            request.method,
+        )
+        seguridad.auditar(
+            conn,
+            sesion.nombre,
+            "sesion",
+            request.url.path,
+            f"empresa_ajena:{sesion.empresa_id}->{nucleo_id}",
+        )
+        conn.commit()
         if request.url.path.rstrip("/") == "/sesion" and request.method == "GET":
             borrar_cookie_sesion(response, request)
-            raise HTTPException(status_code=401, detail="sesión inválida o vencida")
+            raise HTTPException(status_code=401, detail=DETALLE_SESION_EMPRESA_AJENA)
         raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
     return sesion
 

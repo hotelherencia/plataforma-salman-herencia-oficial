@@ -6,6 +6,7 @@ Con `database_url` configurada, el arranque también aplica migraciones y crea
 el administrador inicial desde variables de entorno (spec-api-v1).
 """
 import json
+import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -151,6 +152,15 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     if configuracion is not None and configuracion.database_url:
         _preparar_base_de_datos(configuracion, aplicacion)
         app.state.database_url = configuracion.database_url
+    # Traza fija para el log monitor de Railway/Vercel: sin esto, un
+    # titular↔sintético mal configurado solo se veía como 401 mudo en el browser.
+    logging.getLogger("servicio.sesion").info(
+        "nucleo_empresa id=%s nombre=%s sintetica=%s titular_flag=%s",
+        aplicacion.nucleo.empresa.id,
+        aplicacion.nucleo.empresa.nombre,
+        aplicacion.nucleo.empresa.es_sintetico,
+        bool(configuracion and configuracion.empresa_titular),
+    )
     app.state.freno_logins = seguridad.FrenoDeLogins()
     app.state.freno_solicitudes = canal_publico.FrenoDeSolicitudes(
         max_por_minuto=configuracion.publico_max_por_minuto if configuracion else 6

@@ -437,7 +437,7 @@ llama a Meta.
 |---|---|
 | `GET /salud` | Liveness de despliegue (Railway): 200 sin sesión ni datos. No toca la base de datos. |
 | `GET /readiness` | Readiness (OPS-A02, 2026-11-05): consulta real a la base y estado de migraciones; 503 si no responde. Sin sesión. |
-| `GET /sesion` | Con cookie `sid`: `{id, usuario, rol, empresa_id, totp_activo}`. Sin sesión → 401. |
+| `GET /sesion` | Con cookie `sid`: `{id, usuario, rol, empresa_id, totp_activo}`. Sin cookie → 401 `sin sesión`; sid vencido → 401 `sesión inválida o vencida`; sid de otra empresa que el núcleo (titular↔sintético) → 401 `sesion_empresa_ajena` (borra cookie, audita y deja traza en logs). |
 | `GET /cuenta/2fa/qr` | Con sesión y alta en curso: devuelve el QR (SVG) del secreto **pendiente**. Sin pendiente → 400. El secreto activo nunca se expone (SEC-A02, 2026-11-05). |
 | `POST /sesion` | Abre sesión de la empresa Herencia y fija la cookie `sid`. Con 2FA activo exige además `totp` (ver «Identidad y sesión»). |
 | `DELETE /sesion` | Cierra la sesión (la fila de `sesiones` queda revocada). |

@@ -55,7 +55,7 @@ export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cab
 // fallos transitorios que tumbaran la página a «API no disponible». Aquí hay
 // una sola fuente: la primera petición se deduplica en vuelo y el resultado
 // se comparte con todos los suscriptos; login/logout/2FA fuerzan un refresco.
-let cacheSesion = { fase: 'cargando', usuario: null }
+let cacheSesion = { fase: 'cargando', usuario: null, motivo: null }
 let promesaSesion = null
 const oyentesSesion = new Set()
 
@@ -63,18 +63,32 @@ function publicarSesion() {
   oyentesSesion.forEach((oyente) => oyente(cacheSesion))
 }
 
+/** Mensaje legible cuando la API rechaza la cookie de sesión. */
+export function mensajeMotivoSesion(motivo) {
+  const mapa = {
+    sesion_empresa_ajena:
+      'Tu sesión no coincide con la empresa activa del servidor (configuración de despliegue). Vuelve a entrar; si persiste, el operador debe revisar EMPRESA_TITULAR en el servicio.',
+    'sesión inválida o vencida': 'Tu sesión expiró o fue revocada. Vuelve a iniciar sesión.',
+    'sin sesión': null,
+  }
+  return mapa[motivo] || (motivo ? `No se pudo abrir la sesión (${motivo}).` : null)
+}
+
 export function refrescarSesion() {
   if (!promesaSesion) {
     promesaSesion = api('/sesion')
       .then((r) => {
         // 401/403 sin sid usable = fuera (pantalla de acceso). Solo caídas
-        // de red/timeout marcan «API no disponible».
-        if (r.estado === 200) cacheSesion = { fase: 'ok', usuario: r.datos }
-        else if (r.estado === 401 || r.estado === 403) cacheSesion = { fase: 'fuera', usuario: null }
-        else cacheSesion = { fase: 'caida', usuario: null }
+        // de red/timeout marcan «API no disponible». El `motivo` (detail)
+        // evita que el operador/usuario tenga que adivinar por el 401 genérico.
+        const motivo = typeof r.datos?.detail === 'string' ? r.datos.detail : null
+        if (r.estado === 200) cacheSesion = { fase: 'ok', usuario: r.datos, motivo: null }
+        else if (r.estado === 401 || r.estado === 403) {
+          cacheSesion = { fase: 'fuera', usuario: null, motivo }
+        } else cacheSesion = { fase: 'caida', usuario: null, motivo }
       })
       .catch(() => {
-        cacheSesion = { fase: 'caida', usuario: null }
+        cacheSesion = { fase: 'caida', usuario: null, motivo: 'api_caida' }
       })
       .finally(() => {
         promesaSesion = null
@@ -174,6 +188,10 @@ export function mensajeDeError(datos, estado) {
   if (typeof detalle === 'string') {
     const traducciones = {
       codigo_totp_requerido: 'Ingresa el código del autenticador.',
+      sesion_empresa_ajena:
+        'La sesión no pertenece a la empresa activa del servidor. Revisa EMPRESA_TITULAR / redeploy.',
+      'sesión inválida o vencida': 'Sesión expirada o revocada. Inicia sesión de nuevo.',
+      'sin sesión': 'No hay sesión activa.',
     }
     return traducciones[detalle] || detalle
   }
