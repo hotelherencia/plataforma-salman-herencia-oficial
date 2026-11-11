@@ -1,4 +1,4 @@
-"""Siembra documental: 17 unidades fuera de servicio, sin tarifas activas."""
+"""Siembra documental: 17 unidades operativas (disponible), sin tarifas activas."""
 import unittest
 from pathlib import Path
 
@@ -36,20 +36,27 @@ class InventarioDocumentalLoteTest(unittest.TestCase):
 class InventarioDocumentalSiembraTest(unittest.TestCase):
     """Siembra contra una conexión falsa mínima (lista de SQL)."""
 
-    def test_sembrar_inserta_fuera_de_servicio_e_idempotente(self):
+    def test_sembrar_inserta_disponible_e_idempotente(self):
         sqls = []
         existentes = set()
 
         class FakeConn:
             def execute(self, sql, params=None):
                 sqls.append((sql, params))
+
                 class R:
                     def fetchone(self_inner):
                         if "SELECT 1 FROM habitaciones" in sql:
                             return (1,) if params and params[0] in existentes else None
-                        if "SELECT estado_operativo" in sql:
-                            return ("disponible",) if params and params[0] in {"HAB-SINT-101", "HAB-SINT-102", "HAB-SINT-103"} else None
                         return None
+
+                    def fetchall(self_inner):
+                        if "RETURNING id" in sql.upper():
+                            return []
+                        if "SELECT id FROM habitaciones" in sql:
+                            return []
+                        return []
+
                 if sql.strip().upper().startswith("INSERT"):
                     existentes.add(params[0])
                 return R()
@@ -61,13 +68,13 @@ class InventarioDocumentalSiembraTest(unittest.TestCase):
                     "habitacion_id": "HAB-01",
                     "tipo_salman": "matrimonial",
                     "capacidad_propuesta": 2,
-                    "motivo_fuera_de_servicio": "prueba",
                 }
             ],
         }
         conn = FakeConn()
         r1 = sembrar_inventario_documental(conn, lote=lote, retirar_sinteticas=False)
         self.assertEqual(r1["creadas"], 1)
+        self.assertTrue(any("disponible" in (s[0] or "") for s in sqls if s[0]))
         r2 = sembrar_inventario_documental(conn, lote=lote, retirar_sinteticas=False)
         self.assertEqual(r2["creadas"], 0)
         self.assertEqual(r2["omitidas"], 1)

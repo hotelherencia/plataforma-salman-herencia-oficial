@@ -123,7 +123,10 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
                     conexion,
                     establecimiento_id=inventario_documental.ESTABLECIMIENTO_HERENCIA,
                 )
+                # Re-aplica por si el arranque anterior dejó ajenas en FDS o
+                # HAB-01..17 todavía fuera de servicio tras la carga B1.
                 inventario_documental.retirar_inventario_ajeno(conexion)
+                inventario_documental.activar_inventario_real(conexion)
                 documental.sembrar_paquete_documental(conexion)
             conexion.commit()
     except RuntimeError as error:

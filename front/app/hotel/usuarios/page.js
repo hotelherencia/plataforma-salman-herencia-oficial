@@ -96,7 +96,7 @@ export default function Usuarios() {
           <Campo etiqueta="Clave" type="password" value={alta.clave} onChange={(e) => setAlta({ ...alta, clave: e.target.value })} />
           <button type="submit" className="boton-primario">Crear usuario</button>
         </form>
-        <p className="nota-clave">Clave: <code>{claveAlta}</code></p>
+        <p className="nota-clave">Clave de idempotencia: <code>{claveAlta}</code></p>
       </section>
       <section className="tarjeta">
         <h2>Cambio de clave de otro usuario</h2>
@@ -106,7 +106,7 @@ export default function Usuarios() {
           <Campo etiqueta="Clave nueva" type="password" value={claveCambio.clave} onChange={(e) => setClaveCambio({ ...claveCambio, clave: e.target.value })} />
           <button type="submit" className="boton-primario">Cambiar clave</button>
         </form>
-        <p className="nota-clave">Clave: <code>{claveCambioOp}</code></p>
+        <p className="nota-clave">Clave de idempotencia: <code>{claveCambioOp}</code></p>
       </section>
       <section className="tarjeta">
         <h2>Revocación de sesiones (sobre otro usuario)</h2>
@@ -114,7 +114,7 @@ export default function Usuarios() {
           <Campo etiqueta="Usuario (id)" value={revocacionId} onChange={(e) => setRevocacionId(e.target.value)} />
           <button type="submit" className="boton-primario" disabled={enviando} onClick={(e) => { if (!window.confirm('¿Revocar todas las sesiones de este usuario? Deberá iniciar sesión de nuevo.')) e.preventDefault() }}>Revocar sesiones</button>
         </form>
-        <p className="nota-clave">Clave: <code>{claveRevocacion}</code></p>
+        <p className="nota-clave">Clave de idempotencia: <code>{claveRevocacion}</code></p>
       </section>
       <section className="tarjeta">
         <h2>Baja de usuario (sobre otro usuario)</h2>
@@ -122,7 +122,7 @@ export default function Usuarios() {
           <Campo etiqueta="Usuario (id)" value={bajaId} onChange={(e) => setBajaId(e.target.value)} />
           <button type="submit" className="boton-primario" disabled={enviando} onClick={(e) => { if (!window.confirm('¿Dar de baja este usuario? Queda inactivo y sin acceso.')) e.preventDefault() }}>Dar de baja</button>
         </form>
-        <p className="nota-clave">Clave: <code>{claveBaja}</code></p>
+        <p className="nota-clave">Clave de idempotencia: <code>{claveBaja}</code></p>
       </section>
       <button onClick={() => { setSalida(null); setError(''); renovarClaveAlta(); renovarClaveCambio(); renovarClaveRevocacion(); renovarClaveBaja() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}

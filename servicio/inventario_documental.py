@@ -1,13 +1,13 @@
-"""Carga borrador del inventario documental 2026-11-11 (capa B1).
-
-Lee el lote propuesto (JSON) y crea habitaciones reales como
-`fuera_de_servicio`, sin tarifas. Así el mantenedor las ve, pero
-`/publico/disponibilidad` no las ofrece. No inventa vigencia de precios.
-La capacidad viene marcada en el JSON como propuesta desde tipo; las
-unidades `matrimonial_mas_1` siguen pendientes de verificación (R02).
+"""Carga del inventario documental 2026-11-11 (capa B1).
 
 Inventario real del titular: **solo HAB-01..17**. Cualquier otra id
-(HAB-SINT-*, HAB-101.., etc.) se retira de la operación.
+(HAB-SINT-*, HAB-101.., etc.) se elimina de la base operativa (con su
+historial sintético/ajeno), no basta con marcarla fuera de servicio.
+
+Decisión operativa (2026-11-11, dueño): HAB-01..17 quedan **en servicio**
+(`disponible`). El lote JSON puede documentar carga FDS/sin tarifa; la
+oferta pública sigue sin tarifas hasta decisión de precios (D3), pero la
+ocupación no debe listarlas todas como «fuera de servicio».
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def sembrar_inventario_documental(
     retirar_sinteticas: bool = True,
     lote: dict | None = None,
 ) -> dict:
-    """Inserta HAB-01..17 fuera de servicio. Idempotente (ON CONFLICT DO NOTHING)."""
+    """Inserta HAB-01..17 en servicio (disponible). Idempotente."""
     datos = lote or cargar_lote()
     creadas = 0
     omitidas = 0
@@ -53,9 +53,6 @@ def sembrar_inventario_documental(
         habitacion_id = hab["habitacion_id"]
         tipo = hab["tipo_salman"]
         capacidad = int(hab["capacidad_propuesta"])
-        motivo = hab.get("motivo_fuera_de_servicio") or (
-            f"inventario documental pendiente verificación ({MARCA_HERENCIA})"
-        )
         antes = conexion.execute(
             "SELECT 1 FROM habitaciones WHERE id = %s", (habitacion_id,)
         ).fetchone()
@@ -64,62 +61,76 @@ def sembrar_inventario_documental(
             continue
         conexion.execute(
             "INSERT INTO habitaciones ("
-            "id, establecimiento_id, tipo, capacidad, estado_operativo, "
-            "motivo_fuera_de_servicio, fuera_de_servicio_desde"
-            ") VALUES (%s, %s, %s, %s, 'fuera_de_servicio', %s, now())",
-            (habitacion_id, establecimiento_id, tipo, capacidad, motivo),
+            "id, establecimiento_id, tipo, capacidad, estado_operativo"
+            ") VALUES (%s, %s, %s, %s, 'disponible')",
+            (habitacion_id, establecimiento_id, tipo, capacidad),
         )
         creadas += 1
+
+    activadas = activar_inventario_real(conexion)
 
     sinteticas_retiradas = 0
     if retirar_sinteticas:
         retiro = retirar_inventario_ajeno(conexion)
-        sinteticas_retiradas = retiro["fuera_de_servicio"] + retiro["eliminadas"]
+        sinteticas_retiradas = retiro["eliminadas"]
 
     return {
         "creadas": creadas,
         "omitidas": omitidas,
+        "activadas": activadas["activadas"],
         "sinteticas_retiradas": sinteticas_retiradas,
         "paquete_fecha": datos.get("paquete_fecha"),
     }
 
 
-def retirar_inventario_ajeno(conexion) -> dict:
-    """Saca de operación todo lo que no sea HAB-01..17.
+def activar_inventario_real(conexion) -> dict:
+    """Reincorpora HAB-01..17 si quedaron fuera_de_servicio por la carga B1."""
+    ids = list(IDS_INVENTARIO_REAL)
+    filas = conexion.execute(
+        "UPDATE habitaciones SET estado_operativo = 'disponible', "
+        "motivo_fuera_de_servicio = NULL, fuera_de_servicio_desde = NULL "
+        "WHERE id = ANY(%s) AND estado_operativo = 'fuera_de_servicio' "
+        "RETURNING id",
+        (ids,),
+    ).fetchall()
+    return {"activadas": len(filas), "ids": [f[0] for f in filas]}
 
-    - Sin reservas/tarifas/cargos referenciados → DELETE (deja de aparecer).
-    - Con historial → `fuera_de_servicio` permanente (no oferta).
-    """
-    filas = conexion.execute("SELECT id, estado_operativo FROM habitaciones FOR UPDATE").fetchall()
+
+def _purgar_dependencias(conexion, habitacion_id: str) -> None:
+    """Borra historial operativo que impide DELETE de la habitación ajena."""
+    reserva_ids = [
+        f[0]
+        for f in conexion.execute(
+            "SELECT id FROM reservas WHERE habitacion_id = %s", (habitacion_id,)
+        ).fetchall()
+    ]
+    if reserva_ids:
+        conexion.execute(
+            "UPDATE solicitudes SET reserva_id = NULL WHERE reserva_id = ANY(%s)",
+            (reserva_ids,),
+        )
+        conexion.execute("DELETE FROM liquidaciones WHERE reserva_id = ANY(%s)", (reserva_ids,))
+        conexion.execute("DELETE FROM pagos WHERE reserva_id = ANY(%s)", (reserva_ids,))
+        conexion.execute("DELETE FROM cargos WHERE reserva_id = ANY(%s)", (reserva_ids,))
+        conexion.execute("DELETE FROM reservas WHERE id = ANY(%s)", (reserva_ids,))
+    conexion.execute("DELETE FROM solicitudes WHERE habitacion_id = %s", (habitacion_id,))
+    conexion.execute("DELETE FROM tarifas WHERE habitacion_id = %s", (habitacion_id,))
+    conexion.execute("DELETE FROM tareas_operativas WHERE habitacion_id = %s", (habitacion_id,))
+
+
+def retirar_inventario_ajeno(conexion) -> dict:
+    """Elimina todo lo que no sea HAB-01..17 (incl. historial que las retenía)."""
+    filas = conexion.execute("SELECT id FROM habitaciones FOR UPDATE").fetchall()
     eliminadas: list[str] = []
-    fuera: list[str] = []
-    for habitacion_id, estado in filas:
+    for (habitacion_id,) in filas:
         if es_id_inventario_real(habitacion_id):
             continue
-        refs = conexion.execute(
-            "SELECT "
-            "(SELECT count(*) FROM reservas WHERE habitacion_id = %s) + "
-            "(SELECT count(*) FROM tarifas WHERE habitacion_id = %s) + "
-            "(SELECT count(*) FROM tareas_operativas WHERE habitacion_id = %s) + "
-            "(SELECT count(*) FROM solicitudes WHERE habitacion_id = %s)",
-            (habitacion_id, habitacion_id, habitacion_id, habitacion_id),
-        ).fetchone()[0]
-        if refs == 0:
-            conexion.execute("DELETE FROM habitaciones WHERE id = %s", (habitacion_id,))
-            eliminadas.append(habitacion_id)
-            continue
-        if estado != "fuera_de_servicio":
-            motivo = MOTIVO_SINTETICO if str(habitacion_id).startswith("HAB-SINT-") else MOTIVO_AJENA
-            conexion.execute(
-                "UPDATE habitaciones SET estado_operativo = 'fuera_de_servicio', "
-                "motivo_fuera_de_servicio = %s, fuera_de_servicio_desde = now() "
-                "WHERE id = %s",
-                (motivo, habitacion_id),
-            )
-        fuera.append(habitacion_id)
+        _purgar_dependencias(conexion, habitacion_id)
+        conexion.execute("DELETE FROM habitaciones WHERE id = %s", (habitacion_id,))
+        eliminadas.append(habitacion_id)
     return {
         "eliminadas": len(eliminadas),
-        "fuera_de_servicio": len(fuera),
+        "fuera_de_servicio": 0,
         "ids_eliminadas": eliminadas,
-        "ids_fuera_de_servicio": fuera,
+        "ids_fuera_de_servicio": [],
     }

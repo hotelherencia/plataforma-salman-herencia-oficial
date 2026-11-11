@@ -163,7 +163,9 @@ export default function Cuenta() {
               {claveCambiando ? 'Cambiando…' : 'Cambiar clave'}
             </button>
           </form>
-          <p className="nota-clave nota-tecnica">Clave: <code>{claveCambio}</code></p>
+          <p className="nota-clave nota-tecnica">
+            Clave de idempotencia (reintenta con la misma para no duplicar): <code>{claveCambio}</code>
+          </p>
           {claveOk && <p role="status" className="aviso-ok">{claveOk}</p>}
           {claveError && <p role="alert" className="alerta">{claveError}</p>}
         </section>

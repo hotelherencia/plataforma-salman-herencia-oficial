@@ -213,17 +213,22 @@ def fijar_servicio_habitacion(
 
 @router.get("/hotel/ocupacion")
 def consultar_ocupacion(
+    request: Request,
     desde: date | None = None,
     hasta: date | None = None,
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
     """Estado por habitación y noche (spec-hotel-operacion-v1 §5); por
-    defecto las 14 noches desde hoy (fecha del servidor)."""
+    defecto las 14 noches desde hoy (fecha del servidor).
+    En titular solo HAB-01..17."""
     hoy = date.today()
     desde = desde or hoy
     hasta = hasta or desde + timedelta(days=14)
-    return panel.ocupacion(conexion, sesion.empresa_id, desde, hasta, hoy)
+    solo_reales = not request.app.state.aplicacion.nucleo.empresa.es_sintetico
+    return panel.ocupacion(
+        conexion, sesion.empresa_id, desde, hasta, hoy, solo_inventario_real=solo_reales
+    )
 
 
 @router.get("/hotel/documental/resumen")
@@ -297,6 +302,7 @@ def documental_tabla(
 
 @router.get("/hotel/indicadores")
 def consultar_indicadores(
+    request: Request,
     desde: date | None = None,
     hasta: date | None = None,
     tipo: str | None = Query(default=None, max_length=50),
@@ -309,8 +315,17 @@ def consultar_indicadores(
     hoy = date.today()
     desde = desde or hoy
     hasta = hasta or desde + timedelta(days=1)
-    return panel.indicadores(conexion, sesion.empresa_id, desde, hasta, hoy, tipo or None,
-                             incluir_financiero=sesion.rol == "administrador")
+    solo_reales = not request.app.state.aplicacion.nucleo.empresa.es_sintetico
+    return panel.indicadores(
+        conexion,
+        sesion.empresa_id,
+        desde,
+        hasta,
+        hoy,
+        tipo or None,
+        incluir_financiero=sesion.rol == "administrador",
+        solo_inventario_real=solo_reales,
+    )
 
 @router.post("/hotel/reservas")
 def confirmar_reserva(

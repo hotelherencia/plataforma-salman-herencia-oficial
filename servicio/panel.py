@@ -36,15 +36,26 @@ def _fecha_local(instante) -> date:
     return instante.astimezone().date()
 
 
-def _habitaciones(conexion: psycopg.Connection, tipo: str | None) -> list[dict]:
+def _habitaciones(
+    conexion: psycopg.Connection,
+    tipo: str | None,
+    *,
+    solo_inventario_real: bool = False,
+) -> list[dict]:
     consulta = (
         "SELECT id, tipo, capacidad, estado_operativo, estado_preparacion, mantenimiento, creado_en "
         "FROM habitaciones"
     )
     parametros: list = []
+    filtros: list[str] = []
     if tipo:
-        consulta += " WHERE tipo = %s"
+        filtros.append("tipo = %s")
         parametros.append(tipo)
+    if solo_inventario_real:
+        # HAB-01..17 únicamente (titular). Coincide con inventario_documental._RE_HAB_REAL.
+        filtros.append("id ~ '^HAB-(0[1-9]|1[0-7])$'")
+    if filtros:
+        consulta += " WHERE " + " AND ".join(filtros)
     return [
         {
             "habitacion_id": f[0],
@@ -104,10 +115,18 @@ def _motivo_no_vendible(habitacion: dict) -> str | None:
     return None
 
 
-def ocupacion(conexion: psycopg.Connection, empresa_id: str, desde: date, hasta: date, hoy: date) -> dict:
+def ocupacion(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    desde: date,
+    hasta: date,
+    hoy: date,
+    *,
+    solo_inventario_real: bool = False,
+) -> dict:
     """Estado de cada (habitación, noche) según spec-hotel-operacion-v1 §5."""
     noches = validar_periodo(desde, hasta, MAX_NOCHES_OCUPACION)
-    habitaciones = _habitaciones(conexion, None)
+    habitaciones = _habitaciones(conexion, None, solo_inventario_real=solo_inventario_real)
     reservas = _reservas_del_periodo(conexion, empresa_id, desde, hasta, [h["habitacion_id"] for h in habitaciones])
     tarifas = tarifas_por_noche(conexion, desde, hasta)
     resumen = {n: {"fecha": n.isoformat(), "disponibles": 0, "ocupadas_cupo": 0, "no_vendibles": 0} for n in noches}
@@ -196,12 +215,14 @@ NO_DISPONIBLES = [
 def indicadores(
     conexion: psycopg.Connection, empresa_id: str, desde: date, hasta: date, hoy: date,
     tipo: str | None = None, incluir_financiero: bool = False,
+    *,
+    solo_inventario_real: bool = False,
 ) -> dict:
     """Panel operativo (spec-hotel-operacion-v1 §4). El indicador financiero
     `ingresos_periodo_clp` se incluye solo cuando `incluir_financiero`
     (D-ROL-01 RATIFICADA 2026-11-06, #297 opción a: solo administrador)."""
     noches = validar_periodo(desde, hasta, MAX_NOCHES_INDICADORES)
-    habitaciones = _habitaciones(conexion, tipo)
+    habitaciones = _habitaciones(conexion, tipo, solo_inventario_real=solo_inventario_real)
     ids = [h["habitacion_id"] for h in habitaciones]
 
     # --- Situación de hoy (§4.2) ---
