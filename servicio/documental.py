@@ -371,6 +371,51 @@ def listar_control_ocupacion(conexion) -> list[dict]:
     ]
 
 
+def serie_ocupacion_mensual(conexion) -> dict:
+    """Serie mensual documental para lectura analítica (no es panel KPI).
+
+    El ZIP GENERAL_DEPURADO solo trae 2026 (ene–dic). No hay años previos.
+    `unidad_confirmada` vacía → no se puede promover a ocupación oficial,
+    ADR ni RevPAR. Nov/dic tienen celdas nulas a propósito (no imputar 0).
+    """
+    filas = conexion.execute(
+        "SELECT periodo, "
+        "count(*) AS celdas, "
+        "count(valor_reportado) AS con_valor, "
+        "count(*) FILTER (WHERE valor_reportado IS NULL) AS nulos, "
+        "coalesce(sum(valor_reportado), 0) AS suma_valores, "
+        "min(interpretacion_propuesta) AS interpretacion "
+        "FROM doc_ocupacion_reportada "
+        "GROUP BY periodo ORDER BY periodo"
+    ).fetchall()
+    anios = sorted({(p[0] or "")[:4] for p in filas if p[0]})
+    serie = [
+        {
+            "periodo": f[0],
+            "celdas": f[1],
+            "con_valor": f[2],
+            "nulos": f[3],
+            "suma_valores_reportados": float(f[4]) if f[4] is not None else 0.0,
+            "interpretacion_propuesta": f[5],
+            "es_kpi": False,
+        }
+        for f in filas
+    ]
+    return {
+        "es_kpi": False,
+        "anios_en_paquete": anios,
+        "anios_previos_en_paquete": [],
+        "aviso": (
+            "Histórico documental 2026 únicamente. Valores = observación reportada "
+            "(NOCHES_OCUPADAS_POR_CONFIRMAR); no son KPI de /hotel/ocupacion ni ADR/RevPAR. "
+            "No hay ocupación de años anteriores en el ZIP. "
+            "Las tarifas documentales no tienen vigencia → no son oferta."
+        ),
+        "serie_mensual": serie,
+        "control": listar_control_ocupacion(conexion),
+    }
+
+
 def listar_tabla(conexion, tabla: str, limite: int = 500) -> dict:
     if tabla in ("habitaciones", "tarifas_declaradas", "ocupacion_reportada", "control_ocupacion"):
         raise ValueError("use el endpoint tipado de esa tabla")

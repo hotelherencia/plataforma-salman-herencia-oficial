@@ -2,7 +2,12 @@
 import unittest
 from pathlib import Path
 
-from servicio.inventario_documental import cargar_lote, ruta_lote, sembrar_inventario_documental
+from servicio.inventario_documental import (
+    cargar_lote,
+    es_id_inventario_real,
+    ruta_lote,
+    sembrar_inventario_documental,
+)
 
 
 class InventarioDocumentalLoteTest(unittest.TestCase):
@@ -61,12 +66,18 @@ class InventarioDocumentalSiembraTest(unittest.TestCase):
             ],
         }
         conn = FakeConn()
-        r1 = sembrar_inventario_documental(conn, lote=lote, retirar_sinteticas=True)
+        r1 = sembrar_inventario_documental(conn, lote=lote, retirar_sinteticas=False)
         self.assertEqual(r1["creadas"], 1)
-        self.assertEqual(r1["sinteticas_retiradas"], 3)
         r2 = sembrar_inventario_documental(conn, lote=lote, retirar_sinteticas=False)
         self.assertEqual(r2["creadas"], 0)
         self.assertEqual(r2["omitidas"], 1)
+
+    def test_solo_hab_01_a_17_son_inventario_real(self):
+        self.assertTrue(es_id_inventario_real("HAB-01"))
+        self.assertTrue(es_id_inventario_real("HAB-17"))
+        self.assertFalse(es_id_inventario_real("HAB-18"))
+        self.assertFalse(es_id_inventario_real("HAB-101"))
+        self.assertFalse(es_id_inventario_real("HAB-SINT-101"))
 
 
 if __name__ == "__main__":

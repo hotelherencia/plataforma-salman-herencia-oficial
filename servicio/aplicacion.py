@@ -114,12 +114,16 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
             agente.asegurar_agente_servicio(conexion, aplicacion.nucleo.empresa.id)
             if config.admin_email and config.admin_usuario:
                 seguridad.vincular_email(conexion, config.admin_usuario, config.admin_email)
-            reservas_db.sembrar_habitaciones(conexion)
+            # HAB-SINT solo en núcleo sintético de pruebas. En titular real
+            # el inventario operativo son HAB-01..17 (documental); el resto se retira.
+            if aplicacion.nucleo.empresa.es_sintetico:
+                reservas_db.sembrar_habitaciones(conexion)
             if config.inventario_documental and not aplicacion.nucleo.empresa.es_sintetico:
                 inventario_documental.sembrar_inventario_documental(
                     conexion,
                     establecimiento_id=inventario_documental.ESTABLECIMIENTO_HERENCIA,
                 )
+                inventario_documental.retirar_inventario_ajeno(conexion)
                 documental.sembrar_paquete_documental(conexion)
             conexion.commit()
     except RuntimeError as error:

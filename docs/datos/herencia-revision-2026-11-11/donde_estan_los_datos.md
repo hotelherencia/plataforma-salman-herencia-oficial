@@ -9,7 +9,7 @@ Fecha de este corte: 2026-11-11. Medición de producción y del repo en la misma
 | Empresa Herencia SpA / RUT | **No** — `GET /salud` → `EMP-SINTETICA-001` | Código `servicio/empresa_titular.py` + docs; falta `EMPRESA_TITULAR=1` en Railway |
 | HAB-01…17 (tipos, capacidad propuesta) | **No** | JSON en git: `lote_b1_…` y `servicio/datos/documental/paquete_2026-11-11.json` |
 | Precios / tarifas | **No** (tampoco como tarifa operativa) | 5 filas documentales en el paquete; `aprobada_2027=false`, sin vigencia |
-| Histórico ocupación 2026 (204 celdas) | **No** (hasta redespliegue) | Tras `0018` + siembra: `doc_ocupacion_reportada` vía `GET /hotel/documental/ocupacion`. El panel `/hotel/ocupacion` sigue siendo solo reservas reales |
+| Histórico ocupación 2026 (204 celdas) | Tras redespliegue titular | `GET /hotel/documental/ocupacion` + serie mensual `/hotel/documental/ocupacion/serie`. **Solo 2026**; sin años previos en el ZIP. `es_kpi=false`. Ver `interpretacion_historico.md` |
 | Condiciones, textiles, insumos, pendientes… | **No** (hasta redespliegue) | `doc_registro` + `GET /hotel/documental/tablas/{nombre}` |
 
 **BD local del `.env` (aplicado 2026-11-11):** migraciones **18**, empresa

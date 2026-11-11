@@ -15,6 +15,7 @@ from .. import canal_publico
 from .. import cobro
 from .. import documental
 from .. import idempotencia
+from .. import inventario_documental
 from .. import leads as leads_mod
 from .. import recaptcha
 from .. import panel
@@ -31,6 +32,7 @@ router = APIRouter()
 
 @router.put("/hotel/habitaciones/{habitacion_id}")
 def definir_habitacion(
+    request: Request,
     habitacion: HabitacionIn,
     habitacion_id: str = RutaParam(pattern=PATRON_ID_HABITACION),
     idempotency_key: str | None = Header(default=None),
@@ -41,6 +43,15 @@ def definir_habitacion(
     """Alta o edición (spec-hotel-operacion-v1 §2.2–2.3). Con
     `If-None-Match: *` solo crea: una habitación existente responde 409."""
     comun.exigir_admin(sesion)
+    # Titular: no se pueden crear/editar ids fuera de HAB-01..17.
+    if (
+        not request.app.state.aplicacion.nucleo.empresa.es_sintetico
+        and not inventario_documental.es_id_inventario_real(habitacion_id)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="solo HAB-01..17 forman el inventario real del titular",
+        )
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     solo_crear = (if_none_match or "").strip() == "*"
     cuerpo = {"habitacion_id": habitacion_id, "solo_crear": solo_crear, **json.loads(habitacion.model_dump_json())}
@@ -128,13 +139,20 @@ def consultar_oferta(
 
 @router.get("/hotel/habitaciones")
 def listar_habitaciones(
+    request: Request,
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
     """Inventario operativo (spec-api-v1, 2026-11-03): estado, preparación,
     mantenimiento y tareas pendientes por unidad. Lectura para cualquier
-    rol de la sesión; las mutaciones conservan sus reglas de rol."""
-    return {"habitaciones": reservas_db.listar_habitaciones(conexion)}
+    rol de la sesión; las mutaciones conservan sus reglas de rol.
+    En titular solo HAB-01..17 (inventario documental 2026-11-11)."""
+    habitaciones = reservas_db.listar_habitaciones(conexion)
+    if not request.app.state.aplicacion.nucleo.empresa.es_sintetico:
+        habitaciones = [
+            h for h in habitaciones if inventario_documental.es_id_inventario_real(h["id"])
+        ]
+    return {"habitaciones": habitaciones}
 
 @router.get("/hotel/habitaciones/{habitacion_id}")
 def ficha_habitacion(
@@ -251,6 +269,15 @@ def documental_control_ocupacion(
     conexion=Depends(comun.conexion),
 ) -> dict:
     return {"control": documental.listar_control_ocupacion(conexion), "es_kpi": False}
+
+
+@router.get("/hotel/documental/ocupacion/serie")
+def documental_ocupacion_serie(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Serie mensual del ZIP (ciencia de datos documental, no KPI operativo)."""
+    return documental.serie_ocupacion_mensual(conexion)
 
 
 @router.get("/hotel/documental/tablas/{tabla}")
