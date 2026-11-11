@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 
-const BASE = process.env.API_BASE_URL
+// Contención: si el build no inyecta API_BASE_URL, el proxy same-origin /api
+// es el contrato de producción (Vercel → Railway). Vacío rompía /sesion.
+const BASE = (process.env.API_BASE_URL || '/api').replace(/\/$/, '')
+const SESION_TIMEOUT_MS = 12000
 
 export class ApiCaida extends Error {}
 
@@ -12,7 +15,7 @@ export function urlApi(ruta) {
 }
 
 /** Cliente HTTP del front: solo habla con API_BASE_URL y jamás calcula negocio. */
-export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cabeceras: extra } = {}) {
+export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cabeceras: extra, timeoutMs } = {}) {
   const cabeceras = { ...(extra || {}) }
   let cuerpoSerializado
   if (cuerpo !== undefined) {
@@ -20,6 +23,9 @@ export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cab
     cuerpoSerializado = JSON.stringify(cuerpo)
   }
   if (claveIdempotencia) cabeceras['Idempotency-Key'] = claveIdempotencia
+  const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const ms = timeoutMs ?? (ruta === '/sesion' && metodo === 'GET' ? SESION_TIMEOUT_MS : undefined)
+  const timer = ms && ac ? setTimeout(() => ac.abort(), ms) : null
   let respuesta
   try {
     respuesta = await fetch(BASE + ruta, {
@@ -27,9 +33,12 @@ export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cab
       headers: cabeceras,
       body: cuerpoSerializado,
       credentials: 'include',
+      signal: ac ? ac.signal : undefined,
     })
   } catch (error) {
     throw new ApiCaida('la API no responde')
+  } finally {
+    if (timer) clearTimeout(timer)
   }
   const texto = await respuesta.text()
   let datos = {}
@@ -58,7 +67,11 @@ export function refrescarSesion() {
   if (!promesaSesion) {
     promesaSesion = api('/sesion')
       .then((r) => {
-        cacheSesion = r.estado === 200 ? { fase: 'ok', usuario: r.datos } : { fase: 'fuera', usuario: null }
+        // 401/403 sin sid usable = fuera (pantalla de acceso). Solo caídas
+        // de red/timeout marcan «API no disponible».
+        if (r.estado === 200) cacheSesion = { fase: 'ok', usuario: r.datos }
+        else if (r.estado === 401 || r.estado === 403) cacheSesion = { fase: 'fuera', usuario: null }
+        else cacheSesion = { fase: 'caida', usuario: null }
       })
       .catch(() => {
         cacheSesion = { fase: 'caida', usuario: null }
