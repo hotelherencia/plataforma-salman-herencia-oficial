@@ -12,7 +12,15 @@ Fecha de este corte: 2026-11-11. Medición de producción y del repo en la misma
 | Histórico ocupación 2026 (204 celdas) | **No** (hasta redespliegue) | Tras `0018` + siembra: `doc_ocupacion_reportada` vía `GET /hotel/documental/ocupacion`. El panel `/hotel/ocupacion` sigue siendo solo reservas reales |
 | Condiciones, textiles, insumos, pendientes… | **No** (hasta redespliegue) | `doc_registro` + `GET /hotel/documental/tablas/{nombre}` |
 
-Producción al medir este informe: `migraciones: 16`, empresa sintética. En el repo ya están `0017` (titular), `0018` (documental) y el JSON embebido `servicio/datos/documental/paquete_2026-11-11.json` (todas las tablas del ZIP).
+**BD local del `.env` (aplicado 2026-11-11):** migraciones **18**, empresa
+`EMP-HERENCIA-001` / Herencia SpA, `doc_*` cargado (17 hab., 5 tarifas, 204
+ocupación, 1007 registros), HAB-01..17 operativas en `fuera_de_servicio`,
+API local `http://127.0.0.1:8080` con `/hotel/documental/*` respondiendo.
+
+Scripts: `scripts/aplicar_documental_wsl.sh`, `scripts/arrancar_servicio_wsl.sh`.
+
+Producción Railway: el token del `.env` no autorizó el CLI; allí aún hay que
+redesplegar con las mismas variables cuando el token/proyecto lo permitan.
 
 ## Tres capas (no confundir)
 

@@ -59,12 +59,12 @@ def _bool(valor):
 
 
 def _clave(tabla: str, fila: dict, idx: int) -> str:
+    # IDs específicos primero: habitacion_id se repite en condiciones (442 filas).
     for cand in (
-        "habitacion_id",
-        "tarifa_id",
-        "registro_id",
         "observacion_id",
         "textil_registro_id",
+        "tarifa_id",
+        "registro_id",
         "proveedor_id",
         "politica_id",
         "pendiente_id",
@@ -74,7 +74,10 @@ def _clave(tabla: str, fila: dict, idx: int) -> str:
         "fuente_id",
         "activo_digital_id",
         "servicio_id",
+        "activo_id",
+        "insumo_id",
         "periodo",
+        "habitacion_id",
     ):
         if fila.get(cand):
             return str(fila[cand])
@@ -201,7 +204,7 @@ def sembrar_paquete_documental(conexion, paquete: dict | None = None) -> dict:
         for i, fila in enumerate(bloque.get(tabla) or []):
             conexion.execute(
                 "INSERT INTO doc_registro (paquete_id, tabla, clave, payload) "
-                "VALUES (%s,%s,%s,%s::jsonb)",
+                "VALUES (%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING",
                 (pid, tabla, _clave(tabla, fila, i), json.dumps(fila, ensure_ascii=False)),
             )
             n_reg += 1
