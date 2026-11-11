@@ -511,15 +511,23 @@ local, pero **no deben activarse en producción** hasta que el propietario
 complete (todo requiere su decisión o sus datos reales):
 
 - [ ] Deploy Railway del lote actual aprobado (sección anterior).
-- [ ] **Empresa real**: alta y configuración del establecimiento real (hoy
-      `GET /salud` responde `EMP-SINTETICA-001`: una solicitud pública
-      persistiría en el tenant sintético). Giro aportado el 2026-11-09,
-      inicio 27-02-2017, rubro de alojamiento y servicio de comidas:
-      `551001` hoteles y `561000` restaurantes. Siguen faltando la razón
-      social y el RUT; el identificador del núcleo no cambia hasta entonces.
-- [ ] **Habitaciones y tarifas reales** cargadas por el propietario (el
-      siembra sintético no se ofrece al público: sin tarifa no hay oferta).
-      Ver «Inventario real (V1-ISSUE-41)» más abajo.
+- [ ] **Empresa real**: titular aportado el 2026-11-10 — razón social
+      **Herencia SpA**, RUT **76.707.504-9**, domicilio legal 5 de Abril 441,
+      oficina 3, Chillán, Región de Ñuble (misma ficha que la política
+      `2026-11-10-aviso-02`). Giro (2026-11-09): inicio 27-02-2017, rubros
+      `551001` hoteles y `561000` restaurantes. En Railway hay que fijar
+      `EMPRESA_TITULAR=1` (o `EMPRESA_ID=EMP-HERENCIA-001`,
+      `EMPRESA_NOMBRE=Herencia SpA`, `EMPRESA_RUT=76.707.504-9`,
+      `EMPRESA_ES_SINTETICA=0`) y redesplegar para que `GET /salud` deje de
+      devolver `EMP-SINTETICA-001`. La migración `0017_empresa_titular`
+      reetiqueta el tenant en la base.
+- [ ] **Habitaciones y tarifas reales** (V1-ISSUE-41): con
+      `INVENTARIO_DOCUMENTAL=1` (y titular activo) el arranque siembra
+      HAB-01..17 como `fuera_de_servicio` desde
+      `docs/datos/herencia-revision-2026-11-11/lote_b1_inventario_propuesto.json`
+      (capacidad propuesta desde tipo; sin tarifas → no oferta pública).
+      El dueño verifica capacidad (sobre todo HAB-08/16 «Matrimonial +1»),
+      pone en servicio y carga tarifas con vigencia. Ver sección inventario.
 - [ ] **ORIGEN_LANDING=https://hotelherencia.cl** en las variables de Railway
       (sin ella la landing no tiene CORS hacia `/publico/*`).
 - [ ] **Política de respaldo y datos personales** (Q-CORE-03, Ley 21.719):

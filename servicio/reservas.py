@@ -80,7 +80,12 @@ def sembrar_habitaciones(conexion: psycopg.Connection) -> None:
 
 
 def guardar_habitacion(
-    conexion: psycopg.Connection, habitacion_id: str, tipo: str, capacidad: int, solo_crear: bool = False
+    conexion: psycopg.Connection,
+    habitacion_id: str,
+    tipo: str,
+    capacidad: int,
+    solo_crear: bool = False,
+    establecimiento_id: str = ESTABLECIMIENTO_SINTETICO,
 ) -> dict:
     """Alta o edición de tipo y capacidad (spec-hotel-operacion-v1 §2.2–2.3).
 
@@ -93,7 +98,7 @@ def guardar_habitacion(
     if actual is None:
         conexion.execute(
             "INSERT INTO habitaciones (id, establecimiento_id, tipo, capacidad) VALUES (%s, %s, %s, %s)",
-            (habitacion_id, ESTABLECIMIENTO_SINTETICO, tipo, capacidad),
+            (habitacion_id, establecimiento_id, tipo, capacidad),
         )
         return {"creada": True, "cambios": {"tipo": [None, tipo], "capacidad": [None, capacidad]}}
     if solo_crear:

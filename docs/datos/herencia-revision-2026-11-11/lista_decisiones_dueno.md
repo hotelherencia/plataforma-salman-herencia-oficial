@@ -20,25 +20,27 @@ Convención de `habitaciones.id` para las 17 unidades documentales:
 
 Completar solo tras verificación (no inferir de «Matrimonial +1»).
 
-| id documental | numero | tipo_declarado ZIP | tipo Salman acordado | capacidad (≥1) | apta venta (sí/no) | notas camas/baño |
+Propuesta en `lote_b1_inventario_propuesto.json` (siembra borrador). Confirmar o corregir:
+
+| id documental | numero | tipo_declarado ZIP | tipo Salman propuesto | capacidad propuesta | apta venta tras verificar | notas |
 |---|---|---|---|---|---|---|
-| HAB-01 | 1 | Matrimonial | | | | |
-| HAB-02 | 2 | Matrimonial | | | | |
-| HAB-03 | 3 | Doble | | | | |
-| HAB-04 | 4 | Matrimonial | | | | |
-| HAB-05 | 5 | Doble | | | | |
-| HAB-06 | 6 | Matrimonial | | | | |
-| HAB-07 | 7 | Single | | | | |
-| HAB-08 | 8 | Matrimonial +1 | | | | |
-| HAB-09 | 9 | Matrimonial | | | | |
-| HAB-10 | 10 | Matrimonial | | | | |
-| HAB-11 | 11 | Doble | | | | |
-| HAB-12 | 12 | Matrimonial | | | | |
-| HAB-13 | 13 | Matrimonial | | | | |
-| HAB-14 | 14 | Doble | | | | |
-| HAB-15 | 15 | Matrimonial | | | | |
-| HAB-16 | 16 | Matrimonial +1 | | | | |
-| HAB-17 | 17 | Triple | | | | |
+| HAB-01 | 1 | Matrimonial | matrimonial | 2 | no hasta tarifa+servicio | |
+| HAB-02 | 2 | Matrimonial | matrimonial | 2 | no | |
+| HAB-03 | 3 | Doble | doble | 2 | no | |
+| HAB-04 | 4 | Matrimonial | matrimonial | 2 | no | |
+| HAB-05 | 5 | Doble | doble | 2 | no | |
+| HAB-06 | 6 | Matrimonial | matrimonial | 2 | no | |
+| HAB-07 | 7 | Single | single | 1 | no | |
+| HAB-08 | 8 | Matrimonial +1 | matrimonial_mas_1 | 3 (R02) | no | **verificar capacidad** |
+| HAB-09 | 9 | Matrimonial | matrimonial | 2 | no | |
+| HAB-10 | 10 | Matrimonial | matrimonial | 2 | no | |
+| HAB-11 | 11 | Doble | doble | 2 | no | |
+| HAB-12 | 12 | Matrimonial | matrimonial | 2 | no | |
+| HAB-13 | 13 | Matrimonial | matrimonial | 2 | no | |
+| HAB-14 | 14 | Doble | doble | 2 | no | |
+| HAB-15 | 15 | Matrimonial | matrimonial | 2 | no | |
+| HAB-16 | 16 | Matrimonial +1 | matrimonial_mas_1 | 3 (R02) | no | **verificar capacidad** |
+| HAB-17 | 17 | Triple | triple | 3 | no | |
 
 **Retiro HAB-SINT-101..103 de oferta:** _[ ] fuera_de_servicio  [ ] quitar tarifa  [ ] ambos_
 

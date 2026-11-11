@@ -669,7 +669,10 @@ revisión trimestral de versiones fijadas.
 - El propietario aportó el giro registrado en el SII, inicio 27-02-2017,
   rubro «Actividades de alojamiento y de servicio de comidas»:
   `551001` hoteles y `561000` restaurantes y servicio móvil de comidas.
-- Eso no reemplaza `EMP-SINTETICA-001`. Faltan la razón social, el RUT,
+- Eso no reemplaza solo el giro: el titular aportado el 2026-11-10 es
+  Herencia SpA, RUT 76.707.504-9 (política aviso-02). Falta activar
+  `EMPRESA_TITULAR=1` en Railway y redesplegar para dejar
+  `EMP-SINTETICA-001`. Pendiente también:
   las habitaciones y las tarifas reales. La actividad `561000` no abre
   la vertical de cafetería.
 

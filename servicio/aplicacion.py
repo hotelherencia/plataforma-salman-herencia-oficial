@@ -24,6 +24,12 @@ from hotel_inventario.servicio import ServicioHotelInventario  # noqa: E402
 from nucleo.servicio import Nucleo  # noqa: E402
 
 from .configuracion import Configuracion, cargar_desde_entorno  # noqa: E402
+from .empresa_titular import (  # noqa: E402
+    EMPRESA_TITULAR,
+    EMPRESA_TITULAR_MARCA,
+    EMPRESA_TITULAR_RUT,
+)
+from . import inventario_documental  # noqa: E402
 from .migracion import aplicar_migraciones  # noqa: E402
 from . import seguridad  # noqa: E402
 from . import idempotencia  # noqa: E402
@@ -34,6 +40,7 @@ from . import panel  # noqa: E402
 from . import canal_publico  # noqa: E402
 from . import agente  # noqa: E402
 from .modelo_lenguaje import ModeloGuionado, NoConfigurado, SinAdaptador  # noqa: E402
+from nucleo.empresa import Empresa  # noqa: E402
 
 NOMBRE_COOKIE_SESION = "sid"
 
@@ -54,11 +61,37 @@ def construir_hotel(nucleo: Nucleo, establecimiento: Establecimiento, unidades: 
     return ServicioHotelInventario(establecimiento, unidades, empresa=nucleo.empresa)
 
 
+def empresa_desde_config(config: Configuracion | None) -> Empresa:
+    """Resuelve la empresa del núcleo: titular real si el despliegue lo pide;
+    si no, el marcador sintético de las pruebas."""
+    if config is None:
+        return Nucleo().empresa
+    if config.empresa_titular or config.empresa_id or config.empresa_nombre:
+        if config.empresa_titular and not config.empresa_id and not config.empresa_nombre:
+            return EMPRESA_TITULAR
+        sintetica = (
+            bool(config.empresa_es_sintetica)
+            if config.empresa_es_sintetica is not None
+            else False
+        )
+        return Empresa(
+            id=(config.empresa_id or EMPRESA_TITULAR.id).strip(),
+            nombre=(config.empresa_nombre or EMPRESA_TITULAR.nombre).strip(),
+            es_sintetico=sintetica,
+        )
+    return Nucleo().empresa
+
+
 def construir_aplicacion(nucleo: Nucleo | None = None) -> Aplicacion:
     nucleo = nucleo or Nucleo()
-    establecimiento = Establecimiento(
-        id="EST-SINT-001", empresa_id=nucleo.empresa.id, nombre="Hotel Herencia sintético"
-    )
+    if nucleo.empresa.es_sintetico:
+        establecimiento = Establecimiento(
+            id="EST-SINT-001", empresa_id=nucleo.empresa.id, nombre="Hotel Herencia sintético"
+        )
+    else:
+        establecimiento = Establecimiento(
+            id="EST-HERENCIA-001", empresa_id=nucleo.empresa.id, nombre=EMPRESA_TITULAR_MARCA
+        )
     unidades = tuple(
         Unidad(f"HAB-SINT-10{n}", establecimiento.id, 2, 50_000, EstadoUnidad.LIMPIA) for n in range(1, 4)
     )
@@ -80,6 +113,11 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
             if config.admin_email and config.admin_usuario:
                 seguridad.vincular_email(conexion, config.admin_usuario, config.admin_email)
             reservas_db.sembrar_habitaciones(conexion)
+            if config.inventario_documental and not aplicacion.nucleo.empresa.es_sintetico:
+                inventario_documental.sembrar_inventario_documental(
+                    conexion,
+                    establecimiento_id=inventario_documental.ESTABLECIMIENTO_HERENCIA,
+                )
             conexion.commit()
     except RuntimeError as error:
         raise ErrorArranque(str(error))
@@ -102,7 +140,8 @@ from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
-    aplicacion = aplicacion or construir_aplicacion()
+    if aplicacion is None:
+        aplicacion = construir_aplicacion(nucleo=Nucleo(empresa=empresa_desde_config(configuracion)))
     app = FastAPI(title="plataforma-salman-herencia-api", version="0.1.0")
     app.add_middleware(canal_publico.TopeCuerpoPublico)
     app.state.aplicacion = aplicacion
@@ -238,11 +277,20 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
     @app.get("/salud")
     def salud() -> dict:
+        empresa = aplicacion.nucleo.empresa
+        rut = None
+        if configuracion is not None and configuracion.empresa_rut:
+            rut = configuracion.empresa_rut
+        elif not empresa.es_sintetico and empresa.id == EMPRESA_TITULAR.id:
+            rut = EMPRESA_TITULAR_RUT
         return {
             "estado": "ok",
             "nucleo": "cargado",
             "hotel": "cargado",
-            "empresa": aplicacion.nucleo.empresa.id,
+            "empresa": empresa.id,
+            "empresa_nombre": empresa.nombre,
+            "empresa_rut": rut,
+            "es_sintetica": empresa.es_sintetico,
         }
 
     @app.get("/readiness")

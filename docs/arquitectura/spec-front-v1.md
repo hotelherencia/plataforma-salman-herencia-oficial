@@ -87,9 +87,11 @@ recalcula ninguno; las acciones que el rol no puede ejecutar no se muestran.
    confirma la estadía.
 2. `/privacidad` — política de tratamiento, pública y sin sesión. El
    responsable es Herencia SpA, RUT 76.707.504-9, domicilio 5 de Abril 441,
-   oficina 3, Chillán, Región de Ñuble. Los derechos se piden en ese domicilio
-   o al +56 9 5649 1501. La conservación dura la respuesta de la consulta y,
-   si recepción confirma, la estadía hasta el cierre de esa cuenta.
+   oficina 3, Chillán, Región de Ñuble (mismo titular que
+   `servicio/empresa_titular.py` y la landing aviso-02). Los derechos se
+   piden en ese domicilio o al +56 9 5649 1501. La conservación dura la
+   respuesta de la consulta y, si recepción confirma, la estadía hasta el
+   cierre de esa cuenta.
 3. El CTA «Consultar reserva» de la landing apunta a
    `/reservar?inicio=…&fin=…&personas=…` (deep link precargado).
 

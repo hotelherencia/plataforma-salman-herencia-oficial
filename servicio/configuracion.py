@@ -57,6 +57,15 @@ class Configuracion:
     whatsapp_verify_token: str | None = None
     whatsapp_phone_number_id: str | None = None
     recaptcha_secret_key: str | None = None
+    # Titular real (V1-ISSUE-26 / #314). Con EMPRESA_TITULAR=1 o EMPRESA_ID /
+    # EMPRESA_NOMBRE el núcleo deja de ser EMP-SINTETICA-001.
+    empresa_titular: bool = False
+    empresa_id: str | None = None
+    empresa_nombre: str | None = None
+    empresa_rut: str | None = None
+    empresa_es_sintetica: bool | None = None
+    # Carga HAB-01..17 fuera de servicio desde el lote documental (sin tarifas).
+    inventario_documental: bool = False
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -98,4 +107,14 @@ def cargar_desde_entorno() -> Configuracion:
         whatsapp_verify_token=os.environ.get("WHATSAPP_VERIFY_TOKEN"),
         whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID"),
         recaptcha_secret_key=os.environ.get("RECAPTCHA_SECRET_KEY") or None,
+        empresa_titular=os.environ.get("EMPRESA_TITULAR", "0") == "1",
+        empresa_id=os.environ.get("EMPRESA_ID") or None,
+        empresa_nombre=os.environ.get("EMPRESA_NOMBRE") or None,
+        empresa_rut=os.environ.get("EMPRESA_RUT") or None,
+        empresa_es_sintetica=(
+            None
+            if os.environ.get("EMPRESA_ES_SINTETICA") is None
+            else os.environ.get("EMPRESA_ES_SINTETICA", "0") == "1"
+        ),
+        inventario_documental=os.environ.get("INVENTARIO_DOCUMENTAL", "0") == "1",
     )

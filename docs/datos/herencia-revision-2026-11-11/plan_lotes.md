@@ -25,12 +25,16 @@ Crear (solo si hay ADR) tablas staging/mart **fuera** de las migraciones operati
 
 ## Lote B1 — Habitaciones verificadas → Salman (#336)
 
-**Entrada:** D1+D2 completas (id, tipo, capacidad, apta venta).  
-**Acción:** `PUT /hotel/habitaciones/{id}` por administrador; retirar `HAB-SINT-*` de oferta.  
-**No entra:** capacidad vacía, estado solo documental, Matrimonial +1 sin capacidad.
+**Entrada documental lista:** `lote_b1_inventario_propuesto.json` (17 unidades,
+capacidad propuesta desde tipo; HAB-08/16 marcadas R02).  
+**Carga borrador:** `INVENTARIO_DOCUMENTAL=1` + titular → siembra
+`fuera_de_servicio` sin tarifas (no oferta pública); retira `HAB-SINT-*`.  
+**Para vender:** dueño confirma D2 (capacidad), pone en servicio y aplica B2.  
+**No entra aún:** tarifas activas ni cuádruple (TAR-07).
 
-**Gates:** G0–G2, G4–G6 + cierre parcial #336.  
-**Estado:** BLOQUEADO_HASTA_DUENO.
+**Gates borrador:** G0–G1 + G4 + titular (#314).  
+**Gates oferta:** G2 + G6 + D2/D3.  
+**Estado:** BORRADOR_LISTO_PARA_SIEMBRA; oferta BLOQUEADA.
 
 ## Lote B2 — Tarifas activas → Salman (R04)
 

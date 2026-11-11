@@ -1,0 +1,975 @@
+{
+  "version": "1.0",
+  "generado_en": "2026-11-11T15:05:10Z",
+  "paquete_sha256": "71b390b2eb2288b43bea48ce6f63c2402e721bf9f053bd91fd58c0f782cff7ae",
+  "paquete_fecha": "2026-11-11",
+  "politica_carga": {
+    "habitaciones": "insertar como fuera_de_servicio; sin tarifas; no oferta publica",
+    "capacidad": "propuesta_desde_tipo; Matrimonial +1 marcada requiere verificacion R02",
+    "tarifas": "solo documental inactivo hasta D3 dueño",
+    "cuadruple": "TAR-07 no crea habitacion fisica (R01)",
+    "empresa": "requiere EMPRESA_TITULAR / EMP-HERENCIA-001"
+  },
+  "establecimiento_id_propuesto": "EST-HERENCIA-001",
+  "habitaciones": [
+    {
+      "habitacion_id": "HAB-01",
+      "numero": "1",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "Cambiar",
+        "bajada_de_cama": "2",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Colchón",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A4:B4",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-02",
+      "numero": "2",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "Cambiar",
+        "bajada_de_cama": "2",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Colchón",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A5:B5",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-03",
+      "numero": "3",
+      "tipo_documental": "Doble",
+      "tipo_salman": "doble",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-04",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "1",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A6:B6",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-04",
+      "numero": "4",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "2",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A7:B7",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-05",
+      "numero": "5",
+      "tipo_documental": "Doble",
+      "tipo_salman": "doble",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-04",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "1",
+        "n_cambios_propuestos": 1,
+        "componentes_cambio": [
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A8:B8",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-06",
+      "numero": "6",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "Cambiar",
+        "bajada_de_cama": "2",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Colchón",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A9:B9",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-07",
+      "numero": "7",
+      "tipo_documental": "Single",
+      "tipo_salman": "single",
+      "capacidad_propuesta": 1,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-03",
+        "monto_clp": 47000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "1",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A10:B10",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-08",
+      "numero": "8",
+      "tipo_documental": "Matrimonial +1",
+      "tipo_salman": "matrimonial_mas_1",
+      "capacidad_propuesta": 3,
+      "capacidad_requiere_verificacion": true,
+      "capacidad_origen": "propuesta_desde_etiqueta_mas_1_REQUIERE_VERIFICACION_R02",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false",
+        "nota_extra": "tipo Matrimonial +1: base matrimonial documental; no publicar"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A11:B11",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-09",
+      "numero": "9",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Cambiar",
+        "colchon": "Cambiar",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 4,
+        "componentes_cambio": [
+          "Cama (Base)",
+          "Colchón",
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A12:B12",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-10",
+      "numero": "10",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "Cambiar",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Colchón",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A13:B13",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-11",
+      "numero": "11",
+      "tipo_documental": "Doble",
+      "tipo_salman": "doble",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-04",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 1,
+        "componentes_cambio": [
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A14:B14",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-12",
+      "numero": "12",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A15:B15",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-13",
+      "numero": "13",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 1,
+        "componentes_cambio": [
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A16:B16",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-14",
+      "numero": "14",
+      "tipo_documental": "Doble",
+      "tipo_salman": "doble",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-04",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "OK",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 1,
+        "componentes_cambio": [
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A17:B17",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-15",
+      "numero": "15",
+      "tipo_documental": "Matrimonial",
+      "tipo_salman": "matrimonial",
+      "capacidad_propuesta": 2,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "ok y cama nueva",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 2,
+        "componentes_cambio": [
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A18:B18",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-16",
+      "numero": "16",
+      "tipo_documental": "Matrimonial +1",
+      "tipo_salman": "matrimonial_mas_1",
+      "capacidad_propuesta": 3,
+      "capacidad_requiere_verificacion": true,
+      "capacidad_origen": "propuesta_desde_etiqueta_mas_1_REQUIERE_VERIFICACION_R02",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-05",
+        "monto_clp": 55000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false",
+        "nota_extra": "tipo Matrimonial +1: base matrimonial documental; no publicar"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "Buen estado",
+        "colchon": "Cambiar",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 3,
+        "componentes_cambio": [
+          "Colchón",
+          "Almohadas",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A19:B19",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    },
+    {
+      "habitacion_id": "HAB-17",
+      "numero": "17",
+      "tipo_documental": "Triple",
+      "tipo_salman": "triple",
+      "capacidad_propuesta": 3,
+      "capacidad_requiere_verificacion": false,
+      "capacidad_origen": "propuesta_desde_tipo_comercial",
+      "estado_operativo_carga": "fuera_de_servicio",
+      "motivo_fuera_de_servicio": "inventario documental 2026-11-11 pendiente verificación; sin tarifa activa",
+      "en_oferta_publica": false,
+      "tarifa_propuesta_por_tipo": {
+        "tarifa_id_documental": "TAR-06",
+        "monto_clp": 65000,
+        "moneda": "CLP",
+        "iva_incluido_declarado": true,
+        "aprobada_2027": false,
+        "vigente_desde": null,
+        "vigente_hasta": null,
+        "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+        "nota": null,
+        "publicar_tarifa_activa": false,
+        "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+      },
+      "condiciones_resumen": {
+        "n_componentes": 26,
+        "cama_base": "1 cama por cambiar",
+        "colchon": "2 colchones 1/2 cambiar",
+        "bajada_de_cama": "No tiene",
+        "n_cambios_propuestos": 3,
+        "componentes_cambio": [
+          "Cama (Base)",
+          "Colchón",
+          "Filtro de ventilación"
+        ]
+      },
+      "fuente": "XLSX | Detalle de habitaciones!A20:B20",
+      "estado_evidencia": "CONSTATADO_DOCUMENTAL",
+      "verificado_en_terreno": false
+    }
+  ],
+  "tarifas_documentales": [
+    {
+      "tarifa_id_documental": "TAR-03",
+      "monto_clp": 47000,
+      "moneda": "CLP",
+      "iva_incluido_declarado": true,
+      "aprobada_2027": false,
+      "vigente_desde": null,
+      "vigente_hasta": null,
+      "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+      "nota": null,
+      "publicar_tarifa_activa": false,
+      "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+    },
+    {
+      "tarifa_id_documental": "TAR-04",
+      "monto_clp": 55000,
+      "moneda": "CLP",
+      "iva_incluido_declarado": true,
+      "aprobada_2027": false,
+      "vigente_desde": null,
+      "vigente_hasta": null,
+      "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+      "nota": null,
+      "publicar_tarifa_activa": false,
+      "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+    },
+    {
+      "tarifa_id_documental": "TAR-05",
+      "monto_clp": 55000,
+      "moneda": "CLP",
+      "iva_incluido_declarado": true,
+      "aprobada_2027": false,
+      "vigente_desde": null,
+      "vigente_hasta": null,
+      "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+      "nota": null,
+      "publicar_tarifa_activa": false,
+      "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+    },
+    {
+      "tarifa_id_documental": "TAR-06",
+      "monto_clp": 65000,
+      "moneda": "CLP",
+      "iva_incluido_declarado": true,
+      "aprobada_2027": false,
+      "vigente_desde": null,
+      "vigente_hasta": null,
+      "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+      "nota": null,
+      "publicar_tarifa_activa": false,
+      "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+    },
+    {
+      "tarifa_id_documental": "TAR-07",
+      "monto_clp": 82000,
+      "moneda": "CLP",
+      "iva_incluido_declarado": true,
+      "aprobada_2027": false,
+      "vigente_desde": null,
+      "vigente_hasta": null,
+      "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+      "nota": "Obs: Juntando 2 habitaciones unidas por el balcón",
+      "publicar_tarifa_activa": false,
+      "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+    }
+  ],
+  "tarifa_cuadruple_composicion": {
+    "tarifa_id_documental": "TAR-07",
+    "monto_clp": 82000,
+    "moneda": "CLP",
+    "iva_incluido_declarado": true,
+    "aprobada_2027": false,
+    "vigente_desde": null,
+    "vigente_hasta": null,
+    "canal_documental": "DIRECTO_POR_CONFIRMAR_MAPEO",
+    "nota": "Obs: Juntando 2 habitaciones unidas por el balcón",
+    "publicar_tarifa_activa": false,
+    "motivo_no_publicar": "sin_vigencia_y_aprobada_2027_false"
+  },
+  "politicas_declaradas": [
+    {
+      "politica_id": "POL-001",
+      "tema": "Servicios incluidos",
+      "texto": "Desayuno buffet - TV cable - Wifi - Aire Acondicionado - Baño Privado - Estacionamiento .",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-002",
+      "tema": "¿Que se cobra aparte?",
+      "texto": "Servicio de Cena , bebidas, desayuno extra, lavandería o planchado, Té o Café a la habitación.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-003",
+      "tema": "Días, temporadas y Descuentos",
+      "texto": "La tarifa se mantiene en temporada alta y baja, existe tarifas con descuentos para empresas , valores especiales para delegaciones",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-004",
+      "tema": null,
+      "texto": "y valores preferenciales para pasajeros frecuentes",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-005",
+      "tema": "Canal de venta",
+      "texto": "Precio reserva directa - Teléfono : $47.000 - 55.000 - 65.000 - 82.000",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-006",
+      "tema": null,
+      "texto": "Precios BOOKING:",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-007",
+      "tema": null,
+      "texto": "Precios AIRBNB:",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-008",
+      "tema": "Personas adicionales y menores",
+      "texto": null,
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-009",
+      "tema": "Horarios y recargos",
+      "texto": "Check in: 14:00 hrs",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-010",
+      "tema": null,
+      "texto": "Check out: 12:00 hrs",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-011",
+      "tema": null,
+      "texto": "Early Check in: $10.000 por hora antes del check in (Sujeto a disponibilidad)",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-012",
+      "tema": null,
+      "texto": "Late Check out: $10.000 por hora después de del Check out",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-013",
+      "tema": "Presentación del precio",
+      "texto": "CLP con IVA incluido, en caso de extranjeros deben mostrar su pasaporte y emitir factura de exportación.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-014",
+      "tema": "Autorizaciones",
+      "texto": "Para modificar tarifas o autorizar un descuento se solicita a Administración o Gerencia.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-015",
+      "tema": "Compromisos futuros",
+      "texto": "Se entregara archivo de convenios vigentes y clientes frecuentes , ademas de registro de pasajeros 2027 con reservas ya ",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-016",
+      "tema": null,
+      "texto": "Incluidas",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-017",
+      "tema": "Confirmación de reserva",
+      "texto": "Para efectuar una reserva se solicita nombre y numero de contacto, ademas de horario de llegada, no se solicita abono previo. Solo en caso de delegaciones se solicita el 50% del total de la estadia.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-018",
+      "tema": "Pago del saldo",
+      "texto": "Se paga al realizar el check in, hay diferencias entre clientes frecuentes que pagan en el check out y empresas que se facturan al terminar el mes.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-019",
+      "tema": "Verificación",
+      "texto": "Administración revisa las transferencias bancarias",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-020",
+      "tema": "Empresas y grupos",
+      "texto": "Se entregara archivo de convenios vigentes y clientes frecuentes. ",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-021",
+      "tema": "Garantías",
+      "texto": "Si existe algún daño o deterioro en la habitación se cobra directo al pasajero o empresa.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-022",
+      "tema": "Consumos adicionales",
+      "texto": "Los servicios adiconales pueden cobrarse al momento de solicitarlos o agregarlos a la cuenta, quedando un registro de aquello",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-023",
+      "tema": "Excepciones",
+      "texto": "Lo autoriza Gerencia",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-024",
+      "tema": "Reglas de cancelación y modificación",
+      "texto": "Las anulaciones de reservas se deben realizar con 24 hrs. de Anticipación, de lo contrario se procederá a  cobro de \"Control no Show\". (Se cobra la totalidad de la reserva). Este mensaje va añadido a todas las confirmaciones de correo y reservas de WhatsApp.                                En el caso de booking no cobramos control no show ya que nos cobran la comisión.",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-025",
+      "tema": null,
+      "texto": "Si el pasajero solicita otra fecha, reduce las noches o se retira antes dependerá de la ocupación y si afecta la oportunidad de venta,  de ser así se cobra el 50%. ",
+      "activa_en_plataforma": false
+    },
+    {
+      "politica_id": "POL-026",
+      "tema": "Medios de pago",
+      "texto": "Efectivo - Tarjeta - Transferencia. Datos de cuenta y titular excluidos del paquete general.",
+      "activa_en_plataforma": false
+    }
+  ],
+  "proveedores_documentales": [
+    {
+      "proveedor_id": "PROV-001",
+      "nombre_comercial_declarado": "Supermercado Ganga",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    },
+    {
+      "proveedor_id": "PROV-002",
+      "nombre_comercial_declarado": "Colún",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    },
+    {
+      "proveedor_id": "PROV-003",
+      "nombre_comercial_declarado": "Supermercado Lider",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    },
+    {
+      "proveedor_id": "PROV-004",
+      "nombre_comercial_declarado": "Liquimax",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    },
+    {
+      "proveedor_id": "PROV-005",
+      "nombre_comercial_declarado": "Mercado libre",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    },
+    {
+      "proveedor_id": "PROV-006",
+      "nombre_comercial_declarado": "Bienek",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    },
+    {
+      "proveedor_id": "PROV-007",
+      "nombre_comercial_declarado": "La casa del aseo",
+      "identidad_legal_verificada": false,
+      "cargar_en_salman_v1": false,
+      "motivo": "V1 sin maestro de proveedores"
+    }
+  ],
+  "conteos": {
+    "habitaciones": 17,
+    "requieren_verificacion_capacidad": 2,
+    "con_cambios_en_condiciones": 17
+  }
+}
