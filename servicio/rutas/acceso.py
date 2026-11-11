@@ -121,6 +121,8 @@ def iniciar_login_google(request: Request) -> Response:
     url = google_oidc.url_de_consentimiento(config.google_client_id, estado, config.google_redirect_uri)
     respuesta = RedirectResponse(url, status_code=302)
     segura = config.cookie_segura if config else False
+    # Path=/ (no /auth): detrás del proxy same-origin el navegador llama
+    # /api/auth/... y Path=/auth no se envía → callback 400 (SEC-A05).
     respuesta.set_cookie(
         comun.NOMBRE_COOKIE_OAUTH_TX,
         tx,
@@ -128,7 +130,7 @@ def iniciar_login_google(request: Request) -> Response:
         httponly=True,
         secure=segura,
         samesite="none" if segura else "lax",
-        path="/auth",
+        path="/",
     )
     return respuesta
 

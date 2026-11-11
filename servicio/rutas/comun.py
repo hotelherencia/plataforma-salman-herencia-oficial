@@ -30,7 +30,11 @@ def conexion(request: Request) -> Iterator[psycopg.Connection]:
         yield conn
 
 
-def requerir_sesion(request: Request, conn=Depends(conexion)) -> seguridad.SesionActiva:
+def requerir_sesion(
+    request: Request,
+    response: Response,
+    conn=Depends(conexion),
+) -> seguridad.SesionActiva:
     sid = request.cookies.get(NOMBRE_COOKIE_SESION)
     if not sid:
         raise HTTPException(status_code=401, detail="sin sesión")
@@ -41,7 +45,14 @@ def requerir_sesion(request: Request, conn=Depends(conexion)) -> seguridad.Sesio
     # explícitamente una sesión de otra empresa en lugar de confiar en
     # que la base no puede contenerla (auditoría 2026-11-03). Antes de
     # multiempresa el invariante vive aquí, no en cada consulta.
+    # Si el sid quedó de otro núcleo (redeploy / titular↔sintético), se
+    # limpia la cookie: GET /sesion deja de devolver 403 recurrente y el
+    # front puede volver a login (las demás rutas siguen en 403 vía
+    # ErrorPermiso si alguien reinyecta el sid a mano).
     if sesion.empresa_id != request.app.state.aplicacion.nucleo.empresa.id:
+        if request.url.path.rstrip("/") == "/sesion" and request.method == "GET":
+            borrar_cookie_sesion(response, request)
+            raise HTTPException(status_code=401, detail="sesión inválida o vencida")
         raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
     return sesion
 
@@ -91,7 +102,7 @@ def borrar_cookie_oauth_tx(response: Response, request: Request) -> None:
         httponly=True,
         secure=segura,
         samesite="none" if segura else "lax",
-        path="/auth",
+        path="/",
     )
 
 

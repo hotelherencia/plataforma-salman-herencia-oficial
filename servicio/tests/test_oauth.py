@@ -154,6 +154,11 @@ class GoogleOauthHttpTest(unittest.TestCase):
         self.assertEqual(consulta["response_type"], ["code"])
         estado = consulta["state"][0]
         self.assertTrue(estado)
+        # Path=/ : detrás de /api el navegador no reenvía Path=/auth (callback 400).
+        set_cookie = r.headers.get("set-cookie", "")
+        self.assertIn("oauth_tx=", set_cookie)
+        self.assertRegex(set_cookie, r"(?i)path=/[;\s]")
+        self.assertNotRegex(set_cookie, r"(?i)path=/auth")
 
     def test_redirect_uri_configurable_por_entorno(self):
         config = Configuracion(
