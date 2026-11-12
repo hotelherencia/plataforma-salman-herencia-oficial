@@ -8,12 +8,20 @@ Decisión operativa (2026-11-11, dueño): HAB-01..17 quedan **en servicio**
 (`disponible`). El lote JSON puede documentar carga FDS/sin tarifa; la
 oferta pública sigue sin tarifas hasta decisión de precios (D3), pero la
 ocupación no debe listarlas todas como «fuera de servicio».
+
+Decisión precios (2026-11-12, dueño): tarifas fijas referenciales
+Single 47000 / Doble o matrimonial 55000 / Triple 65000 para todas las
+fechas (vigencia documental 2020-01-01→2099-12-31). TAR-07 cuádruple
+sigue bloqueada (R01).
 """
 from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path
+
+from . import reservas as reservas_db
 
 LOTE_RELATIVO = Path("docs/datos/herencia-revision-2026-11-11/lote_b1_inventario_propuesto.json")
 ESTABLECIMIENTO_HERENCIA = "EST-HERENCIA-001"
@@ -22,6 +30,15 @@ MOTIVO_AJENA = "fuera del inventario documental HAB-01..17 (2026-11-11); no es o
 MARCA_HERENCIA = "Hotel Herencia"
 _RE_HAB_REAL = re.compile(r"^HAB-(0[1-9]|1[0-7])$")
 IDS_INVENTARIO_REAL = tuple(f"HAB-{i:02d}" for i in range(1, 18))
+PRECIO_FIJO_POR_TIPO = {
+    "single": 47000,
+    "doble": 55000,
+    "matrimonial": 55000,
+    "matrimonial_mas_1": 55000,
+    "triple": 65000,
+}
+VIGENCIA_FIJA_DESDE = date(2020, 1, 1)
+VIGENCIA_FIJA_HASTA = date(2099, 12, 31)
 
 
 def es_id_inventario_real(habitacion_id: str) -> bool:
@@ -94,6 +111,61 @@ def activar_inventario_real(conexion) -> dict:
         (ids,),
     ).fetchall()
     return {"activadas": len(filas), "ids": [f[0] for f in filas]}
+
+
+def precio_fijo_referencial(tipo_salman: str) -> int | None:
+    return PRECIO_FIJO_POR_TIPO.get((tipo_salman or "").lower().strip())
+
+
+def aplicar_tarifas_fijas_referenciales(
+    conexion,
+    *,
+    lote: dict | None = None,
+    fecha_desde: date = VIGENCIA_FIJA_DESDE,
+    fecha_hasta: date = VIGENCIA_FIJA_HASTA,
+) -> dict:
+    """Upsert de tarifas fijas referenciales (dueño 2026-11-12) para HAB-01..17.
+
+    Idempotente: si ya existe el mismo rango+precio, se omite (CA-HAB-03 / #299).
+    Un rango con precio distinto se inserta y gana por recencia.
+    """
+    datos = lote or cargar_lote()
+    insertadas = 0
+    omitidas = 0
+    errores: list[dict] = []
+    for hab in datos.get("habitaciones") or []:
+        habitacion_id = hab["habitacion_id"]
+        if not es_id_inventario_real(habitacion_id):
+            continue
+        tarifa_doc = hab.get("tarifa_propuesta_por_tipo") or {}
+        if not tarifa_doc.get("publicar_tarifa_activa"):
+            omitidas += 1
+            continue
+        precio = precio_fijo_referencial(hab.get("tipo_salman", ""))
+        if precio is None:
+            precio = int(tarifa_doc.get("monto_clp") or 0) or None
+        if precio is None or precio <= 0:
+            errores.append({"habitacion_id": habitacion_id, "error": "sin_precio"})
+            continue
+        existe = conexion.execute(
+            "SELECT 1 FROM habitaciones WHERE id = %s", (habitacion_id,)
+        ).fetchone()
+        if existe is None:
+            errores.append({"habitacion_id": habitacion_id, "error": "habitacion_inexistente"})
+            continue
+        try:
+            reservas_db.insertar_tarifa(conexion, habitacion_id, fecha_desde, fecha_hasta, precio)
+            insertadas += 1
+        except reservas_db.TarifaSolapadaInutil:
+            omitidas += 1
+    return {
+        "insertadas": insertadas,
+        "omitidas": omitidas,
+        "errores": errores,
+        "fecha_desde": fecha_desde.isoformat(),
+        "fecha_hasta": fecha_hasta.isoformat(),
+        "precios": dict(PRECIO_FIJO_POR_TIPO),
+    }
 
 
 def _purgar_dependencias(conexion, habitacion_id: str) -> None:

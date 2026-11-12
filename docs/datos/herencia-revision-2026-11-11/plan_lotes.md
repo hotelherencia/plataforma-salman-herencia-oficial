@@ -39,10 +39,11 @@ capacidad propuesta desde tipo; HAB-08/16 marcadas R02).
 ## Lote B2 — Tarifas activas → Salman (R04)
 
 **Entrada:** D3 (vigencia + aprobación 2027 + expansión tipo→habitacion_id).  
-**Acción:** `PUT /hotel/tarifas` por habitación.  
-**No entra:** las 5 filas del ZIP tal cual; TAR-07 sin D4.
+**Acción:** `PUT /hotel/tarifas` por habitación **o** siembra `aplicar_tarifas_fijas_referenciales` al arranque.  
+**Precios fijos referenciales (dueño 2026-11-12):** Single `$47.000` · Doble/matrimonial `$55.000` · Triple `$65.000` · vigencia `2020-01-01`→`2099-12-31`.  
+**No entra:** TAR-07 sin D4 (composición).
 
-**Estado:** BLOQUEADO.
+**Estado:** APLICADO_DOCUMENTAL (D3 dueño); despliegue operativo vía `INVENTARIO_DOCUMENTAL=1`.
 
 ## Lote B3 — Cuádruple / composición (R01)
 

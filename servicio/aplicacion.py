@@ -127,6 +127,8 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
                 # HAB-01..17 todavía fuera de servicio tras la carga B1.
                 inventario_documental.retirar_inventario_ajeno(conexion)
                 inventario_documental.activar_inventario_real(conexion)
+                # D3 dueño 2026-11-12: precios fijos referenciales todas las fechas.
+                inventario_documental.aplicar_tarifas_fijas_referenciales(conexion)
                 documental.sembrar_paquete_documental(conexion)
             conexion.commit()
     except RuntimeError as error:
