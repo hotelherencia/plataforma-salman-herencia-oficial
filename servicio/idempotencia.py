@@ -9,8 +9,28 @@ class ConflictoIdempotencia(Exception):
     """409: la clave ya existe con otro cuerpo."""
 
 
+# CE-HH-2026-001 C-01: campos secretos que nunca entran al digest guardado en
+# `claves_idempotencia`. Un SHA-256 sin sal de un JSON que contiene la clave
+# permitía atacar la contraseña offline con acceso de lectura a la tabla.
+CAMPOS_SECRETOS = frozenset({"clave", "clave_actual", "clave_nueva", "password", "totp", "codigo_totp"})
+
+
+def _sin_secretos(valor):
+    if isinstance(valor, dict):
+        return {k: _sin_secretos(v) for k, v in valor.items() if k not in CAMPOS_SECRETOS}
+    if isinstance(valor, list):
+        return [_sin_secretos(v) for v in valor]
+    return valor
+
+
 def hash_cuerpo(cuerpo: dict) -> str:
-    return hashlib.sha256(json.dumps(cuerpo, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+    """Digest del cuerpo sin campos secretos (C-01).
+
+    Consecuencia aceptada: misma clave de idempotencia con otra contraseña y
+    el resto igual se trata como reintento (no 409).
+    """
+    limpio = _sin_secretos(cuerpo)
+    return hashlib.sha256(json.dumps(limpio, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
 def respuesta_previa(conexion, empresa_id: str, clave: str, cuerpo: dict) -> tuple[int, dict] | None:
