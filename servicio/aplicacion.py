@@ -204,6 +204,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     else:
         app.state.mensajeria = None
     app.state.estados_oauth = google_oidc.EstadosOAuth()
+    app.state.pendientes_mfa = google_oidc.PendientesMfa()
 
     if configuracion is not None and configuracion.origen_front:
         from fastapi.middleware.cors import CORSMiddleware
