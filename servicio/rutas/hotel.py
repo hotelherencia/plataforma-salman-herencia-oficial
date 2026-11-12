@@ -689,7 +689,7 @@ def disponibilidad_publica(
 ) -> dict:
     _solo_parametros(request, frozenset({"inicio", "fin", "personas"}))
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
-    if not freno.permite(f"ip:{canal_publico.ip_visible(request)}"):
+    if not freno.permite(f"ip:{canal_publico.ip_visible(request)}", ambito="disponibilidad"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
@@ -708,7 +708,7 @@ def leer_referencia_publica(
     esos datos por la URL."""
     _solo_parametros(request, frozenset({"token"}))
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
-    if not freno.permite(f"ip:{canal_publico.ip_visible(request)}"):
+    if not freno.permite(f"ip:{canal_publico.ip_visible(request)}", ambito="referencia"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
@@ -733,11 +733,18 @@ def crear_solicitud_publica(
         raise HTTPException(status_code=413, detail="el cuerpo supera el tamaño permitido")
     ip = canal_publico.ip_visible(request)
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
-    if not freno.permite(f"ip:{ip}", f"contacto:{solicitud.huesped_contacto.strip().lower()}"):
+    # C-02: tope barato por IP antes de llamar a Google; las claves de
+    # contacto solo se anotan tras el captcha (un bot sin token no puede
+    # agotar el cupo del correo/teléfono de un huésped real).
+    if not freno.permite(f"ip:{ip}", ambito="solicitudes:pre"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
     _exigir_captcha(request, "reserva", ip)
+    if not freno.permite(f"ip:{ip}", f"contacto:{solicitud.huesped_contacto.strip().lower()}", ambito="solicitudes"):
+        raise HTTPException(
+            status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+        )
     resultado = canal_publico.crear_solicitud(
         conexion, request.app.state.aplicacion.nucleo.empresa.id, solicitud.habitacion_id, solicitud.inicio,
         solicitud.fin, solicitud.personas, solicitud.huesped_nombre,
@@ -830,11 +837,15 @@ def crear_lead_publico(
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
     correo = (lead.correo or "").strip().lower()
     telefono = "".join(c for c in (lead.telefono or "") if c.isdigit())
-    if not freno.permite(f"ip:{ip}", f"correo:{correo}", f"tel:{telefono}"):
+    if not freno.permite(f"ip:{ip}", ambito="leads:pre"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
     _exigir_captcha(request, "consulta", ip)
+    if not freno.permite(f"ip:{ip}", f"correo:{correo}", f"tel:{telefono}", ambito="leads"):
+        raise HTTPException(
+            status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+        )
     try:
         resultado = leads_mod.crear_lead(
             conexion, request.app.state.aplicacion.nucleo.empresa.id, lead.nombre, lead.correo, lead.telefono,

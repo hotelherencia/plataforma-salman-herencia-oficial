@@ -57,7 +57,7 @@ async def recibir_webhook(
         if existente:
             consultas.append(existente)
             continue
-        if not freno.permite(mensaje["conversacion"]):
+        if not freno.permite(mensaje["conversacion"], ambito="whatsapp"):
             raise HTTPException(
                 status_code=429,
                 detail="demasiados mensajes; espera un minuto e intenta de nuevo",

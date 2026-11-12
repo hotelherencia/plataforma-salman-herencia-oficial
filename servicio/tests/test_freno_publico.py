@@ -36,6 +36,24 @@ class FrenoPublicoTest(unittest.TestCase):
         self.assertTrue(freno.permite("ip:nuevo"))
 
 
+class FrenoPorRutaTest(unittest.TestCase):
+    """CE-HH-2026-001 C-02: techos y claves separados por ámbito."""
+
+    def test_inundar_un_ambito_no_agota_otro(self):
+        freno = FrenoDeSolicitudes(1)
+        for i in range(5):
+            self.assertTrue(freno.permite(f"ip:{i}", ambito="disponibilidad"))
+        self.assertFalse(freno.permite("ip:x", ambito="disponibilidad"))
+        self.assertTrue(freno.permite("ip:x", ambito="leads"))
+        self.assertTrue(freno.permite("wa:conv-1", ambito="whatsapp"))
+
+    def test_misma_clave_en_ambitos_distintos_no_comparte_ventana(self):
+        freno = FrenoDeSolicitudes(1)
+        self.assertTrue(freno.permite("ip:a", ambito="leads:pre"))
+        self.assertTrue(freno.permite("ip:a", ambito="leads"))
+        self.assertFalse(freno.permite("ip:a", ambito="leads"))
+
+
 class IpVisibleTest(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("CONFIAR_PROXY", None)

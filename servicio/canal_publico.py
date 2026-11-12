@@ -60,20 +60,25 @@ class FrenoDeSolicitudes:
     Una llamada puede nombrar varias claves (IP, correo, teléfono). Si
     cualquiera ya llenó su ventana, no se anota ninguna. El tope global
     sigue al valor actual de max_por_minuto, así una prueba que lo sube
-    también abre el techo del proceso."""
+    también abre el techo del proceso.
+
+    CE-HH-2026-001 C-02: cada `ambito` (ruta) tiene su propio techo global y
+    sus propias claves, así inundar /publico/disponibilidad no agota el cupo
+    de leads, solicitudes ni del webhook firmado de WhatsApp."""
 
     def __init__(self, max_por_minuto: int = 6) -> None:
         self.max_por_minuto = max_por_minuto
         self._intentos: dict[str, list[float]] = {}
-        self._global: list[float] = []
+        self._global: dict[str, list[float]] = {}
         self._cerrojo = threading.Lock()
 
     def _recientes(self, marcas: list[float], ahora: float) -> list[float]:
         return [t for t in marcas if ahora - t < 60]
 
-    def permite(self, *claves: str) -> bool:
+    def permite(self, *claves: str, ambito: str = "global") -> bool:
         if not claves:
             return False
+        claves = tuple(f"{ambito}|{clave}" for clave in claves)
         ahora = time.monotonic()
         with self._cerrojo:
             if len(self._intentos) > 4096:
@@ -82,8 +87,9 @@ class FrenoDeSolicitudes:
                     for clave, marcas in self._intentos.items()
                     if self._recientes(marcas, ahora)
                 }
-            self._global = self._recientes(self._global, ahora)
-            if len(self._global) >= self.max_por_minuto * 5:
+            techo = self._recientes(self._global.get(ambito, []), ahora)
+            self._global[ambito] = techo
+            if len(techo) >= self.max_por_minuto * 5:
                 return False
             ventanas: dict[str, list[float]] = {}
             for clave in claves:
@@ -92,7 +98,7 @@ class FrenoDeSolicitudes:
                     self._intentos[clave] = ventana
                     return False
                 ventanas[clave] = ventana
-            self._global.append(ahora)
+            techo.append(ahora)
             for clave, ventana in ventanas.items():
                 ventana.append(ahora)
                 self._intentos[clave] = ventana
