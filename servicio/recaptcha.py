@@ -1,10 +1,13 @@
 """Verificación de reCAPTCHA v3 en el servicio.
 
 La clave de sitio vive en el navegador. La secreta solo entra por
-RECAPTCHA_SECRET_KEY. Sin esa variable el canal público sigue como hasta
-ahora, para no romper la suite. Con la variable, un token ausente, ajeno,
-de otra acción, de otro host o con puntaje bajo se rechaza antes de
-persistir. Ni el token ni la secreta se escriben en el log.
+RECAPTCHA_SECRET_KEY. Sin esa variable: en desarrollo/suite el canal
+público puede omitir la verificación (compatibilidad de tests); en
+producción (`COOKIE_SEGURA=1` o `RECAPTCHA_OBLIGATORIO=1`) el servicio
+falla cerrado (503) vía `_exigir_captcha` — no se aceptan leads sin
+secreto configurado. Con la variable, un token ausente, ajeno, de otra
+acción, de otro host o con puntaje bajo se rechaza antes de persistir.
+Ni el token ni la secreta se escriben en el log.
 """
 import json
 import urllib.parse

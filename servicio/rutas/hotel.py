@@ -5,6 +5,7 @@ búsqueda, ocupación, indicadores, solicitudes públicas (bandeja) y leads
 (bandeja y gestión). Comportamiento idéntico al de las closures originales.
 """
 import json
+import os
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
@@ -653,9 +654,23 @@ def _fecha_iso(valor: str) -> date:
 
 
 def _exigir_captcha(request: Request, accion: str, ip: str) -> None:
+    """Exige reCAPTCHA en el canal público.
+
+    Sin `RECAPTCHA_SECRET_KEY`: en desarrollo/suite se omite (compatibilidad
+    de tests). En producción (`COOKIE_SEGURA=1`) o con
+    `RECAPTCHA_OBLIGATORIO=1` se falla cerrado (503) para no aceptar leads
+    sin verificación — remediación CE-HH-2026-001 / C-HH-003.
+    """
     config = getattr(request.app.state, "configuracion", None)
     secreto = getattr(config, "recaptcha_secret_key", None) if config else None
     if not secreto:
+        obligar = bool(getattr(config, "cookie_segura", False)) if config else False
+        if os.environ.get("RECAPTCHA_OBLIGATORIO", "0") == "1":
+            obligar = True
+        if obligar:
+            raise HTTPException(
+                status_code=503, detail="canal público temporalmente no disponible"
+            )
         return
     verificador = getattr(request.app.state, "verificar_recaptcha", recaptcha.verificar)
     try:
