@@ -5,6 +5,7 @@ estado que antes capturaban las closures (freno, estados OAuth, config) se
 lee de `request.app.state`.
 """
 import json
+import os
 import secrets
 import time
 
@@ -173,17 +174,92 @@ def callback_login_google(
         destino = RedirectResponse(f"{front}/login?error=cuenta_sin_vinculo", status_code=302)
         comun.borrar_cookie_oauth_tx(destino, request)
         return destino
-    usuario_id, empresa_id, _rol, nombre = usuario
+    usuario_id, empresa_id, rol, nombre = usuario
+    resultado_auditoria = "ok"
+    if rol == "administrador" and not google_oidc.acredita_mfa(claims):
+        # CE-HH-2026-001 C-03: un administrador no entra solo con la cuenta
+        # de Google. Sin MFA acreditado por Google (amr), se pide el TOTP
+        # local si está activo; sin ninguno de los dos, se rechaza en prod.
+        (totp_activado,) = conexion.execute(
+            "SELECT totp_activado FROM usuarios WHERE id = %s", (usuario_id,)
+        ).fetchone()
+        if totp_activado:
+            tx = request.app.state.pendientes_mfa.nuevo(usuario_id, empresa_id, nombre)
+            seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "pendiente 2fa")
+            conexion.commit()
+            destino = RedirectResponse(f"{front}/login?paso=totp_google", status_code=302)
+            comun.fijar_cookie_mfa_tx(destino, request, tx, google_oidc.VIDA_PENDIENTE_MFA_SEG)
+            comun.borrar_cookie_oauth_tx(destino, request)
+            return destino
+        if _admin_google_exige_mfa(config):
+            seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "rechazado sin 2fa")
+            conexion.commit()
+            destino = RedirectResponse(f"{front}/login?error=mfa_requerido", status_code=302)
+            comun.borrar_cookie_oauth_tx(destino, request)
+            return destino
+        resultado_auditoria = "ok sin 2fa"
     sid = seguridad.crear_sesion(
         conexion, usuario_id, empresa_id,
         horas_vigencia=config.session_horas,
     )
-    seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "ok")
+    seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", resultado_auditoria)
     conexion.commit()
     destino = RedirectResponse(front, status_code=302)
     comun.fijar_cookie_sesion(destino, request, sid)
     comun.borrar_cookie_oauth_tx(destino, request)
     return destino
+
+
+def _admin_google_exige_mfa(config) -> bool:
+    """C-03: por defecto se exige en producción (COOKIE_SEGURA=1).
+    GOOGLE_ADMIN_EXIGE_MFA=1/0 lo fuerza en cualquier entorno."""
+    valor = os.environ.get("GOOGLE_ADMIN_EXIGE_MFA")
+    if valor in ("0", "1"):
+        return valor == "1"
+    return bool(getattr(config, "cookie_segura", False))
+
+
+@router.post("/auth/google/totp")
+def completar_login_google_totp(
+    cuerpo: CodigoTotpIn,
+    request: Request,
+    response: Response,
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Segundo paso del login Google de un administrador con TOTP activo."""
+    config = request.app.state.configuracion
+    pendientes: google_oidc.PendientesMfa = request.app.state.pendientes_mfa
+    tx = request.cookies.get(comun.NOMBRE_COOKIE_MFA_TX)
+    pendiente = pendientes.ver(tx)
+    if pendiente is None:
+        comun.borrar_cookie_mfa_tx(response, request)
+        raise HTTPException(status_code=401, detail="login_google_expirado")
+    ip = request.client.host if request.client else "desconocida"
+    nombre = pendiente["nombre"]
+    freno: seguridad.FrenoDeLogins = request.app.state.freno_logins
+    ahora = time.time()
+    if freno.bloqueado(ip, nombre, ahora) or freno.bloqueado_usuario(nombre, ahora):
+        raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
+    secreto = seguridad.secreto_totp(conexion, pendiente["usuario_id"])
+    if secreto is None or not totp.verificar(secreto, cuerpo.codigo):
+        pendientes.fallo(tx)
+        freno.registrar_fallo(ip, nombre, ahora)
+        freno.registrar_fallo_usuario(nombre, ahora)
+        seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "2fa rechazado")
+        conexion.commit()
+        raise HTTPException(status_code=401, detail="código 2FA inválido")
+    pendientes.consumir(tx)
+    freno.reiniciar(ip, nombre)
+    freno.reiniciar_usuario(nombre)
+    sid = seguridad.crear_sesion(
+        conexion, pendiente["usuario_id"], pendiente["empresa_id"],
+        horas_vigencia=config.session_horas if config else 12,
+    )
+    seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "ok")
+    conexion.commit()
+    comun.fijar_cookie_sesion(response, request, sid)
+    comun.borrar_cookie_mfa_tx(response, request)
+    return {"usuario": nombre, "empresa_id": pendiente["empresa_id"], "totp_activado": True}
 
 
 @router.post("/cuenta/2fa")

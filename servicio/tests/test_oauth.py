@@ -198,7 +198,8 @@ class GoogleOauthHttpTest(unittest.TestCase):
                 "SELECT actor, accion, recurso, resultado FROM auditoria "
                 "WHERE accion = 'login' AND recurso = '/auth/google/callback'"
             ).fetchall()
-        self.assertEqual(filas, [(ADMIN[0], "login", "/auth/google/callback", "ok")])
+        # C-03: admin sin amr ni TOTP en dev entra, pero queda auditado como tal.
+        self.assertEqual(filas, [(ADMIN[0], "login", "/auth/google/callback", "ok sin 2fa")])
 
     def test_state_de_un_solo_uso_se_rechaza_al_reusar(self):
         estado = self.estado_fresco()
@@ -344,3 +345,100 @@ class GoogleOauthHttpTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GoogleAdminMfaTest(unittest.TestCase):
+    """CE-HH-2026-001 C-03: administrador vía Google exige MFA (amr) o TOTP local."""
+
+    setUpClass = classmethod(GoogleOauthHttpTest.setUpClass.__func__)
+    estado_fresco = GoogleOauthHttpTest.estado_fresco
+
+    def setUp(self):
+        GoogleOauthHttpTest.setUp(self)
+        os.environ.pop("GOOGLE_ADMIN_EXIGE_MFA", None)
+        self.app.state.freno_logins = seguridad.FrenoDeLogins()
+        self.app.state.pendientes_mfa = google_oidc.PendientesMfa()
+
+    def tearDown(self):
+        os.environ.pop("GOOGLE_ADMIN_EXIGE_MFA", None)
+
+    def activar_totp_admin(self) -> str:
+        from servicio import totp
+        with psycopg.connect(URL_TEST) as conexion:
+            (usuario_id,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = %s", (ADMIN[0],)).fetchone()
+            secreto = seguridad.iniciar_alta_totp(conexion, usuario_id)
+            seguridad.activar_totp(conexion, usuario_id)
+            conexion.commit()
+        self.totp = totp
+        return secreto
+
+    def login_google(self, **claims):
+        estado = self.estado_fresco()
+        token = id_token_de(**claims_google(**claims))
+        with mock.patch.object(google_oidc, "intercambiar_codigo", return_value={"id_token": token}), \
+             mock.patch.object(google_oidc, "obtener_jwks", return_value=jwk_de_prueba()):
+            return self.cliente.get(
+                "/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False
+            )
+
+    def test_admin_con_totp_pide_codigo_antes_de_abrir_sesion(self):
+        secreto = self.activar_totp_admin()
+        r = self.login_google()
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?paso=totp_google")
+        self.assertIsNone(r.cookies.get("sid"))
+        self.assertTrue(r.cookies.get("mfa_tx"))
+        self.assertEqual(self.cliente.get("/sesion").status_code, 401)
+
+        malo = self.cliente.post("/auth/google/totp", json={"codigo": "000000"})
+        if malo.status_code == 200:  # colisión improbable con el código vigente
+            self.skipTest("código inventado coincidió con el vigente")
+        self.assertEqual(malo.status_code, 401, malo.text)
+
+        bueno = self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
+        self.assertEqual(bueno.status_code, 200, bueno.text)
+        self.assertTrue(bueno.cookies.get("sid"))
+        self.assertEqual(self.cliente.get("/sesion").json()["usuario"], ADMIN[0])
+
+        reuso = self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
+        self.assertEqual(reuso.status_code, 401)
+        self.assertEqual(reuso.json()["detail"], "login_google_expirado")
+
+    def test_sin_cookie_de_transaccion_no_hay_segundo_paso(self):
+        secreto = self.activar_totp_admin()
+        self.login_google()
+        self.cliente.cookies.delete("mfa_tx")
+        r = self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
+        self.assertEqual(r.status_code, 401)
+
+    def test_intentos_agotados_descartan_la_transaccion(self):
+        secreto = self.activar_totp_admin()
+        self.login_google()
+        for _ in range(google_oidc.MAX_INTENTOS_MFA):
+            self.cliente.post("/auth/google/totp", json={"codigo": "999999x"})
+        self.app.state.freno_logins = seguridad.FrenoDeLogins()
+        r = self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
+        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.json()["detail"], "login_google_expirado")
+
+    def test_admin_con_mfa_de_google_entra_directo(self):
+        self.activar_totp_admin()
+        r = self.login_google(amr=["pwd", "mfa"])
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.headers["location"], FRONT)
+        self.assertTrue(r.cookies.get("sid"))
+
+    def test_admin_sin_mfa_ni_totp_se_rechaza_si_se_exige(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        r = self.login_google()
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
+        self.assertIsNone(r.cookies.get("sid"))
+
+
+class AcreditaMfaTest(unittest.TestCase):
+    def test_valores_amr(self):
+        self.assertTrue(google_oidc.acredita_mfa({"amr": ["pwd", "mfa"]}))
+        self.assertTrue(google_oidc.acredita_mfa({"amr": "otp"}))
+        self.assertFalse(google_oidc.acredita_mfa({"amr": ["pwd"]}))
+        self.assertFalse(google_oidc.acredita_mfa({}))

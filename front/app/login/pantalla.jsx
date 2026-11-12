@@ -11,7 +11,7 @@ import { api, urlApi, refrescarSesion, useSesion, mensajeMotivoSesion, mensajeDe
  *  `despues` (opcional) permite navegar, p. ej. a «/» desde /login. */
 export default function PantallaAcceso({ despues } = {}) {
   const [credenciales, setCredenciales] = useState({ usuario: '', clave: '', totp: '' })
-  const [fase, setFase] = useState('clave')
+  const [fase, setFase] = useState('clave') // 'clave' | 'totp' | 'totp_google'
   const [error, setError] = useState('')
   const [googleDisponible, setGoogleDisponible] = useState(false)
   const sesion = useSesion()
@@ -24,7 +24,11 @@ export default function PantallaAcceso({ despues } = {}) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('error') === 'cuenta_sin_vinculo') {
+    // CE-HH C-03: administrador que entró con Google y tiene TOTP activo.
+    if (params.get('paso') === 'totp_google') setFase('totp_google')
+    if (params.get('error') === 'mfa_requerido') {
+      setError('Las cuentas de administrador requieren doble factor. Entra con usuario y clave y activa el autenticador.')
+    } else if (params.get('error') === 'cuenta_sin_vinculo') {
       setError('Tu cuenta de Google no está vinculada a un usuario de la plataforma.')
     } else if (params.get('error') === 'acceso_denegado') {
       setError('Acceso con Google cancelado o denegido.')
@@ -43,6 +47,25 @@ export default function PantallaAcceso({ despues } = {}) {
   async function entrar(e) {
     e.preventDefault()
     setError('')
+    if (fase === 'totp_google') {
+      try {
+        const r = await api('/auth/google/totp', { metodo: 'POST', cuerpo: { codigo: credenciales.totp } })
+        if (r.estado === 200) {
+          await refrescarSesion()
+          window.history.replaceState(null, '', window.location.pathname)
+          if (despues) despues()
+          return
+        }
+        if (r.estado === 401 && r.datos?.detail === 'login_google_expirado') {
+          setFase('clave')
+          setError('El acceso con Google expiró. Vuelve a entrar con Google.')
+        } else if (r.estado === 429) setError('Demasiados intentos. Espera unos minutos.')
+        else setError('Código del autenticador inválido.')
+      } catch {
+        setError('La API no está disponible')
+      }
+      return
+    }
     try {
       const cuerpo = {
         usuario: credenciales.usuario,
@@ -80,7 +103,7 @@ export default function PantallaAcceso({ despues } = {}) {
       <form className="tarjeta login-tarjeta formulario" onSubmit={entrar}>
         <h1 className="login-marca">Plataforma Herencia</h1>
         <p className="login-subtitulo">
-          {fase === 'totp' ? 'Doble factor · código del autenticador' : 'Acceso · Plataforma Herencia'}
+          {fase !== 'clave' ? 'Doble factor · código del autenticador' : 'Acceso · Plataforma Herencia'}
         </p>
         {fase === 'clave' ? (
           <>
@@ -118,7 +141,14 @@ export default function PantallaAcceso({ despues } = {}) {
                 onChange={(e) => setCredenciales({ ...credenciales, totp: e.target.value })}
               />
             </label>
-            <button type="button" className="boton-fantasma" onClick={() => setFase('clave')}>
+            <button
+              type="button"
+              className="boton-fantasma"
+              onClick={() => {
+                setFase('clave')
+                if (fase === 'totp_google') window.history.replaceState(null, '', window.location.pathname)
+              }}
+            >
               Volver a usuario y clave
             </button>
           </>

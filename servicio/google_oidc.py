@@ -81,6 +81,72 @@ class EstadosOAuth:
             return ahora <= expira and tx_guardado == tx
 
 
+# CE-HH-2026-001 C-03: valores `amr` (RFC 8176) que acreditan un segundo factor.
+AMR_CON_MFA = frozenset({"mfa", "otp", "hwk", "swk", "sms", "fpt", "face", "pop"})
+VIDA_PENDIENTE_MFA_SEG = 300
+MAX_INTENTOS_MFA = 5
+
+
+def acredita_mfa(claims: dict) -> bool:
+    amr = claims.get("amr") or []
+    if isinstance(amr, str):
+        amr = [amr]
+    return any(valor in AMR_CON_MFA for valor in amr)
+
+
+class PendientesMfa:
+    """Login Google de administrador a la espera del código TOTP local.
+
+    La clave es el valor de una cookie HttpOnly de vida corta (no viaja en
+    la URL). Un solo uso al completar; se descarta tras MAX_INTENTOS_MFA
+    códigos inválidos o al expirar. Mismo límite multi-instancia que
+    EstadosOAuth (memoria del proceso)."""
+
+    def __init__(self, vida_segundos: int = VIDA_PENDIENTE_MFA_SEG, max_intentos: int = MAX_INTENTOS_MFA) -> None:
+        self._vida = vida_segundos
+        self._max = max_intentos
+        self._pendientes: dict[str, dict] = {}
+        self._cerrojo = threading.Lock()
+
+    def nuevo(self, usuario_id: str, empresa_id: str, nombre: str, ahora: float | None = None) -> str:
+        ahora = time.time() if ahora is None else ahora
+        tx = secrets.token_urlsafe(32)
+        with self._cerrojo:
+            for clave in [c for c, v in self._pendientes.items() if v["expira"] <= ahora]:
+                del self._pendientes[clave]
+            self._pendientes[tx] = {
+                "usuario_id": usuario_id, "empresa_id": empresa_id, "nombre": nombre,
+                "expira": ahora + self._vida, "intentos": 0,
+            }
+        return tx
+
+    def ver(self, tx: str | None, ahora: float | None = None) -> dict | None:
+        ahora = time.time() if ahora is None else ahora
+        if not tx:
+            return None
+        with self._cerrojo:
+            pendiente = self._pendientes.get(tx)
+            if pendiente is None:
+                return None
+            if pendiente["expira"] <= ahora:
+                del self._pendientes[tx]
+                return None
+            return dict(pendiente)
+
+    def fallo(self, tx: str) -> None:
+        with self._cerrojo:
+            pendiente = self._pendientes.get(tx)
+            if pendiente is None:
+                return
+            pendiente["intentos"] += 1
+            if pendiente["intentos"] >= self._max:
+                del self._pendientes[tx]
+
+    def consumir(self, tx: str) -> None:
+        with self._cerrojo:
+            self._pendientes.pop(tx, None)
+
+
 def configurado(config) -> bool:
     """True solo con ambas credenciales de Google en la configuración."""
     return bool(config and config.google_client_id and config.google_client_secret)

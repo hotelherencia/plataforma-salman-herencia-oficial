@@ -17,6 +17,7 @@ from .. import seguridad
 NOMBRE_COOKIE_SESION = "sid"
 # SEC-A05 (#330): transacción OAuth atada al navegador que inició el login.
 NOMBRE_COOKIE_OAUTH_TX = "oauth_tx"
+NOMBRE_COOKIE_MFA_TX = "mfa_tx"
 DETALLE_SESION_EMPRESA_AJENA = "sesion_empresa_ajena"
 _log = logging.getLogger("servicio.sesion")
 
@@ -125,6 +126,23 @@ def borrar_cookie_oauth_tx(response: Response, request: Request) -> None:
         secure=segura,
         samesite="none" if segura else "lax",
         path="/",
+    )
+
+
+def fijar_cookie_mfa_tx(response: Response, request: Request, tx: str, max_age: int) -> None:
+    """C-03: transacción Google→TOTP pendiente (mismos atributos que oauth_tx)."""
+    segura = _cookie_segura(request)
+    response.set_cookie(
+        NOMBRE_COOKIE_MFA_TX, tx, max_age=max_age, httponly=True, secure=segura,
+        samesite="none" if segura else "lax", path="/",
+    )
+
+
+def borrar_cookie_mfa_tx(response: Response, request: Request) -> None:
+    segura = _cookie_segura(request)
+    response.set_cookie(
+        NOMBRE_COOKIE_MFA_TX, "", max_age=0, httponly=True, secure=segura,
+        samesite="none" if segura else "lax", path="/",
     )
 
 
