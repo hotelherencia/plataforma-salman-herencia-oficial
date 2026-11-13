@@ -229,11 +229,21 @@ class SECA04EmpresaDelNucleoTest(BaseAuditoriaTest):
                 "INSERT INTO sesiones (id, usuario_id, empresa_id) VALUES ('sid-otra', 'USR-OTRA', 'EMP-OTRA')"
             )
             conexion.commit()
+        # Rutas de negocio: 403 genérico (SEC-A04).
         self.cliente.cookies.set("sid", "sid-otra")
-        r = self.cliente.get("/sesion")
-        self.assertEqual(r.status_code, 403, r.text)
         r = self.cliente.get("/hotel/habitaciones")
         self.assertEqual(r.status_code, 403, r.text)
+        # GET /sesion (bebed31): 401 con detail específico y cookie borrada,
+        # para que el front deje de reintentar con un sid de otro núcleo.
+        r = self.cliente.get("/sesion")
+        self.assertEqual(r.status_code, 401, r.text)
+        self.assertEqual(r.json()["detail"], "sesion_empresa_ajena")
+        self.assertIn('sid=""', r.headers.get("set-cookie", ""))
+        with psycopg.connect(URL_TEST) as conexion:
+            (n,) = conexion.execute(
+                "SELECT count(*) FROM auditoria WHERE actor = 'intruso' AND resultado LIKE 'empresa_ajena:%%'"
+            ).fetchone()
+        self.assertEqual(n, 2)
 
     def test_sesion_de_la_empresa_del_nucleo_siguiendo(self):
         r = self.login(*ADMIN)

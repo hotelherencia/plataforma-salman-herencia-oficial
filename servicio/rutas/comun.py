@@ -74,8 +74,15 @@ def requerir_sesion(
         )
         conn.commit()
         if request.url.path.rstrip("/") == "/sesion" and request.method == "GET":
-            borrar_cookie_sesion(response, request)
-            raise HTTPException(status_code=401, detail=DETALLE_SESION_EMPRESA_AJENA)
+            # Las cabeceras del `response` inyectado se pierden al lanzar
+            # HTTPException: el Set-Cookie de borrado debe viajar en la excepción.
+            borrado = Response()
+            borrar_cookie_sesion(borrado, request)
+            raise HTTPException(
+                status_code=401,
+                detail=DETALLE_SESION_EMPRESA_AJENA,
+                headers={"set-cookie": borrado.headers["set-cookie"]},
+            )
         raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
     return sesion
 
