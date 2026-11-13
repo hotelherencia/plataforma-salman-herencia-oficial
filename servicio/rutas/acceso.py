@@ -12,7 +12,8 @@ import time
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from .. import google_oidc, idempotencia, seguridad, totp, totp_qr
+from .. import google_oidc, idempotencia, observabilidad, seguridad, totp, totp_qr
+from ..canal_publico import ip_visible
 from . import comun
 from .modelos import ClaveActualIn, ClaveIn, CodigoTotpIn, Credenciales, UsuarioIn
 
@@ -30,16 +31,22 @@ def abrir_sesion(
     request: Request,
     conexion=Depends(comun.conexion),
 ) -> dict:
-    ip = request.client.host if request.client else "desconocida"
+    # Detrás del proxy de Railway el par TCP es el borde: ip_visible toma el
+    # último salto de X-Forwarded-For solo con proxy de confianza.
+    ip = ip_visible(request)
     freno: seguridad.FrenoDeLogins = request.app.state.freno_logins
     if freno.bloqueado(ip, credenciales.usuario, time.time()) or \
             freno.bloqueado_usuario(credenciales.usuario, time.time()):
+        # Antes el bloqueo era mudo: ni log ni auditoría del intento frenado.
+        observabilidad.evento_seguridad("login_frenado", ip=ip, actor=credenciales.usuario[:64], ruta="/sesion")
+        seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "frenado", ip=ip)
+        conexion.commit()
         raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
     auth = seguridad.autenticar(conexion, credenciales.usuario, credenciales.clave)
     if auth is None:
         freno.registrar_fallo(ip, credenciales.usuario, time.time())
         freno.registrar_fallo_usuario(credenciales.usuario, time.time())
-        seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "rechazado")
+        seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "rechazado", ip=ip)
         conexion.commit()
         raise HTTPException(status_code=401, detail="credenciales inválidas")
     usuario_id, empresa_id, rol, totp_activado = auth
@@ -47,13 +54,13 @@ def abrir_sesion(
     if totp_activado:
         secreto = seguridad.secreto_totp(conexion, usuario_id)
         if not credenciales.totp:
-            seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "falta codigo 2fa")
+            seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "falta codigo 2fa", ip=ip)
             conexion.commit()
             raise HTTPException(status_code=401, detail="codigo_totp_requerido")
         if secreto is None or not totp.verificar(secreto, credenciales.totp):
             freno.registrar_fallo(ip, credenciales.usuario, time.time())
             freno.registrar_fallo_usuario(credenciales.usuario, time.time())
-            seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado")
+            seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado", ip=ip)
             conexion.commit()
             raise HTTPException(status_code=401, detail="código 2FA inválido")
     # SEC-A03 (#328): los contadores se reinician solo al completar TODA
@@ -66,7 +73,7 @@ def abrir_sesion(
         conexion, usuario_id, empresa_id,
         horas_vigencia=config.session_horas if config else 12,
     )
-    seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "ok")
+    seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "ok", ip=ip)
     conexion.commit()
     comun.fijar_cookie_sesion(response, request, sid)
     return {
@@ -234,18 +241,21 @@ def completar_login_google_totp(
     if pendiente is None:
         comun.borrar_cookie_mfa_tx(response, request)
         raise HTTPException(status_code=401, detail="login_google_expirado")
-    ip = request.client.host if request.client else "desconocida"
+    ip = ip_visible(request)
     nombre = pendiente["nombre"]
     freno: seguridad.FrenoDeLogins = request.app.state.freno_logins
     ahora = time.time()
     if freno.bloqueado(ip, nombre, ahora) or freno.bloqueado_usuario(nombre, ahora):
+        observabilidad.evento_seguridad("login_frenado", ip=ip, actor=nombre[:64], ruta="/auth/google/totp")
+        seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "frenado", ip=ip)
+        conexion.commit()
         raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
     secreto = seguridad.secreto_totp(conexion, pendiente["usuario_id"])
     if secreto is None or not totp.verificar(secreto, cuerpo.codigo):
         pendientes.fallo(tx)
         freno.registrar_fallo(ip, nombre, ahora)
         freno.registrar_fallo_usuario(nombre, ahora)
-        seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "2fa rechazado")
+        seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "2fa rechazado", ip=ip)
         conexion.commit()
         raise HTTPException(status_code=401, detail="código 2FA inválido")
     pendientes.consumir(tx)
@@ -255,7 +265,7 @@ def completar_login_google_totp(
         conexion, pendiente["usuario_id"], pendiente["empresa_id"],
         horas_vigencia=config.session_horas if config else 12,
     )
-    seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "ok")
+    seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "ok", ip=ip)
     conexion.commit()
     comun.fijar_cookie_sesion(response, request, sid)
     comun.borrar_cookie_mfa_tx(response, request)

@@ -6,6 +6,7 @@
 - La regla 403 se resuelve antes que cualquier existencia: una sesión de otra
   empresa recibe el mismo rechazo con o sin recurso.
 """
+import logging
 import threading
 import time
 import uuid
@@ -18,6 +19,7 @@ from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from . import totp
 
 _HASHER = PasswordHasher(type=Type.ID)
+_log_auditoria = logging.getLogger("servicio.auditoria")
 
 
 class ErrorPermiso(Exception):
@@ -188,10 +190,40 @@ def obtener_sesion_activa(conexion: psycopg.Connection, sid: str) -> SesionActiv
     return SesionActiva(sid=fila[0], usuario_id=fila[1], empresa_id=fila[2], rol=fila[3], nombre=fila[4])
 
 
-def auditar(conexion: psycopg.Connection, actor: str, accion: str, recurso: str, resultado: str) -> None:
+_RESULTADOS_OK = ("ok", "activado", "alta iniciada", "creado", "desactivado")
+
+
+def auditar(
+    conexion: psycopg.Connection,
+    actor: str,
+    accion: str,
+    recurso: str,
+    resultado: str,
+    *,
+    ip: str | None = None,
+) -> None:
+    """Fila en `auditoria` y espejo en el log (servicio.auditoria).
+
+    El espejo deja rastro aunque la transacción se revierta después y
+    permite alertar desde el agregador de logs sin consultar la base. El
+    actor se recorta: en un login fallido es lo que el cliente escribió."""
+    aud_id = f"AUD-{uuid.uuid4().hex[:12]}"
     conexion.execute(
-        "INSERT INTO auditoria (id, actor, accion, recurso, resultado) VALUES (%s, %s, %s, %s, %s)",
-        (f"AUD-{uuid.uuid4().hex[:12]}", actor, accion, recurso, resultado),
+        "INSERT INTO auditoria (id, actor, accion, recurso, resultado, ip) VALUES (%s, %s, %s, %s, %s, %s)",
+        (aud_id, actor, accion, recurso, resultado, ip),
+    )
+    exito = resultado.startswith(_RESULTADOS_OK)
+    _log_auditoria.log(
+        logging.INFO if exito else logging.WARNING,
+        "auditoria",
+        extra={
+            "auditoria_id": aud_id,
+            "actor": (actor or "")[:64],
+            "accion": accion,
+            "recurso": recurso,
+            "resultado": resultado,
+            "ip": ip,
+        },
     )
 
 

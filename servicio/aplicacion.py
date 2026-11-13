@@ -41,6 +41,7 @@ from . import cobro  # noqa: E402
 from . import panel  # noqa: E402
 from . import canal_publico  # noqa: E402
 from . import agente  # noqa: E402
+from . import observabilidad  # noqa: E402
 from .modelo_lenguaje import ModeloGuionado, NoConfigurado, SinAdaptador  # noqa: E402
 from nucleo.empresa import Empresa  # noqa: E402
 
@@ -154,6 +155,7 @@ from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
     if aplicacion is None:
         aplicacion = construir_aplicacion(nucleo=Nucleo(empresa=empresa_desde_config(configuracion)))
+    observabilidad.configurar_logging()
     app = FastAPI(title="plataforma-salman-herencia-api", version="1.1.0")
     app.add_middleware(canal_publico.TopeCuerpoPublico)
     app.state.aplicacion = aplicacion
@@ -437,6 +439,9 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             media_type="application/json",
         )
 
+    # Último middleware registrado = el más externo: ve todas las respuestas
+    # (incluidos los 403 de Origin) y captura cualquier excepción no controlada.
+    observabilidad.instalar(app)
     return app
 
 
