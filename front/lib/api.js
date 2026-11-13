@@ -71,7 +71,10 @@ export function mensajeMotivoSesion(motivo) {
     'sesión inválida o vencida': 'Tu sesión expiró o fue revocada. Vuelve a iniciar sesión.',
     'sin sesión': null,
   }
-  return mapa[motivo] || (motivo ? `No se pudo abrir la sesión (${motivo}).` : null)
+  // Presencia de la clave y no `||`: 'sin sesión' mapea a null a propósito (visitante que aún
+  // no entra) y `||` lo convertía en «No se pudo abrir la sesión (sin sesión)».
+  if (motivo && Object.prototype.hasOwnProperty.call(mapa, motivo)) return mapa[motivo]
+  return motivo ? `No se pudo abrir la sesión (${motivo}).` : null
 }
 
 export function refrescarSesion() {
