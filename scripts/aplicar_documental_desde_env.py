@@ -13,9 +13,9 @@ la corre completa). Por defecto solo inserta lo que falta. Opcionales:
   servicio (no toca las retiradas por mantención).
 - `--simular`: hace todo dentro de una transacción y la revierte (vista previa).
 """
-import argparse
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
