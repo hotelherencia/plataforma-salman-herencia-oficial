@@ -114,7 +114,7 @@ API. Estado: proyecto `plataforma-salman-herencia`
 Flujo original del runbook (referencia, previo a la creación por API):
 
 1. **New Project → Deploy from GitHub** → elegir el repo → servicio único
-   (el `railway.toml` define `python -m servicio` y healthcheck `/salud`).
+   (el `railway.toml` define `python -m servicio` y healthcheck `/readiness` desde 2026-11-16; antes `/salud`).
 2. **PostgreSQL**: `New → Database → PostgreSQL`; copiar la URL interna que
    Railway genera (`DATABASE_URL`) y asignarla al servicio.
 3. **Variables del servicio** (valores reales nunca en el repo):
@@ -521,14 +521,35 @@ complete (todo requiere su decisión o sus datos reales):
       `EMPRESA_ES_SINTETICA=0`) y redesplegar para que `GET /salud` deje de
       devolver `EMP-SINTETICA-001`. La migración `0017_empresa_titular`
       reetiqueta el tenant en la base.
-- [ ] **Habitaciones y tarifas reales** (V1-ISSUE-41): con
-      `INVENTARIO_DOCUMENTAL=1` (y titular activo) el arranque:
-      1) siembra HAB-01..17 como `fuera_de_servicio` (sin tarifas → no oferta);
-      2) carga el paquete documental completo a tablas `doc_*` (migración
-      `0018`) desde `servicio/datos/documental/paquete_2026-11-11.json`
-      (ocupación histórica, condiciones, textiles, etc.) consultable en
-      `/hotel/documental/*`. El dueño verifica capacidad (HAB-08/16), pone
-      en servicio y carga tarifas operativas con vigencia. Ver sección inventario.
+- [ ] **Habitaciones y tarifas reales** (V1-ISSUE-41): la carga documental
+      es un **comando puntual** (W16-A02, auditoría 2026-11-16):
+      `python scripts/aplicar_documental_desde_env.py [--simular]`. Por
+      defecto solo inserta lo que falta: HAB-01..17, tarifas referenciales
+      en habitaciones sin tarifa y el paquete documental `doc_*` (migración
+      `0018`, consultable en `/hotel/documental/*`). `--retirar-ajenas` da
+      de baja lógica las habitaciones fuera de HAB-01..17 (nunca borra
+      reservas, pagos ni historial) y `--activar-reales` reactiva solo las
+      que dejó fuera la carga B1 (no las retiradas por mantención).
+      `INVENTARIO_DOCUMENTAL=1` ya **no** va en el `startCommand` de Railway;
+      si se deja en el entorno, el arranque solo hace las altas idempotentes,
+      y en Vercel (`VERCEL=1`) no hace nada.
+
+### Migraciones en el arranque (NEW-01, 2026-11-16)
+
+Cada arranque (Railway y cada arranque en frío de Vercel) aplica las
+migraciones pendientes, ahora serializadas con `pg_advisory_xact_lock`
+(dos instancias simultáneas ya no compiten). Para sacar las migraciones
+del arranque en frío de Vercel:
+
+1. Aplicar las migraciones con el comando explícito
+   `python -m servicio.migrar` (o `--revisar` para solo listarlas) antes de
+   desplegar, o dejar que las aplique Railway en su arranque.
+2. Poner `MIGRAR_AL_ARRANCAR=0` en las variables de Vercel. Con eso la
+   función solo verifica que no haya pendientes y, si las hay, no arranca
+   (error explícito en vez de servir con un esquema viejo).
+
+Railway usa `/readiness` como healthcheck de despliegue (OBS-02): un deploy
+sin base o sin `schema_migrations` no pasa a producción.
 - [ ] **ORIGEN_LANDING=https://hotelherencia.cl** en las variables de Railway
       (sin ella la landing no tiene CORS hacia `/publico/*`).
 - [ ] **Política de respaldo y datos personales** (Q-CORE-03, Ley 21.719):

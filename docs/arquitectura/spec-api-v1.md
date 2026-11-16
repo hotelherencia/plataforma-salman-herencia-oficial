@@ -431,12 +431,12 @@ autorizados (D-AGT-03, D-WSP-01). Sin las tres variables
 el puerto responde 503 «no configurado» y no persiste nada. Ninguna prueba
 llama a Meta.
 
-## Operaciones de esta versión (53)
+## Operaciones de esta versión (62)
 
 | Operación | Efecto |
 |---|---|
-| `GET /salud` | Liveness de despliegue (Railway): 200 sin sesión ni datos. No toca la base de datos. |
-| `GET /readiness` | Readiness (OPS-A02, 2026-11-05): consulta real a la base y estado de migraciones; 503 si no responde. Sin sesión. |
+| `GET /salud` | Liveness: 200 sin sesión ni datos. No toca la base de datos. |
+| `GET /readiness` | Readiness (OPS-A02, 2026-11-05): consulta real a la base y estado de migraciones; 503 si no responde. Sin sesión. Es el healthcheck de despliegue de Railway desde 2026-11-16 (OBS-02). |
 | `GET /sesion` | Con cookie `sid`: `{id, usuario, rol, empresa_id, totp_activo}`. Sin cookie → 401 `sin sesión`; sid vencido → 401 `sesión inválida o vencida`; sid de otra empresa que el núcleo (titular↔sintético) → 401 `sesion_empresa_ajena` (borra cookie, audita y deja traza en logs). |
 | `GET /cuenta/2fa/qr` | Con sesión y alta en curso: devuelve el QR (SVG) del secreto **pendiente**. Sin pendiente → 400. El secreto activo nunca se expone (SEC-A02, 2026-11-05). |
 | `POST /sesion` | Abre sesión de la empresa Herencia y fija la cookie `sid`. Con 2FA activo exige además `totp` (ver «Identidad y sesión»). |
@@ -447,6 +447,7 @@ llama a Meta.
 | `GET /auth/google/estado` | `{configurado: bool}`: true solo con `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en el entorno. |
 | `GET /auth/google` | 302 al consentimiento de Google (scope `openid email profile`, `state` de un solo uso, 10 min); sin configurar → 503 «no configurado». Fija la cookie HttpOnly `oauth_tx` (vida 10 min, path `/`) que ata el state al navegador (SEC-A05; path `/` para que sobreviva el proxy same-origin `/api/auth/...`). |
 | `GET /auth/google/callback` | Valida `state` **consumiéndolo en todo intento** y exigiendo que la cookie `oauth_tx` coincida con la que originó el login (state de otro navegador → 400, SEC-A05); intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |
+| `POST /auth/google/totp` | Segundo paso del login Google de un administrador con TOTP activo: valida el código contra la transacción MFA pendiente (cookie propia, un solo uso) y abre la sesión con cookie `sid`. Sin transacción → 400; código errado → 401; freno de intentos → 429. Sin sesión previa. |
 | `GET /usuarios` | Lista `id`, `nombre`, `rol`, `activo` de la empresa. Solo administrador. |
 | `POST /usuarios` | Alta `{nombre, rol, clave}` con hash argon2id. Solo administrador. Nombre repetido → 409. |
 | `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión propia exige `clave_actual` (401 si no coincide). La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
@@ -462,6 +463,13 @@ llama a Meta.
 | `GET /hotel/reservas/{id}` | Detalle de una reserva con cargos, pagos, cuenta, liquidación y `personas` (#298). Cualquier rol; documento según rol; ajena o inexistente → 403. |
 | `GET /hotel/ocupacion?desde&hasta` | Estado por habitación y noche (confirmada, en estadía, finalizada, disponible, sin tarifa, no vendible) y reservas canceladas del periodo; resumen nocturno con `disponibles`, `ocupadas_cupo` (cupo comprometido §5) y `no_vendibles` — renombrado 2026-11-04 (#320). Cualquier rol. |
 | `GET /hotel/indicadores?desde&hasta&tipo` | Panel operativo: situación de hoy y ocupación del periodo con fórmula, unidad y fuente por indicador; serie diaria con `ocupadas_estadias` (estadías reales §4.3; denominador sin `fuera_de_servicio`, #299); `ingresos_periodo_clp` (pagos confirmados del periodo) solo para administrador (D-ROL-01 RATIFICADA 2026-11-06, #297); ADR/RevPAR siguen como no disponibles (D-IND-02). Cualquier rol. |
+| `GET /hotel/documental/resumen` | Paquete documental cargado (levantamiento 2026-11-11): conteos y estado de carga. Solo lectura; no es oferta ni cobro. Con sesión. |
+| `GET /hotel/documental/habitaciones` | Habitaciones del levantamiento documental (`doc_habitacion`). Solo lectura. Con sesión. |
+| `GET /hotel/documental/tarifas` | Tarifas documentales (`doc_tarifa`) con `publicar_activas: false`. Solo lectura. Con sesión. |
+| `GET /hotel/documental/ocupacion?periodo&habitacion_id` | Histórico de ocupación reportado (`doc_ocupacion_reportada`), `es_kpi: false`. Solo lectura. Con sesión. |
+| `GET /hotel/documental/control-ocupacion` | Control de ocupación documental, `es_kpi: false`. Solo lectura. Con sesión. |
+| `GET /hotel/documental/ocupacion/serie` | Serie mensual del histórico documental (no es KPI operativo). Solo lectura. Con sesión. |
+| `GET /hotel/documental/tablas/{tabla}?limite` | Filas de una tabla `doc_*` permitida (máx. 2000); tabla desconocida → 404. Solo lectura. Con sesión. |
 | `POST /hotel/reservas` | Confirma una sola vez. La última unidad en carrera queda en una sola reserva: la confirmación es transaccional y la base rechaza el solape en (unidad, fechas) para `confirmada` y `en_estadia`. Una unidad fuera del cupo (mantenimiento abierto, `bloqueada` o `fuera_de_servicio`) → 409 y nada cambia: misma regla que la oferta (spec-hotel-operacion-v1 §2.7). Alguna noche del rango sin tarifa vigente → 409 «sin tarifa vigente para `<hab>` la noche `<d>`» y nada cambia (§2.8). El precio se cobra noche a noche con la tarifa vigente de cada noche (DECISIÓN del propietario 2026-11-06, #305 opción b; reemplaza D-TAR-02); `tarifa_noche_aceptada_clp` queda como la tarifa de la primera noche, referencia de la penalidad de cancelación. `personas` (opcional) se persiste en la reserva y se valida contra la capacidad al confirmar (#298, DECISIÓN 2026-11-06): si excede la capacidad de la unidad → 409 y nada cambia. |
 | `POST /hotel/reservas/{id}/pagos` | El núcleo registra el efecto. Si el núcleo rechaza, no hay pago. Cuerpo: `{monto_clp, clave, modo}`. `modo="manual"` (DECISIÓN, 2026-10-28): caja en efectivo o transferencia que recepción registra; solo roles recepción, caja o administrador; no consulta el banco y no queda conciliado. `modo="pasarela"` sin adaptador → 503 y nada marcado como cobrado. |
 | `POST /hotel/reservas/{id}/cargos` | Cargo de texto libre (minibar, consumo, extra). Roles recepción, caja o administrador; solo en `confirmada` o `en_estadia`; monto entero > 0 (si no, 422); otro estado → 409. Ver «Cargos de la estadía». |
@@ -477,6 +485,7 @@ llama a Meta.
 | `POST /hotel/solicitudes/{id}/conversion` | Convierte la solicitud en reserva por `reservas.crear_reserva` (misma carrera por la última unidad) y propaga `personas` de la solicitud (#298). Marca `convertida` con `reserva_id` y auditoría. Roles recepción o administrador; sin cupo o capacidad excedida → 409 y queda `recibida`. |
 | `POST /hotel/solicitudes/{id}/rechazo` | Marca la solicitud `rechazada` con motivo. Roles recepción o administrador; `recibida` → 409. |
 | `POST /publico/leads` | Sin sesión: persiste un lead `nuevo` con `Idempotency-Key` propia (origen landing, tabla y espacio de claves propios). Ver «Contacto y leads de la landing». |
+| `GET /publico/referencia?token=` | Sin sesión: con la referencia opaca del lead devuelve solo `{nombre, correo}` para precargar `/reservar` (nunca teléfono ni mensaje). La referencia caduca a las 72 h (`LEAD_REFERENCIA_HORAS`, 1 h a 30 días) y se revoca al cerrar el lead (SOC-016, 2026-11-16); vencida, revocada o inexistente → 404; formato inválido o parámetros extra → 422; freno por IP → 429. |
 | `GET /hotel/leads?estado=` | Bandeja de leads (nuevo/contactado/cerrado) con datos de contacto y mensaje. Roles recepción o administrador; solo la empresa de la sesión. |
 | `POST /hotel/leads/{id}/estado` | Avanza el lead (`contactado`/`cerrado` con nota) con auditoría; transición inválida → 409, ajeno → 403. Roles recepción o administrador. |
 | `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |

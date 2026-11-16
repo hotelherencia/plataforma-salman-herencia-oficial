@@ -24,4 +24,4 @@ Veredicto corto: **la lectura documental es correcta; no debe confundirse con KP
 
 ## Inventario operativo
 
-Solo **HAB-01…17** son opción real del titular. `HAB-101…` creadas a mano y `HAB-SINT-*` se retiran al arrancar con `INVENTARIO_DOCUMENTAL`.
+Solo **HAB-01…17** son opción real del titular. `HAB-101…` creadas a mano y `HAB-SINT-*` se retiran con el comando puntual `scripts/aplicar_documental_desde_env.py --retirar-ajenas` (baja lógica; desde W16-A02 nunca se borra su historial).

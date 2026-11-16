@@ -16,7 +16,10 @@ Siembra en plataforma (sin cobro ni oferta pública):
 
 ```text
 EMPRESA_TITULAR=1
-INVENTARIO_DOCUMENTAL=1
+python scripts/aplicar_documental_desde_env.py   # comando puntual (W16-A02)
 ```
+
+Desde la auditoría 2026-11-16 (W16-A02) la carga es un comando puntual y
+nunca borra reservas, pagos ni historial; ver `docs/arquitectura/h7-despliegue.md`.
 
 Código: `servicio/empresa_titular.py`, `servicio/inventario_documental.py`, migración `0017`.

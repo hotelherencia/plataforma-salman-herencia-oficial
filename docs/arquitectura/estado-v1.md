@@ -2,7 +2,7 @@
 
 **Ficha viva (DOC-A01, #335).** Sustituye a los conteos dispersos del README;
 si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo.
-Última actualización: 2026-11-09 (cierre #322 en main; agente N1/N2 sin subir el nivel por defecto).
+Última actualización: 2026-11-16 (quick wins de la auditoría 2026-11-16: W16-A01, W16-A02, NEW-01, NEW-02, SOC-016, OBS-02, OBS-03, AI-001, DOC-W16).
 
 ## Qué es operable hoy
 
@@ -20,16 +20,19 @@ si un número de aquí se usa en otra parte, citar esta ficha en vez de copiarlo
   backend** desplegados (API en Vercel `/api/*`, backend Railway restaurado el
   2026-11-02).
 
-## Números vigentes (2026-11-05)
+## Números vigentes (2026-11-16)
 
 | Magnitud | Valor | Fuente |
 |---|---|---|
-| Operaciones del contrato | 53 | spec-api-v1 (la tabla manda; la valida `scripts/validar_estado_v1.py`). El 2026-11-09 se sumó el webhook de WhatsApp. |
-| Pruebas del servicio | 304 | `unittest discover -s servicio/tests` |
-| Pruebas del dominio | 5 raíces en verde (~180) | core + 4 verticales incremento1 |
-| Unitarios de la landing | 12 | `node --test landing/test/*.test.mjs` |
-| E2E con navegador | base 56 · operación 20 · tarifa-noches 3 · público 6 · landing 3 · leads 5 · agente 4 | `e2e/` (corridas fechadas en `capturas/`) |
-| Tablero V1 | 104 ítems (92 hechos) | `backlog/v1/construccion-v1.json` |
+| Operaciones del contrato | 62 | spec-api-v1 (la tabla manda; la validan `scripts/validar_estado_v1.py` y `servicio/tests/test_contrato_rutas.py`, que la compara con las rutas reales). El 2026-11-16 se sumaron a la tabla las 9 que ya existían en el código: `POST /auth/google/totp`, `GET /publico/referencia` y las 7 de `/hotel/documental/*`. |
+| Pruebas del servicio | 428 (pytest) · 424 (`unittest discover`) | `pytest servicio/tests` contra PostgreSQL 16 local, base dedicada; la diferencia son 4 funciones estilo pytest que `unittest` no recoge. Antes de esta ronda: 413 / 409. |
+| Pruebas del dominio | 5 raíces en verde (180) | core 9 · hotel 118 · cafetería 19 · inmobiliaria 20 · constructora 14 (`unittest discover`) |
+| Unitarios de la landing | 18 | `node --test landing/test/*.test.mjs` |
+| E2E con navegador | base 56 · operación 20 · tarifa-noches 3 · público 6 · landing 3 · leads 5 · agente 4 | `e2e/` (corridas fechadas en `capturas/`; la última guardada tiene 7 fallos, W16-A03) |
+| Tablero V1 | 92 ítems (87 hechos) | `backlog/v1/construccion-v1.json` (conteo de `validar_estado_v1.py`) |
+
+Verificación local: `python3 scripts/verificar_local.py` (instala con
+`uv sync --frozen` y corre la suite del servicio con pytest).
 
 ## Fuera de V1 (nombrado, no operable)
 
