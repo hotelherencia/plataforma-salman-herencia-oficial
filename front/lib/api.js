@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
+import { traducirDetalle } from './mensajes.js'
+
 // Contención: si el build no inyecta API_BASE_URL, el proxy same-origin /api
 // es el contrato de producción (Vercel → Railway). Vacío rompía /sesion.
 const BASE = (process.env.API_BASE_URL || '/api').replace(/\/$/, '')
@@ -189,14 +191,7 @@ export function mensajeDeError(datos, estado) {
   if (estado === 404) return 'No existe ese recurso: revisa el identificador ingresado.'
   const detalle = datos && datos.detail
   if (typeof detalle === 'string') {
-    const traducciones = {
-      codigo_totp_requerido: 'Ingresa el código del autenticador.',
-      sesion_empresa_ajena:
-        'La sesión no pertenece a la empresa activa del servidor. Revisa EMPRESA_TITULAR / redeploy.',
-      'sesión inválida o vencida': 'Sesión expirada o revocada. Inicia sesión de nuevo.',
-      'sin sesión': 'No hay sesión activa.',
-    }
-    return traducciones[detalle] || detalle
+    return traducirDetalle(detalle)
   }
   if (typeof datos?.error === 'string') return datos.error
   if (Array.isArray(detalle))
