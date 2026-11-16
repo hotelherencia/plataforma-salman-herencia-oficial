@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api, urlApi, refrescarSesion, useSesion, mensajeMotivoSesion, mensajeDeError } from '../../lib/api'
+import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
 
 /** Formulario de acceso compartido (V1-ISSUE-27): lo usa la ruta /login y el
  *  Lienzo, que lo muestra en cualquier ruta interna cuando no hay sesión, en
@@ -101,9 +102,10 @@ export default function PantallaAcceso({ despues } = {}) {
   return (
     <main className="login-pagina">
       <form className="tarjeta login-tarjeta formulario" onSubmit={entrar}>
-        <h1 className="login-marca">Plataforma Herencia</h1>
+        <img className="login-logo" src={LOGO.h128} alt={NOMBRE_COMERCIAL} width="160" height="128" />
+        <h1 className="login-marca">{NOMBRE_COMERCIAL}</h1>
         <p className="login-subtitulo">
-          {fase !== 'clave' ? 'Doble factor · código del autenticador' : 'Acceso · Plataforma Herencia'}
+          {fase !== 'clave' ? 'Doble factor · código del autenticador' : 'Acceso a la plataforma'}
         </p>
         {fase === 'clave' ? (
           <>

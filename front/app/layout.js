@@ -1,19 +1,20 @@
 import './globals.css'
 import Lienzo from './lienzo.jsx'
+import { NOMBRE_COMERCIAL } from '../lib/marca'
 
-// icon.svg + icon.png (RGBA) + favicon.ico regenerado: evita 404/ORB por
-// HTML de error cacheado y el fallo Turbopack del ICO no-RGBA.
+// Iconos PNG de la hoja del logo oficial (16/32/48 + ICO) y apple-touch 180
+// con el wordmark completo sobre fondo blanco.
 export const metadata = {
-  title: 'Plataforma Herencia',
-  description: 'Front mínimo de la plataforma (hotel, V1)',
+  title: NOMBRE_COMERCIAL,
+  description: 'Plataforma de operación de Hotel Herencia (hotel, V1)',
   referrer: 'origin',
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/icon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16.png', type: 'image/png', sizes: '16x16' },
+      { url: '/favicon-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-48.png', type: 'image/png', sizes: '48x48' },
       { url: '/favicon.ico', type: 'image/x-icon', sizes: 'any' },
     ],
-    shortcut: ['/icon.svg'],
     apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
   },
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useSesion } from '../lib/api'
+import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 
 /**
  * Inicio de PLATAFORMA (capa Herencia): después del login se ve la
@@ -99,8 +100,9 @@ export default function Inicio() {
   return (
     <main className="pagina">
       <section className="plataforma-hero">
-        <p className="plataforma-hero-rotulo">Grupo Salman · Plataforma</p>
-        <h1 className="plataforma-hero-titulo">Herencia</h1>
+        <img className="plataforma-hero-logo" src={LOGO.h64} srcSet={`${LOGO.h64} 1x, ${LOGO.h128} 2x`} alt={NOMBRE_COMERCIAL} width="80" height="64" />
+        <p className="plataforma-hero-rotulo">Plataforma</p>
+        <h1 className="plataforma-hero-titulo">{NOMBRE_COMERCIAL}</h1>
         <p className="plataforma-hero-texto">
           Un núcleo con identidad, autorización, efecto del pago y auditoría.
           Cada módulo cubre solo su operación.

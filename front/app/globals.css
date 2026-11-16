@@ -173,13 +173,39 @@ a {
 
 .marca {
   font-family: var(--serif);
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   color: var(--papel);
   padding: 0 1.4rem;
   margin-bottom: 2rem;
   display: flex;
-  align-items: baseline;
-  gap: 0.55rem;
+  align-items: center;
+  gap: 0.7rem;
+  line-height: 1.15;
+}
+
+.marca-logo,
+.login-logo,
+.cabecera-logo,
+.plataforma-hero-logo {
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  height: auto;
+}
+
+/* El wordmark es negro: en el hero oscuro de inicio va sobre placa clara.
+ * En la barra, junto al nombre, solo se usa la hoja dorada (se lee sobre el verde). */
+.plataforma-hero-logo {
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.2rem;
+}
+
+.marca-logo {
+  width: auto;
+  height: 2.5rem;
+  background: transparent;
+  padding: 0;
 }
 
 .marca-punto {
@@ -317,6 +343,12 @@ a {
   padding: 2.1rem 2.2rem 1.9rem;
   box-shadow: var(--sombra);
   margin-bottom: 1.4rem;
+}
+
+.plataforma-hero-logo {
+  width: auto;
+  height: 4.6rem;
+  margin: 0 0 1rem;
 }
 
 .plataforma-hero-rotulo {
@@ -496,6 +528,21 @@ a {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.35rem 1rem;
+}
+
+.pagina-cabecera-marca {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+}
+
+.pagina-cabecera-marca h1 {
+  margin: 0;
+}
+
+.cabecera-logo {
+  width: auto;
+  height: 4rem;
 }
 
 .operador {
@@ -1262,10 +1309,17 @@ a.boton-primario {
   padding: 2.2rem 2rem;
 }
 
+.login-logo {
+  width: auto;
+  height: 7rem;
+  margin: 0 auto 1.1rem;
+}
+
 .login-marca {
   font-family: var(--serif);
   font-size: 1.6rem;
   margin: 0;
+  text-align: center;
 }
 
 .login-subtitulo {
@@ -1274,6 +1328,7 @@ a.boton-primario {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin: 0.3rem 0 1.6rem;
+  text-align: center;
 }
 
 /* Pantallas estrechas: la sidebar pasa arriba */
@@ -1310,6 +1365,22 @@ a.boton-primario {
     margin: 0;
     padding: 0;
     min-width: 0;
+    font-size: 1.05rem;
+  }
+
+  .barra-movil .marca-logo {
+    width: auto;
+    height: 2.25rem;
+  }
+
+  .cabecera-logo {
+    width: auto;
+    height: 3.25rem;
+  }
+
+  .login-logo {
+    width: auto;
+    height: 5.5rem;
   }
 
   .boton-menu {

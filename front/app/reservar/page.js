@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { api, clp, mensajeDeError, Campo, useClaveOperacion, alRechazar } from '../../lib/api'
+import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
 import {
   agruparOferta, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
   leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
@@ -231,9 +232,12 @@ function Reservar() {
       <p className="reservar-volver">
         <a href={SITIO}>← Volver a hotelherencia.cl</a>
       </p>
-      <header className="pagina-cabecera">
-        <h1>Reserva · Hotel Herencia</h1>
-        <p className="operador">Consulta disponibilidad y deja tu solicitud: recepción la confirma contigo.</p>
+      <header className="pagina-cabecera pagina-cabecera-marca">
+        <img className="cabecera-logo" src={LOGO.h64} srcSet={`${LOGO.h64} 1x, ${LOGO.h128} 2x`} alt={NOMBRE_COMERCIAL} width="80" height="64" />
+        <div>
+          <h1>Reserva · {NOMBRE_COMERCIAL}</h1>
+          <p className="operador">Consulta disponibilidad y deja tu solicitud: recepción la confirma contigo.</p>
+        </div>
       </header>
 
       <section className="tarjeta">

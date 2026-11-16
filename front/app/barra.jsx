@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { api, useSesion } from '../lib/api'
+import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 
 /**
  * Marco de PLATAFORMA (capa Herencia): marca, empresa de la sesión y
@@ -90,10 +91,10 @@ export default function BarraNav() {
       {/* Escritorio (>860px): barra lateral */}
       <aside className="barra">
         <div className="marca">
-          <span className="marca-punto" />
+          <img className="marca-logo" src={LOGO.hoja40} srcSet={`${LOGO.hoja40} 1x, ${LOGO.hoja80} 2x`} alt={NOMBRE_COMERCIAL} width="50" height="40" />
           <span>
-            Herencia
-            <span className="marca-sub">Grupo Salman · Plataforma</span>
+            {NOMBRE_COMERCIAL}
+            <span className="marca-sub">Plataforma</span>
           </span>
         </div>
 
@@ -148,10 +149,10 @@ export default function BarraNav() {
       {/* Móvil/tablet (≤860px): cabecera compacta + panel de menú */}
       <header className="barra-movil">
         <div className="marca">
-          <span className="marca-punto" />
+          <img className="marca-logo" src={LOGO.hoja40} srcSet={`${LOGO.hoja40} 1x, ${LOGO.hoja80} 2x`} alt={NOMBRE_COMERCIAL} width="50" height="40" />
           <span>
-            Herencia
-            <span className="marca-sub">Grupo Salman · Plataforma</span>
+            {NOMBRE_COMERCIAL}
+            <span className="marca-sub">Plataforma</span>
           </span>
         </div>
         <button
