@@ -258,6 +258,59 @@ class LeadsPublicosTest(LeadsBaseTest):
         invalida = self.anonima.get("/publico/referencia", params={"token": "corta"})
         self.assertEqual(invalida.status_code, 422, invalida.text)
 
+    def _crear_y_token(self):
+        creada = self.anonima.post(
+            "/publico/leads", json=self.cuerpo_lead(), headers={"Idempotency-Key": self.clave()}
+        )
+        self.assertEqual(creada.status_code, 201, creada.text)
+        return creada.json()["lead"]["id"], creada.json()["referencia"]
+
+    def test_soc016_referencia_minimiza_datos(self):
+        _, token = self._crear_y_token()
+        lectura = self.anonima.get("/publico/referencia", params={"token": token})
+        self.assertEqual(lectura.status_code, 200, lectura.text)
+        self.assertEqual(set(lectura.json()), {"nombre", "correo"})  # sin teléfono ni mensaje
+
+    def test_soc016_referencia_caduca(self):
+        lead_id, token = self._crear_y_token()
+        with psycopg.connect(URL_TEST) as conexion:
+            (horas,) = conexion.execute(
+                "SELECT round(extract(epoch FROM token_expira - creado_en) / 3600) FROM leads WHERE id = %s",
+                (lead_id,),
+            ).fetchone()
+            self.assertEqual(int(horas), 72)
+            conexion.execute(
+                "UPDATE leads SET token_expira = now() - interval '1 minute' WHERE id = %s", (lead_id,)
+            )
+            conexion.commit()
+        vencida = self.anonima.get("/publico/referencia", params={"token": token})
+        self.assertEqual(vencida.status_code, 404, vencida.text)
+        self.assertNotIn("visitante@example.test", vencida.text)
+
+    def test_soc016_horas_configurables_y_acotadas(self):
+        from unittest import mock
+
+        from servicio import leads as leads_mod
+
+        with mock.patch.dict(os.environ, {"LEAD_REFERENCIA_HORAS": "24"}):
+            self.assertEqual(leads_mod.horas_referencia(), 24)
+        with mock.patch.dict(os.environ, {"LEAD_REFERENCIA_HORAS": "999999"}):
+            self.assertEqual(leads_mod.horas_referencia(), 24 * 30)
+        with mock.patch.dict(os.environ, {"LEAD_REFERENCIA_HORAS": "0"}):
+            self.assertEqual(leads_mod.horas_referencia(), 1)
+        with mock.patch.dict(os.environ, {"LEAD_REFERENCIA_HORAS": "abc"}):
+            self.assertEqual(leads_mod.horas_referencia(), 72)
+
+    def test_soc016_cerrar_el_lead_revoca_la_referencia(self):
+        lead_id, token = self._crear_y_token()
+        cierre = self.cliente.post(
+            f"/hotel/leads/{lead_id}/estado", json={"estado": "cerrado", "nota": "sin interés"},
+            headers={"Idempotency-Key": self.clave()},
+        )
+        self.assertEqual(cierre.status_code, 200, cierre.text)
+        revocada = self.anonima.get("/publico/referencia", params={"token": token})
+        self.assertEqual(revocada.status_code, 404, revocada.text)
+
 
 class LeadsCorsTest(LeadsBaseTest):
     def test_ld10_cors_solo_publico_y_solo_origen_landing(self):

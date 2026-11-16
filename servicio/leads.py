@@ -13,6 +13,7 @@ sale a un modelo externo, que este canal no hace. La gestión nunca borra.
 """
 import hashlib
 import json
+import os
 import re
 import secrets
 import uuid
@@ -33,6 +34,19 @@ ROLES_GESTION = frozenset({"recepcion", "administrador"})
 _RE_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _RE_REFERENCIA = re.compile(r"^[A-Za-z0-9_-]{20,128}$")
 _TRANSICIONES = {"nuevo": frozenset({"contactado", "cerrado"}), "contactado": frozenset({"cerrado"})}
+# SOC-016: la referencia para continuar la reserva caduca (por defecto 72 h,
+# configurable con LEAD_REFERENCIA_HORAS, entre 1 h y 30 días) y se revoca
+# al cerrar el lead.
+REFERENCIA_HORAS_DEFECTO = 72
+REFERENCIA_HORAS_MAX = 24 * 30
+
+
+def horas_referencia() -> int:
+    try:
+        horas = int(os.environ.get("LEAD_REFERENCIA_HORAS") or REFERENCIA_HORAS_DEFECTO)
+    except ValueError:
+        return REFERENCIA_HORAS_DEFECTO
+    return min(max(horas, 1), REFERENCIA_HORAS_MAX)
 
 
 class LeadInvalido(Exception):
@@ -114,50 +128,65 @@ def crear_lead(
     }
     cuerpo_hash = _hash_cuerpo(cuerpo)
     existente = conexion.execute(
-        "SELECT id, cuerpo_hash, token_consulta FROM leads WHERE empresa_id = %s AND idempotency_key = %s",
+        "SELECT id, cuerpo_hash, token_consulta, (token_expira IS NOT NULL AND token_expira > now()) "
+        "FROM leads WHERE empresa_id = %s AND idempotency_key = %s",
         (empresa_id, clave),
     ).fetchone()
     if existente is not None:
         if existente[1] != cuerpo_hash:
             raise ClaveEnConflicto("esa clave ya se usó con otros datos")
-        token = existente[2] or _nueva_referencia(conexion, existente[0])
+        vigente = existente[2] if existente[2] and existente[3] else None
+        token = vigente or _nueva_referencia(conexion, existente[0])
         return {"lead": _resumen(conexion, existente[0]), "referencia": token, "reintento": True}
 
     lead_id = f"LEAD-{uuid.uuid4().hex[:12]}"
     token = secrets.token_urlsafe(32)
     conexion.execute(
         "INSERT INTO leads (id, empresa_id, nombre, correo, telefono, huespedes, check_in, "
-        "check_out, mensaje, estado, origen, idempotency_key, cuerpo_hash, token_consulta) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'nuevo', 'landing', %s, %s, %s)",
+        "check_out, mensaje, estado, origen, idempotency_key, cuerpo_hash, token_consulta, "
+        "token_expira) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'nuevo', 'landing', %s, %s, %s, "
+        "now() + make_interval(hours => %s))",
         (lead_id, empresa_id, nombre, correo, telefono, huespedes, check_in, check_out,
-         mensaje, clave, cuerpo_hash, token),
+         mensaje, clave, cuerpo_hash, token, horas_referencia()),
     )
     seguridad.auditar(conexion, f"publico:{lead_id}", "lead_recibido", lead_id, "nuevo")
     return {"lead": _resumen(conexion, lead_id), "referencia": token, "reintento": False}
 
 
 def _nueva_referencia(conexion: psycopg.Connection, lead_id: str) -> str:
+    """Emite una referencia nueva (la anterior, si existía, queda inválida).
+    Un lead cerrado no recibe referencia: no hay reserva que continuar."""
     token = secrets.token_urlsafe(32)
-    conexion.execute(
-        "UPDATE leads SET token_consulta = %s WHERE id = %s AND token_consulta IS NULL",
-        (token, lead_id),
-    )
-    fila = conexion.execute("SELECT token_consulta FROM leads WHERE id = %s", (lead_id,)).fetchone()
-    return fila[0]
+    fila = conexion.execute(
+        "UPDATE leads SET token_consulta = %s, token_expira = now() + make_interval(hours => %s) "
+        "WHERE id = %s AND estado <> 'cerrado' RETURNING token_consulta",
+        (token, horas_referencia(), lead_id),
+    ).fetchone()
+    return fila[0] if fila else None
 
 
 def por_referencia(conexion: psycopg.Connection, token: str) -> dict | None:
-    """Devuelve solo nombre, correo y teléfono de esa referencia. El token
-    no se escribe en el resultado."""
+    """SOC-016: con una referencia vigente devuelve solo lo necesario para
+    precargar /reservar (nombre y correo; nunca el teléfono ni el mensaje).
+    Caducada, revocada o de un lead cerrado → None (404). El token no se
+    escribe en el resultado."""
     if not token or not _RE_REFERENCIA.fullmatch(token):
         raise LeadInvalido("referencia inválida")
     fila = conexion.execute(
-        "SELECT nombre, correo, telefono FROM leads WHERE token_consulta = %s",
+        "SELECT nombre, correo FROM leads WHERE token_consulta = %s "
+        "AND token_expira IS NOT NULL AND token_expira > now() AND estado <> 'cerrado'",
         (token,),
     ).fetchone()
     if fila is None:
         return None
-    return {"nombre": fila[0], "correo": fila[1], "telefono": fila[2]}
+    return {"nombre": fila[0], "correo": fila[1]}
+
+
+def revocar_referencia(conexion: psycopg.Connection, lead_id: str) -> None:
+    conexion.execute(
+        "UPDATE leads SET token_consulta = NULL, token_expira = NULL WHERE id = %s", (lead_id,)
+    )
 
 
 def _resumen(conexion: psycopg.Connection, lead_id: str) -> dict:
@@ -236,5 +265,7 @@ def gestionar(
         "WHERE id = %s",
         (estado, nota, actor, lead_id),
     )
+    if estado == "cerrado":
+        revocar_referencia(conexion, lead_id)  # SOC-016
     seguridad.auditar(conexion, actor, "lead_gestion", lead_id, f"{actual}:{estado}")
     return _fila_bandeja(conexion, lead_id)
