@@ -87,6 +87,29 @@ class RecaptchaJuzgarTest(unittest.TestCase):
                 with self.assertRaises(CaptchaRechazado):
                     juzgar({**base, **cambio}, "consulta")
 
+    def test_w16_a01_acepta_dominios_propios(self):
+        # /reservar en la plataforma y la landing en www y apex (W16-A01).
+        for host in ("plataforma.hotelherencia.cl", "www.hotelherencia.cl", "hotelherencia.cl", "WWW.HotelHerencia.cl"):
+            with self.subTest(host=host):
+                juzgar({"success": True, "action": "consulta", "score": 0.9, "hostname": host}, "consulta")
+
+    def test_w16_a01_rechaza_hosts_parecidos(self):
+        for host in ("plataforma.hotelherencia.cl.evil.example", "hotelherencia.cl.example", "evilhotelherencia.cl", ""):
+            with self.subTest(host=host):
+                with self.assertRaises(CaptchaRechazado):
+                    juzgar({"success": True, "action": "consulta", "score": 0.9, "hostname": host}, "consulta")
+
+    def test_recaptcha_hostnames_agrega_hosts_sin_quitar_los_fijos(self):
+        from unittest import mock
+
+        cuerpo = {"success": True, "action": "consulta", "score": 0.9, "hostname": "preview.hotelherencia.cl"}
+        with mock.patch.dict(os.environ, {"RECAPTCHA_HOSTNAMES": " preview.hotelherencia.cl , "}):
+            juzgar(cuerpo, "consulta")
+            juzgar({**cuerpo, "hostname": "plataforma.hotelherencia.cl"}, "consulta")
+        with mock.patch.dict(os.environ, {"RECAPTCHA_HOSTNAMES": ""}):
+            with self.assertRaises(CaptchaRechazado):
+                juzgar(cuerpo, "consulta")
+
 
 if __name__ == "__main__":
     unittest.main()
