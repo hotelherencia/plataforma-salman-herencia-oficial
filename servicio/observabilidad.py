@@ -50,6 +50,45 @@ _ESTADOS_RECHAZO = {401, 403, 404, 405, 429}
 _RUTAS_SIN_LOG = {"/salud", "/readiness"}  # healthchecks de Railway (OBS-02)
 
 
+class MetricasPublicas:
+    """Contadores en memoria por proceso del canal público (/publico/*).
+
+    Sin datos personales ni tokens: solo ruta (sin query) y clase de
+    resultado. Con varias instancias cada una cuenta lo suyo; la vista
+    agregada son los logs JSON (`evento=publico`), ver
+    docs/operations/observabilidad-canal-publico.md."""
+
+    CLASES = {
+        400: "entrada_rechazada", 413: "entrada_rechazada", 422: "entrada_rechazada",
+        403: "recaptcha_rechazado", 404: "no_encontrado", 409: "conflicto",
+        429: "freno", 503: "no_disponible",
+    }
+
+    def __init__(self) -> None:
+        self._conteos: dict[str, dict[str, int]] = {}
+        self._cerrojo = threading.Lock()
+        self.desde = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    @classmethod
+    def clase(cls, estado: int) -> str:
+        if estado < 400:
+            return "ok"
+        if estado >= 500 and estado != 503:
+            return "error"
+        return cls.CLASES.get(estado, "rechazo_otro")
+
+    def anotar(self, ruta: str, estado: int) -> str:
+        clase = self.clase(estado)
+        with self._cerrojo:
+            por_ruta = self._conteos.setdefault(ruta, {})
+            por_ruta[clase] = por_ruta.get(clase, 0) + 1
+        return clase
+
+    def resumen(self) -> dict:
+        with self._cerrojo:
+            return {"desde": self.desde, "rutas": {r: dict(c) for r, c in self._conteos.items()}}
+
+
 def request_id_actual() -> str:
     return _request_id.get()
 
@@ -146,6 +185,7 @@ def instalar(app) -> None:
 
     configurar_logging()
     app.state.detector_amenazas = detector_desde_entorno()
+    app.state.metricas_publicas = MetricasPublicas()
 
     @app.middleware("http")
     async def observar(request, call_next):
@@ -191,6 +231,16 @@ def instalar(app) -> None:
                         ultima_ruta=ruta[:200],
                         ultimo_estado=estado,
                     )
+
+            if ruta.startswith("/publico/"):
+                # Una línea por petición pública con su clase de resultado
+                # (entrada_rechazada, freno, recaptcha_rechazado...). Sin query.
+                resultado = app.state.metricas_publicas.anotar(ruta[:80], estado)
+                log_http.info(
+                    "publico",
+                    extra={"evento": "publico", "ruta": ruta[:80], "estado": estado,
+                           "resultado": resultado, "ms": ms},
+                )
 
             if ruta not in _RUTAS_SIN_LOG or estado >= 400:
                 nivel = (

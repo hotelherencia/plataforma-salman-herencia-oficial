@@ -21,7 +21,7 @@ from datetime import date
 
 import psycopg
 
-from . import seguridad
+from . import entrada_publica, seguridad
 
 MAX_NOMBRE = 200
 MAX_CORREO = 320
@@ -76,6 +76,8 @@ def _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje) 
         raise LeadInvalido("correo es obligatorio y debe tener formato de correo")
     if not telefono or len(telefono) > MAX_TELEFONO:
         raise LeadInvalido(f"telefono es obligatorio (máx. {MAX_TELEFONO})")
+    if not entrada_publica.telefono_con_formato(telefono):
+        raise LeadInvalido("telefono solo admite dígitos, espacios, +, (, ), . y -")
     digitos = re.sub(r"\D", "", telefono)
     if len(digitos) < 8 or len(digitos) > 15:
         raise LeadInvalido("telefono debe incluir entre 8 y 15 dígitos")
@@ -113,10 +115,10 @@ def crear_lead(
     """Persiste el lead `nuevo` con idempotencia propia. Reintento (misma
     clave y cuerpo) devuelve el lead original con reintento=true; misma clave
     y otro cuerpo → ClaveEnConflicto (409)."""
-    nombre = (nombre or "").strip()
-    correo = (correo or "").strip()
-    telefono = (telefono or "").strip()
-    mensaje = (mensaje or "").strip() or None
+    nombre = entrada_publica.limpiar_texto(nombre)
+    correo = entrada_publica.limpiar_texto(correo).lower()
+    telefono = entrada_publica.limpiar_texto(telefono)
+    mensaje = entrada_publica.limpiar_texto(mensaje, multilinea=True) or None
     _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje)
 
     cuerpo = {

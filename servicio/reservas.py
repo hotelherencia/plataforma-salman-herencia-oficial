@@ -260,7 +260,7 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
         (personas, list(ESTADOS_NO_VENDIBLES)),
     ).fetchall()
     items = []
-    for habitacion_id, tipo, _capacidad in unidades:
+    for habitacion_id, tipo, capacidad in unidades:
         if primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin) is not None or not _libre(
             conexion, habitacion_id, inicio, fin
         ):
@@ -270,13 +270,26 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
             {
                 "habitacion_id": habitacion_id,
                 "tipo": tipo,
+                "capacidad": capacidad,
                 "tarifa_noche_clp": tarifa,
                 "total_clp": total,
                 "politica_cancelacion": POLITICA_CANCELACION,
                 "vigente_hasta": (ahora + VIGENCIA_OFERTA).isoformat(),
             }
         )
-    return {"oferta": items, "emitida_en": ahora.isoformat(), "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60}
+    # UX: con 4+ personas la oferta queda vacía; el front explica el tope por
+    # habitación con este dato (no lo inventa).
+    tope = conexion.execute(
+        "SELECT max(capacidad) FROM habitaciones WHERE mantenimiento = false "
+        "AND estado_operativo <> ALL(%s)",
+        (list(ESTADOS_NO_VENDIBLES),),
+    ).fetchone()[0]
+    return {
+        "oferta": items,
+        "emitida_en": ahora.isoformat(),
+        "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60,
+        "capacidad_maxima_habitacion": tope,
+    }
 
 
 _COLUMNAS_HABITACION = (

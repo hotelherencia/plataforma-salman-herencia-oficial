@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 import psycopg
 
+from . import entrada_publica
 from . import reservas as reservas_db
 from . import seguridad
 
@@ -224,8 +225,8 @@ def crear_solicitud(
     otro cuerpo → ClaveEnConflicto (409). Sin cupo o sin tarifa → 409 y nada
     se persiste."""
     _validar_rango(inicio, fin, personas)
-    nombre = (huesped_nombre or "").strip()
-    contacto = (huesped_contacto or "").strip()
+    nombre = entrada_publica.limpiar_texto(huesped_nombre)
+    contacto = entrada_publica.limpiar_texto(huesped_contacto)
     if not nombre:
         raise SolicitudInvalida("huesped_nombre es obligatorio")
     if not contacto:

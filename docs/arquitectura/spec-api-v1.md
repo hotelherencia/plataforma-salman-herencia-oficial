@@ -431,7 +431,7 @@ autorizados (D-AGT-03, D-WSP-01). Sin las tres variables
 el puerto responde 503 «no configurado» y no persiste nada. Ninguna prueba
 llama a Meta.
 
-## Operaciones de esta versión (62)
+## Operaciones de esta versión (63)
 
 | Operación | Efecto |
 |---|---|
@@ -486,6 +486,7 @@ llama a Meta.
 | `POST /hotel/solicitudes/{id}/rechazo` | Marca la solicitud `rechazada` con motivo. Roles recepción o administrador; `recibida` → 409. |
 | `POST /publico/leads` | Sin sesión: persiste un lead `nuevo` con `Idempotency-Key` propia (origen landing, tabla y espacio de claves propios). Ver «Contacto y leads de la landing». |
 | `GET /publico/referencia?token=` | Sin sesión: con la referencia opaca del lead devuelve solo `{nombre, correo}` para precargar `/reservar` (nunca teléfono ni mensaje). La referencia caduca a las 72 h (`LEAD_REFERENCIA_HORAS`, 1 h a 30 días) y se revoca al cerrar el lead (SOC-016, 2026-11-16); vencida, revocada o inexistente → 404; formato inválido o parámetros extra → 422; freno por IP → 429. |
+| `GET /hotel/metricas-publicas` | Solo `administrador`: contadores en memoria de esta instancia del canal público por ruta y clase de resultado (`ok`, `entrada_rechazada`, `freno`, `recaptcha_rechazado`, `no_encontrado`, `conflicto`, `no_disponible`, `error`). Sin datos personales ni tokens; la vista agregada son los logs JSON `evento=publico` (2026-11-16). |
 | `GET /hotel/leads?estado=` | Bandeja de leads (nuevo/contactado/cerrado) con datos de contacto y mensaje. Roles recepción o administrador; solo la empresa de la sesión. |
 | `POST /hotel/leads/{id}/estado` | Avanza el lead (`contactado`/`cerrado` con nota) con auditoría; transición inválida → 409, ajeno → 403. Roles recepción o administrador. |
 | `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |

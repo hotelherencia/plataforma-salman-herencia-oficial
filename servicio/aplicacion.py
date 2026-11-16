@@ -18,6 +18,7 @@ for _ruta in (RAIZ / "core" / "incremento1", RAIZ / "verticales" / "hotel" / "in
 
 import psycopg  # noqa: E402
 from fastapi import FastAPI, HTTPException, Request, Response  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 
 from hotel_inventario.dominio import EstadoUnidad, Establecimiento, Unidad  # noqa: E402
@@ -368,6 +369,17 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     app.include_router(hotel.router)
     app.include_router(rutas_agente.router)
     app.include_router(rutas_mensajeria.router)
+
+    @app.exception_handler(RequestValidationError)
+    async def manejar_validacion(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        # 422 sin reflejar el valor recibido: FastAPI incluye `input` (y a veces
+        # `ctx`/`url`) con lo que mandó el cliente, p. ej. un <script> o un token.
+        # Se conservan tipo, ubicación y mensaje para depurar.
+        errores = [
+            {"type": e.get("type"), "loc": list(e.get("loc", ())), "msg": e.get("msg")}
+            for e in exc.errors()
+        ]
+        return JSONResponse(status_code=422, content={"detail": errores})
 
     @app.exception_handler(cobro.RecursoAjenoOInexistente)
     @app.exception_handler(cobro.PagoRechazadoPorNucleo)

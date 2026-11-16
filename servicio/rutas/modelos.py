@@ -5,7 +5,7 @@ de rutas los importen sin circularidad.
 """
 from datetime import date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import agente, canal_publico
 from .. import leads as leads_mod
@@ -103,6 +103,9 @@ class CargoIn(BaseModel):
 
 
 class SolicitudPublicaIn(BaseModel):
+    # Lista blanca: un campo no declarado es 422, no se ignora en silencio.
+    model_config = ConfigDict(extra="forbid")
+
     habitacion_id: str = Field(min_length=1, max_length=50)
     inicio: date
     fin: date
@@ -116,6 +119,9 @@ class RechazoSolicitudIn(BaseModel):
 
 
 class LeadPublicoIn(BaseModel):
+    # Lista blanca: un campo no declarado es 422, no se ignora en silencio.
+    model_config = ConfigDict(extra="forbid")
+
     nombre: str = Field(min_length=1, max_length=leads_mod.MAX_NOMBRE)
     correo: str = Field(min_length=1, max_length=leads_mod.MAX_CORREO)
     telefono: str = Field(min_length=1, max_length=leads_mod.MAX_TELEFONO)

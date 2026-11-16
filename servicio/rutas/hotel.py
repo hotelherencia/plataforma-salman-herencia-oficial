@@ -4,6 +4,7 @@ Mantenedor de habitaciones/tarifas, oferta, reservas, cobro, estadía, caja,
 búsqueda, ocupación, indicadores, solicitudes públicas (bandeja) y leads
 (bandeja y gestión). Comportamiento idéntico al de las closures originales.
 """
+import hashlib
 import json
 import os
 from datetime import date, datetime, timedelta
@@ -18,6 +19,7 @@ from .. import documental
 from .. import idempotencia
 from .. import inventario_documental
 from .. import leads as leads_mod
+from .. import observabilidad
 from .. import recaptcha
 from .. import panel
 from .. import reservas as reservas_db
@@ -712,13 +714,30 @@ def leer_referencia_publica(
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
+    # El token nunca va al log: solo un prefijo de su hash para correlacionar.
+    huella = hashlib.sha256(token.encode()).hexdigest()[:12]
     try:
         datos = leads_mod.por_referencia(conexion, token)
     except leads_mod.LeadInvalido as error:
+        observabilidad.log_http.info("referencia", extra={"evento": "referencia", "ref_hash": huella, "resultado": "formato_invalido"})
         raise HTTPException(status_code=422, detail=error.detalle)
     if datos is None:
+        observabilidad.log_http.info("referencia", extra={"evento": "referencia", "ref_hash": huella, "resultado": "no_vigente"})
         raise HTTPException(status_code=404, detail="no encontramos esa consulta")
+    observabilidad.log_http.info("referencia", extra={"evento": "referencia", "ref_hash": huella, "resultado": "ok"})
     return datos
+
+
+@router.get("/hotel/metricas-publicas")
+def metricas_publicas(
+    request: Request,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+) -> dict:
+    """Contadores del canal público de esta instancia (sin PII ni tokens).
+    Solo administración; la vista agregada está en los logs JSON."""
+    comun.exigir_rol(sesion, frozenset({"administrador"}))
+    metricas = getattr(request.app.state, "metricas_publicas", None)
+    return metricas.resumen() if metricas else {"desde": None, "rutas": {}}
 
 @router.post("/publico/solicitudes")
 def crear_solicitud_publica(
