@@ -1,25 +1,27 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { api, clp, mensajeDeError, Campo, useClaveOperacion, alRechazar } from '../../lib/api'
+import {
+  agruparOferta, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
+  leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
+} from './continuidad'
 
 /** Fecha local de hoy (AAAA-MM-DD): toISOString es UTC y adelanta un día tras
  *  las 21:00 en Chile, vetando llegadas válidas. */
 function hoyLocal() {
-  const d = new Date()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dia = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${m}-${dia}`
+  return isoLocal(new Date())
 }
 
 const CLAVE_SITIO_RECAPTCHA = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LcKehguAAAAAG07HWp0QQOHJyMxQeWfQl3epp7n'
+const SITIO = 'https://www.hotelherencia.cl'
 
 function prepararRecaptcha() {
   if (document.querySelector('script[data-recaptcha]')) return
   const script = document.createElement('script')
-  script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(CLAVE_SITIO_RECAPTCHA)}`
+  script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(CLAVE_SITIO_RECAPTCHA)}&hl=es-419`
   script.async = true
   script.referrerPolicy = 'origin'
   script.dataset.recaptcha = 'v3'
@@ -50,70 +52,66 @@ function tokenRecaptcha(accion) {
   })
 }
 
-function fechaIso(valor) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(valor)
-}
-
-function personasValidas(valor) {
-  return /^\d{1,2}$/.test(String(valor)) && Number(valor) >= 1 && Number(valor) <= 30
-}
-
-function referenciaValida(valor) {
-  return /^[A-Za-z0-9_-]{20,128}$/.test(valor)
-}
-
-function validar(inicio, fin, personas) {
-  if (!inicio || !fin) return 'Indica las fechas de tu estadía.'
-  if (fin <= inicio) return 'La salida debe ser posterior a la llegada.'
-  if (inicio < hoyLocal()) return 'La llegada no puede ser una fecha pasada.'
-  if ((new Date(`${fin}T00:00:00`) - new Date(`${inicio}T00:00:00`)) / 86400000 > 30)
-    return 'El rango supera las 30 noches.'
-  const n = Number(personas)
-  if (!Number.isInteger(n) || n < 1 || n > 30) return 'Personas debe estar entre 1 y 30.'
-  return null
+function almacenLocal() {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
 }
 
 /** Página pública del visitante (spec-front-v1 «Rutas públicas», V1-ISSUE-23):
- *  fuera del menú interno, lee y valida los parámetros de la landing, muestra
- *  lo que responde /publico/disponibilidad sin calcular nada, y envía la
- *  solicitud con Idempotency-Key estable. */
+ *  fuera del menú interno, lee la query por lista blanca (llegada/salida/personas
+ *  y la referencia opaca de la landing), muestra lo que responde
+ *  /publico/disponibilidad sin calcular nada y envía la solicitud con
+ *  Idempotency-Key estable. Si el visitante ya dejó su consulta en la landing,
+ *  nombre y correo llegan por la referencia y no se vuelven a pedir. */
 function Reservar() {
   const params = useSearchParams()
-  const inicioParam = params.get('inicio') || ''
-  const finParam = params.get('fin') || ''
-  const personasParam = params.get('personas') || ''
-  const [inicio, setInicio] = useState(fechaIso(inicioParam) ? inicioParam : '')
-  const [fin, setFin] = useState(fechaIso(finParam) ? finParam : '')
-  const [personas, setPersonas] = useState(personasValidas(personasParam) ? String(Number(personasParam)) : '2')
-  const [datosDeLaLanding, setDatosDeLaLanding] = useState(false)
-  const [avisoSinRef, setAvisoSinRef] = useState(false)
+  const inicial = useRef(leerParametros(params)).current
+  const [inicio, setInicio] = useState(inicial.inicio)
+  const [fin, setFin] = useState(inicial.fin)
+  const [personas, setPersonas] = useState(inicial.personas || '2')
+  // Contacto que trajo la referencia de la landing (null: no hay o no vigente).
+  const [previo, setPrevio] = useState(null)
+  const [editando, setEditando] = useState(false)
+  const [resolviendoRef, setResolviendoRef] = useState(false)
   const [oferta, setOferta] = useState(null)
+  const [personasConsultadas, setPersonasConsultadas] = useState(inicial.personas || '2')
   const [elegida, setElegida] = useState('')
   const [nombre, setNombre] = useState('')
   const [contacto, setContacto] = useState('')
+  const [erroresCampo, setErroresCampo] = useState({})
   const [buscando, setBuscando] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(inicial.avisos[0] || '')
+  const [errorSolicitud, setErrorSolicitud] = useState('')
   const [confirmada, setConfirmada] = useState(null)
   const [clave, renovarClave] = useClaveOperacion()
+  const refNombre = useRef(null)
+  const refContacto = useRef(null)
+  const refErrorSolicitud = useRef(null)
+  const refConfirmada = useRef(null)
 
   async function buscar(proximoInicio, proximoFin, proximasPersonas) {
-    const problema = validar(proximoInicio, proximoFin, proximasPersonas)
+    const problema = validarRango(proximoInicio, proximoFin, proximasPersonas, hoyLocal())
     setError(problema || '')
     setOferta(null)
     setConfirmada(null)
+    setErrorSolicitud('')
     if (problema) return
     setBuscando(true)
     try {
-      const r = await api(
-        `/publico/disponibilidad?inicio=${proximoInicio}&fin=${proximoFin}&personas=${Number(proximasPersonas)}`
-      )
+      const q = new URLSearchParams({ inicio: proximoInicio, fin: proximoFin, personas: String(Number(proximasPersonas)) })
+      const r = await api(`/publico/disponibilidad?${q}`)
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
         alRechazar(r.estado, renovarClave)
       } else {
         setOferta(r.datos)
-        setElegida(r.datos.oferta[0] ? r.datos.oferta[0].habitacion_id : '')
+        setPersonasConsultadas(String(Number(proximasPersonas)))
+        const grupos = agruparOferta(r.datos.oferta)
+        setElegida(grupos[0] ? grupos[0].habitacion_id : '')
       }
     } catch {
       setError('La API no está disponible: nada se puede confirmar. Intenta de nuevo en unos minutos.')
@@ -122,68 +120,73 @@ function Reservar() {
     }
   }
 
-  // Deep link desde la landing (CA-PUB-07): precarga y consulta al entrar.
   useEffect(() => {
     prepararRecaptcha()
   }, [])
 
+  // Una sola vez al entrar: consulta con las fechas del enlace, guarda la
+  // referencia y deja la URL canónica (llegada/salida/personas, sin ref).
   useEffect(() => {
-    const i = fechaIso(inicioParam) ? inicioParam : ''
-    const f = fechaIso(finParam) ? finParam : ''
-    const p = personasValidas(personasParam) ? String(Number(personasParam)) : ''
-    if (!fechaIso(inicioParam) && inicioParam) setError('La llegada indicada en el enlace no es válida.')
-    else if (!fechaIso(finParam) && finParam) setError('La salida indicada en el enlace no es válida.')
-    else if (personasParam && !personasValidas(personasParam)) setError('La cantidad de personas del enlace no es válida.')
-    if (i) setInicio(i)
-    if (f) setFin(f)
-    if (p) setPersonas(p)
+    const { inicio: i, fin: f, personas: p, ref: refUrl } = inicial
     if (i && f) buscar(i, f, p || '2')
+    const almacen = almacenLocal()
+    if (refUrl) guardarReferencia(almacen, refUrl)
+    const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p })
+    if (canonica) window.history.replaceState(window.history.state, '', canonica)
 
-    const ref = params.get('ref') || ''
-    if (!referenciaValida(ref)) {
-      // V1-ISSUE-42: fechas sin `ref` no son un fallo silencioso — el visitante
-      // debe saber que tendrá que escribir el contacto otra vez.
-      if (i && f) setAvisoSinRef(true)
-      return
-    }
+    const ref = refUrl || leerReferencia(almacen)
+    if (!ref) return
     let vigente = true
+    setResolviendoRef(true)
     api(`/publico/referencia?token=${encodeURIComponent(ref)}`)
       .then((r) => {
         if (!vigente) return
-        if (r.estado !== 200) {
-          setAvisoSinRef(true)
-          return
+        if (r.estado === 200 && r.datos && (r.datos.nombre || r.datos.correo)) {
+          const datos = { nombre: String(r.datos.nombre || ''), correo: String(r.datos.correo || '') }
+          setPrevio(datos)
+          setNombre(datos.nombre)
+          setContacto(datos.correo)
+        } else if (r.estado === 404 || r.estado === 422) {
+          olvidarReferencia(almacen) // vencida, revocada o ajena: no se reintenta
         }
-        if (r.datos.nombre) setNombre(r.datos.nombre)
-        if (r.datos.correo) setContacto(r.datos.correo)
-        else if (r.datos.telefono) setContacto(r.datos.telefono)
-        setDatosDeLaLanding(true)
-        setAvisoSinRef(false)
       })
-      .catch(() => {
-        if (vigente) setAvisoSinRef(true)
+      .catch(() => {})
+      .finally(() => {
+        if (vigente) setResolviendoRef(false)
       })
     return () => {
       vigente = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+  }, [])
+
+  function enfocar(ref) {
+    const el = ref.current
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.focus({ preventScroll: true })
+  }
 
   async function enviar(e) {
     e.preventDefault()
-    setError('')
+    setErrorSolicitud('')
     setConfirmada(null)
-    const problema = validar(inicio, fin, personas)
+    const problema = validarRango(inicio, fin, personas, hoyLocal())
     if (problema) {
-      setError(problema)
+      setErrorSolicitud(problema)
+      requestAnimationFrame(() => enfocar(refErrorSolicitud))
       return
     }
     if (!elegida) {
-      setError('Elige una de las opciones disponibles.')
+      setErrorSolicitud('Elige una de las opciones disponibles.')
+      requestAnimationFrame(() => enfocar(refErrorSolicitud))
       return
     }
-    if (!nombre.trim() || !contacto.trim()) {
-      setError('Indica tu nombre y un medio de contacto.')
+    const errores = erroresContacto(nombre, contacto)
+    setErroresCampo(errores)
+    if (errores.nombre || errores.contacto) {
+      setEditando(true)
+      requestAnimationFrame(() => enfocar(errores.nombre ? refNombre : refContacto))
       return
     }
     setEnviando(true)
@@ -201,21 +204,33 @@ function Reservar() {
         cabeceras,
       })
       if (r.estado >= 400) {
-        setError(mensajeDeError(r.datos, r.estado))
+        setErrorSolicitud(mensajeDeError(r.datos, r.estado))
         alRechazar(r.estado, renovarClave)
+        requestAnimationFrame(() => enfocar(refErrorSolicitud))
       } else {
         setConfirmada(r.datos)
         renovarClave() // 2xx: la clave se repone para una operación nueva
+        requestAnimationFrame(() => enfocar(refConfirmada))
       }
     } catch {
-      setError('La API no está disponible: tu solicitud no se envió. Intenta de nuevo.')
+      setErrorSolicitud('La API no está disponible: tu solicitud no se envió. Intenta de nuevo.')
+      requestAnimationFrame(() => enfocar(refErrorSolicitud))
     } finally {
       setEnviando(false)
     }
   }
 
+  const grupos = oferta ? agruparOferta(oferta.oferta) : []
+  const politica = oferta ? politicaUnica(oferta.oferta) : null
+  const tope = oferta ? oferta.capacidad_maxima_habitacion : null
+  const excedeHabitacion = oferta && tope && Number(personasConsultadas) > tope
+  const mostrarCampos = !previo || editando
+
   return (
-    <main className="pagina">
+    <main className="pagina pagina-publica reservar">
+      <p className="reservar-volver">
+        <a href={SITIO}>← Volver a hotelherencia.cl</a>
+      </p>
       <header className="pagina-cabecera">
         <h1>Reserva · Hotel Herencia</h1>
         <p className="operador">Consulta disponibilidad y deja tu solicitud: recepción la confirma contigo.</p>
@@ -223,14 +238,14 @@ function Reservar() {
 
       <section className="tarjeta">
         <form
-          className="formulario"
+          className="formulario formulario-busqueda"
           onSubmit={(e) => {
             e.preventDefault()
             buscar(inicio, fin, personas)
           }}
         >
-          <Campo etiqueta="Llegada" type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-          <Campo etiqueta="Salida" type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
+          <Campo etiqueta="Llegada" type="date" min={hoyLocal()} value={inicio} onChange={(e) => setInicio(e.target.value)} />
+          <Campo etiqueta="Salida" type="date" min={inicio || hoyLocal()} value={fin} onChange={(e) => setFin(e.target.value)} />
           <Campo
             etiqueta="Personas"
             type="number"
@@ -250,50 +265,122 @@ function Reservar() {
       {oferta && (
         <section className="tarjeta">
           <h2>Disponibilidad</h2>
-          {oferta.oferta.length === 0 ? (
-            <p className="estado">
-              No hay opciones para esas fechas. Prueba con otro rango o escríbenos y te ayudamos.
-            </p>
+          {grupos.length === 0 ? (
+            excedeHabitacion ? (
+              <div className="estado" data-aviso-grupo>
+                <p>
+                  Cada habitación recibe hasta {tope} personas. Para {Number(personasConsultadas)} personas, recepción arma
+                  la reserva con varias habitaciones.
+                </p>
+                <p className="acciones-fila">
+                  <a className="boton-primario" href={enlaceWhatsapp(inicio, fin, personasConsultadas)} target="_blank" rel="noopener noreferrer">
+                    Escribir a recepción por WhatsApp
+                  </a>
+                  <a className="boton-secundario" href={`${SITIO}/#contacto`}>Enviar una consulta</a>
+                </p>
+              </div>
+            ) : (
+              <div className="estado">
+                <p>No quedan habitaciones para esas fechas. Prueba con otro rango o escríbenos y te ayudamos.</p>
+                <p className="acciones-fila">
+                  <a className="boton-secundario" href={enlaceWhatsapp(inicio, fin, personasConsultadas)} target="_blank" rel="noopener noreferrer">
+                    Escribir por WhatsApp
+                  </a>
+                </p>
+              </div>
+            )
           ) : (
             <>
               <p className="estado">
                 Valores por noche según tarifa vigente; la oferta vence en {oferta.vigencia_minutos} minutos.
               </p>
-              <div className="lista-opciones">
-                {oferta.oferta.map((item) => (
-                  <label key={item.habitacion_id} className="opcion">
+              <fieldset className="lista-opciones">
+                <legend className="sr-only">Tipo de habitación</legend>
+                {grupos.map((g) => (
+                  <label key={g.tipo} className="opcion opcion-tipo">
                     <input
                       type="radio"
                       name="habitacion"
-                      checked={elegida === item.habitacion_id}
-                      onChange={() => setElegida(item.habitacion_id)}
+                      checked={elegida === g.habitacion_id}
+                      onChange={() => setElegida(g.habitacion_id)}
                     />
-                    <span>
-                      {item.habitacion_id} · {item.tipo} — {clp(item.tarifa_noche_clp)} por noche ·{' '}
-                      <strong>{clp(item.total_clp)}</strong> total · cancelación: {item.politica_cancelacion}
+                    <span className="opcion-cuerpo">
+                      <span className="opcion-titulo">{g.nombre}</span>
+                      <span className="opcion-detalle">
+                        {g.capacidad ? `Hasta ${g.capacidad} ${g.capacidad === 1 ? 'persona' : 'personas'} · ` : ''}
+                        {g.disponibles === 1 ? 'queda 1' : `quedan ${g.disponibles}`}
+                      </span>
+                    </span>
+                    <span className="opcion-precio">
+                      <span>{g.precios_distintos ? 'desde ' : ''}{clp(g.tarifa_noche_clp)} por noche</span>
+                      <strong>{clp(g.total_clp)} total</strong>
                     </span>
                   </label>
                 ))}
-              </div>
-              <form className="formulario" onSubmit={enviar}>
-                {datosDeLaLanding && (
-                  <p className="estado">Tomamos tu nombre y tu correo de la consulta que ya enviaste. No hace falta repetirlos.</p>
+              </fieldset>
+              {politica && <p className="estado politica-cancelacion">Cancelación: {politica}.</p>}
+
+              <form className="formulario-solicitud" onSubmit={enviar} noValidate>
+                {previo && !editando && (
+                  <div className="contacto-previo" data-contacto-previo>
+                    <p>
+                      Te contactaremos a <strong>{previo.correo || 'tu contacto'}</strong>
+                      {previo.nombre ? <> a nombre de <strong>{previo.nombre}</strong></> : null}. Lo tomamos de la consulta
+                      que ya enviaste.
+                    </p>
+                    <button type="button" className="boton-secundario" onClick={() => setEditando(true)}>
+                      Editar mis datos
+                    </button>
+                  </div>
                 )}
-                {avisoSinRef && !datosDeLaLanding && (
-                  <p className="estado" role="status" data-aviso-sin-ref>
-                    Esta página no trajo tu consulta previa. Completa nombre y correo o teléfono aquí, o vuelve al formulario de contacto de la landing y usa «Continuar con la reserva» para no escribirlos otra vez.
+                {!previo && !resolviendoRef && (
+                  <p className="estado nota-contacto" data-aviso-sin-ref>
+                    Déjanos tu nombre y un correo o teléfono para que recepción te confirme la reserva.
                   </p>
                 )}
-                <Campo etiqueta="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-                <Campo
-                  etiqueta="Correo o teléfono"
-                  value={contacto}
-                  onChange={(e) => setContacto(e.target.value)}
-                />
+                {mostrarCampos && (
+                  <div className="campos-contacto">
+                    <div>
+                      <Campo
+                        etiqueta="Nombre"
+                        ref={refNombre}
+                        autoComplete="name"
+                        maxLength={120}
+                        value={nombre}
+                        aria-invalid={erroresCampo.nombre ? 'true' : undefined}
+                        aria-describedby={erroresCampo.nombre ? 'error-nombre' : undefined}
+                        onChange={(e) => {
+                          setNombre(e.target.value)
+                          if (erroresCampo.nombre) setErroresCampo({ ...erroresCampo, nombre: undefined })
+                        }}
+                      />
+                      {erroresCampo.nombre && <p id="error-nombre" className="error-campo">{erroresCampo.nombre}</p>}
+                    </div>
+                    <div>
+                      <Campo
+                        etiqueta="Correo o teléfono"
+                        ref={refContacto}
+                        autoComplete="email"
+                        maxLength={120}
+                        value={contacto}
+                        aria-invalid={erroresCampo.contacto ? 'true' : undefined}
+                        aria-describedby={erroresCampo.contacto ? 'error-contacto' : undefined}
+                        onChange={(e) => {
+                          setContacto(e.target.value)
+                          if (erroresCampo.contacto) setErroresCampo({ ...erroresCampo, contacto: undefined })
+                        }}
+                      />
+                      {erroresCampo.contacto && <p id="error-contacto" className="error-campo">{erroresCampo.contacto}</p>}
+                    </div>
+                  </div>
+                )}
                 <p className="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
                   Hotel Herencia usará tu nombre, correo, teléfono, fechas y mensaje para responder esta consulta y, si sigues, para dejar la solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos RUT, datos de salud ni tarjeta; no los escribas en el mensaje. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
                 </p>
-                <button type="submit" className="boton-primario" disabled={enviando || oferta.oferta.length === 0}>
+                {errorSolicitud && (
+                  <p role="alert" className="alerta" tabIndex={-1} ref={refErrorSolicitud}>{errorSolicitud}</p>
+                )}
+                <button type="submit" className="boton-primario boton-enviar" disabled={enviando || grupos.length === 0}>
                   {enviando ? 'Enviando…' : 'Enviar solicitud'}
                 </button>
               </form>
@@ -303,7 +390,7 @@ function Reservar() {
       )}
 
       {confirmada && (
-        <section className="tarjeta" role="status">
+        <section className="tarjeta" role="status" tabIndex={-1} ref={refConfirmada}>
           <h2>Solicitud recibida</h2>
           <p className="resumen">
             Tu solicitud <strong>{confirmada.solicitud_id}</strong> quedó registrada. Recepción la revisará y
@@ -317,7 +404,7 @@ function Reservar() {
 
 export default function ReservarEnvuelta() {
   return (
-    <Suspense fallback={<main className="pagina"><p className="estado">Cargando…</p></main>}>
+    <Suspense fallback={<main className="pagina pagina-publica"><p className="estado">Cargando…</p></main>}>
       <Reservar />
     </Suspense>
   )

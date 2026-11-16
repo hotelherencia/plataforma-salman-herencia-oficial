@@ -18,9 +18,14 @@ const RUTAS_PUBLICAS = ['/login', '/reservar', '/privacidad']
  *  Lienzo y la página protegida aparece en la misma ruta (vuelta sin redirect). */
 export default function Lienzo({ children }) {
   const ruta = usePathname()
+  // UX: en rutas públicas no se consulta /sesion (evita el 401 de cada visita).
+  if (RUTAS_PUBLICAS.includes(ruta)) return <>{children}</>
+  return <LienzoPrivado>{children}</LienzoPrivado>
+}
+
+function LienzoPrivado({ children }) {
   const sesion = useSesion()
 
-  if (RUTAS_PUBLICAS.includes(ruta)) return <>{children}</>
   if (sesion.fase === 'cargando')
     return (
       <main className="pagina">
