@@ -20,7 +20,8 @@ PY
 set +a
 
 export EMPRESA_TITULAR=1
-export INVENTARIO_DOCUMENTAL=1
+# W16-A02: sin INVENTARIO_DOCUMENTAL=1 en el arranque; la carga documental es
+# un comando puntual (scripts/aplicar_documental_desde_env.py).
 export EMPRESA_ES_SINTETICA=0
 export EMPRESA_RUT="${EMPRESA_RUT:-76.707.504-9}"
 export PYTHONPATH="$ROOT"

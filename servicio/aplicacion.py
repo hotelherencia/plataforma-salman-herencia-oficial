@@ -32,7 +32,7 @@ from .empresa_titular import (  # noqa: E402
 )
 from . import documental  # noqa: E402
 from . import inventario_documental  # noqa: E402
-from .migracion import aplicar_migraciones  # noqa: E402
+from .migracion import aplicar_migraciones, migraciones_pendientes  # noqa: E402
 from . import seguridad  # noqa: E402
 from . import idempotencia  # noqa: E402
 from . import google_oidc  # noqa: E402
@@ -102,10 +102,31 @@ def construir_aplicacion(nucleo: Nucleo | None = None) -> Aplicacion:
 
 
 def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> None:
+    """Prepara la base al arrancar, sin operaciones destructivas.
+
+    - Migraciones: solo si `MIGRAR_AL_ARRANCAR` (por defecto sí); se serializan
+      con un advisory lock para que dos arranques simultáneos (instancias de
+      Vercel en frío, réplicas de Railway) no compitan (NEW-01). Con
+      `MIGRAR_AL_ARRANCAR=0` el proceso exige que la base ya esté al día y las
+      migraciones se aplican con el comando explícito `python -m servicio.migrar`.
+    - Inventario documental (W16-A02): solo inserta HAB-01..17 que falten y las
+      tarifas referenciales de habitaciones sin tarifa. Nunca borra reservas,
+      pagos ni historial y nunca reactiva habitaciones retiradas. En Vercel no
+      corre nunca (`VERCEL=1`), aunque la variable esté puesta.
+    """
     assert config.database_url is not None
     try:
-        with psycopg.connect(config.database_url) as conexion:
+        if config.migrar_al_arrancar:
             aplicar_migraciones(config.database_url)
+        else:
+            pendientes = migraciones_pendientes(config.database_url)
+            if pendientes:
+                raise ErrorArranque(
+                    "hay migraciones pendientes y MIGRAR_AL_ARRANCAR=0: "
+                    "ejecutar `python -m servicio.migrar` antes de desplegar ("
+                    + ", ".join(pendientes) + ")"
+                )
+        with psycopg.connect(config.database_url) as conexion:
             seguridad.asegurar_admin_inicial(
                 conexion,
                 empresa_id=aplicacion.nucleo.empresa.id,
@@ -116,20 +137,27 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
             if config.admin_email and config.admin_usuario:
                 seguridad.vincular_email(conexion, config.admin_usuario, config.admin_email)
             # HAB-SINT solo en núcleo sintético de pruebas. En titular real
-            # el inventario operativo son HAB-01..17 (documental); el resto se retira.
+            # el inventario operativo son HAB-01..17 (documental).
             if aplicacion.nucleo.empresa.es_sintetico:
                 reservas_db.sembrar_habitaciones(conexion)
-            if config.inventario_documental and not aplicacion.nucleo.empresa.es_sintetico:
+            if (
+                config.inventario_documental
+                and not aplicacion.nucleo.empresa.es_sintetico
+                and not config.en_vercel
+            ):
+                # Solo altas idempotentes: ni retiro de ajenas ni reactivación
+                # (esas son del comando puntual, ver inventario_documental).
                 inventario_documental.sembrar_inventario_documental(
                     conexion,
                     establecimiento_id=inventario_documental.ESTABLECIMIENTO_HERENCIA,
+                    retirar_sinteticas=False,
+                    activar_reales=False,
                 )
-                # Re-aplica por si el arranque anterior dejó ajenas en FDS o
-                # HAB-01..17 todavía fuera de servicio tras la carga B1.
-                inventario_documental.retirar_inventario_ajeno(conexion)
-                inventario_documental.activar_inventario_real(conexion)
-                # D3 dueño 2026-11-12: precios fijos referenciales todas las fechas.
-                inventario_documental.aplicar_tarifas_fijas_referenciales(conexion)
+                # D3 dueño 2026-11-12: precios fijos referenciales, solo donde
+                # no hay ninguna tarifa (no pisa precios de la administración).
+                inventario_documental.aplicar_tarifas_fijas_referenciales(
+                    conexion, solo_sin_tarifa=True
+                )
                 documental.sembrar_paquete_documental(conexion)
             conexion.commit()
     except RuntimeError as error:

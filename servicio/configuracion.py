@@ -64,8 +64,15 @@ class Configuracion:
     empresa_nombre: str | None = None
     empresa_rut: str | None = None
     empresa_es_sintetica: bool | None = None
-    # Carga HAB-01..17 fuera de servicio desde el lote documental (sin tarifas).
+    # Siembra idempotente HAB-01..17 + tarifas referenciales donde no hay
+    # (W16-A02: nunca borra historial ni reactiva retiradas).
     inventario_documental: bool = False
+    # NEW-01: aplicar migraciones al arrancar (por defecto sí, con advisory
+    # lock). Con 0 el proceso solo verifica que no haya pendientes.
+    migrar_al_arrancar: bool = True
+    # Vercel define VERCEL=1 en build y runtime: ahí nunca corre la siembra
+    # documental, aunque INVENTARIO_DOCUMENTAL esté puesta.
+    en_vercel: bool = False
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -117,4 +124,6 @@ def cargar_desde_entorno() -> Configuracion:
             else os.environ.get("EMPRESA_ES_SINTETICA", "0") == "1"
         ),
         inventario_documental=os.environ.get("INVENTARIO_DOCUMENTAL", "0") == "1",
+        migrar_al_arrancar=os.environ.get("MIGRAR_AL_ARRANCAR", "1") != "0",
+        en_vercel=os.environ.get("VERCEL", "") == "1",
     )

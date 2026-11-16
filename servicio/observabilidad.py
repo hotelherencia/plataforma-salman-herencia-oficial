@@ -47,7 +47,7 @@ _RUTAS_SONDA = re.compile(
     re.IGNORECASE,
 )
 _ESTADOS_RECHAZO = {401, 403, 404, 405, 429}
-_RUTAS_SIN_LOG = {"/salud"}  # healthcheck de Railway cada pocos segundos
+_RUTAS_SIN_LOG = {"/salud", "/readiness"}  # healthchecks de Railway (OBS-02)
 
 
 def request_id_actual() -> str:

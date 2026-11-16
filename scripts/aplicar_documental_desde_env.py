@@ -2,7 +2,18 @@
 
 No imprime secretos. Pensado para correrse en el mismo host que alcanza Postgres
 (WSL si la URL es 127.0.0.1 y el motor vive ahí).
+
+W16-A02: es el **comando puntual** de la carga documental (el arranque ya no
+la corre completa). Por defecto solo inserta lo que falta. Opcionales:
+
+- `--retirar-ajenas`: baja lógica de habitaciones fuera de HAB-01..17
+  (nunca borra reservas, pagos ni historial; solo elimina las que no tienen
+  ningún registro).
+- `--activar-reales`: reactiva HAB-01..17 que la carga B1 dejó fuera de
+  servicio (no toca las retiradas por mantención).
+- `--simular`: hace todo dentro de una transacción y la revierte (vista previa).
 """
+import argparse
 from __future__ import annotations
 
 import os
@@ -26,7 +37,12 @@ def cargar_env(ruta: Path) -> dict[str, str]:
     return out
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Carga documental puntual (W16-A02)")
+    parser.add_argument("--retirar-ajenas", action="store_true")
+    parser.add_argument("--activar-reales", action="store_true")
+    parser.add_argument("--simular", action="store_true")
+    args = parser.parse_args(argv)
     env = cargar_env(RAIZ / ".env")
     for k, v in env.items():
         os.environ.setdefault(k, v)
@@ -57,6 +73,8 @@ def main() -> int:
         r_inv = inventario_documental.sembrar_inventario_documental(
             conexion,
             establecimiento_id=inventario_documental.ESTABLECIMIENTO_HERENCIA,
+            retirar_sinteticas=args.retirar_ajenas,
+            activar_reales=args.activar_reales,
         )
         print("inventario", r_inv)
 
@@ -94,6 +112,10 @@ def main() -> int:
             "SELECT count(*) FROM habitaciones WHERE id LIKE 'HAB-SINT-%' AND estado_operativo='fuera_de_servicio'"
         ).fetchone()[0]
         print("habitaciones_reales", habs, "sinteticas_fuera", sint)
+        if args.simular:
+            conexion.rollback()
+            print("SIMULACION: cambios revertidos")
+            return 0
         conexion.commit()
 
     print("OK")
