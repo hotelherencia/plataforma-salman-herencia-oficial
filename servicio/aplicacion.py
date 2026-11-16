@@ -7,6 +7,7 @@ el administrador inicial desde variables de entorno (spec-api-v1).
 """
 import json
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -363,7 +364,14 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
                 ).fetchone()
         except psycopg.Error:
             raise HTTPException(status_code=503, detail="la base de datos no responde")
-        return {"estado": "listo", "migraciones": n_migraciones}
+        # Estado del canal público sin exponer configuración: "sin_recaptcha"
+        # significa que /publico/leads y /publico/solicitudes responden 503
+        # (falta RECAPTCHA_SECRET_KEY en producción).
+        config = getattr(app.state, "configuracion", None)
+        obligatorio = bool(getattr(config, "cookie_segura", False)) or os.environ.get("RECAPTCHA_OBLIGATORIO") == "1"
+        tiene_secreto = bool(getattr(config, "recaptcha_secret_key", None))
+        canal = "listo" if tiene_secreto else ("sin_recaptcha" if obligatorio else "sin_recaptcha_desarrollo")
+        return {"estado": "listo", "migraciones": n_migraciones, "canal_publico": canal}
 
     app.include_router(acceso.router)
     app.include_router(hotel.router)

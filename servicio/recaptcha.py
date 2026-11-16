@@ -10,6 +10,7 @@ acción, de otro host o con puntaje bajo se rechaza antes de persistir.
 Ni el token ni la secreta se escriben en el log.
 """
 import json
+import logging
 import os
 import urllib.parse
 import urllib.request
@@ -43,19 +44,42 @@ def hosts_permitidos() -> frozenset[str]:
     return HOSTS | extra
 
 
-def juzgar(cuerpo: dict, accion: str, hosts: frozenset[str] | None = None) -> None:
+def motivo_rechazo(cuerpo: dict, accion: str, hosts: frozenset[str] | None = None) -> str | None:
+    """None si el veredicto de Google es aceptable; si no, el motivo (texto
+    corto, sin token ni secreto) para el log."""
     if not cuerpo.get("success"):
-        raise CaptchaRechazado()
+        return "success_false"
     if cuerpo.get("action") != accion:
-        raise CaptchaRechazado()
+        return "accion_distinta"
     try:
         puntaje = float(cuerpo.get("score"))
     except (TypeError, ValueError):
-        raise CaptchaRechazado()
+        return "sin_puntaje"
     if puntaje < UMBRAL:
-        raise CaptchaRechazado()
+        return "puntaje_bajo"
     permitidos = hosts if hosts is not None else hosts_permitidos()
     if (cuerpo.get("hostname") or "").strip().lower() not in permitidos:
+        return "host_no_permitido"
+    return None
+
+
+def juzgar(cuerpo: dict, accion: str, hosts: frozenset[str] | None = None) -> None:
+    motivo = motivo_rechazo(cuerpo, accion, hosts)
+    if motivo is not None:
+        # Diagnóstico para el operador: códigos de error de Google, acción,
+        # host y puntaje redondeado. Nunca el token ni el secreto.
+        logging.getLogger("servicio.seguridad").warning(
+            "recaptcha_rechazado",
+            extra={
+                "evento": "recaptcha_rechazado",
+                "motivo": motivo,
+                "accion_esperada": accion,
+                "accion": str(cuerpo.get("action") or "")[:40],
+                "hostname": str(cuerpo.get("hostname") or "")[:80],
+                "puntaje": cuerpo.get("score") if isinstance(cuerpo.get("score"), (int, float)) else None,
+                "codigos": [str(c)[:40] for c in (cuerpo.get("error-codes") or [])][:5],
+            },
+        )
         raise CaptchaRechazado()
 
 
@@ -74,5 +98,8 @@ def verificar(token: str | None, secreto: str, accion: str, ip: str | None = Non
         with urllib.request.urlopen(pedido, timeout=5) as respuesta:
             cuerpo = json.loads(respuesta.read().decode())
     except Exception:
+        logging.getLogger("servicio.seguridad").warning(
+            "recaptcha_rechazado", extra={"evento": "recaptcha_rechazado", "motivo": "siteverify_no_responde"}
+        )
         raise CaptchaRechazado()
     juzgar(cuerpo, accion)

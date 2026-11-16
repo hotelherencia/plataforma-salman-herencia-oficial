@@ -6,6 +6,7 @@ búsqueda, ocupación, indicadores, solicitudes públicas (bandeja) y leads
 """
 import hashlib
 import json
+import logging
 import os
 from datetime import date, datetime, timedelta
 
@@ -655,6 +656,18 @@ def _fecha_iso(valor: str) -> date:
         raise HTTPException(status_code=422, detail="fecha inválida")
 
 
+MENSAJE_CANAL_NO_DISPONIBLE = (
+    "No pudimos recibir tu solicitud en este momento. Escríbenos por WhatsApp al "
+    "+56 9 5649 1501 o inténtalo de nuevo más tarde."
+)
+
+
+MENSAJE_CAPTCHA_RECHAZADO = (
+    "No pudimos verificar el envío. Recarga la página e inténtalo de nuevo; si "
+    "persiste, escríbenos por WhatsApp al +56 9 5649 1501."
+)
+
+
 def _exigir_captcha(request: Request, accion: str, ip: str) -> None:
     """Exige reCAPTCHA en el canal público.
 
@@ -670,15 +683,20 @@ def _exigir_captcha(request: Request, accion: str, ip: str) -> None:
         if os.environ.get("RECAPTCHA_OBLIGATORIO", "0") == "1":
             obligar = True
         if obligar:
-            raise HTTPException(
-                status_code=503, detail="canal público temporalmente no disponible"
+            # Falta RECAPTCHA_SECRET_KEY en el entorno que ejecuta el servicio
+            # (Railway). Se registra la causa para el operador; el visitante
+            # recibe un mensaje útil, sin detalles de configuración.
+            observabilidad.evento_seguridad(
+                "recaptcha_sin_configurar", nivel=logging.ERROR, accion=accion,
+                causa="falta RECAPTCHA_SECRET_KEY con COOKIE_SEGURA=1 o RECAPTCHA_OBLIGATORIO=1",
             )
+            raise HTTPException(status_code=503, detail=MENSAJE_CANAL_NO_DISPONIBLE)
         return
     verificador = getattr(request.app.state, "verificar_recaptcha", recaptcha.verificar)
     try:
         verificador(request.headers.get("x-recaptcha-token"), secreto, accion, ip)
     except recaptcha.CaptchaRechazado:
-        raise HTTPException(status_code=403, detail="no se pudo verificar el envío")
+        raise HTTPException(status_code=403, detail=MENSAJE_CAPTCHA_RECHAZADO)
 
 
 @router.get("/publico/disponibilidad")

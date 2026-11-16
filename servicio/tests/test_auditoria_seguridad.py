@@ -311,6 +311,7 @@ class OPSA02ReadinessTest(BaseAuditoriaTest):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(r.json()["estado"], "listo")
         self.assertGreater(r.json()["migraciones"], 0)
+        self.assertIn(r.json()["canal_publico"], {"listo", "sin_recaptcha", "sin_recaptcha_desarrollo"})
 
     def test_readiness_503_con_base_caida(self):
         self.app.state.database_url = "postgresql://plataforma:plataforma@127.0.0.1:54999/nada"
