@@ -1,5 +1,6 @@
 'use client'
 
+import { etiquetaRol } from '../../../lib/roles'
 /**
  * Capa del módulo Hotel — gestión de usuarios (pura, sin fetch): recibe solo
  * props y dibuja la respuesta de GET /usuarios tal cual la envía la API. La
@@ -33,7 +34,7 @@ export function FilaUsuario({ usuario, alElegir }) {
     <li className="usuario-fila" role="row">
       <span role="cell" className="reserva-id">{usuario.id}</span>
       <span role="cell" className="reserva-huesped">{usuario.nombre}</span>
-      <span role="cell" className="reserva-celda">{usuario.rol}</span>
+      <span role="cell" className="reserva-celda">{etiquetaRol(usuario.rol)}</span>
       <span role="cell" className={`reserva-estado ${usuario.activo ? 'estado-confirmada' : 'estado-cancelada'}`}>
         {usuario.activo ? 'activo' : 'inactivo'}
       </span>

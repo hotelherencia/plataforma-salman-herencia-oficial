@@ -54,7 +54,7 @@ class ReservaVendibleTest(unittest.TestCase):
                     (hid,),
                 )
                 conexion.execute(
-                    "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                    "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                     "VALUES (%s, %s, %s, %s, 45000)",
                     (f"TAR-{hid}", hid, iso(-30), iso(400)),
                 )

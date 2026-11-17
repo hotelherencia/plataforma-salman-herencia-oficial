@@ -96,8 +96,8 @@ class PreH7SeguridadTest(unittest.TestCase):
         cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
         cliente.put("/hotel/habitaciones/HAB-X", json={"tipo": "doble", "capacidad": 2},
                     headers={"Idempotency-Key": "o-2", "Origin": FRONT})
-        cliente.put("/hotel/tarifas", json={"habitacion_id": "HAB-X", "fecha_desde": "2026-01-01",
-                                            "fecha_hasta": "2027-01-01", "tarifa_noche_clp": 50000},
+        cliente.post("/hotel/precios/excepciones", json={"habitacion_id": "HAB-X", "fecha_desde": "2026-01-01",
+                                            "fecha_hasta": "2027-01-01", "precio_clp": 50000},
                     headers={"Idempotency-Key": "o-3", "Origin": FRONT})
         r = cliente.post(
             "/hotel/reservas",

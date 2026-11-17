@@ -16,7 +16,7 @@ import psycopg
 
 from servicio import inventario_documental as inv
 from servicio import migracion
-from servicio import reservas as reservas_db
+from servicio import precios
 from servicio.aplicacion import ErrorArranque, crear_app
 from servicio.configuracion import Configuracion
 from servicio.tests.aislamiento import exigir_base_libre
@@ -56,6 +56,9 @@ def _limpiar() -> None:
     with psycopg.connect(URL_TEST) as conexion:
         exigir_base_libre(conexion)
         conexion.execute(f"TRUNCATE {_TABLAS} RESTART IDENTITY CASCADE")
+        # La siembra fija precio base en los tipos (tabla no truncada): se
+        # limpian para no filtrar precios a otras pruebas.
+        conexion.execute("UPDATE tipos_habitacion SET precio_base_clp = NULL WHERE precio_base_clp IS NOT NULL")
         conexion.commit()
 
 
@@ -87,9 +90,11 @@ class ArranqueNoDestructivoTest(unittest.TestCase):
                 "INSERT INTO pagos(id, reserva_id, monto_clp, clave, modo) "
                 "VALUES ('PAG-X', 'RSV-X', 100000, 'k1', 'manual')"
             )
+            # La administración cambia el precio base del tipo de HAB-02 en el
+            # mantenedor (fuente única de precio, 1A.2).
             c.execute(
-                "INSERT INTO tarifas(id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
-                "VALUES ('TAR-ADMIN', 'HAB-02', '2026-01-01', '2099-12-31', 61000)"
+                "UPDATE tipos_habitacion SET precio_base_clp = 61000 "
+                "WHERE id = (SELECT tipo FROM habitaciones WHERE id = 'HAB-02')"
             )
             c.commit()
 
@@ -114,11 +119,11 @@ class ArranqueNoDestructivoTest(unittest.TestCase):
             ).fetchone()
             self.assertEqual(estado, "fuera_de_servicio")
             self.assertEqual(motivo, "filtración baño")
-            # El precio cargado por la administración sigue vigente: el
-            # reinicio no reinserta la referencial encima (ganaría por recencia).
-            self.assertEqual(reservas_db.tarifa_vigente(c, "HAB-02", date(2026, 12, 1)), 61000)
-            (n_tarifas,) = c.execute("SELECT count(*) FROM tarifas WHERE habitacion_id='HAB-02'").fetchone()
-            self.assertEqual(n_tarifas, 2)  # referencial del 1er arranque + la de la administración
+            # El precio fijado por la administración sigue vigente: el
+            # reinicio no vuelve a poner la referencial encima.
+            self.assertEqual(precios.precio_noche(c, "HAB-02", date(2026, 12, 1)).precio_clp, 61000)
+            # Y la siembra ya no crea tarifas por habitación (fuente única).
+            self.assertEqual(c.execute("SELECT count(*) FROM tarifas").fetchone()[0], 0)
 
     def test_retiro_puntual_de_ajenas_es_baja_logica(self):
         crear_app(configuracion=_config())

@@ -142,6 +142,15 @@ D-AUD-01 si otro rol debe verla).
 
 ### 2.5 Flujo HAB-TARIFA — cambiar la tarifa
 
+> **Reemplazado por la entrega 1A.2 (2026-11-17).** `PUT /hotel/tarifas` y el
+> formulario de tarifa de la ficha ya no existen. El precio tiene una sola
+> fuente, editada en «Tipos, habitaciones y precios» (`/hotel/tipos`): precio
+> base del tipo, precio propio opcional de la habitación y excepciones por
+> fecha del tipo o de la habitación (`POST /hotel/precios/excepciones`), todos
+> con IVA incluido. La migración 0022 convirtió las tarifas existentes sin
+> cambiar ningún precio y las dejó archivadas (solo consulta en la ficha). Ver
+> spec-api-v1. El texto siguiente queda como historia de la regla anterior.
+
 - **Actor:** administrador. **Acción:** `PUT /hotel/tarifas` (sin cambio de
   contrato de entrada). Las tarifas son **append-only**: registrar una tarifa
   nueva es la única forma de cambiar el precio; ninguna fila se edita ni borra.

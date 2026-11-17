@@ -1,4 +1,4 @@
-// Tipos de habitación y alta por lote (entrega 1A). Módulo puro, sin JSX,
+// Tipos, habitaciones y precios (entregas 1A y 1A.2). Módulo puro, sin JSX,
 // para probarlo con node --test. La API decide y valida; aquí solo se arma
 // la vista previa que ve la administración antes de confirmar.
 
@@ -63,8 +63,39 @@ export function validarLote({ tipoId, cantidad, prefijo, desde, digitos }, idsEx
 export function etiquetaOrigen(origen) {
   if (origen === 'tipo') return 'hereda la base'
   if (origen === 'habitacion') return 'precio propio'
-  if (origen === 'tarifa') return 'tarifa por fechas'
+  if (origen === 'excepcion_tipo') return 'excepción del tipo'
+  if (origen === 'excepcion_habitacion') return 'excepción de la habitación'
   return 'sin precio hoy'
+}
+
+const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+function fechaCorta(iso) {
+  return FORMATO_FECHA.format(new Date(`${iso}T00:00:00Z`))
+}
+
+/**
+ * Rango de una excepción [desde, hasta) en palabras de hotel: la primera y
+ * la última noche que cubre (hasta es la mañana de salida, no se incluye).
+ */
+export function rangoNoches(desde, hasta) {
+  const ultima = new Date(`${hasta}T00:00:00Z`)
+  ultima.setUTCDate(ultima.getUTCDate() - 1)
+  const fin = ultima.toISOString().slice(0, 10)
+  const noches = Math.round((ultima - new Date(`${desde}T00:00:00Z`)) / 86400000) + 1
+  if (noches <= 0) return ''
+  if (fin === desde) return `noche del ${fechaCorta(desde)}`
+  if (noches > 3650) return `desde la noche del ${fechaCorta(desde)}`
+  return `noches del ${fechaCorta(desde)} al ${fechaCorta(fin)} (${noches})`
+}
+
+/** Valida el formulario de excepción; devuelve el mensaje de error o null. */
+export function validarExcepcion({ alcance, habitacionId, desde, hasta, sinVenta, precio }) {
+  if (alcance === 'habitacion' && !habitacionId) return 'Elige la habitación.'
+  if (!desde || !hasta) return 'Indica la primera noche y el día de término.'
+  if (hasta <= desde) return 'El día de término debe ser posterior a la primera noche.'
+  if (!sinVenta && !(Number.isInteger(precio) && precio > 0)) return 'El precio debe ser un monto entero mayor que cero (o marca «Sin venta»).'
+  return null
 }
 
 /** Monto ingresado en el formulario → entero positivo o null (vacío = sin precio). */

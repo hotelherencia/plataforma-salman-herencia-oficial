@@ -184,8 +184,8 @@ try {
     cuerpo: { tipo: 'doble', capacidad: 2 }, cabeceras: { 'If-None-Match': '*' }, clave: K('alta-hab'), cookie: cookieAdmin,
   })
   esperar(alta.estado === 201 || alta.estado === 200, `alta habitación: ${alta.estado} ${JSON.stringify(alta.datos)}`)
-  const tarifa = await api('PUT', '/hotel/tarifas', {
-    cuerpo: { habitacion_id: HAB, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', tarifa_noche_clp: TARIFA_INICIAL },
+  const tarifa = await api('POST', '/hotel/precios/excepciones', {
+    cuerpo: { habitacion_id: HAB, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', precio_clp: TARIFA_INICIAL },
     clave: K('tarifa'), cookie: cookieAdmin,
   })
   esperar(tarifa.estado === 201 || tarifa.estado === 200, `tarifa: ${tarifa.estado} ${JSON.stringify(tarifa.datos)}`)
@@ -267,8 +267,8 @@ try {
     sql(`UPDATE borradores_agente SET vigente_hasta = now() - interval '1 minute' WHERE consulta_id = '${consultaId}'`)
     // Mientras tanto, administración cambia la tarifa del rango del ítem 0.
     const nueva = previo.noche + 7000
-    const cambio = await api('PUT', '/hotel/tarifas', {
-      cuerpo: { habitacion_id: item0.habitacion, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', tarifa_noche_clp: nueva },
+    const cambio = await api('POST', '/hotel/precios/excepciones', {
+      cuerpo: { habitacion_id: item0.habitacion, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', precio_clp: nueva },
       clave: K('tarifa-nueva'), cookie: cookieAdmin,
     })
     esperar(cambio.estado === 201 || cambio.estado === 200, `cambio de tarifa: ${cambio.estado}`)

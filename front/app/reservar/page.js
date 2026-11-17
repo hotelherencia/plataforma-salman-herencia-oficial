@@ -296,7 +296,7 @@ function Reservar() {
           ) : (
             <>
               <p className="estado">
-                Valores por noche según tarifa vigente; la oferta vence en {oferta.vigencia_minutos} minutos.
+                Valores por noche con IVA incluido; la oferta vence en {oferta.vigencia_minutos} minutos.
               </p>
               <fieldset className="lista-opciones">
                 <legend className="sr-only">Tipo de habitación</legend>

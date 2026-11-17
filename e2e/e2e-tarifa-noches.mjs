@@ -131,7 +131,7 @@ try {
   const alta = await api('PUT', `/hotel/habitaciones/${HAB}`, { cookie: cAdmin, clave: K('alta'), cuerpo: { tipo: 'doble', capacidad: 2 }, cabeceras: { 'If-None-Match': '*' } })
   esperar(alta.estado === 200 && alta.datos.creada === true, `alta: ${alta.estado} ${JSON.stringify(alta.datos)}`)
   // tarifa de las noches 40..44 (hasta 45 sin incluir); la estadía 43→47 deja 45 y 46 sin tarifa
-  const t1 = await api('PUT', '/hotel/tarifas', { cookie: cAdmin, clave: K('tar1'), cuerpo: { habitacion_id: HAB, fecha_desde: D(40), fecha_hasta: D(45), tarifa_noche_clp: 41000 } })
+  const t1 = await api('POST', '/hotel/precios/excepciones', { cookie: cAdmin, clave: K('tar1'), cuerpo: { habitacion_id: HAB, fecha_desde: D(40), fecha_hasta: D(45), precio_clp: 41000 } })
   esperar(t1.estado === 201, `tarifa 1: ${t1.estado} ${JSON.stringify(t1.datos)}`)
   const [INICIO, FIN] = [D(43), D(47)]
 
@@ -180,17 +180,21 @@ try {
   })
 
   const admin = await paginaDe(ADMIN)
-  await caso('TN-03', '/hotel/habitaciones/[id] → /hotel/oferta → /hotel/reserva', 'registrar la tarifa siguiente en la ficha, ofrecer y confirmar', 'administrador → recepcion', 'se ofrece; el total y la tarifa confirmados son los ofrecidos y el cargo coincide', async () => {
-    await admin.goto(`${FRONT}/hotel/habitaciones/${encodeURIComponent(HAB)}`)
+  await caso('TN-03', '/hotel/tipos → /hotel/oferta → /hotel/reserva', 'registrar el precio de las noches siguientes como excepción de la habitación, ofrecer y confirmar', 'administrador → recepcion', 'se ofrece; el total y la tarifa confirmados son los ofrecidos y el cargo coincide', async () => {
+    await admin.goto(`${FRONT}/hotel/tipos`)
     await admin.waitForTimeout(1800)
-    const form = admin.locator('form', { has: admin.getByRole('button', { name: 'Guardar tarifa' }) })
-    await form.getByLabel('Desde').fill(D(45))
-    await form.getByLabel('Hasta (sin incluir)').fill(D(60))
-    await form.getByLabel('Tarifa por noche (CLP)').fill('63000')
-    await form.getByRole('button', { name: 'Guardar tarifa' }).click()
+    const tarjeta = admin.locator('article', { has: admin.locator('#tipo-doble') })
+    await tarjeta.getByRole('button', { name: /Nueva excepción/ }).click()
+    const form = tarjeta.locator('form', { has: admin.getByRole('button', { name: 'Crear excepción' }) })
+    await form.getByLabel('Aplica a').selectOption('habitacion')
+    await form.getByLabel('Habitación').selectOption(HAB)
+    await form.getByLabel('Primera noche (Llegada)').fill(D(45))
+    await form.getByLabel('Hasta la Salida del (no incluida)').fill(D(60))
+    await form.getByRole('textbox', { name: 'Precio por noche' }).fill('63000')
+    await form.getByRole('button', { name: 'Crear excepción' }).click()
     await admin.waitForTimeout(1500)
     const ficha = await api('GET', `/hotel/habitaciones/${HAB}`, { cookie: cAdmin })
-    esperar((ficha.datos.tarifas || []).some((t) => t.fecha_desde === D(45) && t.tarifa_noche_clp === 63000), `tarifas releídas: ${JSON.stringify(ficha.datos.tarifas)}`)
+    esperar((ficha.datos.excepciones || []).some((e) => e.fecha_desde === D(45) && e.precio_clp === 63000), `excepciones releídas: ${JSON.stringify(ficha.datos.excepciones)}`)
 
     await irDesdeMenu(recepcion, 'Oferta', '/hotel/oferta')
     await consultarOferta()

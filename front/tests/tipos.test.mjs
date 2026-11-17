@@ -42,3 +42,14 @@ test('código del tipo desde el nombre y montos del formulario', () => {
   assert.equal(etiquetaOrigen('tipo'), 'hereda la base')
   assert.equal(etiquetaOrigen(null), 'sin precio hoy')
 })
+
+test('excepciones: rango de noches y validación', async () => {
+  const { rangoNoches, validarExcepcion, etiquetaOrigen } = await import('../lib/tipos.js')
+  assert.equal(rangoNoches('2026-12-24', '2026-12-25'), 'noche del 24 dic 2026')
+  assert.match(rangoNoches('2026-12-24', '2027-01-02'), /noches del 24 dic 2026 al 1 ene 2027 \(9\)/)
+  assert.equal(etiquetaOrigen('excepcion_tipo'), 'excepción del tipo')
+  assert.equal(validarExcepcion({ alcance: 'tipo', desde: '2026-12-24', hasta: '2026-12-24', precio: 1 }),
+    'El día de término debe ser posterior a la primera noche.')
+  assert.equal(validarExcepcion({ alcance: 'tipo', desde: '2026-12-24', hasta: '2026-12-25', sinVenta: true }), null)
+  assert.match(validarExcepcion({ alcance: 'habitacion', desde: '2026-12-24', hasta: '2026-12-25', precio: 1 }), /habitación/)
+})

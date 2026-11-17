@@ -101,8 +101,8 @@ try {
     cuerpo: { tipo: 'doble', capacidad: 2 }, cabeceras: { 'If-None-Match': '*' }, clave: K('alta-hab'), cookie: cookieAdmin,
   })
   esperar(alta.estado === 201 || alta.estado === 200, `alta habitación: ${alta.estado} ${JSON.stringify(alta.datos)}`)
-  const tarifa = await api('PUT', '/hotel/tarifas', {
-    cuerpo: { habitacion_id: HAB, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', tarifa_noche_clp: 45000 },
+  const tarifa = await api('POST', '/hotel/precios/excepciones', {
+    cuerpo: { habitacion_id: HAB, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', precio_clp: 45000 },
     clave: K('tarifa'), cookie: cookieAdmin,
   })
   esperar(tarifa.estado === 201 || tarifa.estado === 200, `tarifa: ${tarifa.estado} ${JSON.stringify(tarifa.datos)}`)

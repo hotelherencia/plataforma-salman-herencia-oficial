@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useSesion } from '../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
+import { etiquetaRol } from '../lib/roles'
 
 /**
  * Inicio de PLATAFORMA (capa Herencia): después del login se ve la
@@ -110,7 +111,7 @@ export default function Inicio() {
         <p className="plataforma-hero-sesion">
           <span className="plataforma-chip">{sesion.usuario.empresa_id}</span>
           <span className="plataforma-chip suave">
-            {sesion.usuario.usuario} · {sesion.usuario.rol}
+            {sesion.usuario.usuario} · {etiquetaRol(sesion.usuario.rol)}
           </span>
         </p>
       </section>

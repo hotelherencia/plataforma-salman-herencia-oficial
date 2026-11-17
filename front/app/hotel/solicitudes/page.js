@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
+import { gestionaRecepcion } from '../../../lib/roles'
 
 /** Bandeja de solicitudes públicas (V1-ISSUE-24): recepción o administrador
  *  ven las solicitudes de la landing, las convierten en reserva por la misma
@@ -18,7 +19,7 @@ export default function Solicitudes() {
   const [claveRechazo, renovarRechazo] = useClaveOperacion()
 
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
-  const puedeGestionar = rol === 'recepcion' || rol === 'administrador'
+  const puedeGestionar = gestionaRecepcion(rol)
 
   async function cargar(filtro) {
     setError('')
@@ -84,7 +85,7 @@ export default function Solicitudes() {
   if (sesion.fase === 'ok' && !puedeGestionar) {
     return (
       <MarcoHotel titulo="Solicitudes de reserva">
-        <p className="estado">La bandeja de solicitudes es solo para recepción o administrador.</p>
+        <p className="estado">La bandeja de solicitudes es solo para recepción o la administración del hotel.</p>
       </MarcoHotel>
     )
   }

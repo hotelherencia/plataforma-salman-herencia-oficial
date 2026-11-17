@@ -68,9 +68,8 @@ class ReconciliacionBaseTest(unittest.TestCase):
         self.assertIn(r.status_code, (200, 201), r.text)
 
     def tarifa(self, hab_id, monto, desde="2026-01-01", hasta="2027-12-31"):
-        r = self.cliente.put(
-            "/hotel/tarifas",
-            json={"habitacion_id": hab_id, "fecha_desde": desde, "fecha_hasta": hasta, "tarifa_noche_clp": monto},
+        r = self.cliente.post("/hotel/precios/excepciones",
+            json={"habitacion_id": hab_id, "fecha_desde": desde, "fecha_hasta": hasta, "precio_clp": monto},
             headers={"Idempotency-Key": self.clave()},
         )
         self.assertIn(r.status_code, (200, 201), r.text)

@@ -20,6 +20,7 @@ from datetime import date, datetime
 
 import psycopg
 
+from . import roles
 from . import canal_publico
 from . import reservas
 from . import seguridad
@@ -34,7 +35,7 @@ VERSION_POLITICA = "n0-2026-11-04"
 CANALES = frozenset({"manual", "landing", "correo", "whatsapp"})
 PLANTILLAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato", "escalar"})
 PLANTILLAS_INFORMATIVAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato"})
-ROLES_GESTION = frozenset({"recepcion", "administrador"})
+ROLES_GESTION = roles.con_admin_hotel("recepcion")
 
 # Lista cerrada de herramientas por nivel (FR-A02). En N0 el modelo solo puede
 # consultar la oferta y proponer borrador; N2 añade crear_solicitud, que

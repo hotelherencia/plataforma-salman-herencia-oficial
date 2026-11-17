@@ -45,7 +45,7 @@ class MaduracionTest(unittest.TestCase):
 
             sembrar_habitaciones(conexion)
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-FIJA', 'HAB-SINT-101', '2026-01-01', '2027-12-31', 50000)"
             )
             conexion.commit()
@@ -66,14 +66,17 @@ class MaduracionTest(unittest.TestCase):
 
     def test_montos_capacidades_y_claves_invalidos_dan_422(self):
         casos = [
-            ("capacidad cero", "/hotel/habitaciones/HAB-X", {"tipo": "doble", "capacidad": 0}),
-            ("tarifa negativa", "/hotel/tarifas", {
+            ("capacidad cero", "PUT", "/hotel/habitaciones/HAB-X", {"tipo": "doble", "capacidad": 0}),
+            ("precio negativo", "POST", "/hotel/precios/excepciones", {
                 "habitacion_id": "HAB-SINT-101", "fecha_desde": "2026-01-01",
-                "fecha_hasta": "2027-01-01", "tarifa_noche_clp": -1}),
+                "fecha_hasta": "2027-01-01", "precio_clp": -1}),
+            ("precio base negativo", "PUT", "/hotel/tipos/doble", {"precio_base_clp": -1}),
         ]
-        for nombre, ruta, cuerpo in casos:
+        for nombre, metodo, ruta, cuerpo in casos:
             with self.subTest(caso=nombre):
-                respuesta = self.cliente.put(ruta, json=cuerpo, headers={"Idempotency-Key": f"val-{nombre}"})
+                respuesta = self.cliente.request(
+                    metodo, ruta, json=cuerpo, headers={"Idempotency-Key": f"val-{nombre}"}
+                )
                 self.assertEqual(respuesta.status_code, 422, respuesta.text)
 
     def test_pago_monto_negativo_y_modo_desconocido_dan_422(self):
@@ -88,14 +91,15 @@ class MaduracionTest(unittest.TestCase):
                 )
                 self.assertEqual(respuesta.status_code, 422, respuesta.text)
 
-    def test_integridad_de_base_responde_409_y_no_500(self):
-        respuesta = self.cliente.put(
-            "/hotel/tarifas",
+    def test_referencia_inexistente_responde_404_y_no_500(self):
+        # 1A.2: el precio de una habitación inexistente se valida antes de la
+        # FK (antes PUT /hotel/tarifas caía en la FK → 409).
+        respuesta = self.cliente.post("/hotel/precios/excepciones",
             json={"habitacion_id": "HAB-NO-EXISTE", "fecha_desde": "2026-01-01",
-                  "fecha_hasta": "2027-01-01", "tarifa_noche_clp": 1000},
+                  "fecha_hasta": "2027-01-01", "precio_clp": 1000},
             headers={"Idempotency-Key": "fk-1"},
         )
-        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(respuesta.status_code, 404)
 
     # ---- diseño seguro ----
 
@@ -140,8 +144,9 @@ class MaduracionTest(unittest.TestCase):
                      "/hotel/habitaciones/{habitacion_id}/mantenimiento",
                      "/hotel/habitaciones/{habitacion_id}/servicio",
                      "/usuarios", "/usuarios/{usuario_id}/clave",
-                     "/usuarios/{usuario_id}/revocacion", "/usuarios/{usuario_id}/baja"],
-            "PUT": ["/hotel/habitaciones/{habitacion_id}", "/hotel/tarifas"],
+                     "/usuarios/{usuario_id}/revocacion", "/usuarios/{usuario_id}/baja",
+                     "/hotel/precios/excepciones"],
+            "PUT": ["/hotel/habitaciones/{habitacion_id}", "/hotel/tipos/{tipo_id}"],
             "GET": ["/hotel/oferta", "/hotel/caja", "/hotel/reservas", "/usuarios",
                     "/hotel/habitaciones", "/hotel/habitaciones/{habitacion_id}",
                     "/hotel/reservas/{reserva_id}", "/hotel/ocupacion", "/hotel/indicadores"],
@@ -183,7 +188,7 @@ class ReinicioTest(unittest.TestCase):
 
             sembrar_habitaciones(conexion)
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-FIJA', 'HAB-SINT-101', '2026-01-01', '2027-12-31', 50000)"
             )
             conexion.commit()

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
+import { gestionaRecepcion } from '../../../lib/roles'
 
 const ETIQUETA_ESTADO = {
   confirmada: 'confirmada',
@@ -70,7 +71,7 @@ export default function Estadia() {
   // spec-api-v1: la cancelación la ejecutan recepción o administrador. La
   // acción se oculta a otros roles (la API igual la rechazaría con 403).
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
-  const puedeCancelar = rol === 'recepcion' || rol === 'administrador'
+  const puedeCancelar = gestionaRecepcion(rol)
 
   const detalleActivo = detalleReserva && detalleReserva.reserva_id === reservaId.trim() ? detalleReserva : null
   const detalleCargoActivo =
@@ -224,7 +225,7 @@ export default function Estadia() {
       </section>
       {puedeCancelar && (
         <section className="tarjeta">
-          <h2>Cancelar reserva (recepción o administrador)</h2>
+          <h2>Cancelar reserva (recepción o administración del hotel)</h2>
           <form className="formulario" onSubmit={cancelar}>
             <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
             <button type="submit" className="boton-primario" disabled={enviando || noAdmiteCancelacion}>

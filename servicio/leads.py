@@ -21,6 +21,7 @@ from datetime import date
 
 import psycopg
 
+from . import roles
 from . import entrada_publica, seguridad
 
 MAX_NOMBRE = 200
@@ -30,7 +31,7 @@ MAX_MENSAJE = 2000
 MAX_PERSONAS = 30
 MAX_NOCHES = 30
 ESTADOS = ("nuevo", "contactado", "cerrado")
-ROLES_GESTION = frozenset({"recepcion", "administrador"})
+ROLES_GESTION = roles.con_admin_hotel("recepcion")
 _RE_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _RE_REFERENCIA = re.compile(r"^[A-Za-z0-9_-]{20,128}$")
 _TRANSICIONES = {"nuevo": frozenset({"contactado", "cerrado"}), "contactado": frozenset({"cerrado"})}

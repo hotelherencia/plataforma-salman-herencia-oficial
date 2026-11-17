@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { api, useSesion } from '../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
+import { esAdminPlataforma, gestionaRecepcion } from '../lib/roles'
 
 /**
  * Marco de PLATAFORMA (capa Herencia): marca, empresa de la sesión y
@@ -24,8 +25,9 @@ import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 const OPERACION_HOTEL = [
   ['/hotel/panel', 'Panel'],
   ['/hotel/ocupacion', 'Ocupación'],
-  ['/hotel/tipos', 'Tipos y habitaciones'],
-  ['/hotel/habitaciones', 'Habitaciones y tarifas'],
+  // Entrega 1A.2: un solo lugar para precios.
+  ['/hotel/tipos', 'Tipos, habitaciones y precios'],
+  ['/hotel/habitaciones', 'Estado de habitaciones'],
   ['/hotel/oferta', 'Oferta'],
   ['/hotel/reserva', 'Nueva reserva'],
   ['/hotel/reservas', 'Buscar reservas'],
@@ -35,8 +37,10 @@ const OPERACION_HOTEL = [
   ['/hotel/estadia', 'Estadía'],
   ['/hotel/salida', 'Salida'],
   ['/hotel/caja', 'Caja'],
-  ['/hotel/usuarios', 'Usuarios'],
 ]
+
+// Usuarios y seguridad: administración de plataforma (entrega 1A.2).
+const RUTA_USUARIOS = ['/hotel/usuarios', 'Usuarios']
 
 const MODULOS_CERRADOS = ['Cafetería', 'Inmobiliaria', 'Constructora']
 
@@ -53,9 +57,11 @@ export default function BarraNav() {
   const sesion = useSesion()
   const enHotel = ruta.startsWith('/hotel')
   const puedeVerAgente =
-    sesion.fase === 'ok' && (sesion.usuario.rol === 'recepcion' || sesion.usuario.rol === 'administrador')
+    sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
+  const puedeVerUsuarios = sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol)
+  const menu = puedeVerUsuarios ? [...OPERACION_HOTEL, RUTA_USUARIOS] : OPERACION_HOTEL
   const hayOperacionActiva =
-    OPERACION_HOTEL.some(([href]) => esActivo(ruta, href)) || esActivo(ruta, RUTA_AGENTE[0])
+    menu.some(([href]) => esActivo(ruta, href)) || esActivo(ruta, RUTA_AGENTE[0])
   const [abierto, setAbierto] = useState(false)
   const botonRef = useRef(null)
   const panelRef = useRef(null)
@@ -125,7 +131,7 @@ export default function BarraNav() {
           {enHotel && (
             <>
               <p className="nav-rotulo">Hotel · operación</p>
-              {OPERACION_HOTEL.map(([href, nombre]) => (
+              {menu.map(([href, nombre]) => (
                 <Link key={href} href={href} aria-current={esActivo(ruta, href) ? 'page' : undefined} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
                   {nombre}
                 </Link>
@@ -186,7 +192,7 @@ export default function BarraNav() {
             {enHotel && (
               <>
                 <p className="nav-rotulo">Hotel · operación</p>
-                {OPERACION_HOTEL.map(([href, nombre]) => (
+                {menu.map(([href, nombre]) => (
                   <Link key={href} href={href} onClick={cerrar} aria-current={esActivo(ruta, href) ? 'page' : undefined} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
                     {nombre}
                   </Link>

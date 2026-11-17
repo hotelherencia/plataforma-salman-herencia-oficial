@@ -127,7 +127,7 @@ try {
   const HAB_O = `HAB-${RUN}-O` // ocupación e indicadores
   for (const [id, tipo, cap, tarifa] of [[HAB_M, 'doble', 2, 50000], [HAB_O, 'doble', 2, 40000]]) {
     await api('PUT', `/hotel/habitaciones/${id}`, { cookie: cAdmin, clave: K(`alta-${id}`), cuerpo: { tipo, capacidad: cap }, cabeceras: { 'If-None-Match': '*' } })
-    await api('PUT', '/hotel/tarifas', { cookie: cAdmin, clave: K(`tar-${id}`), cuerpo: { habitacion_id: id, fecha_desde: D(-60), fecha_hasta: D(365), tarifa_noche_clp: tarifa } })
+    await api('POST', '/hotel/precios/excepciones', { cookie: cAdmin, clave: K(`tar-${id}`), cuerpo: { habitacion_id: id, fecha_desde: D(-60), fecha_hasta: D(365), precio_clp: tarifa } })
   }
   const reservar = async (hid, inicio, fin, nombre, cookie = cRecepcion) => {
     const r = await api('POST', '/hotel/reservas', { cookie, clave: K(`rsv-${hid}-${inicio}`), cuerpo: { habitacion_id: hid, inicio, fin, huesped: { nombre, documento: '22.222.222-2' } } })
@@ -169,13 +169,13 @@ try {
     return a
   })
 
-  await caso('MAN-02', '/hotel/habitaciones/[id]', 'abrir la ficha desde el inventario', 'administrador', 'ficha con datos, tarifas, reservas, tareas y auditoría', async () => {
+  await caso('MAN-02', '/hotel/habitaciones/[id]', 'abrir la ficha desde el inventario', 'administrador', 'ficha con datos, precio, reservas, tareas y auditoría', async () => {
     await ir(admin, '/hotel/habitaciones')
     await admin.locator('.inventario-fila', { hasText: HAB_M }).getByRole('link', { name: 'Ficha' }).click()
     await admin.waitForTimeout(1800)
     esperar(admin.url().endsWith(`/hotel/habitaciones/${HAB_M}`), admin.url())
     const t = await texto(admin)
-    for (const seccion of ['Datos y estado actual', 'Editar datos', 'Registrar tarifa nueva', 'Retirar de operación', 'Historial de tarifas', 'Reservas de la habitación', 'Historial de cambios']) {
+    for (const seccion of ['Datos y estado actual', 'Editar datos', 'Retirar de operación', 'Precio y excepciones por fecha', 'Reservas de la habitación', 'Historial de cambios']) {
       esperar(t.includes(seccion), `falta sección «${seccion}»`)
     }
     esperar(t.includes(RES_M.reserva_id), 'la reserva previa no aparece en la ficha')
@@ -246,7 +246,7 @@ try {
     let ficha = (await api('GET', `/hotel/habitaciones/${HAB_M}`, { cookie: cAdmin })).datos
     esperar(ficha.estado_operativo === 'fuera_de_servicio' && ficha.motivo_fuera_de_servicio === 'remodelación E2E', 'estado no persistido')
     esperar(ficha.reservas.some((r) => r.reserva_id === RES_M.reserva_id && r.estado === 'cancelada'), 'se perdió la reserva histórica')
-    esperar(ficha.tarifas.length === 2, `tarifas: ${ficha.tarifas.length}`)
+    esperar(ficha.excepciones.length === 2, `excepciones: ${ficha.excepciones.length}`)
     let oferta = await api('GET', `/hotel/oferta?inicio=${D(40)}&fin=${D(41)}&personas=1`, { cookie: cAdmin })
     esperar(!oferta.datos.oferta.some((u) => u.habitacion_id === HAB_M), 'sigue en la oferta')
     const ocupacion = await api('GET', `/hotel/ocupacion?desde=${D(0)}&hasta=${D(3)}`, { cookie: cAdmin })
@@ -269,10 +269,10 @@ try {
     await ir(page, `/hotel/habitaciones/${HAB_M}`)
     const t = await texto(page)
     await page.close()
-    esperar(t.includes('Historial de tarifas'), 'no carga la ficha')
-    for (const ausente of ['Editar datos', 'Registrar tarifa nueva', 'Retirar de operación', 'Historial de cambios']) esperar(!t.includes(ausente), `muestra «${ausente}»`)
+    esperar(t.includes('Precio y excepciones por fecha'), 'no carga la ficha')
+    for (const ausente of ['Editar datos', 'Retirar de operación', 'Historial de cambios']) esperar(!t.includes(ausente), `muestra «${ausente}»`)
     const put = await api('PUT', `/hotel/habitaciones/${HAB_M}`, { cookie: cRecepcion, clave: K('put-rec'), cuerpo: { tipo: 'x', capacidad: 1 } })
-    const tar = await api('PUT', '/hotel/tarifas', { cookie: cRecepcion, clave: K('tar-rec'), cuerpo: { habitacion_id: HAB_M, fecha_desde: D(1), fecha_hasta: D(2), tarifa_noche_clp: 1 } })
+    const tar = await api('POST', '/hotel/precios/excepciones', { cookie: cRecepcion, clave: K('tar-rec'), cuerpo: { habitacion_id: HAB_M, fecha_desde: D(1), fecha_hasta: D(2), precio_clp: 1 } })
     const ser = await api('POST', `/hotel/habitaciones/${HAB_M}/servicio`, { cookie: cRecepcion, clave: K('ser-rec'), cuerpo: { en_servicio: false, motivo: 'abc' } })
     esperar([put.estado, tar.estado, ser.estado].every((e) => e === 403), `${put.estado}/${tar.estado}/${ser.estado}`)
     return 'UI de solo lectura; PUT/tarifa/servicio → 403'

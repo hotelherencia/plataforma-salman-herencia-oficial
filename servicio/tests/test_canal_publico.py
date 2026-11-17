@@ -56,7 +56,7 @@ class CanalPublicoBaseTest(unittest.TestCase):
 
             sembrar_habitaciones(conexion)
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-FIJA', 'HAB-SINT-101', '2026-01-01', '2027-12-31', 50000)"
             )
             conexion.commit()
@@ -240,7 +240,7 @@ class SolicitudesPublicasTest(CanalPublicoBaseTest):
     def test_cp24_sin_tarifa_409_legible(self):
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
-            conexion.execute("UPDATE tarifas SET fecha_hasta=%s WHERE habitacion_id='HAB-SINT-101'",
+            conexion.execute("UPDATE excepciones_precio SET fecha_hasta=%s WHERE habitacion_id='HAB-SINT-101'",
                              (HOY + timedelta(days=10),))
             conexion.commit()
         respuesta = self.anonima.post(
@@ -345,7 +345,7 @@ class BandejaSolicitudesTest(CanalPublicoBaseTest):
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-102', 'HAB-SINT-102', '2026-01-01', '2027-12-31', 60000)"
             )
             conexion.commit()

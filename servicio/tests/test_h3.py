@@ -47,13 +47,12 @@ class ReservaPersistenteTest(unittest.TestCase):
         return respuesta
 
     def poner_tarifa(self, habitacion_id="HAB-SINT-101", monto=50_000):
-        respuesta = self.cliente.put(
-            "/hotel/tarifas",
+        respuesta = self.cliente.post("/hotel/precios/excepciones",
             json={
                 "habitacion_id": habitacion_id,
                 "fecha_desde": "2026-01-01",
                 "fecha_hasta": "2027-12-31",
-                "tarifa_noche_clp": monto,
+                "precio_clp": monto,
             },
             headers={"Idempotency-Key": f"tarifa-{habitacion_id}-{monto}"},
         )
@@ -83,9 +82,8 @@ class ReservaPersistenteTest(unittest.TestCase):
             seguridad.crear_usuario(conexion, EMPRESA, "recepcion", "recepcion", "clave-recepcion")
             conexion.commit()
         self.login("recepcion", "clave-recepcion")
-        respuesta = self.cliente.put(
-            "/hotel/tarifas",
-            json={"habitacion_id": "HAB-SINT-101", "fecha_desde": "2026-01-01", "fecha_hasta": "2027-01-01", "tarifa_noche_clp": 1},
+        respuesta = self.cliente.post("/hotel/precios/excepciones",
+            json={"habitacion_id": "HAB-SINT-101", "fecha_desde": "2026-01-01", "fecha_hasta": "2027-01-01", "precio_clp": 1},
         )
         self.assertEqual(respuesta.status_code, 403)
 

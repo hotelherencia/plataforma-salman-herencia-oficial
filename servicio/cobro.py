@@ -16,9 +16,10 @@ from hotel_inventario.servicio import HORA_LLEGADA, LIMITE_CANCELACION_GRATUITA
 from nucleo.servicio import AccesoDenegado as AccesoNucleo
 
 from . import reservas as reservas_db
+from . import roles
 
-ROLES_PAGO_MANUAL = frozenset({"recepcion", "caja", "administrador"})
-ROLES_CAJA = frozenset({"caja", "administrador"})
+ROLES_PAGO_MANUAL = roles.con_admin_hotel("recepcion", "caja")
+ROLES_CAJA = roles.con_admin_hotel("caja")
 
 
 class RecursoAjenoOInexistente(Exception):
@@ -302,9 +303,9 @@ def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> di
 
 # --- Operación de la habitación y de la cuenta (spec-api-v1, 2026-10-30) ---
 
-ROLES_LIMPIEZA = frozenset({"recepcion", "administrador"})
-ROLES_MANTENIMIENTO = frozenset({"administrador"})
-ROLES_CANCELACION = frozenset({"recepcion", "administrador"})
+ROLES_LIMPIEZA = roles.con_admin_hotel("recepcion")
+ROLES_MANTENIMIENTO = roles.con_admin_hotel()
+ROLES_CANCELACION = roles.con_admin_hotel("recepcion")
 ROLES_CARGO = ROLES_PAGO_MANUAL
 ESTADOS_CON_CUENTA_ABIERTA = ("confirmada", "en_estadia")
 

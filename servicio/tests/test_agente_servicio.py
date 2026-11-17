@@ -82,7 +82,7 @@ class AgenteServicioBaseTest(unittest.TestCase):
 
             sembrar_habitaciones(conexion)
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-FIJA', 'HAB-SINT-101', '2026-01-01', '2027-12-31', 50000)"
             )
             conexion.commit()
@@ -186,7 +186,7 @@ class AgenteServicioBaseTest(unittest.TestCase):
         borrador_id = respuesta.json()["borrador"]["borrador_id"]
         with psycopg.connect(URL_TEST) as conexion:
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-NUEVA', 'HAB-SINT-101', '2026-01-01', '2027-12-31', 65000)"
             )
             conexion.commit()

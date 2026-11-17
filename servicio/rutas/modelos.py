@@ -4,10 +4,12 @@ ARC-A01 (#334): viven aparte de la fábrica de la app para que los módulos
 de rutas los importen sin circularidad.
 """
 from datetime import date
+from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .. import agente, canal_publico
+from .. import agente, canal_publico, roles
 from .. import leads as leads_mod
 from ..tipos_habitacion import MAX_LOTE, PATRON_ID_TIPO, PATRON_PREFIJO
 
@@ -52,13 +54,6 @@ class ServicioIn(BaseModel):
     motivo: str | None = Field(default=None, max_length=200)
 
 
-class TarifaIn(BaseModel):
-    habitacion_id: str = Field(min_length=1, max_length=50)
-    fecha_desde: date
-    fecha_hasta: date
-    tarifa_noche_clp: int = Field(gt=0, le=100_000_000)
-
-
 class HuespedIn(BaseModel):
     nombre: str = Field(min_length=1, max_length=200)
     documento: str | None = Field(default=None, max_length=50)
@@ -82,7 +77,7 @@ class PagoIn(BaseModel):
 
 class UsuarioIn(BaseModel):
     nombre: str = Field(min_length=1, max_length=100)
-    rol: str = Field(pattern="^(administrador|recepcion|caja)$")
+    rol: str = Field(pattern=roles.PATRON_ROL)
     clave: str = Field(min_length=6, max_length=200)
 
 
@@ -171,11 +166,17 @@ class DocumentoHuespedIn(BaseModel):
 # --- Entrega 1A: tipos de habitación y alta por lote -----------------------
 
 
+PrecioEn = Literal["con_iva", "neto"]
+
+
 class TipoHabitacionIn(BaseModel):
     tipo_id: str = Field(pattern=PATRON_ID_TIPO)
     nombre: str = Field(min_length=1, max_length=80)
     capacidad_base: int = Field(gt=0, le=30)
     precio_base_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    # Cómo se ingresó el monto: con IVA (se guarda tal cual) o neto (se
+    # convierte a con IVA con la tasa vigente; servicio/iva.py).
+    precio_en: PrecioEn = "con_iva"
     orden: int = Field(default=100, ge=0, le=10_000)
 
     @field_validator("nombre")
@@ -193,6 +194,7 @@ class TipoHabitacionEdicionIn(BaseModel):
     nombre: str | None = Field(default=None, min_length=1, max_length=80)
     capacidad_base: int | None = Field(default=None, gt=0, le=30)
     precio_base_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    precio_en: PrecioEn = "con_iva"
     orden: int | None = Field(default=None, ge=0, le=10_000)
     activo: bool | None = None
 
@@ -214,3 +216,27 @@ class LoteHabitacionesIn(BaseModel):
     desde_numero: int = Field(ge=0, le=99_999)
     digitos: int = Field(default=2, ge=1, le=5)
     capacidad: int | None = Field(default=None, gt=0, le=30)
+
+
+class PrecioPropioIn(BaseModel):
+    """Precio propio de una habitación (gana al base del tipo); null lo quita."""
+
+    precio_clp: int | None = Field(gt=0, le=100_000_000)
+    precio_en: PrecioEn = "con_iva"
+
+
+class ExcepcionPrecioIn(BaseModel):
+    """Excepción por fecha [fecha_desde, fecha_hasta) de un tipo o de una
+    habitación. `precio_clp: null` = sin venta esas noches."""
+
+    tipo_id: str | None = Field(default=None, min_length=1, max_length=50)
+    habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
+    fecha_desde: date
+    fecha_hasta: date
+    precio_clp: int | None = Field(gt=0, le=100_000_000)
+    precio_en: PrecioEn = "con_iva"
+    motivo: str | None = Field(default=None, max_length=120)
+
+
+class TasaIvaIn(BaseModel):
+    iva_porcentaje: Decimal = Field(ge=0, le=100, max_digits=6, decimal_places=3)

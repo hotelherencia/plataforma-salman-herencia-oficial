@@ -1,6 +1,6 @@
 """Rutas de la operación del hotel (ARC-A01, #334; extraídas de aplicacion.py).
 
-Mantenedor de habitaciones/tarifas, oferta, reservas, cobro, estadía, caja,
+Operación de habitaciones (los precios viven en hotel_tipos), oferta, reservas, cobro, estadía, caja,
 búsqueda, ocupación, indicadores, solicitudes públicas (bandeja) y leads
 (bandeja y gestión). Comportamiento idéntico al de las closures originales.
 """
@@ -12,8 +12,8 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
 from fastapi.responses import JSONResponse
-from hotel_inventario.servicio import ROLES_DOCUMENTO
 
+from .. import roles
 from .. import canal_publico
 from .. import cobro
 from .. import documental
@@ -29,8 +29,11 @@ from . import comun
 from .modelos import (
     CargoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
     PagoIn, PATRON_ID_HABITACION, RechazoSolicitudIn, ReservaIn, ServicioIn,
-    SolicitudPublicaIn, TarifaIn,
+    SolicitudPublicaIn,
 )
+
+# Documento del huésped: recepción y administración del hotel (no plataforma).
+ROLES_DOCUMENTO_HUESPED = roles.con_admin_hotel("recepcion")
 
 router = APIRouter()
 
@@ -46,7 +49,7 @@ def definir_habitacion(
 ) -> JSONResponse:
     """Alta o edición (spec-hotel-operacion-v1 §2.2–2.3). Con
     `If-None-Match: *` solo crea: una habitación existente responde 409."""
-    comun.exigir_admin(sesion)
+    comun.exigir_admin_hotel(sesion)
     # Titular: no se pueden crear/editar ids fuera de HAB-01..17, salvo las
     # unidades que la administración dio de alta por lote (entrega 1A).
     if (
@@ -83,45 +86,6 @@ def definir_habitacion(
             "tipo": habitacion.tipo,
             "capacidad": habitacion.capacidad,
             **guardada,
-        }
-
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
-
-@router.put("/hotel/tarifas")
-def definir_tarifa(
-    tarifa: TarifaIn,
-    idempotency_key: str | None = Header(default=None),
-    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
-    conexion=Depends(comun.conexion),
-) -> JSONResponse:
-    comun.exigir_admin(sesion)
-    if tarifa.fecha_hasta <= tarifa.fecha_desde:
-        raise HTTPException(status_code=400, detail="fecha_hasta debe ser mayor que fecha_desde")
-    clave = comun.clave_idempotencia_o_400(idempotency_key)
-    cuerpo = json.loads(tarifa.model_dump_json())
-
-    def operacion() -> tuple[int, dict]:
-        try:
-            tarifa_id = reservas_db.insertar_tarifa(
-                conexion, tarifa.habitacion_id, tarifa.fecha_desde, tarifa.fecha_hasta, tarifa.tarifa_noche_clp
-            )
-        except reservas_db.TarifaSolapadaInutil as error:
-            return 409, {"detail": str(error)}
-        seguridad.auditar(
-            conexion, sesion.nombre, "tarifa", tarifa.habitacion_id,
-            f"{tarifa_id} {tarifa.fecha_desde}→{tarifa.fecha_hasta} ${tarifa.tarifa_noche_clp}/noche",
-        )
-        return 201, {
-            "tarifa_id": tarifa_id,
-            "habitacion_id": tarifa.habitacion_id,
-            "fecha_desde": tarifa.fecha_desde.isoformat(),
-            "fecha_hasta": tarifa.fecha_hasta.isoformat(),
-            "tarifa_noche_clp": tarifa.tarifa_noche_clp,
         }
 
     try:
@@ -170,8 +134,8 @@ def ficha_habitacion(
         conexion,
         habitacion_id,
         sesion.empresa_id,
-        ver_documento=sesion.rol in ROLES_DOCUMENTO,
-        ver_auditoria=sesion.rol == "administrador",
+        ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED,
+        ver_auditoria=roles.exige_doble_factor(sesion.rol),
     )
 
 @router.post("/hotel/habitaciones/{habitacion_id}/servicio")
@@ -183,7 +147,7 @@ def fijar_servicio_habitacion(
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
     """Baja lógica y reincorporación (spec-hotel-operacion-v1 §2.4)."""
-    comun.exigir_admin(sesion)
+    comun.exigir_admin_hotel(sesion)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     motivo = (cuerpo_servicio.motivo or "").strip() or None
     if not cuerpo_servicio.en_servicio and (motivo is None or len(motivo) < 3):
@@ -325,7 +289,7 @@ def consultar_indicadores(
         hasta,
         hoy,
         tipo or None,
-        incluir_financiero=sesion.rol == "administrador",
+        incluir_financiero=roles.es_admin_hotel(sesion.rol),
         solo_inventario_real=solo_reales,
     )
 
@@ -426,7 +390,7 @@ def check_in(
 ) -> JSONResponse:
     # D-ROL-ENT (DECISIÓN 2026-11-06, #304 opción a): la entrada la registran
     # recepción o administrador («caja cobra, recepción opera la habitación»).
-    comun.exigir_rol(sesion, ("recepcion", "administrador"))
+    comun.exigir_rol(sesion, roles.con_admin_hotel("recepcion"))
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo_idem = {
         "operacion": "entrada",
@@ -459,7 +423,7 @@ def check_out(
 ) -> JSONResponse:
     # D-ROL-ENT (DECISIÓN 2026-11-06, #304 opción a): la salida la registran
     # recepción o administrador, igual que la entrada.
-    comun.exigir_rol(sesion, ("recepcion", "administrador"))
+    comun.exigir_rol(sesion, roles.con_admin_hotel("recepcion"))
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"operacion": "salida", "reserva_id": reserva_id}
 
@@ -501,7 +465,7 @@ def buscar_reservas_hotel(
         fecha=fecha,
         estado=estado,
         texto=texto,
-        ver_documento=sesion.rol in ROLES_DOCUMENTO,
+        ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED,
         desde=desde,
         hasta=hasta,
         habitacion_id=habitacion_id or None,
@@ -516,7 +480,7 @@ def detalle_reserva_hotel(
 ) -> dict:
     """Detalle con cuenta (spec-hotel-operacion-v1 §3.2); ajena → 403."""
     return cobro.detalle_reserva(
-        conexion, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO
+        conexion, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED
     )
 
 @router.post("/hotel/habitaciones/{habitacion_id}/limpieza")
@@ -751,7 +715,7 @@ def metricas_publicas(
 ) -> dict:
     """Contadores del canal público de esta instancia (sin PII ni tokens).
     Solo administración; la vista agregada está en los logs JSON."""
-    comun.exigir_rol(sesion, frozenset({"administrador"}))
+    comun.exigir_admin_plataforma(sesion)
     metricas = getattr(request.app.state, "metricas_publicas", None)
     return metricas.resumen() if metricas else {"desde": None, "rutas": {}}
 

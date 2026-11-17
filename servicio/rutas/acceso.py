@@ -12,6 +12,7 @@ import time
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from .. import roles
 from .. import google_oidc, idempotencia, observabilidad, seguridad, totp, totp_qr
 from ..canal_publico import ip_visible
 from . import comun
@@ -74,7 +75,7 @@ def abrir_sesion(
         horas_vigencia=config.session_horas if config else 12,
     )
     resultado = "ok"
-    if rol == "administrador" and not totp_activado:
+    if roles.exige_doble_factor(rol) and not totp_activado:
         resultado = _registrar_excepcion_enrolamiento(credenciales.usuario, "/sesion")
     seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", resultado, ip=ip)
     conexion.commit()
@@ -113,7 +114,7 @@ def ver_sesion(sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion), 
         "empresa_id": sesion.empresa_id,
         "totp_activado": totp_activado,
         # Aviso persistente del front: administrador sin autenticador activo.
-        "mfa_pendiente": sesion.rol == "administrador" and not totp_activado,
+        "mfa_pendiente": roles.exige_doble_factor(sesion.rol) and not totp_activado,
     }
 
 
@@ -207,7 +208,7 @@ def callback_login_google(
         comun.fijar_cookie_mfa_tx(destino, request, tx, google_oidc.VIDA_PENDIENTE_MFA_SEG)
         comun.borrar_cookie_oauth_tx(destino, request)
         return destino
-    if rol == "administrador":
+    if roles.exige_doble_factor(rol):
         if _admin_google_exige_mfa():
             seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "rechazado sin 2fa")
             conexion.commit()
@@ -375,7 +376,7 @@ def listar_usuarios(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    comun.exigir_admin(sesion)
+    comun.exigir_admin_plataforma(sesion)
     return {"usuarios": seguridad.listar_usuarios(conexion, sesion.empresa_id)}
 
 
@@ -386,7 +387,7 @@ def alta_usuario(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    comun.exigir_admin(sesion)
+    comun.exigir_admin_plataforma(sesion)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = json.loads(usuario.model_dump_json())
 
@@ -419,7 +420,7 @@ def cambiar_clave_usuario(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    if sesion.rol != "administrador" and sesion.usuario_id != usuario_id:
+    if not roles.es_admin_plataforma(sesion.rol) and sesion.usuario_id != usuario_id:
         raise HTTPException(status_code=403, detail="acceso denegado")
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_clave.model_dump_json())}
@@ -467,7 +468,7 @@ def revocar_usuario(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    comun.exigir_admin(sesion)
+    comun.exigir_admin_plataforma(sesion)
     if usuario_id == sesion.usuario_id:
         raise HTTPException(status_code=409, detail="para cerrar tu sesión usa DELETE /sesion")
     clave = comun.clave_idempotencia_o_400(idempotency_key)
@@ -494,7 +495,7 @@ def baja_usuario(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    comun.exigir_admin(sesion)
+    comun.exigir_admin_plataforma(sesion)
     if usuario_id == sesion.usuario_id:
         raise HTTPException(status_code=409, detail="no puedes darte de baja a ti mismo")
     clave = comun.clave_idempotencia_o_400(idempotency_key)
@@ -506,10 +507,10 @@ def baja_usuario(
         )
         if not activo:
             return 409, {"detail": "el usuario ya está de baja"}
-        if rol == "administrador" and seguridad.contar_administradores_activos(
+        if roles.es_admin_plataforma(rol) and seguridad.contar_administradores_activos(
             conexion, sesion.empresa_id
         ) <= 1:
-            return 409, {"detail": "no se puede dar de baja al último administrador activo"}
+            return 409, {"detail": "no se puede dar de baja al último administrador de plataforma activo"}
         seguridad.dar_de_baja(conexion, usuario_id)
         seguridad.auditar(conexion, sesion.nombre, "usuario-baja", usuario_id, "de baja")
         return 200, {"id": usuario_id, "activo": False}

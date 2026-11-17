@@ -151,7 +151,7 @@ def actualizar_politica_agente(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
-    comun.exigir_rol(sesion, {"administrador"})
+    comun.exigir_admin_hotel(sesion)
     try:
         resultado = agente.actualizar_politica(
             conexion, sesion.empresa_id, cuerpo_politica.model_dump(exclude_none=True), sesion.nombre

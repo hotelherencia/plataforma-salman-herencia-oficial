@@ -117,7 +117,16 @@ empresa de la sesión, ordenados por `inicio`, `id`.
 
 REQUISITO PROPUESTO (2026-10-30). Roles creables en V1: `administrador`,
 `recepcion`, `caja` (DECISIÓN, 2026-10-30, orden del propietario; un rol
-`limpieza` queda DECISIÓN PENDIENTE, no se inventa). HECHO DOCUMENTADO:
+`limpieza` queda DECISIÓN PENDIENTE, no se inventa). **1A.2 (2026-11-17,
+`servicio/roles.py`)**: se separan dos administraciones —`admin_hotel`
+(Administrador del hotel: precios, tipos, habitaciones, reservas, cobros,
+caja, reportes) y `admin_plataforma` (Administrador de plataforma: usuarios,
+seguridad, ajustes del sistema como la tasa de IVA)—; `administrador` sigue
+existiendo y equivale a ambas (los usuarios existentes no pierden acceso).
+Los tres roles administrativos exigen doble factor (aviso de enrolamiento y
+regla de Google). En esta sección «solo `administrador`» se lee «solo
+administración de plataforma»; en las de operación del hotel, «solo
+administración del hotel». HECHO DOCUMENTADO:
 `usuarios.activo boolean NOT NULL DEFAULT true` y `UNIQUE (empresa_id,
 nombre)`; la clave solo se guarda como hash argon2id
 (`seguridad.hashear_clave`); `cobro.ROLES_PAGO_MANUAL` ya exige `recepcion`,
@@ -250,17 +259,31 @@ el contrato:
   `^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$` (si no, 422); con `If-None-Match: *` solo
   crea (existe → 409). Responde `creada` y `cambios {campo: [antes, después]}`
   y deja auditoría. No toca reservas, tarifas ni estados.
-- **Precio de una noche (entrega 1A, `servicio/precios.py`)**: resolvedor
-  único para oferta, reserva, ocupación, listado y canal público. De menor a
-  mayor prioridad: precio base del tipo (`tipos_habitacion.precio_base_clp`)
-  → precio propio de la habitación (`habitaciones.precio_propio_clp`,
-  reservado) → tarifa por habitación y fechas (regla de vigencia de abajo).
-  Sin ninguno, la noche queda sin tarifa y no se vende. La reserva guarda el
-  precio de cada noche y su origen en `reserva_noches` y el total en
-  `reservas.total_aceptado_clp`.
-- `PUT /hotel/tarifas`: append-only; vigente en la noche *d* la de mayor
-  `fecha_desde` con `fecha_desde ≤ d < fecha_hasta`, a igualdad la registrada
-  más recientemente. Deja auditoría.
+- **Precio de una noche: UNA sola fuente (entregas 1A y 1A.2,
+  `servicio/precios.py`, migración 0022)**. Todo precio se define en el
+  mantenedor «Tipos, habitaciones y precios» (`/hotel/tipos`). De mayor a
+  menor prioridad: excepción por fecha de la habitación → excepción por fecha
+  del tipo → precio propio de la habitación (`habitaciones.precio_propio_clp`)
+  → precio base del tipo (`tipos_habitacion.precio_base_clp`). Entre
+  excepciones del mismo nivel gana la de mayor `fecha_desde` con
+  `fecha_desde ≤ d < fecha_hasta`; a igualdad, la registrada más
+  recientemente (la regla de vigencia de siempre). Excepción con
+  `precio_clp: null` = sin venta. Sin ningún precio la noche queda sin tarifa
+  y no se vende. Resolvedor único para oferta, reserva, ocupación, listado y
+  canal público. La reserva guarda el precio de cada noche y su origen en
+  `reserva_noches` y el total en `reservas.total_aceptado_clp`.
+- **El editor heredado `PUT /hotel/tarifas` ya no existe** (1A.2): duplicaba
+  el mantenedor. La migración 0022 convirtió las tarifas por habitación en
+  precio base del tipo, precio propio y excepciones por fecha con precios
+  idénticos noche a noche, y las dejó archivadas (`tarifas.archivada_en`,
+  visibles en la ficha como historial).
+- **IVA (1A.2, `servicio/iva.py`)**: todos los precios son **con IVA
+  incluido** y ese monto es la fuente de verdad. Con la tasa vigente *t*
+  (`ajustes_plataforma.iva_porcentaje`, 19 por defecto): neto =
+  redondeo medio-arriba(precio × 100 / (100 + t)); IVA = precio − neto. Un
+  monto ingresado como neto (`precio_en: "neto"`) se guarda como
+  redondeo medio-arriba(neto × (100 + t) / 100). Cambiar la tasa no cambia
+  los precios guardados, solo su desglose.
 - `POST /hotel/habitaciones/{id}/servicio {en_servicio, motivo?}`: baja
   lógica (`fuera_de_servicio`) y reincorporación. Solo administrador; con
   `Idempotency-Key`; retirar exige `motivo` (422) y ninguna reserva
@@ -448,7 +471,7 @@ autorizados (D-AGT-03, D-WSP-01). Sin las tres variables
 el puerto responde 503 «no configurado» y no persiste nada. Ninguna prueba
 llama a Meta.
 
-## Operaciones de esta versión (67)
+## Operaciones de esta versión (71)
 
 | Operación | Efecto |
 |---|---|
@@ -471,14 +494,18 @@ llama a Meta.
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |
 | `POST /usuarios/{id}/baja` | `activo=false` y revoca sesiones. Solo administrador, sobre otro usuario; no al último administrador activo (409). |
 | `PUT /hotel/habitaciones/{id}` | Alta o cambio de habitación: tipo, capacidad (con `If-None-Match: *` solo alta). Devuelve `creada` y `cambios`; auditado. Solo administrador. |
-| `PUT /hotel/tarifas` | Tarifa por rango y unidad (append-only; regla de vigencia arriba). No cambia el precio de una reserva ya aceptada. La carga idéntica (misma unidad, rango y precio) → 409 (#299, 2026-11-06): el cambio de precio es el mismo rango con precio distinto, que gana por recencia (CA-HAB-03). Auditado. |
-| `GET /hotel/tipos` | Tipos de habitación (entrega 1A) con sus habitaciones, el precio de hoy de cada una y su origen (`tipo`, `habitacion` o `tarifa`) y el resumen por tipo. Cualquier rol; `puede_editar` solo para administrador. En titular, solo el inventario operativo (HAB-01..17 y altas por lote). |
-| `POST /hotel/tipos` | Alta de un tipo (`tipo_id` `^[a-z0-9][a-z0-9_]{0,49}$`, nombre, capacidad base, precio base opcional). Ya existe → 409. Auditado. Solo administrador. |
-| `PUT /hotel/tipos/{id}` | Edición parcial del tipo (nombre, capacidad base, `precio_base_clp` —`null` lo quita—, orden, activo). El precio base lo heredan las habitaciones del tipo sin precio propio ni tarifa por fechas; las reservas aceptadas no cambian (precio congelado por noche). Devuelve `cambios`; auditado. Solo administrador. |
-| `POST /hotel/habitaciones/lote` | Alta de N habitaciones (1–100) de un tipo con numeración `prefijo + número` con `digitos` (p. ej. `HAB-` desde 18 → HAB-18…). Todo o nada: alguna ya existe → 409 con `existentes`; tipo inexistente → 422; tipo inactivo → 409. Nacen en servicio, limpias y `en_inventario`. Auditado por habitación y por lote. Solo administrador. |
+| `GET /hotel/tipos` | Mantenedor único de precios: tipos con sus habitaciones, excepciones por fecha activas (del tipo y de sus habitaciones), el precio de hoy de cada habitación y su origen (`tipo`, `habitacion`, `excepcion_tipo`, `excepcion_habitacion`), resumen por tipo e `iva {porcentaje, regla}`. Cualquier rol; `puede_editar` para administración del hotel, `puede_editar_iva` para administración de plataforma. En titular, solo el inventario operativo (HAB-01..17 y altas por lote). |
+| `POST /hotel/tipos` | Alta de un tipo (`tipo_id` `^[a-z0-9][a-z0-9_]{0,49}$`, nombre, capacidad base, precio base opcional con IVA o `precio_en: "neto"`). Ya existe → 409. Auditado. Solo administración del hotel. |
+| `PUT /hotel/tipos/{id}` | Edición parcial del tipo (nombre, capacidad base, `precio_base_clp` —`null` lo quita; `precio_en` con_iva/neto—, orden, activo). El precio base lo heredan las habitaciones del tipo sin precio propio ni excepción en esa noche; las reservas aceptadas no cambian (precio congelado por noche). Devuelve `cambios`; auditado. Solo administración del hotel. |
+| `POST /hotel/habitaciones/lote` | Alta de N habitaciones (1–100) de un tipo con numeración `prefijo + número` con `digitos` (p. ej. `HAB-` desde 18 → HAB-18…). Todo o nada: alguna ya existe → 409 con `existentes`; tipo inexistente → 422; tipo inactivo → 409. Nacen en servicio, limpias y `en_inventario`. Auditado por habitación y por lote. Solo administración del hotel. |
+| `PUT /hotel/habitaciones/{id}/precio` | Precio propio de la habitación `{precio_clp, precio_en?}` (gana al base del tipo); `precio_clp: null` lo quita y vuelve a heredar. Inexistente → 404. Auditado. Solo administración del hotel. |
+| `POST /hotel/precios/excepciones` | Excepción por fecha `[fecha_desde, fecha_hasta)` de un tipo (`tipo_id`) o de una habitación (`habitacion_id`), uno de los dos (si no, 422); `precio_clp` con IVA (o `precio_en: "neto"`) o `null` = sin venta; `motivo` opcional. Idéntica a una activa → 409. Auditada. Solo administración del hotel. |
+| `POST /hotel/precios/excepciones/{id}/retiro` | Retiro lógico de una excepción (deja de aplicar; queda en el historial). No activa → 404. Auditado. Solo administración del hotel. |
+| `GET /plataforma/ajustes` | Ajustes del sistema visibles para cualquier sesión: `iva {porcentaje, regla}` y `puede_editar`. |
+| `PUT /plataforma/ajustes/iva` | Tasa de IVA `{iva_porcentaje}` (0–100, hasta 3 decimales). No cambia precios guardados (son con IVA), solo el desglose. Auditado. Solo administración de plataforma. |
 | `GET /hotel/oferta?inicio&fin&personas` | Solo lo disponible, con tarifa vigente **en cada noche** de `[inicio, fin)` (spec-hotel-operacion-v1 §2.8, 2026-11-03) y vencimiento de la oferta. `total_clp` es la suma noche a noche con la tarifa vigente de cada noche (DECISIÓN 2026-11-06, #305); `tarifa_noche_clp` es la tarifa de la primera noche. Incluye unidades ocupadas o sucias si el rango no solapa; excluye mantenimiento, bloqueada y fuera de servicio. |
 | `GET /hotel/habitaciones` | Inventario operativo de las unidades (REQUISITO PROPUESTO, 2026-11-03, orden del propietario tras la revisión E2E: la pantalla operaba a ciegas sin lectura del estado). Por unidad: `tipo`, `capacidad`, `estado_operativo`, `estado_preparacion`, `mantenimiento`, `tareas_pendientes`, `limpieza_pendiente` y última tarifa configurada como referencia. Solo lectura, cualquier rol de la sesión; las mutaciones conservan sus reglas de rol (limpieza: recepción o administrador; mantenimiento: solo administrador). |
-| `GET /hotel/habitaciones/{id}` | Ficha de la habitación: datos, estados, historial de tarifas (con `vigente_hoy`), reservas en cualquier estado, tareas y —solo administrador— auditoría. Cualquier rol; inexistente → 403. |
+| `GET /hotel/habitaciones/{id}` | Ficha de la habitación: datos, estados, precio de hoy y su origen, excepciones por fecha que la alcanzan (con `aplicada_hoy`), tarifas heredadas archivadas por 0022 (solo lectura), reservas en cualquier estado, tareas y —solo administrador— auditoría. Cualquier rol; inexistente → 403. |
 | `POST /hotel/habitaciones/{id}/servicio` | Retira de operación (`fuera_de_servicio`, con motivo) o reincorpora. Solo administrador; reservas vigentes → 409. Baja lógica: nada se borra. |
 | `GET /hotel/reservas?fecha=&estado=&texto=&desde=&hasta=&habitacion_id=` | Búsqueda de reservas de la empresa, filtros opcionales combinados con AND. Ver «Búsqueda de reservas» y la ampliación 2026-11-03. |
 | `GET /hotel/reservas/{id}` | Detalle de una reserva con cargos, pagos, cuenta, liquidación y `personas` (#298). Cualquier rol; documento según rol; ajena o inexistente → 403. |

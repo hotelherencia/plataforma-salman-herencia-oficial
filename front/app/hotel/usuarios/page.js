@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
+import { ETIQUETAS_ROL, ROLES, esAdminPlataforma } from '../../../lib/roles'
 
 export default function Usuarios() {
   const sesion = useSesion()
@@ -19,7 +20,7 @@ export default function Usuarios() {
   const [claveRevocacion, renovarClaveRevocacion] = useClaveOperacion()
   const [claveBaja, renovarClaveBaja] = useClaveOperacion()
 
-  const esAdmin = sesion.fase === 'ok' && sesion.usuario.rol === 'administrador'
+  const esAdmin = sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol)
 
   async function cargarUsuarios() {
     try {
@@ -63,16 +64,16 @@ export default function Usuarios() {
     setBajaId(id)
   }
 
-  if (sesion.fase === 'ok' && sesion.usuario.rol !== 'administrador') {
+  if (sesion.fase === 'ok' && !esAdminPlataforma(sesion.usuario.rol)) {
     return (
       <MarcoHotel titulo="Usuarios">
-        <p className="estado">La gestión de usuarios es solo para administrador.</p>
+        <p className="estado">La gestión de usuarios es solo para la administración de plataforma.</p>
       </MarcoHotel>
     )
   }
 
   return (
-    <MarcoHotel titulo="Gestión de usuarios (administrador)">
+    <MarcoHotel titulo="Gestión de usuarios (administración de plataforma)">
       <section className="tarjeta">
         <h2>Usuarios de la empresa</h2>
         {usuarios === null ? (
@@ -89,10 +90,12 @@ export default function Usuarios() {
         <form className="formulario" onSubmit={(e) => postear('/usuarios', alta, claveAlta, renovarClaveAlta, e)}>
           <Campo etiqueta="Nombre" value={alta.nombre} onChange={(e) => setAlta({ ...alta, nombre: e.target.value })} />
           <CampoSelect etiqueta="Rol" value={alta.rol} onChange={(e) => setAlta({ ...alta, rol: e.target.value })}>
-            <option value="recepcion">recepcion</option>
-            <option value="caja">caja</option>
-            <option value="administrador">administrador</option>
+            {ROLES.map((rol) => <option key={rol} value={rol}>{ETIQUETAS_ROL[rol]}</option>)}
           </CampoSelect>
+          <p className="nota-chica">
+            Administrador del hotel: precios, tipos, habitaciones, reservas, caja y reportes. Administrador de plataforma:
+            usuarios, seguridad y ajustes del sistema (tasa de IVA). Todo rol administrativo exige doble factor.
+          </p>
           <Campo etiqueta="Clave" type="password" value={alta.clave} onChange={(e) => setAlta({ ...alta, clave: e.target.value })} />
           <button type="submit" className="boton-primario">Crear usuario</button>
         </form>
@@ -100,7 +103,7 @@ export default function Usuarios() {
       </section>
       <section className="tarjeta">
         <h2>Cambio de clave de otro usuario</h2>
-        <p className="estado">Un administrador reemplaza la clave de otra persona. La tuya se cambia en Mi cuenta, con la clave actual.</p>
+        <p className="estado">La administración de plataforma reemplaza la clave de otra persona. La tuya se cambia en Mi cuenta, con la clave actual.</p>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${claveCambio.id}/clave`, { clave: claveCambio.clave }, claveCambioOp, renovarClaveCambio, e)}>
           <Campo etiqueta="Usuario (id)" value={claveCambio.id} onChange={(e) => setClaveCambio({ ...claveCambio, id: e.target.value })} />
           <Campo etiqueta="Clave nueva" type="password" value={claveCambio.clave} onChange={(e) => setClaveCambio({ ...claveCambio, clave: e.target.value })} />

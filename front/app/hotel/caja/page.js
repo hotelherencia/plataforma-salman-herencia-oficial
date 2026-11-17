@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
+import { esAdminHotel } from '../../../lib/roles'
 
 export default function Caja() {
   const sesion = useSesion()
@@ -12,10 +13,10 @@ export default function Caja() {
 
   // spec-api-v1: GET /hotel/caja es para caja o administrador.
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
-  if (sesion.fase === 'ok' && rol !== 'caja' && rol !== 'administrador') {
+  if (sesion.fase === 'ok' && rol !== 'caja' && !esAdminHotel(rol)) {
     return (
       <MarcoHotel titulo="Caja del día">
-        <p className="estado">La caja del día es solo para caja o administrador.</p>
+        <p className="estado">La caja del día es solo para caja o la administración del hotel.</p>
       </MarcoHotel>
     )
   }

@@ -112,7 +112,7 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
       `MIGRAR_AL_ARRANCAR=0` el proceso exige que la base ya esté al día y las
       migraciones se aplican con el comando explícito `python -m servicio.migrar`.
     - Inventario documental (W16-A02): solo inserta HAB-01..17 que falten y las
-      tarifas referenciales de habitaciones sin tarifa. Nunca borra reservas,
+      el precio base referencial de los tipos sin precio. Nunca borra reservas,
       pagos ni historial y nunca reactiva habitaciones retiradas. En Vercel no
       corre nunca (`VERCEL=1`), aunque la variable esté puesta.
     """
@@ -155,10 +155,10 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
                     retirar_sinteticas=False,
                     activar_reales=False,
                 )
-                # D3 dueño 2026-11-12: precios fijos referenciales, solo donde
-                # no hay ninguna tarifa (no pisa precios de la administración).
-                inventario_documental.aplicar_tarifas_fijas_referenciales(
-                    conexion, solo_sin_tarifa=True
+                # D3 dueño 2026-11-12: precio base referencial del tipo, solo
+                # donde el tipo no tiene precio (no pisa al mantenedor).
+                inventario_documental.aplicar_precios_base_referenciales(
+                    conexion, solo_sin_precio=True
                 )
                 documental.sembrar_paquete_documental(conexion)
             conexion.commit()
@@ -175,7 +175,7 @@ from .rutas.modelos import (  # noqa: E402
     ConsultaAgenteIn, Credenciales, DescarteBorradorIn, GestionLeadIn,
     HabitacionIn, HuespedIn, LeadPublicoIn, MantenimientoIn, PagoIn,
     PATRON_ID_HABITACION, PoliticaAgenteIn, RechazoSolicitudIn, ReservaIn,
-    ServicioIn, SolicitudPublicaIn, TarifaIn, UsuarioIn,
+    ServicioIn, SolicitudPublicaIn, UsuarioIn,
 )
 from .rutas import acceso, hotel  # noqa: E402  (routers incluidos en crear_app)
 from .rutas import agente as rutas_agente  # noqa: E402  (alias: `agente` sigue siendo el dominio)

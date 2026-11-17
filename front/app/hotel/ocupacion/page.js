@@ -16,7 +16,7 @@ const LEYENDA = {
   en_estadia: ['En estadía', 'huésped alojado (check-in hecho)'],
   finalizada: ['Finalizada', 'noche pasada de una estadía ya liquidada'],
   disponible: ['Disponible', 'se puede vender (la oferta la incluye)'],
-  sin_tarifa: ['Sin tarifa', 'libre, pero sin tarifa vigente: la oferta no la ofrece'],
+  sin_tarifa: ['Sin precio', 'libre, pero sin precio para esa noche: la oferta no la ofrece'],
   no_vendible: ['No vendible', 'mantenimiento o fuera de servicio'],
   sin_ocupar: ['Sin ocupar', 'noche pasada sin estadía'],
 }

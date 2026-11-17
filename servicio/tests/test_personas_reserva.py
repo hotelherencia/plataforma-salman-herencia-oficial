@@ -49,7 +49,7 @@ class PersonasReservaTest(unittest.TestCase):
                 "('HAB-P-2', 'EST-SINT-001', 'doble', 2), ('HAB-P-4', 'EST-SINT-001', 'familiar', 4)"
             )
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) VALUES "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) VALUES "
                 "('TAR-P2', 'HAB-P-2', '2026-01-01', '2027-12-31', 50000), "
                 "('TAR-P4', 'HAB-P-4', '2026-01-01', '2027-12-31', 70000)"
             )

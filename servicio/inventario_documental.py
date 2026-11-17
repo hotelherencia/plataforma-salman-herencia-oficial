@@ -24,19 +24,18 @@ Decisión operativa (2026-11-11, dueño): HAB-01..17 quedan **en servicio**
 oferta pública sigue sin tarifas hasta decisión de precios (D3), pero la
 ocupación no debe listarlas todas como «fuera de servicio».
 
-Decisión precios (2026-11-12, dueño): tarifas fijas referenciales
+Decisión precios (2026-11-12, dueño): precios fijos referenciales
 Single 47000 / Doble o matrimonial 55000 / Triple 65000 para todas las
-fechas (vigencia documental 2020-01-01→2099-12-31). TAR-07 cuádruple
-sigue bloqueada (R01).
+fechas. Desde la migración 0022 se guardan como precio base del tipo (fuente
+única de precio), ya no como tarifas por habitación. TAR-07 cuádruple sigue
+bloqueada (R01).
 """
 from __future__ import annotations
 
 import json
 import re
-from datetime import date
 from pathlib import Path
 
-from . import reservas as reservas_db
 
 LOTE_RELATIVO = Path("docs/datos/herencia-revision-2026-11-11/lote_b1_inventario_propuesto.json")
 ESTABLECIMIENTO_HERENCIA = "EST-HERENCIA-001"
@@ -55,8 +54,6 @@ PRECIO_FIJO_POR_TIPO = {
     "matrimonial_mas_1": 55000,
     "triple": 65000,
 }
-VIGENCIA_FIJA_DESDE = date(2020, 1, 1)
-VIGENCIA_FIJA_HASTA = date(2099, 12, 31)
 
 
 def es_id_inventario_real(habitacion_id: str) -> bool:
@@ -155,33 +152,31 @@ def precio_fijo_referencial(tipo_salman: str) -> int | None:
     return PRECIO_FIJO_POR_TIPO.get((tipo_salman or "").lower().strip())
 
 
-def aplicar_tarifas_fijas_referenciales(
+def aplicar_precios_base_referenciales(
     conexion,
     *,
     lote: dict | None = None,
-    fecha_desde: date = VIGENCIA_FIJA_DESDE,
-    fecha_hasta: date = VIGENCIA_FIJA_HASTA,
-    solo_sin_tarifa: bool = False,
+    solo_sin_precio: bool = False,
 ) -> dict:
-    """Upsert de tarifas fijas referenciales (dueño 2026-11-12) para HAB-01..17.
+    """Precios fijos referenciales del dueño (2026-11-12) en la fuente única:
+    el precio base del TIPO de HAB-01..17 (mantenedor «Tipos, habitaciones y
+    precios»), no tarifas por habitación (migración 0022).
 
-    Idempotente: si ya existe el mismo rango+precio, se omite (CA-HAB-03 / #299).
-    Un rango con precio distinto se inserta y gana por recencia.
-    Con `solo_sin_tarifa` (arranque) solo se siembra la habitación que no
-    tiene ninguna tarifa: un precio cargado por la administración nunca se
-    pisa con la referencial al reiniciar.
+    Por tipo se toma el precio referencial más repetido entre sus habitaciones
+    documentales (empate: el menor). Idempotente: si el tipo ya tiene ese
+    precio, se omite. Con `solo_sin_precio` (arranque) solo se completa el tipo
+    que no tiene precio base: un precio fijado por la administración nunca se
+    pisa al reiniciar.
     """
     datos = lote or cargar_lote()
-    insertadas = 0
-    omitidas = 0
     errores: list[dict] = []
+    votos: dict[str, dict[int, int]] = {}
     for hab in datos.get("habitaciones") or []:
         habitacion_id = hab["habitacion_id"]
         if not es_id_inventario_real(habitacion_id):
             continue
         tarifa_doc = hab.get("tarifa_propuesta_por_tipo") or {}
         if not tarifa_doc.get("publicar_tarifa_activa"):
-            omitidas += 1
             continue
         precio = precio_fijo_referencial(hab.get("tipo_salman", ""))
         if precio is None:
@@ -189,28 +184,31 @@ def aplicar_tarifas_fijas_referenciales(
         if precio is None or precio <= 0:
             errores.append({"habitacion_id": habitacion_id, "error": "sin_precio"})
             continue
-        existe = conexion.execute(
-            "SELECT 1 FROM habitaciones WHERE id = %s", (habitacion_id,)
-        ).fetchone()
-        if existe is None:
+        fila = conexion.execute("SELECT tipo FROM habitaciones WHERE id = %s", (habitacion_id,)).fetchone()
+        if fila is None:
             errores.append({"habitacion_id": habitacion_id, "error": "habitacion_inexistente"})
             continue
-        if solo_sin_tarifa and conexion.execute(
-            "SELECT 1 FROM tarifas WHERE habitacion_id = %s LIMIT 1", (habitacion_id,)
-        ).fetchone() is not None:
-            omitidas += 1
+        conteo = votos.setdefault(fila[0], {})
+        conteo[precio] = conteo.get(precio, 0) + 1
+    actualizados: dict[str, int] = {}
+    omitidos = 0
+    for tipo, conteo in sorted(votos.items()):
+        precio = sorted(conteo.items(), key=lambda par: (-par[1], par[0]))[0][0]
+        actual = conexion.execute(
+            "SELECT precio_base_clp FROM tipos_habitacion WHERE id = %s", (tipo,)
+        ).fetchone()
+        if actual is None or actual[0] == precio or (solo_sin_precio and actual[0] is not None):
+            omitidos += 1
             continue
-        try:
-            reservas_db.insertar_tarifa(conexion, habitacion_id, fecha_desde, fecha_hasta, precio)
-            insertadas += 1
-        except reservas_db.TarifaSolapadaInutil:
-            omitidas += 1
+        conexion.execute(
+            "UPDATE tipos_habitacion SET precio_base_clp = %s, actualizado_en = clock_timestamp() WHERE id = %s",
+            (precio, tipo),
+        )
+        actualizados[tipo] = precio
     return {
-        "insertadas": insertadas,
-        "omitidas": omitidas,
+        "tipos_actualizados": actualizados,
+        "omitidos": omitidos,
         "errores": errores,
-        "fecha_desde": fecha_desde.isoformat(),
-        "fecha_hasta": fecha_hasta.isoformat(),
         "precios": dict(PRECIO_FIJO_POR_TIPO),
     }
 

@@ -48,7 +48,7 @@ class IngresosPeriodoTest(unittest.TestCase):
                 "VALUES ('HAB-FIN-1', 'EST-SINT-001', 'doble', 2)"
             )
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-FIN', 'HAB-FIN-1', '2026-01-01', '2027-12-31', 50000)"
             )
             conexion.commit()

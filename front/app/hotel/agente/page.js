@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
+import { gestionaRecepcion } from '../../../lib/roles'
 
 /** Bandeja del agente de reservas N0 (V1-ISSUE-30): recepción o administrador
  *  pegan la consulta entrante, el copiloto propone un borrador con las cifras
@@ -27,7 +28,7 @@ export default function Agente() {
   const [claveDescarte, renovarDescarte] = useClaveOperacion()
 
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
-  const puedeGestionar = rol === 'recepcion' || rol === 'administrador'
+  const puedeGestionar = gestionaRecepcion(rol)
 
   async function cargar(filtro) {
     setError('')
@@ -160,7 +161,7 @@ export default function Agente() {
   if (sesion.fase === 'ok' && !puedeGestionar) {
     return (
       <MarcoHotel titulo="Agente de reservas">
-        <p className="estado">La bandeja del agente es solo para recepción o administrador.</p>
+        <p className="estado">La bandeja del agente es solo para recepción o la administración del hotel.</p>
       </MarcoHotel>
     )
   }

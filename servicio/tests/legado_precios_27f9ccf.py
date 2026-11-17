@@ -122,3 +122,47 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
         "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60,
         "capacidad_maxima_habitacion": tope,
     }
+
+
+# --- Siembra de tarifas fijas referenciales tal como en 27f9ccf -------------
+# (inventario_documental.aplicar_tarifas_fijas_referenciales + reservas.
+# insertar_tarifa). Agregada en la entrega 1A.2, cuando la siembra del
+# servicio pasó a precio base del tipo: la prueba de regresión necesita
+# reproducir los datos de producción anteriores a 0022.
+VIGENCIA_FIJA_DESDE = date(2020, 1, 1)
+VIGENCIA_FIJA_HASTA = date(2099, 12, 31)
+
+
+def aplicar_tarifas_fijas_referenciales(conexion: psycopg.Connection, lote: dict) -> int:
+    import uuid
+
+    from servicio.inventario_documental import es_id_inventario_real, precio_fijo_referencial
+
+    insertadas = 0
+    for hab in lote.get("habitaciones") or []:
+        habitacion_id = hab["habitacion_id"]
+        if not es_id_inventario_real(habitacion_id):
+            continue
+        tarifa_doc = hab.get("tarifa_propuesta_por_tipo") or {}
+        if not tarifa_doc.get("publicar_tarifa_activa"):
+            continue
+        precio = precio_fijo_referencial(hab.get("tipo_salman", ""))
+        if precio is None:
+            precio = int(tarifa_doc.get("monto_clp") or 0) or None
+        if precio is None or precio <= 0:
+            continue
+        if conexion.execute("SELECT 1 FROM habitaciones WHERE id = %s", (habitacion_id,)).fetchone() is None:
+            continue
+        if conexion.execute(
+            "SELECT 1 FROM tarifas WHERE habitacion_id = %s AND fecha_desde = %s AND fecha_hasta = %s "
+            "AND tarifa_noche_clp = %s LIMIT 1",
+            (habitacion_id, VIGENCIA_FIJA_DESDE, VIGENCIA_FIJA_HASTA, precio),
+        ).fetchone() is not None:
+            continue
+        conexion.execute(
+            "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            (f"TAR-{uuid.uuid4().hex[:12]}", habitacion_id, VIGENCIA_FIJA_DESDE, VIGENCIA_FIJA_HASTA, precio),
+        )
+        insertadas += 1
+    return insertadas

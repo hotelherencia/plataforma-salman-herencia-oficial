@@ -72,7 +72,7 @@ class CancelacionEstadiaTest(unittest.TestCase):
                     (f"HAB-SINT-10{n}",),
                 )
                 conexion.execute(
-                    "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                    "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                     "VALUES (%s, %s, '2026-01-01', '2027-12-31', 50000)",
                     (f"TAR-10{n}", f"HAB-SINT-10{n}"),
                 )

@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   api,
   alRechazar,
-  camposFaltantes,
   clp,
   mensajeDeError,
   MarcoHotel,
@@ -15,14 +14,16 @@ import {
   useClaveOperacion,
   useSesion,
 } from '../../../../lib/api'
+import { esAdminHotel } from '../../../../lib/roles'
+import { etiquetaOrigen, rangoNoches } from '../../../../lib/tipos'
 
 /**
  * Ficha de la habitación (spec-hotel-operacion-v1 §2.3–2.6). Muestra lo que
- * devuelve GET /hotel/habitaciones/{id}; las acciones del administrador
- * (editar tipo/capacidad, tarifa nueva, retirar o reincorporar) van a la API
- * con su propia clave de idempotencia. Las reglas —qué campos se pueden
- * cambiar, la vigencia de tarifas, cuándo se puede retirar— las aplica el
- * servidor; aquí solo se explican y se muestran sus respuestas.
+ * devuelve GET /hotel/habitaciones/{id}; las acciones de la administración
+ * del hotel (editar tipo/capacidad, retirar o reincorporar) van a la API con
+ * su propia clave de idempotencia. El precio NO se edita aquí (entrega 1A.2):
+ * se muestra el de hoy, su origen y las excepciones que la alcanzan, con un
+ * enlace al único mantenedor de precios (/hotel/tipos).
  */
 
 const ETIQUETA_ESTADO = {
@@ -36,17 +37,15 @@ export default function FichaHabitacion() {
   const { id } = useParams()
   const habitacionId = decodeURIComponent(id)
   const sesion = useSesion()
-  const esAdmin = sesion.fase === 'ok' && sesion.usuario.rol === 'administrador'
+  const esAdmin = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
   const [ficha, setFicha] = useState(null)
   const [errorCarga, setErrorCarga] = useState('')
   const [edicion, setEdicion] = useState({ tipo: '', capacidad: '' })
-  const [tarifa, setTarifa] = useState({ fecha_desde: '', fecha_hasta: '', tarifa_noche_clp: '' })
   const [motivo, setMotivo] = useState('')
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
   const [vigentes, setVigentes] = useState([])
   const [claveEdicion, renovarEdicion] = useClaveOperacion()
-  const [claveTarifa, renovarTarifa] = useClaveOperacion()
   const [claveServicio, renovarServicio] = useClaveOperacion()
 
   const cargar = useCallback(async () => {
@@ -96,28 +95,6 @@ export default function FichaHabitacion() {
       renovarEdicion
     )
 
-  const guardarTarifa = (e) => {
-    const falta = camposFaltantes([
-      [tarifa.fecha_desde, 'Desde'],
-      [tarifa.fecha_hasta, 'Hasta'],
-      [tarifa.tarifa_noche_clp, 'Tarifa por noche'],
-    ])
-    if (falta) {
-      e.preventDefault()
-      return setError(falta)
-    }
-    return enviar(
-      e,
-      '/hotel/tarifas',
-      {
-        metodo: 'PUT',
-        cuerpo: { habitacion_id: habitacionId, ...tarifa, tarifa_noche_clp: Number(tarifa.tarifa_noche_clp) },
-        claveIdempotencia: claveTarifa,
-      },
-      renovarTarifa
-    )
-  }
-
   const cambiarServicio = (e, enServicio) =>
     enviar(
       e,
@@ -159,8 +136,17 @@ export default function FichaHabitacion() {
               </dd>
               <dt>Mantenimiento</dt>
               <dd>{ficha.mantenimiento ? 'abierto (fuera del cupo)' : 'no'}</dd>
-              <dt>Tarifa vigente hoy</dt>
-              <dd>{ficha.tarifa_vigente_hoy_clp ? `${clp(ficha.tarifa_vigente_hoy_clp)}/noche` : 'sin tarifa hoy'}</dd>
+              <dt>Precio hoy</dt>
+              <dd>
+                {ficha.tarifa_vigente_hoy_clp ? `${clp(ficha.tarifa_vigente_hoy_clp)}/noche (IVA incl.)` : 'sin precio hoy: no se ofrece'}
+                {' '}<span className={`origen origen-${(ficha.origen_precio_hoy || 'ninguno').split(':')[0]}`}>
+                  {etiquetaOrigen((ficha.origen_precio_hoy || '').split(':')[0] || null)}
+                </span>
+              </dd>
+              <dt>Precio base del tipo</dt>
+              <dd>{ficha.precio_base_tipo_clp ? clp(ficha.precio_base_tipo_clp) : 'sin precio base'}{ficha.tipo_nombre ? ` · ${ficha.tipo_nombre}` : ''}</dd>
+              <dt>Precio propio</dt>
+              <dd>{ficha.precio_propio_clp ? clp(ficha.precio_propio_clp) : 'no (hereda la base del tipo)'}</dd>
               <dt>Registrada</dt>
               <dd>{ficha.creado_en.slice(0, 10)}</dd>
             </dl>
@@ -172,7 +158,7 @@ export default function FichaHabitacion() {
                 <h2>Editar datos</h2>
                 <p className="nota-clave">
                   Se pueden cambiar tipo y capacidad aunque haya reservas: las reservas existentes no cambian (conservan
-                  fechas, estado y tarifa aceptada). El identificador no se puede cambiar. La reserva no guarda la cantidad
+                  fechas, estado y precio aceptado). El identificador no se puede cambiar. La reserva no guarda la cantidad
                   de personas, así que bajar la capacidad no se valida contra reservas futuras.
                 </p>
                 <form className="formulario" onSubmit={guardarEdicion}>
@@ -183,29 +169,13 @@ export default function FichaHabitacion() {
                 <p className="nota-clave nota-tecnica">Clave: <code>{claveEdicion}</code></p>
               </section>
 
-              <section className="tarjeta" aria-label="Tarifa nueva">
-                <h2>Registrar tarifa nueva</h2>
-                <p className="nota-clave">
-                  Las tarifas no se editan ni se borran: una nueva reemplaza el precio de las noches que cubre. En cada noche
-                  rige la de inicio más reciente; si dos empiezan el mismo día, la registrada después. Las reservas ya
-                  confirmadas mantienen su tarifa.
-                </p>
-                <form className="formulario" onSubmit={guardarTarifa}>
-                  <Campo etiqueta="Desde" type="date" value={tarifa.fecha_desde} onChange={(e) => setTarifa({ ...tarifa, fecha_desde: e.target.value })} />
-                  <Campo etiqueta="Hasta (sin incluir)" type="date" value={tarifa.fecha_hasta} onChange={(e) => setTarifa({ ...tarifa, fecha_hasta: e.target.value })} />
-                  <Campo etiqueta="Tarifa por noche (CLP)" type="number" min="1" value={tarifa.tarifa_noche_clp} onChange={(e) => setTarifa({ ...tarifa, tarifa_noche_clp: e.target.value })} />
-                  <button type="submit" className="boton-primario">Guardar tarifa</button>
-                </form>
-                <p className="nota-clave nota-tecnica">Clave: <code>{claveTarifa}</code></p>
-              </section>
-
               <section className="tarjeta" aria-label="Servicio">
                 <h2>{ficha.en_servicio ? 'Retirar de operación' : 'Reincorporar a la operación'}</h2>
                 {ficha.en_servicio ? (
                   <>
                     <p className="nota-clave">
                       Baja lógica: la habitación queda fuera de servicio y deja de ofrecerse, pero nada se borra (reservas,
-                      cargos, pagos, tarifas e historial siguen consultables). Se rechaza si tiene reservas confirmadas o
+                      cargos, pagos, precios e historial siguen consultables). Se rechaza si tiene reservas confirmadas o
                       en estadía: cancélalas o termínalas antes.
                     </p>
                     <form className="formulario" onSubmit={(e) => cambiarServicio(e, false)}>
@@ -238,36 +208,66 @@ export default function FichaHabitacion() {
               )}
             </div>
           )}
-          <button onClick={() => { setSalida(null); setError(''); setVigentes([]); renovarEdicion(); renovarTarifa(); renovarServicio() }} className="boton-secundario">Nueva operación</button>
+          <button onClick={() => { setSalida(null); setError(''); setVigentes([]); renovarEdicion(); renovarServicio() }} className="boton-secundario">Nueva operación</button>
           <SalidaJson datos={salida} />
 
-          <section className="tarjeta" aria-label="Historial de tarifas">
-            <h2>Historial de tarifas</h2>
-            {ficha.tarifas.length === 0 ? (
-              <p className="estado">Sin tarifas: la habitación no se ofrece.</p>
+          <section className="tarjeta" aria-label="Precio y excepciones por fecha">
+            <h2>Precio y excepciones por fecha</h2>
+            <p className="nota-clave">
+              El precio de esta habitación se define en{' '}
+              <Link href="/hotel/tipos">Tipos, habitaciones y precios</Link>: precio base del tipo, precio propio opcional y
+              excepciones por fecha (temporadas, feriados o cierres). Las reservas confirmadas conservan su precio.
+            </p>
+            {ficha.excepciones.length === 0 ? (
+              <p className="estado">Sin excepciones vigentes ni futuras: rige {ficha.precio_propio_clp ? 'su precio propio' : 'el precio base del tipo'}.</p>
             ) : (
               <div className="tabla-contenedor"><table className="tabla">
                 <thead>
                   <tr>
-                    <th>Desde</th>
-                    <th>Hasta (sin incluir)</th>
+                    <th>Noches</th>
+                    <th>Aplica a</th>
                     <th>Por noche</th>
-                    <th>Registrada</th>
+                    <th>Motivo</th>
                     <th>Hoy</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ficha.tarifas.map((t) => (
-                    <tr key={t.tarifa_id}>
-                      <td>{t.fecha_desde}</td>
-                      <td>{t.fecha_hasta}</td>
-                      <td>{clp(t.tarifa_noche_clp)}</td>
-                      <td>{t.registrada_en.slice(0, 16).replace('T', ' ')}</td>
-                      <td>{t.vigente_hoy ? 'vigente' : ''}</td>
+                  {ficha.excepciones.map((e) => (
+                    <tr key={e.excepcion_id}>
+                      <td>{rangoNoches(e.fecha_desde, e.fecha_hasta)}</td>
+                      <td>{e.alcance === 'tipo' ? 'todo el tipo' : 'esta habitación'}</td>
+                      <td>{e.precio_clp ? clp(e.precio_clp) : 'sin venta'}</td>
+                      <td>{e.motivo || '—'}</td>
+                      <td>{e.aplicada_hoy ? 'aplica hoy' : ''}</td>
                     </tr>
                   ))}
                 </tbody>
               </table></div>
+            )}
+            {ficha.tarifas_archivadas.length > 0 && (
+              <details className="json-detalle">
+                <summary>Tarifas antiguas archivadas ({ficha.tarifas_archivadas.length}, solo consulta)</summary>
+                <p className="nota-chica">
+                  Registradas con el editor anterior. La migración 0022 las convirtió en precio base, precio propio o
+                  excepciones con los mismos montos y ya no se aplican.
+                </p>
+                <div className="tabla-contenedor"><table className="tabla">
+                  <thead>
+                    <tr><th>Desde</th><th>Hasta (sin incluir)</th><th>Por noche</th><th>Registrada</th><th>Archivada</th></tr>
+                  </thead>
+                  <tbody>
+                    {ficha.tarifas_archivadas.map((t) => (
+                      <tr key={t.tarifa_id}>
+                        <td>{t.fecha_desde}</td>
+                        <td>{t.fecha_hasta}</td>
+                        <td>{clp(t.tarifa_noche_clp)}</td>
+                        <td>{t.registrada_en.slice(0, 10)}</td>
+                        <td>{t.archivada_en ? t.archivada_en.slice(0, 10) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </details>
             )}
           </section>
 
@@ -284,7 +284,7 @@ export default function FichaHabitacion() {
                     <th>Fechas</th>
                     <th>Noches</th>
                     <th>Estado</th>
-                    <th>Tarifa aceptada</th>
+                    <th>Precio aceptado</th>
                   </tr>
                 </thead>
                 <tbody>

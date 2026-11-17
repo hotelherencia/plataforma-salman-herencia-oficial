@@ -11,7 +11,8 @@ from datetime import date, timedelta
 
 import psycopg
 
-from .reservas import ESTADOS_NO_VENDIBLES, ESTADOS_QUE_OCUPAN_CUPO, tarifas_por_noche
+from . import precios
+from .reservas import ESTADOS_NO_VENDIBLES, ESTADOS_QUE_OCUPAN_CUPO
 
 MAX_NOCHES_OCUPACION = 62
 MAX_NOCHES_INDICADORES = 92
@@ -129,7 +130,7 @@ def ocupacion(
     noches = validar_periodo(desde, hasta, MAX_NOCHES_OCUPACION)
     habitaciones = _habitaciones(conexion, None, solo_inventario_real=solo_inventario_real)
     reservas = _reservas_del_periodo(conexion, empresa_id, desde, hasta, [h["habitacion_id"] for h in habitaciones])
-    tarifas = tarifas_por_noche(conexion, desde, hasta)
+    tarifas = precios.precio_por_noche(conexion, desde, hasta)
     resumen = {n: {"fecha": n.isoformat(), "disponibles": 0, "ocupadas_cupo": 0, "no_vendibles": 0} for n in noches}
     salida = []
     for h in habitaciones:

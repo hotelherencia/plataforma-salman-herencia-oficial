@@ -60,7 +60,7 @@ class CaracterizacionBaseTest(unittest.TestCase):
 
             sembrar_habitaciones(conexion)
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-BASE', 'HAB-SINT-101', '2026-01-01', '2027-12-31', 50000)"
             )
             conexion.commit()
@@ -74,7 +74,7 @@ class CaracterizacionBaseTest(unittest.TestCase):
     def tarifa(self, tarifa_id, habitacion, desde, hasta, monto):
         with psycopg.connect(URL_TEST) as conexion:
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES (%s, %s, %s, %s, %s)",
                 (tarifa_id, habitacion, desde, hasta, monto),
             )
@@ -126,9 +126,9 @@ class TarifaCruzadaTest(CaracterizacionBaseTest):
     def test_noche_sin_tarifa_rechaza_y_no_persiste(self):
         d = HOY + timedelta(days=20)
         with psycopg.connect(URL_TEST) as conexion:
-            conexion.execute("DELETE FROM tarifas WHERE habitacion_id = 'HAB-SINT-101'")
+            conexion.execute("DELETE FROM excepciones_precio WHERE habitacion_id = 'HAB-SINT-101'")
             conexion.execute(
-                "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
                 "VALUES ('TAR-PARCIAL', 'HAB-SINT-101', %s, %s, 50000)",
                 (str(d), str(d + timedelta(days=1))),
             )

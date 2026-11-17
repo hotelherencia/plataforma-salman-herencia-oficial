@@ -12,7 +12,7 @@ from typing import Iterator
 import psycopg
 from fastapi import Depends, HTTPException, Request, Response
 
-from .. import seguridad
+from .. import roles, seguridad
 
 NOMBRE_COOKIE_SESION = "sid"
 # SEC-A05 (#330): transacción OAuth atada al navegador que inició el login.
@@ -153,9 +153,16 @@ def borrar_cookie_mfa_tx(response: Response, request: Request) -> None:
     )
 
 
-def exigir_admin(sesion: seguridad.SesionActiva) -> None:
-    if sesion.rol != "administrador":
-        raise seguridad.ErrorPermiso("solo administrador")
+def exigir_admin_hotel(sesion: seguridad.SesionActiva) -> None:
+    """Precios, tipos, habitaciones y operación del negocio (servicio/roles.py)."""
+    if not roles.es_admin_hotel(sesion.rol):
+        raise seguridad.ErrorPermiso("solo administración del hotel")
+
+
+def exigir_admin_plataforma(sesion: seguridad.SesionActiva) -> None:
+    """Usuarios, seguridad y ajustes del sistema (servicio/roles.py)."""
+    if not roles.es_admin_plataforma(sesion.rol):
+        raise seguridad.ErrorPermiso("solo administración de plataforma")
 
 
 def exigir_rol(sesion: seguridad.SesionActiva, roles) -> None:

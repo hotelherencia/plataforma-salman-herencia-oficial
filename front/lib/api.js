@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import { traducirDetalle } from './mensajes.js'
+import { etiquetaRol } from './roles.js'
 
 // Contención: si el build no inyecta API_BASE_URL, el proxy same-origin /api
 // es el contrato de producción (Vercel → Railway). Vacío rompía /sesion.
@@ -167,7 +168,7 @@ export function MarcoHotel({ children, titulo }) {
       <header className="pagina-cabecera">
         <h1>{titulo}</h1>
         <p className="operador">
-          Operando como {sesion.usuario.usuario} · {sesion.usuario.rol}
+          Operando como {sesion.usuario.usuario} · {etiquetaRol(sesion.usuario.rol)}
         </p>
       </header>
       {children}
@@ -236,8 +237,20 @@ export function resumenConfirmacion(datos) {
     const monto = typeof datos.monto_clp === 'number' ? ` de $${datos.monto_clp}` : ''
     return `Pago ${datos.pago_id}${monto}: estado «${datos.estado}»`
   }
-  if (datos.tarifa_id) {
-    return `Tarifa ${datos.habitacion_id}: $${datos.tarifa_noche_clp}/noche (${datos.fecha_desde} → ${datos.fecha_hasta})`
+  // Entrega 1A.2: precio propio, excepciones por fecha y tasa de IVA.
+  if (datos.habitacion_id && 'precio_propio_clp' in datos && datos.cambios) {
+    return datos.precio_propio_clp
+      ? `Habitación ${datos.habitacion_id}: precio propio ${clp(datos.precio_propio_clp)} con IVA`
+      : `Habitación ${datos.habitacion_id}: sin precio propio, hereda el precio base del tipo`
+  }
+  if (datos.excepcion_id) {
+    const alcance = datos.tipo_id && !datos.habitacion_id ? `del tipo ${datos.tipo_id}` : `de ${datos.habitacion_id}`
+    if (datos.activa === false) return `Excepción ${alcance} retirada (${datos.fecha_desde} → ${datos.fecha_hasta}); queda en el historial`
+    const precio = datos.precio_clp ? `${clp(datos.precio_clp)} con IVA` : 'sin venta'
+    return `Excepción ${alcance}: ${precio} (${datos.fecha_desde} → ${datos.fecha_hasta})`
+  }
+  if (datos.iva && datos.iva.porcentaje !== undefined && Object.keys(datos).length === 1) {
+    return `Tasa de IVA: ${String(datos.iva.porcentaje).replace('.', ',')} %. Los precios con IVA no cambian.`
   }
   if (datos.habitacion_id && typeof datos.en_servicio === 'boolean') {
     if (!datos.cambio) return `Habitación ${datos.habitacion_id}: sin cambios (${datos.en_servicio ? 'en servicio' : 'fuera de servicio'})`

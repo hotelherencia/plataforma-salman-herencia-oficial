@@ -16,14 +16,16 @@ from datetime import date, datetime
 
 import psycopg
 
+from . import roles
 from . import entrada_publica
+from . import precios
 from . import reservas as reservas_db
 from . import seguridad
 
 MAX_PERSONAS = 30
 MAX_NOCHES = 30
 TOPE_CUERPO_BYTES = 8192
-ROLES_GESTION = frozenset({"recepcion", "administrador"})
+ROLES_GESTION = roles.con_admin_hotel("recepcion")
 
 
 class SolicitudInvalida(Exception):
@@ -234,7 +236,7 @@ def crear_solicitud(
 
     oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now())
     if habitacion_id not in {item["habitacion_id"] for item in oferta["oferta"]}:
-        descubierta = reservas_db.primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin)
+        descubierta = precios.cotizar(conexion, habitacion_id, inicio, fin).sin_tarifa
         if descubierta is not None:
             raise SinCupoOSinTarifa(f"sin tarifa vigente para {habitacion_id} la noche {descubierta}")
         raise SinCupoOSinTarifa(f"no hay cupo para {habitacion_id} en ese rango")

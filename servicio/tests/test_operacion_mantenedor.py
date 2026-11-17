@@ -50,7 +50,7 @@ def _habitacion(conexion, hid, tipo="doble", capacidad=2, tarifa=45000, registra
         conexion.execute(f"UPDATE habitaciones SET {columna} = %s WHERE id = %s", (valor, hid))
     if tarifa:
         conexion.execute(
-            "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+            "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
             "VALUES (%s, %s, %s, %s, %s)",
             (f"TAR-{hid}", hid, d(-400), d(400), tarifa),
         )
@@ -175,14 +175,14 @@ class MantenedorHabitacionesTest(BaseOperacion):
         reserva = self.reservar("HAB-M-1", iso(5), iso(7))
         self.assertEqual(reserva["tarifa_noche_aceptada_clp"], 45000)
         # misma fecha_desde que la vigente: gana la registrada más recientemente
-        r = self.admin.put("/hotel/tarifas", json={"habitacion_id": "HAB-M-1", "fecha_desde": d(-400).isoformat(),
-                                                   "fecha_hasta": d(400).isoformat(), "tarifa_noche_clp": 60000},
+        r = self.admin.post("/hotel/precios/excepciones", json={"habitacion_id": "HAB-M-1", "fecha_desde": d(-400).isoformat(),
+                                                   "fecha_hasta": d(400).isoformat(), "precio_clp": 60000},
                            headers=self.clave())
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(self.oferta_ids(iso(10), iso(11))["HAB-M-1"]["tarifa_noche_clp"], 60000)
         # tramo específico de fecha_desde posterior gana sobre el rango amplio
-        self.admin.put("/hotel/tarifas", json={"habitacion_id": "HAB-M-1", "fecha_desde": iso(20),
-                                               "fecha_hasta": iso(22), "tarifa_noche_clp": 80000},
+        self.admin.post("/hotel/precios/excepciones", json={"habitacion_id": "HAB-M-1", "fecha_desde": iso(20),
+                                               "fecha_hasta": iso(22), "precio_clp": 80000},
                        headers=self.clave())
         self.assertEqual(self.oferta_ids(iso(20), iso(21))["HAB-M-1"]["tarifa_noche_clp"], 80000)
         self.assertEqual(self.oferta_ids(iso(22), iso(23))["HAB-M-1"]["tarifa_noche_clp"], 60000)
@@ -192,11 +192,11 @@ class MantenedorHabitacionesTest(BaseOperacion):
         self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 90000)
         # historial completo en la ficha, con la vigente de hoy marcada
         ficha = self.admin.get("/hotel/habitaciones/HAB-M-1").json()
-        self.assertEqual(len(ficha["tarifas"]), 3)
-        vigentes = [t for t in ficha["tarifas"] if t["vigente_hoy"]]
-        self.assertEqual([t["tarifa_noche_clp"] for t in vigentes], [60000])
+        self.assertEqual(len(ficha["excepciones"]), 3)
+        aplicadas = [t for t in ficha["excepciones"] if t["aplicada_hoy"]]
+        self.assertEqual([t["precio_clp"] for t in aplicadas], [60000])
         self.assertEqual(ficha["tarifa_vigente_hoy_clp"], 60000)
-        self.assertEqual(len([a for a in ficha["auditoria"] if a["accion"] == "tarifa"]), 2)
+        self.assertEqual(len([a for a in ficha["auditoria"] if a["accion"] == "excepcion_precio"]), 2)
 
     def test_ca_hab_04_retiro_baja_logica_y_reincorporacion(self):
         reserva = self.reservar("HAB-M-1", iso(5), iso(7))
@@ -224,7 +224,7 @@ class MantenedorHabitacionesTest(BaseOperacion):
         ficha = self.admin.get("/hotel/habitaciones/HAB-M-1").json()
         self.assertEqual(ficha["motivo_fuera_de_servicio"], "remodelación")
         self.assertEqual([x["estado"] for x in ficha["reservas"]], ["cancelada"])
-        self.assertEqual(len(ficha["tarifas"]), 1)
+        self.assertEqual(len(ficha["excepciones"]), 1)
         self.assertGreater(self.sql("SELECT count(*) FROM cargos")[0][0], 0)
         # retirar otra vez: sin cambios
         r = self.admin.post("/hotel/habitaciones/HAB-M-1/servicio",
@@ -262,9 +262,9 @@ class MantenedorHabitacionesTest(BaseOperacion):
             with self.subTest(rol=usuario):
                 self.assertEqual(cliente.put("/hotel/habitaciones/HAB-M-1", json={"tipo": "x", "capacidad": 1},
                                              headers=self.clave()).status_code, 403)
-                self.assertEqual(cliente.put("/hotel/tarifas", json={"habitacion_id": "HAB-M-1",
+                self.assertEqual(cliente.post("/hotel/precios/excepciones", json={"habitacion_id": "HAB-M-1",
                                                                      "fecha_desde": iso(1), "fecha_hasta": iso(2),
-                                                                     "tarifa_noche_clp": 1},
+                                                                     "precio_clp": 1},
                                              headers=self.clave()).status_code, 403)
                 self.assertEqual(cliente.post("/hotel/habitaciones/HAB-M-1/servicio",
                                               json={"en_servicio": False, "motivo": "abc"},

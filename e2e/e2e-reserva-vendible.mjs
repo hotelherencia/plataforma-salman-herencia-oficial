@@ -118,7 +118,7 @@ try {
   const HAB_M = `HAB-${RUN}-MT` // mantenimiento abierto
   for (const id of [HAB_R, HAB_M]) {
     await api('PUT', `/hotel/habitaciones/${id}`, { cookie: cAdmin, clave: K(`alta-${id}`), cuerpo: { tipo: 'doble', capacidad: 2 }, cabeceras: { 'If-None-Match': '*' } })
-    await api('PUT', '/hotel/tarifas', { cookie: cAdmin, clave: K(`tar-${id}`), cuerpo: { habitacion_id: id, fecha_desde: D(-30), fecha_hasta: D(365), tarifa_noche_clp: 52000 } })
+    await api('POST', '/hotel/precios/excepciones', { cookie: cAdmin, clave: K(`tar-${id}`), cuerpo: { habitacion_id: id, fecha_desde: D(-30), fecha_hasta: D(365), precio_clp: 52000 } })
   }
   const retiro = await api('POST', `/hotel/habitaciones/${HAB_R}/servicio`, { cookie: cAdmin, clave: K('ret'), cuerpo: { en_servicio: false, motivo: 'remodelación sintética' } })
   esperar(retiro.estado === 200 && retiro.datos.estado_operativo === 'fuera_de_servicio', `retiro: ${retiro.estado} ${JSON.stringify(retiro.datos)}`)

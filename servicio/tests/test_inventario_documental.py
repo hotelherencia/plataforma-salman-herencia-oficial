@@ -1,10 +1,10 @@
-"""Siembra documental: 17 unidades operativas (disponible) + tarifas fijas referenciales."""
+"""Siembra documental: 17 unidades operativas (disponible) + precio base referencial por tipo."""
 import unittest
 from pathlib import Path
 
 from servicio.inventario_documental import (
     PRECIO_FIJO_POR_TIPO,
-    aplicar_tarifas_fijas_referenciales,
+    aplicar_precios_base_referenciales,
     cargar_lote,
     es_id_inventario_real,
     precio_fijo_referencial,
@@ -105,72 +105,57 @@ class InventarioDocumentalSiembraTest(unittest.TestCase):
         self.assertEqual(precio_fijo_referencial("triple"), 65000)
 
 
-class InventarioDocumentalTarifasTest(unittest.TestCase):
-    def test_aplicar_tarifas_inserta_segun_tipo(self):
-        inserts = []
+class InventarioDocumentalPreciosBaseTest(unittest.TestCase):
+    """1A.2: la referencial del dueño va al precio base del TIPO (fuente
+    única), no a tarifas por habitación."""
+
+    def _lote(self, *habitaciones):
+        return {"habitaciones": [
+            {"habitacion_id": hid, "tipo_salman": tipo_salman, "capacidad_propuesta": 2,
+             "tarifa_propuesta_por_tipo": {"publicar_tarifa_activa": True, "monto_clp": 1}}
+            for hid, tipo_salman in habitaciones
+        ]}
+
+    def _fake(self, tipos_db, bases):
+        updates = []
 
         class FakeConn:
             def execute(self, sql, params=None):
                 class R:
                     def fetchone(self_inner):
-                        if "FROM habitaciones" in sql and "SELECT 1" in sql:
-                            return (1,)
-                        if "FROM tarifas" in sql and "SELECT 1" in sql:
-                            return None
+                        if "SELECT tipo FROM habitaciones" in sql:
+                            return (tipos_db[params[0]],) if params[0] in tipos_db else None
+                        if "SELECT precio_base_clp FROM tipos_habitacion" in sql:
+                            return (bases.get(params[0]),)
                         return None
 
-                    def fetchall(self_inner):
-                        return []
-
-                # insertar_tarifa: 5 params (id, hab, desde, hasta, precio)
-                if params is not None and len(params) == 5 and "tarifas" in (sql or "").lower():
-                    inserts.append(
-                        {
-                            "habitacion_id": params[1],
-                            "fecha_desde": str(params[2]),
-                            "fecha_hasta": str(params[3]),
-                            "tarifa_noche_clp": int(params[4]),
-                        }
-                    )
+                if sql.startswith("UPDATE tipos_habitacion"):
+                    updates.append((params[1], params[0]))
+                    bases[params[1]] = params[0]
                 return R()
 
-        lote = {
-            "habitaciones": [
-                {
-                    "habitacion_id": "HAB-07",
-                    "tipo_salman": "single",
-                    "capacidad_propuesta": 1,
-                    "tarifa_propuesta_por_tipo": {
-                        "publicar_tarifa_activa": True,
-                        "monto_clp": 47000,
-                    },
-                },
-                {
-                    "habitacion_id": "HAB-03",
-                    "tipo_salman": "doble",
-                    "capacidad_propuesta": 2,
-                    "tarifa_propuesta_por_tipo": {
-                        "publicar_tarifa_activa": True,
-                        "monto_clp": 55000,
-                    },
-                },
-                {
-                    "habitacion_id": "HAB-17",
-                    "tipo_salman": "triple",
-                    "capacidad_propuesta": 3,
-                    "tarifa_propuesta_por_tipo": {
-                        "publicar_tarifa_activa": True,
-                        "monto_clp": 65000,
-                    },
-                },
-            ]
-        }
-        r1 = aplicar_tarifas_fijas_referenciales(FakeConn(), lote=lote)
-        self.assertEqual(r1["insertadas"], 3)
-        by_id = {i["habitacion_id"]: i["tarifa_noche_clp"] for i in inserts}
-        self.assertEqual(by_id, {"HAB-07": 47000, "HAB-03": 55000, "HAB-17": 65000})
-        self.assertTrue(all(i["fecha_desde"] == "2020-01-01" for i in inserts))
-        self.assertTrue(all(i["fecha_hasta"] == "2099-12-31" for i in inserts))
+        return FakeConn(), updates
+
+    def test_precio_base_por_tipo_mayoritario(self):
+        conn, updates = self._fake(
+            {"HAB-07": "single", "HAB-03": "doble", "HAB-04": "doble", "HAB-17": "triple"}, {}
+        )
+        lote = self._lote(("HAB-07", "single"), ("HAB-03", "doble"), ("HAB-04", "doble"), ("HAB-17", "triple"))
+        r = aplicar_precios_base_referenciales(conn, lote=lote)
+        self.assertEqual(r["tipos_actualizados"], {"doble": 55000, "single": 47000, "triple": 65000})
+        self.assertEqual(r["errores"], [])
+        self.assertEqual(sorted(updates), [("doble", 55000), ("single", 47000), ("triple", 65000)])
+
+    def test_arranque_no_pisa_el_precio_del_mantenedor(self):
+        conn, updates = self._fake({"HAB-07": "single", "HAB-03": "doble"}, {"single": 50000})
+        r = aplicar_precios_base_referenciales(
+            conn, lote=self._lote(("HAB-07", "single"), ("HAB-03", "doble")), solo_sin_precio=True
+        )
+        self.assertEqual(r["tipos_actualizados"], {"doble": 55000})
+        self.assertEqual(updates, [("doble", 55000)])
+        # Idempotente: una segunda pasada no cambia nada.
+        r2 = aplicar_precios_base_referenciales(conn, lote=self._lote(("HAB-03", "doble")))
+        self.assertEqual(r2["tipos_actualizados"], {})
 
 
 if __name__ == "__main__":

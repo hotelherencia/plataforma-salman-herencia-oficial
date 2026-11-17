@@ -64,7 +64,7 @@ class Configuracion:
     empresa_nombre: str | None = None
     empresa_rut: str | None = None
     empresa_es_sintetica: bool | None = None
-    # Siembra idempotente HAB-01..17 + tarifas referenciales donde no hay
+    # Siembra idempotente HAB-01..17 + precio base referencial del tipo si no tiene
     # (W16-A02: nunca borra historial ni reactiva retiradas).
     inventario_documental: bool = False
     # NEW-01: aplicar migraciones al arrancar (por defecto sí, con advisory

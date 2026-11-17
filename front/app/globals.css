@@ -2032,7 +2032,8 @@ a.boton-primario {
   color: var(--verde-oscuro);
 }
 
-.origen-tarifa {
+.origen-excepcion_tipo,
+.origen-excepcion_habitacion {
   background: var(--superficie-fuerte);
   color: #6b3f2a;
 }
@@ -2065,8 +2066,15 @@ a.boton-primario {
 }
 
 .tipo-habitaciones li {
+  display: block;
+  padding: 0.25rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.fila-habitacion {
   display: grid;
-  grid-template-columns: minmax(5.5rem, 1fr) 5.5rem auto;
+  grid-template-columns: minmax(5.5rem, 1fr) 5.5rem auto auto;
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.4rem;
@@ -2160,5 +2168,197 @@ a.boton-primario {
   .tipo-precio {
     justify-items: start;
     text-align: left;
+  }
+}
+
+/* Entrega 1A.2: precio único, IVA y calculadora. */
+.tipos-prioridad {
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}
+
+.tipos-herramientas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.panel-iva h2,
+.calculadora-iva h2 {
+  margin-top: 0;
+}
+
+.nota-chica {
+  margin: 0.3rem 0;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+}
+
+.desglose {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.desglose-compacto {
+  display: inline;
+  font-size: 0.75rem;
+}
+
+.campo-precio-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.campo-precio-fila .entrada {
+  flex: 1 1 7rem;
+  min-width: 0;
+}
+
+.selector-iva {
+  flex: 0 0 auto;
+}
+
+.selector-iva {
+  display: inline-flex;
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--papel-suave);
+}
+
+.selector-iva button {
+  border: 0;
+  background: transparent;
+  padding: 0 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--tinta-suave);
+  white-space: nowrap;
+}
+
+.selector-iva button.activo {
+  background: var(--verde);
+  color: var(--papel);
+  font-weight: 600;
+}
+
+.campo-precio-ayuda {
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.calculadora-fila {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.calculadora-resultado {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+}
+
+.calculadora-resultado > div {
+  background: var(--papel-suave);
+  border-radius: 12px;
+  padding: 0.5rem 0.7rem;
+}
+
+.calculadora-resultado dt {
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+}
+
+.calculadora-resultado dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.calculadora-que-pasa {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  background: var(--exito-fondo);
+  border: 1px solid var(--exito-borde);
+}
+
+.enlace-boton {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--acento);
+  text-decoration: underline;
+  cursor: pointer;
+  justify-self: start;
+}
+
+.precio-propio {
+  margin: 0.4rem 0 0.6rem;
+}
+
+.acciones-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tipo-excepciones h3 {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+}
+
+.tipo-excepciones ul {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.tipo-excepciones li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  align-items: baseline;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: var(--papel-suave);
+  font-size: 0.85rem;
+}
+
+.tipo-excepciones li.vigente {
+  outline: 1px solid var(--acento-suave);
+}
+
+.excepcion-alcance {
+  font-weight: 600;
+}
+
+.excepcion-motivo {
+  color: var(--tinta-suave);
+  font-style: italic;
+}
+
+@media (max-width: 860px) {
+  .tipos-herramientas {
+    grid-template-columns: 1fr;
+  }
+
+  .calculadora-resultado {
+    grid-template-columns: 1fr 1fr 1fr;
   }
 }

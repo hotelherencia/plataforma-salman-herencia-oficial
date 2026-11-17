@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, alRechazar, camposFaltantes, mensajeDeError, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 import { InventarioHabitaciones, InventarioVacio } from '../_componentes/inventario-habitaciones'
+import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 
 /**
  * Inventario y alta de habitaciones (spec-hotel-operacion-v1 §2). El alta
  * envía `If-None-Match: *`: si el id ya existe la API responde 409 y nada se
- * sobrescribe. Editar tipo/capacidad, registrar tarifas y retirar de
- * operación se hacen en la ficha de cada habitación (/hotel/habitaciones/[id]).
+ * sobrescribe. Editar tipo/capacidad y retirar de operación se hacen en la
+ * ficha de cada habitación (/hotel/habitaciones/[id]). Los precios se definen
+ * solo en «Tipos, habitaciones y precios» (/hotel/tipos, entrega 1A.2).
  */
 export default function Habitaciones() {
   const sesion = useSesion()
@@ -21,7 +23,7 @@ export default function Habitaciones() {
   const [claveMantenimiento, renovarClaveMantenimiento] = useClaveOperacion()
 
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
-  const esAdmin = rol === 'administrador'
+  const esAdmin = esAdminHotel(rol)
 
   const cargarInventario = useCallback(async () => {
     try {
@@ -88,12 +90,13 @@ export default function Habitaciones() {
     accionInventario(`/hotel/habitaciones/${habitacionId}/mantenimiento`, { abierto: abrir }, claveMantenimiento, renovarClaveMantenimiento)
 
   return (
-    <MarcoHotel titulo="Habitaciones, tarifas y operación">
+    <MarcoHotel titulo="Estado de habitaciones">
       <section className="tarjeta">
         <h2>Inventario de habitaciones</h2>
         <p className="nota-clave">
-          Abre la <strong>ficha</strong> de una habitación para ver sus tarifas, reservas e historial
-          {esAdmin ? ', editar sus datos, registrar una tarifa nueva o retirarla de operación' : ''}.
+          Abre la <strong>ficha</strong> de una habitación para ver su precio, reservas e historial
+          {esAdmin ? ', editar sus datos o retirarla de operación' : ''}. Los precios se cambian en{' '}
+          <a href="/hotel/tipos">Tipos, habitaciones y precios</a>.
         </p>
         {habitaciones === null ? (
           <p className="estado">Cargando inventario…</p>
@@ -107,7 +110,7 @@ export default function Habitaciones() {
             alCambiarMantenimiento={cambiarMantenimiento}
           />
         )}
-        {(rol === 'recepcion' || esAdmin) && (
+        {gestionaRecepcion(rol) && (
           <p className="nota-clave nota-tecnica">
             Claves de operación (reintenta con la misma para no duplicar) — limpieza: <code>{claveLimpieza}</code>
             {esAdmin && <> · mantenimiento: <code>{claveMantenimiento}</code></>}
@@ -120,8 +123,8 @@ export default function Habitaciones() {
           <h2>Nueva habitación</h2>
           <p className="nota-clave">
             Solo crea: si el identificador ya existe se rechaza sin tocar la habitación. Nace disponible y limpia, y
-            cotiza con el precio base de su tipo (o queda sin tarifa si el tipo no lo tiene). Para crear varias de una
-            vez, usa <a href="/hotel/tipos">Tipos y habitaciones</a>.
+            cotiza con el precio base de su tipo (o queda sin precio si el tipo no lo tiene). Para crear varias de una
+            vez, usa <a href="/hotel/tipos">Tipos, habitaciones y precios</a>.
           </p>
           <form className="formulario" onSubmit={darDeAlta}>
             <Campo etiqueta="Habitación" value={alta.habitacion_id} placeholder="p. ej. HAB-201" onChange={(e) => setAlta({ ...alta, habitacion_id: e.target.value })} />

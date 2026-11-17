@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { clp } from '../../../lib/api'
+import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 
 /**
  * Capa del módulo Hotel — inventario operativo de habitaciones (pura, sin
@@ -25,8 +26,8 @@ const ETIQUETA_PREPARACION = {
 }
 
 export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiarMantenimiento }) {
-  const puedeLimpiar = rol === 'recepcion' || rol === 'administrador'
-  const puedeMantenimiento = rol === 'administrador'
+  const puedeLimpiar = gestionaRecepcion(rol)
+  const puedeMantenimiento = esAdminHotel(rol)
   return (
     <>
       <p className="reservas-total">{habitaciones.length} habitación(es)</p>
@@ -38,7 +39,7 @@ export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiar
           <span role="columnheader">Estado</span>
           <span role="columnheader">Preparación</span>
           <span role="columnheader">Mantenimiento</span>
-          <span role="columnheader">Tarifa hoy</span>
+          <span role="columnheader">Precio hoy</span>
           <span role="columnheader">Acciones</span>
         </li>
         {habitaciones.map((h) => (
@@ -61,7 +62,7 @@ export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento
   return (
     <li className="inventario-fila" role="row">
       <span role="cell" className="reserva-id">
-        <Link href={`/hotel/habitaciones/${h.habitacion_id}`} title="Abrir ficha: datos, tarifas, reservas e historial">
+        <Link href={`/hotel/habitaciones/${h.habitacion_id}`} title="Abrir ficha: datos, precio, reservas e historial">
           {h.habitacion_id}
         </Link>
       </span>
@@ -77,7 +78,7 @@ export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento
         {h.mantenimiento ? 'en mantenimiento' : 'activa'}
       </span>
       <span role="cell" className="reserva-tarifa">
-        {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'sin tarifa hoy'}
+        {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'sin precio hoy'}
       </span>
       <span role="cell" className="inventario-acciones">
         <Link href={`/hotel/habitaciones/${h.habitacion_id}`} className="boton-fantasma">

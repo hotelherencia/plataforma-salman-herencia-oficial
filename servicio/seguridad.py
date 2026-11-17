@@ -16,7 +16,7 @@ import psycopg
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 
-from . import totp
+from . import roles, totp
 
 _HASHER = PasswordHasher(type=Type.ID)
 _log_auditoria = logging.getLogger("servicio.auditoria")
@@ -327,8 +327,8 @@ def cambiar_clave(conexion: psycopg.Connection, usuario_id: str, clave_nueva: st
 
 def contar_administradores_activos(conexion: psycopg.Connection, empresa_id: str) -> int:
     (n,) = conexion.execute(
-        "SELECT count(*) FROM usuarios WHERE empresa_id = %s AND rol = 'administrador' AND activo = true",
-        (empresa_id,),
+        "SELECT count(*) FROM usuarios WHERE empresa_id = %s AND rol = ANY(%s) AND activo = true",
+        (empresa_id, sorted(roles.ROLES_ADMIN_PLATAFORMA)),
     ).fetchone()
     return n
 

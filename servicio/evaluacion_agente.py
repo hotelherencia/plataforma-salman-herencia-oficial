@@ -103,7 +103,7 @@ def _sembrar(conexion: psycopg.Connection, empresa_id: str, caso_m: dict, hoy: d
             (hab["id"], reservas.ESTABLECIMIENTO_SINTETICO, hab.get("tipo", "doble"), int(hab.get("capacidad", 2))),
         )
         conexion.execute(
-            "INSERT INTO tarifas (id, habitacion_id, fecha_desde, fecha_hasta, tarifa_noche_clp) "
+            "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
             "VALUES (%s, %s, %s, %s, %s)",
             (f"TAR-EV-{uuid.uuid4().hex[:10]}", hab["id"], hoy - timedelta(days=30),
              hoy + timedelta(days=400), int(hab["tarifa_noche_clp"])),

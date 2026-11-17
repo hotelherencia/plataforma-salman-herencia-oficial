@@ -28,7 +28,7 @@ export default function Oferta() {
   }
 
   return (
-    <MarcoHotel titulo="Oferta: disponibilidad y tarifa vigente">
+    <MarcoHotel titulo="Oferta: disponibilidad y precio vigente">
       <section className="tarjeta">
         <form className="formulario" onSubmit={buscar}>
           <Campo etiqueta="Desde" type="date" value={consulta.inicio} onChange={(e) => setConsulta({ ...consulta, inicio: e.target.value })} />

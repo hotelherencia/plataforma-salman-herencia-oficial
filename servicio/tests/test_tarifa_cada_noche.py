@@ -71,9 +71,8 @@ class TarifaCadaNocheTest(unittest.TestCase):
             return conexion.execute(consulta, parametros).fetchall()
 
     def tarifa(self, desde, hasta, monto, hid="HAB-T-1"):
-        respuesta = self.admin.put(
-            "/hotel/tarifas",
-            json={"habitacion_id": hid, "fecha_desde": iso(desde), "fecha_hasta": iso(hasta), "tarifa_noche_clp": monto},
+        respuesta = self.admin.post("/hotel/precios/excepciones",
+            json={"habitacion_id": hid, "fecha_desde": iso(desde), "fecha_hasta": iso(hasta), "precio_clp": monto},
             headers=self.clave("tar"),
         )
         self.assertEqual(respuesta.status_code, 201, respuesta.text)
@@ -138,10 +137,9 @@ class TarifaCadaNocheTest(unittest.TestCase):
 
     def test_duplicado_exacto_rechaza_409(self):
         self.tarifa(5, 20, 40000)
-        duplicada = self.admin.put(
-            "/hotel/tarifas",
+        duplicada = self.admin.post("/hotel/precios/excepciones",
             json={"habitacion_id": "HAB-T-1", "fecha_desde": iso(5), "fecha_hasta": iso(20),
-                  "tarifa_noche_clp": 40000},
+                  "precio_clp": 40000},
             headers=self.clave("tar-dup"),
         )
         self.assertEqual(duplicada.status_code, 409, duplicada.text)
@@ -150,10 +148,9 @@ class TarifaCadaNocheTest(unittest.TestCase):
     def test_misma_fecha_desde_es_el_cambio_de_precio_recencia(self):
         # CA-HAB-03: mismo rango con precio distinto → gana la más reciente.
         self.tarifa(5, 20, 40000)
-        subida = self.admin.put(
-            "/hotel/tarifas",
+        subida = self.admin.post("/hotel/precios/excepciones",
             json={"habitacion_id": "HAB-T-1", "fecha_desde": iso(5), "fecha_hasta": iso(20),
-                  "tarifa_noche_clp": 60000},
+                  "precio_clp": 60000},
             headers=self.clave("tar-sub2"),
         )
         self.assertEqual(subida.status_code, 201, subida.text)
@@ -162,10 +159,9 @@ class TarifaCadaNocheTest(unittest.TestCase):
     def test_solape_hacia_adelante_permitido_es_el_cambio_de_precio(self):
         self.tarifa(5, 20, 40000)
         # nueva con inicio MAYOR: gana desde su fecha (evolución append-only)
-        subida = self.admin.put(
-            "/hotel/tarifas",
+        subida = self.admin.post("/hotel/precios/excepciones",
             json={"habitacion_id": "HAB-T-1", "fecha_desde": iso(12), "fecha_hasta": iso(20),
-                  "tarifa_noche_clp": 60000},
+                  "precio_clp": 60000},
             headers=self.clave("tar-sub"),
         )
         self.assertEqual(subida.status_code, 201, subida.text)

@@ -153,14 +153,15 @@ class TiposHabitacion1ATest(unittest.TestCase):
         oferta = self.oferta(10, 12)
         self.assertEqual(sorted(oferta), ["T1A-01", "T1A-02"])
         self.assertEqual((oferta["T1A-01"]["tarifa_noche_clp"], oferta["T1A-01"]["total_clp"]), (70000, 140000))
-        # Tarifa por fechas de la unidad gana a la base en sus noches.
-        r = self.admin.put("/hotel/tarifas", json={
-            "habitacion_id": "T1A-01", "fecha_desde": iso(11), "fecha_hasta": iso(12), "tarifa_noche_clp": 90000,
+        # Excepción por fecha de la unidad gana a la base en sus noches.
+        r = self.admin.post("/hotel/precios/excepciones", json={
+            "habitacion_id": "T1A-01", "fecha_desde": iso(11), "fecha_hasta": iso(12), "precio_clp": 90000,
         }, headers=self.clave())
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(self.oferta(10, 12)["T1A-01"]["total_clp"], 160000)
-        # Precio propio (reservado para 1B) gana a la base, pierde con la tarifa.
-        self.sql("UPDATE habitaciones SET precio_propio_clp = 75000 WHERE id = 'T1A-02' RETURNING id")
+        # Precio propio (mismo mantenedor, 1A.2) gana a la base, pierde con la excepción.
+        r = self.admin.put("/hotel/habitaciones/T1A-02/precio", json={"precio_clp": 75000}, headers=self.clave())
+        self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(self.oferta(10, 12)["T1A-02"]["total_clp"], 150000)
 
         reserva = self.recepcion.post("/hotel/reservas", json={
@@ -174,7 +175,7 @@ class TiposHabitacion1ATest(unittest.TestCase):
         self.assertEqual([(n[0], n[1]) for n in noches],
                          [(HOY + timedelta(days=10), 70000), (HOY + timedelta(days=11), 90000)])
         self.assertEqual(noches[0][2], "tipo:t1a_suite")
-        self.assertTrue(noches[1][2].startswith("tarifa:TAR-"))
+        self.assertTrue(noches[1][2].startswith("excepcion_habitacion:EXC-"))
         self.assertEqual(self.sql("SELECT total_aceptado_clp, tarifa_noche_aceptada_clp FROM reservas "
                                   "WHERE id = %s", (reserva_id,)), [(160000, 70000)])
 
@@ -209,14 +210,14 @@ class TiposHabitacion1ATest(unittest.TestCase):
     def test_listado_de_tipos_resume_origen_del_precio(self):
         self.crear_tipo(precio=60000)
         self.lote(cantidad=3, desde=1)
-        self.admin.put("/hotel/tarifas", json={
-            "habitacion_id": "T1A-03", "fecha_desde": iso(-1), "fecha_hasta": iso(30), "tarifa_noche_clp": 65000,
+        self.admin.post("/hotel/precios/excepciones", json={
+            "habitacion_id": "T1A-03", "fecha_desde": iso(-1), "fecha_hasta": iso(30), "precio_clp": 65000,
         }, headers=self.clave())
         tipos = {t["tipo_id"]: t for t in self.recepcion.get("/hotel/tipos").json()["tipos"]}
         resumen = tipos["t1a_suite"]["resumen"]
         self.assertEqual(resumen["habitaciones"], 3)
         self.assertEqual(resumen["heredan_precio_base"], 2)
-        self.assertEqual(resumen["con_tarifa_por_fechas"], 1)
+        self.assertEqual(resumen["con_excepcion_hoy"], 1)
         self.assertEqual((resumen["precio_hoy_min_clp"], resumen["precio_hoy_max_clp"]), (60000, 65000))
         habitaciones = self.recepcion.get("/hotel/habitaciones").json()["habitaciones"]
         por_id = {h["habitacion_id"]: h for h in habitaciones}

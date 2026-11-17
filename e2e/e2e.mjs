@@ -180,7 +180,7 @@ try {
   const HAB_NUEVA = `HAB-${RUN}-201`
   for (const [id, tipo, cap, tarifa] of [[HAB_A, 'doble', 2, 50000], [HAB_B, 'simple', 1, 35000], [HAB_C, 'doble', 2, 60000]]) {
     await api('PUT', `/hotel/habitaciones/${id}`, { cookie: cookieAdmin, clave: K(`semilla-${id}`), cuerpo: { tipo, capacidad: cap } })
-    await api('PUT', '/hotel/tarifas', { cookie: cookieAdmin, clave: K(`tarifa-${id}`), cuerpo: { habitacion_id: id, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', tarifa_noche_clp: tarifa } })
+    await api('POST', '/hotel/precios/excepciones', { cookie: cookieAdmin, clave: K(`tarifa-${id}`), cuerpo: { habitacion_id: id, fecha_desde: '2026-01-01', fecha_hasta: '2027-12-31', precio_clp: tarifa } })
   }
   cookieRecepcion = await loginApi('recepcion_e2e', 'RecepE2e123')
   cookieCaja = await loginApi('caja_e2e', 'CajaE2e1234')
