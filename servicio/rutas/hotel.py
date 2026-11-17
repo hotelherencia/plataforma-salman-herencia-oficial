@@ -21,7 +21,7 @@ from .. import idempotencia
 from .. import inventario_documental
 from .. import leads as leads_mod
 from .. import observabilidad
-from .. import recaptcha
+from .. import politicas, recaptcha
 from .. import panel
 from .. import reservas as reservas_db
 from .. import seguridad
@@ -95,17 +95,44 @@ def definir_habitacion(
     conexion.commit()
     return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
+def _extras_consulta(hora_llegada, hora_salida, cama_adicional, ninos, mascotas) -> dict | None:
+    extras = {}
+    if hora_llegada:
+        extras["hora_llegada"] = hora_llegada
+    if hora_salida:
+        extras["hora_salida"] = hora_salida
+    if cama_adicional:
+        extras["cama_adicional"] = True
+    if ninos:
+        extras["ninos"] = ninos
+    if mascotas:
+        extras["mascotas"] = True
+    return extras or None
+
+
 @router.get("/hotel/oferta")
 def consultar_oferta(
     inicio: date,
     fin: date,
     personas: int = Query(gt=0, le=30),
+    hora_llegada: str | None = Query(default=None, pattern=r"^\d{1,2}:\d{2}$"),
+    hora_salida: str | None = Query(default=None, pattern=r"^\d{1,2}:\d{2}$"),
+    cama_adicional: bool = Query(default=False),
+    ninos: int | None = Query(default=None, ge=1, le=30),
+    mascotas: bool = Query(default=False),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
     if fin <= inicio:
         raise HTTPException(status_code=400, detail="fin debe ser mayor que inicio")
-    return reservas_db.oferta(conexion, inicio, fin, personas, datetime.now())
+    try:
+        return reservas_db.oferta(
+            conexion, inicio, fin, personas, datetime.now(),
+            empresa_id=sesion.empresa_id,
+            extras=_extras_consulta(hora_llegada, hora_salida, cama_adicional, ninos, mascotas),
+        )
+    except politicas.PoliticaInvalida as error:
+        raise HTTPException(status_code=400, detail=error.detalle) from error
 
 @router.get("/hotel/habitaciones")
 def listar_habitaciones(
@@ -318,6 +345,10 @@ def confirmar_reserva(
                 huesped_nombre=reserva.huesped.nombre,
                 huesped_documento=reserva.huesped.documento,
                 personas=reserva.personas,
+                extras=_extras_consulta(
+                    reserva.hora_llegada, reserva.hora_salida,
+                    reserva.cama_adicional, reserva.ninos, reserva.mascotas,
+                ),
             )
         except reservas_db.SinCupo as error:
             return 409, {"detail": str(error)}
@@ -667,16 +698,24 @@ def disponibilidad_publica(
     inicio: str = Query(min_length=10, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     fin: str = Query(min_length=10, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     personas: int = Query(ge=1, le=canal_publico.MAX_PERSONAS),
+    hora_llegada: str | None = Query(default=None, pattern=r"^\d{1,2}:\d{2}$"),
+    hora_salida: str | None = Query(default=None, pattern=r"^\d{1,2}:\d{2}$"),
+    cama_adicional: bool = Query(default=False),
+    ninos: int | None = Query(default=None, ge=1, le=canal_publico.MAX_PERSONAS),
+    mascotas: bool = Query(default=False),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    _solo_parametros(request, frozenset({"inicio", "fin", "personas"}))
+    permitidos = {"inicio", "fin", "personas", "hora_llegada", "hora_salida", "cama_adicional", "ninos", "mascotas"}
+    _solo_parametros(request, frozenset(permitidos))
     freno: canal_publico.FrenoDeSolicitudes = request.app.state.freno_solicitudes
     if not freno.permite(f"ip:{canal_publico.ip_visible(request)}", ambito="disponibilidad"):
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
     return canal_publico.disponibilidad(
-        conexion, _fecha_iso(inicio), _fecha_iso(fin), personas, datetime.now()
+        conexion, _fecha_iso(inicio), _fecha_iso(fin), personas, datetime.now(),
+        empresa_id=request.app.state.aplicacion.nucleo.empresa.id,
+        extras=_extras_consulta(hora_llegada, hora_salida, cama_adicional, ninos, mascotas),
     )
 
 

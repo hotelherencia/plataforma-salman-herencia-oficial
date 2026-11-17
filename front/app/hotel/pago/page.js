@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
+import Subnav from '../_componentes/subnav'
+import { SUBNAV_CAJA } from '../../../lib/menu-hotel'
 
 function claveDeCobro() {
   // V1-ISSUE-32: la clave de cobro es por operación, nunca un literal fijo:
@@ -56,6 +58,7 @@ export default function Pago() {
 
   return (
     <MarcoHotel titulo="Pago">
+      <Subnav items={SUBNAV_CAJA} />
       <section className="tarjeta">
         <form className="formulario" onSubmit={cobrar}>
           <Campo etiqueta="Reserva" value={campos.reserva_id} onChange={(e) => setCampos({ ...campos, reserva_id: e.target.value })} />

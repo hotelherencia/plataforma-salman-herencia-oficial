@@ -181,6 +181,7 @@ from .rutas import acceso, hotel  # noqa: E402  (routers incluidos en crear_app)
 from .rutas import agente as rutas_agente  # noqa: E402  (alias: `agente` sigue siendo el dominio)
 from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 from .rutas import hotel_tipos as rutas_hotel_tipos  # noqa: E402  (entrega 1A)
+from .rutas import politicas as rutas_politicas  # noqa: E402  (entrega 1A.3)
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
@@ -378,6 +379,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     # Antes que hotel.router: «/hotel/habitaciones/lote» no debe caer en rutas
     # con parámetro de la habitación.
     app.include_router(rutas_hotel_tipos.router)
+    app.include_router(rutas_politicas.router)
     app.include_router(hotel.router)
     app.include_router(rutas_agente.router)
     app.include_router(rutas_mensajeria.router)

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, useSesion } from '../../../../lib/api'
+import Subnav from '../../_componentes/subnav'
+import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 
 /**
  * Detalle de la reserva con su cuenta (spec-hotel-operacion-v1 §3.2). El saldo
@@ -43,6 +45,7 @@ export default function DetalleReserva() {
 
   return (
     <MarcoHotel titulo={`Reserva ${reservaId}`}>
+      <Subnav items={SUBNAV_RESERVAS} />
       <p className="migas">
         <Link href="/hotel/reservas">← Reservas</Link> · <Link href="/hotel/ocupacion">Ocupación</Link>
       </p>

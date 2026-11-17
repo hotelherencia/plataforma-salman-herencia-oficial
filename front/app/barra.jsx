@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { api, useSesion } from '../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 import { esAdminPlataforma, gestionaRecepcion } from '../lib/roles'
+import { hayOperacionActiva, itemActivo, seccionesVisibles } from '../lib/menu-hotel'
 
 /**
  * Marco de PLATAFORMA (capa Herencia): marca, empresa de la sesión y
@@ -22,46 +23,18 @@ import { esAdminPlataforma, gestionaRecepcion } from '../lib/roles'
  * único y visible, y «Cerrar sesión» siempre accesible.
  */
 
-const OPERACION_HOTEL = [
-  ['/hotel/panel', 'Panel'],
-  ['/hotel/ocupacion', 'Ocupación'],
-  // Entrega 1A.2: un solo lugar para precios.
-  ['/hotel/tipos', 'Tipos, habitaciones y precios'],
-  ['/hotel/habitaciones', 'Estado de habitaciones'],
-  ['/hotel/oferta', 'Oferta'],
-  ['/hotel/reserva', 'Nueva reserva'],
-  ['/hotel/reservas', 'Buscar reservas'],
-  ['/hotel/solicitudes', 'Solicitudes'],
-  ['/hotel/leads', 'Leads'],
-  ['/hotel/pago', 'Pago'],
-  ['/hotel/estadia', 'Estadía'],
-  ['/hotel/salida', 'Salida'],
-  ['/hotel/caja', 'Caja'],
-]
-
-// Usuarios y seguridad: administración de plataforma (entrega 1A.2).
-const RUTA_USUARIOS = ['/hotel/usuarios', 'Usuarios']
-
 const MODULOS_CERRADOS = ['Cafetería', 'Inmobiliaria', 'Constructora']
-
-// Bandeja del agente (V1-ISSUE-30): la API la restringe a recepción o
-// administrador y el ítem del menú se oculta a los demás roles.
-const RUTA_AGENTE = ['/hotel/agente', 'Agente']
-
-function esActivo(ruta, href) {
-  return ruta === href || ruta.startsWith(`${href}/`)
-}
 
 export default function BarraNav() {
   const ruta = usePathname()
   const sesion = useSesion()
   const enHotel = ruta.startsWith('/hotel')
-  const puedeVerAgente =
-    sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
-  const puedeVerUsuarios = sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol)
-  const menu = puedeVerUsuarios ? [...OPERACION_HOTEL, RUTA_USUARIOS] : OPERACION_HOTEL
-  const hayOperacionActiva =
-    menu.some(([href]) => esActivo(ruta, href)) || esActivo(ruta, RUTA_AGENTE[0])
+  const visibilidad = {
+    puedeVerAgente: sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol),
+    puedeVerUsuarios: sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol),
+  }
+  const secciones = enHotel ? seccionesVisibles(visibilidad) : []
+  const operacionActiva = hayOperacionActiva(ruta, visibilidad)
   const [abierto, setAbierto] = useState(false)
   const botonRef = useRef(null)
   const panelRef = useRef(null)
@@ -118,7 +91,7 @@ export default function BarraNav() {
           </Link>
           <Link
             href="/hotel/panel"
-            className={enHotel && !hayOperacionActiva ? 'nav-enlace activo' : 'nav-enlace'}
+            className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}
           >
             Hotel
           </Link>
@@ -128,21 +101,21 @@ export default function BarraNav() {
             </span>
           ))}
 
-          {enHotel && (
-            <>
-              <p className="nav-rotulo">Hotel · operación</p>
-              {menu.map(([href, nombre]) => (
-                <Link key={href} href={href} aria-current={esActivo(ruta, href) ? 'page' : undefined} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
-                  {nombre}
+          {enHotel && secciones.map((seccion) => (
+            <div key={seccion.id} className="nav-grupo">
+              <p className="nav-rotulo">{seccion.rotulo}</p>
+              {seccion.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={itemActivo(ruta, item) ? 'page' : undefined}
+                  className={itemActivo(ruta, item) ? 'nav-enlace activo' : 'nav-enlace'}
+                >
+                  {item.nombre}
                 </Link>
               ))}
-              {puedeVerAgente && (
-                <Link href={RUTA_AGENTE[0]} aria-current={esActivo(ruta, RUTA_AGENTE[0]) ? 'page' : undefined} className={esActivo(ruta, RUTA_AGENTE[0]) ? 'nav-enlace activo' : 'nav-enlace'}>
-                  {RUTA_AGENTE[1]}
-                </Link>
-              )}
-            </>
-          )}
+            </div>
+          ))}
         </nav>
 
         <Link href="/cuenta" className={ruta === '/cuenta' ? 'nav-enlace nav-cuenta activo' : 'nav-enlace nav-cuenta'}>
@@ -181,7 +154,7 @@ export default function BarraNav() {
             <Link href="/" onClick={cerrar} className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
               Inicio
             </Link>
-            <Link href="/hotel/panel" onClick={cerrar} className={enHotel && !hayOperacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
+            <Link href="/hotel/panel" onClick={cerrar} className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
               Hotel
             </Link>
             {MODULOS_CERRADOS.map((nombre) => (
@@ -189,21 +162,22 @@ export default function BarraNav() {
                 {nombre}
               </span>
             ))}
-            {enHotel && (
-              <>
-                <p className="nav-rotulo">Hotel · operación</p>
-                {menu.map(([href, nombre]) => (
-                  <Link key={href} href={href} onClick={cerrar} aria-current={esActivo(ruta, href) ? 'page' : undefined} className={esActivo(ruta, href) ? 'nav-enlace activo' : 'nav-enlace'}>
-                    {nombre}
+            {enHotel && secciones.map((seccion) => (
+              <div key={seccion.id} className="nav-grupo">
+                <p className="nav-rotulo">{seccion.rotulo}</p>
+                {seccion.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={cerrar}
+                    aria-current={itemActivo(ruta, item) ? 'page' : undefined}
+                    className={itemActivo(ruta, item) ? 'nav-enlace activo' : 'nav-enlace'}
+                  >
+                    {item.nombre}
                   </Link>
                 ))}
-                {puedeVerAgente && (
-                  <Link href={RUTA_AGENTE[0]} onClick={cerrar} aria-current={esActivo(ruta, RUTA_AGENTE[0]) ? 'page' : undefined} className={esActivo(ruta, RUTA_AGENTE[0]) ? 'nav-enlace activo' : 'nav-enlace'}>
-                    {RUTA_AGENTE[1]}
-                  </Link>
-                )}
-              </>
-            )}
+              </div>
+            ))}
           </nav>
           <div className="menu-movil-pie">
             <Link href="/cuenta" onClick={cerrar} className={ruta === '/cuenta' ? 'nav-enlace nav-cuenta activo' : 'nav-enlace nav-cuenta'}>

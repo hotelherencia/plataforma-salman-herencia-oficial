@@ -199,10 +199,11 @@ def _validar_rango(inicio: date, fin: date, personas: int) -> None:
 
 
 def disponibilidad(
-    conexion: psycopg.Connection, inicio: date, fin: date, personas: int, ahora: datetime
+    conexion: psycopg.Connection, inicio: date, fin: date, personas: int, ahora: datetime,
+    empresa_id: str | None = None, extras: dict | None = None,
 ) -> dict:
     _validar_rango(inicio, fin, personas)
-    return reservas_db.oferta(conexion, inicio, fin, personas, ahora)
+    return reservas_db.oferta(conexion, inicio, fin, personas, ahora, empresa_id=empresa_id, extras=extras)
 
 
 def _hash_cuerpo(cuerpo: dict) -> str:
@@ -234,7 +235,7 @@ def crear_solicitud(
     if not contacto:
         raise SolicitudInvalida("huesped_contacto es obligatorio")
 
-    oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now())
+    oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now(), empresa_id=empresa_id)
     if habitacion_id not in {item["habitacion_id"] for item in oferta["oferta"]}:
         descubierta = precios.cotizar(conexion, habitacion_id, inicio, fin).sin_tarifa
         if descubierta is not None:

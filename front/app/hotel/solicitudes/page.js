@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
+import Subnav from '../_componentes/subnav'
+import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 
 /** Bandeja de solicitudes públicas (V1-ISSUE-24): recepción o administrador
  *  ven las solicitudes de la landing, las convierten en reserva por la misma
@@ -85,6 +87,7 @@ export default function Solicitudes() {
   if (sesion.fase === 'ok' && !puedeGestionar) {
     return (
       <MarcoHotel titulo="Solicitudes de reserva">
+      <Subnav items={SUBNAV_BANDEJAS} />
         <p className="estado">La bandeja de solicitudes es solo para recepción o la administración del hotel.</p>
       </MarcoHotel>
     )
@@ -92,6 +95,7 @@ export default function Solicitudes() {
 
   return (
     <MarcoHotel titulo="Solicitudes de reserva">
+      <Subnav items={SUBNAV_BANDEJAS} />
       <section className="tarjeta">
         <div className="filtros">
           {[

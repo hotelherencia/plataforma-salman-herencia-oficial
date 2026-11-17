@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, useSesion } from '../../../lib/api'
 import { ListaReservas, ReservasVacias } from '../_componentes/lista-reservas'
+import Subnav from '../_componentes/subnav'
+import { SUBNAV_RESERVAS } from '../../../lib/menu-hotel'
 
 export default function Reservas() {
   const sesion = useSesion()
@@ -38,6 +40,7 @@ export default function Reservas() {
 
   return (
     <MarcoHotel titulo="Buscar reservas">
+      <Subnav items={SUBNAV_RESERVAS} />
       <section className="tarjeta">
         <form className="formulario" onSubmit={buscar}>
           <Campo etiqueta="Periodo desde" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />

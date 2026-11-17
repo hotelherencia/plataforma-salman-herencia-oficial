@@ -226,7 +226,7 @@ class AgenteServicioBaseTest(unittest.TestCase):
 
     def test_ag_s06_lista_cerrada_de_herramientas(self):
         self.assertEqual(
-            set(agente.NIVELES["N0"]), {"consultar_disponibilidad", "proponer_borrador"}
+            set(agente.NIVELES["N0"]), {"consultar_disponibilidad", "consultar_politicas", "proponer_borrador"}
         )
         for nombre in ("pagos", "caja", "usuarios", "cancelacion", "entrada", "salida",
                        "habitaciones", "crear_reserva", "crear_solicitud"):

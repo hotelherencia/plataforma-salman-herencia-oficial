@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
 import { esAdminHotel } from '../../../lib/roles'
+import Subnav from '../_componentes/subnav'
+import { SUBNAV_CAJA } from '../../../lib/menu-hotel'
 
 export default function Caja() {
   const sesion = useSesion()
@@ -16,6 +18,7 @@ export default function Caja() {
   if (sesion.fase === 'ok' && rol !== 'caja' && !esAdminHotel(rol)) {
     return (
       <MarcoHotel titulo="Caja del día">
+      <Subnav items={SUBNAV_CAJA} />
         <p className="estado">La caja del día es solo para caja o la administración del hotel.</p>
       </MarcoHotel>
     )
@@ -36,6 +39,7 @@ export default function Caja() {
 
   return (
     <MarcoHotel titulo="Caja del día">
+      <Subnav items={SUBNAV_CAJA} />
       <section className="tarjeta">
         <form className="formulario" onSubmit={consultar}>
           <Campo etiqueta="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />

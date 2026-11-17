@@ -471,7 +471,35 @@ autorizados (D-AGT-03, D-WSP-01). Sin las tres variables
 el puerto responde 503 «no configurado» y no persiste nada. Ninguna prueba
 llama a Meta.
 
-## Operaciones de esta versión (71)
+
+## Políticas del hotel (2026-11-17, Entrega 1A.3)
+
+Única fuente editable de los datos operativos que el agente y la cotización
+necesitan: horarios de llegada y salida, recargos de llegada anticipada y
+salida tardía, cancelación, no-show, depósito, mínimo de noches, niños y cama
+adicional, mascotas, desayuno, estacionamiento, medios de pago, el proceso de
+registro de llegada/salida y las preguntas frecuentes. Las edita la
+**administración del hotel** (`PUT /hotel/politicas`). La tasa de IVA sigue en
+`PUT /plataforma/ajustes/iva` (administración de plataforma).
+
+Los valores iniciales salen de lo ya publicado en la landing o de lo que
+estaba en el código. Lo no ratificado (en particular la cancelación de 48 h y
+la hora de llegada 14:00 frente a un comentario interno de 15:00) se marca
+`pendiente_confirmar` y la UI lo resalta. El servicio no inventa datos.
+
+`GET /publico/disponibilidad` y `GET /hotel/oferta` aceptan de forma opcional
+`hora_llegada`, `hora_salida`, `cama_adicional`, `ninos` y `mascotas`. El
+total incluye los recargos de la política vigente (IVA incluido) y devuelve
+desglose neto/IVA más el texto de cancelación. Al confirmar una reserva se
+congela un `politica_snapshot` (y los recargos) en la fila: un cambio
+posterior del mantenedor no altera reservas ya hechas.
+
+El agente suma la herramienta `consultar_politicas` (tema opcional: horarios,
+cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
+herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
+los compone el servidor.
+
+## Operaciones de esta versión (75)
 
 | Operación | Efecto |
 |---|---|
@@ -546,6 +574,10 @@ llama a Meta.
 | `PUT /hotel/agente/politica` | Cambia la política; solo administrador (recepción → 403); subir de nivel sin `evaluacion_ref` → 409 (SC-003). |
 | `GET /mensajeria/whatsapp/webhook` | Verificación del puerto. Sin las tres variables → 503 «no configurado». Con el puerto, el token correcto devuelve `hub.challenge` en texto plano; otro token → 403. Sin sesión. |
 | `POST /mensajeria/whatsapp/webhook` | Entrada firmada (`X-Hub-Signature-256`). Firma inválida o `phone_number_id` distinto del autorizado → 403 y nada se persiste. Texto válido → consulta `whatsapp`, id externo guardado, 200. El mismo id no crea otra consulta. Sin modelo, la consulta queda `pendiente` y la respuesta sigue en 200. Por remitente aplica el freno del canal público (429). |
+| `GET /publico/politicas` | Sin sesión: políticas públicas del hotel (horarios de llegada/salida, cancelación, depósito, desayuno, estacionamiento, medios de pago, FAQ públicas y datos de llegada que el huésped debe conocer). Los bloques no ratificados van con `confirmacion: pendiente_confirmar` o `no_definido`; no se afirman como hechos. Freno por IP → 429. Ver «Políticas del hotel». |
+| `GET /hotel/politicas` | Políticas completas (incluye registro de llegada/salida y FAQ internas), lista de pendientes y `puede_editar`. Cualquier rol de la sesión. |
+| `PUT /hotel/politicas` | Reemplaza el cuerpo de las políticas (`{cuerpo}`). Solo administración del hotel. Validación 400; auditado; `Idempotency-Key`. |
+| `POST /hotel/politicas/simulacion` | Calculadora: fechas, horas de llegada/salida y recargos opcionales → total con desglose neto/IVA. Con `habitacion_id` usa el precio real; si no, un `precio_noche_clp` de ejemplo. Cualquier rol de la sesión. |
 
 ## Criterio de aceptación
 

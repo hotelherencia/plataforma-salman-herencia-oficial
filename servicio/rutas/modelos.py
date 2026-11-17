@@ -67,6 +67,12 @@ class ReservaIn(BaseModel):
     # #298 (DECISIÓN 2026-11-06): se persiste y se valida contra la capacidad
     # al confirmar; opcional porque no todo flujo lo conoce (conversiones).
     personas: int | None = Field(default=None, ge=1, le=30)
+    # Entrega 1A.3: recargos de la política (llegada anticipada, salida tardía, etc.).
+    hora_llegada: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    hora_salida: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    cama_adicional: bool | None = None
+    ninos: int | None = Field(default=None, ge=1, le=30)
+    mascotas: bool | None = None
 
 
 class PagoIn(BaseModel):
@@ -240,3 +246,37 @@ class ExcepcionPrecioIn(BaseModel):
 
 class TasaIvaIn(BaseModel):
     iva_porcentaje: Decimal = Field(ge=0, le=100, max_digits=6, decimal_places=3)
+
+
+class PoliticasHotelIn(BaseModel):
+    """Cuerpo completo de las políticas (el servidor valida y normaliza)."""
+
+    model_config = ConfigDict(extra="forbid")
+    cuerpo: dict
+
+
+class SimulacionPoliticaIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    inicio: date
+    fin: date
+    habitacion_id: str | None = Field(default=None, max_length=50)
+    precio_noche_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    hora_llegada: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    hora_salida: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    cama_adicional: bool | None = None
+    ninos: int | None = Field(default=None, ge=1, le=30)
+    mascotas: bool | None = None
+
+    def extras(self) -> dict:
+        return {
+            clave: valor
+            for clave, valor in {
+                "hora_llegada": self.hora_llegada,
+                "hora_salida": self.hora_salida,
+                "cama_adicional": self.cama_adicional,
+                "ninos": self.ninos,
+                "mascotas": self.mascotas,
+            }.items()
+            if valor not in (None, False)
+        }

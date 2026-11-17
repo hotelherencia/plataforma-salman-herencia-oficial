@@ -11,16 +11,10 @@ from datetime import date, datetime, timedelta
 import psycopg
 from psycopg.errors import ExclusionViolation
 
-from . import precios
+from . import iva, politicas, precios
 
 VIGENCIA_OFERTA = timedelta(minutes=15)
 ESTABLECIMIENTO_SINTETICO = "EST-SINT-001"
-# HECHO DOCUMENTADO: texto de hotel_inventario.servicio.POLITICA_CANCELACION
-# (LIMITE_CANCELACION_GRATUITA 48 h, HORA_LLEGADA 15:00).
-POLITICA_CANCELACION = (
-    "cancelación gratuita hasta 48 horas antes de la llegada; "
-    "después se carga la primera noche"
-)
 ESTADOS_VALIDOS = ("confirmada", "en_estadia", "finalizada", "cancelada")
 ESTADOS_QUE_OCUPAN_CUPO = ("confirmada", "en_estadia")
 # HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): bloqueada y fuera de servicio
@@ -160,7 +154,7 @@ def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: 
     return fila[0] == 0
 
 
-def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int, ahora: datetime) -> dict:
+def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int, ahora: datetime, empresa_id: str | None = None, extras: dict | None = None) -> dict:
     # HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): ocupada y sucia se venden
     # en otras fechas; mantenimiento, bloqueada y fuera_de_servicio quedan fuera.
     unidades = conexion.execute(
@@ -194,7 +188,6 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
                 "capacidad": capacidad,
                 "tarifa_noche_clp": cotizacion.tarifa_primera,
                 "total_clp": cotizacion.total,
-                "politica_cancelacion": POLITICA_CANCELACION,
                 "vigente_hasta": (ahora + VIGENCIA_OFERTA).isoformat(),
             }
         )
@@ -205,11 +198,17 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
         "AND estado_operativo <> ALL(%s)",
         (list(ESTADOS_NO_VENDIBLES),),
     ).fetchone()[0]
+    cuerpo_politica = politicas.de(conexion, empresa_id)["cuerpo"] if empresa_id else politicas.inicial()
+    tasa = iva.tasa(conexion)
+    noches = (fin - inicio).days
+    items = [politicas.enriquecer_item(item, cuerpo_politica, extras, tasa, noches) for item in items]
     return {
         "oferta": items,
         "emitida_en": ahora.isoformat(),
         "vigencia_minutos": VIGENCIA_OFERTA.total_seconds() // 60,
         "capacidad_maxima_habitacion": tope,
+        "texto_cancelacion": politicas.texto_cancelacion(cuerpo_politica),
+        "cancelacion_confirmacion": (cuerpo_politica.get("cancelacion") or {}).get("confirmacion"),
     }
 
 
@@ -443,6 +442,7 @@ def crear_reserva(
     huesped_nombre: str,
     huesped_documento: str | None,
     personas: int | None = None,
+    extras: dict | None = None,
 ) -> dict:
     # El estado se lee tras el cerrojo: un retiro concurrente y esta reserva se
     # serializan sobre la fila (spec-hotel-operacion-v1 §2.7, misma regla que la oferta).
@@ -460,16 +460,27 @@ def crear_reserva(
     cotizacion = precios.cotizar(conexion, habitacion_id, inicio, fin)
     if cotizacion.sin_tarifa is not None:
         raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {cotizacion.sin_tarifa}")
-    tarifa, total = cotizacion.tarifa_primera, cotizacion.total
+    cuerpo_politica = politicas.de(conexion, empresa_id)["cuerpo"]
+    item = politicas.enriquecer_item(
+        {"habitacion_id": habitacion_id, "tarifa_noche_clp": cotizacion.tarifa_primera, "total_clp": cotizacion.total},
+        cuerpo_politica, extras, iva.tasa(conexion), (fin - inicio).days,
+    )
+    if not item.get("reservable", True):
+        raise SinTarifaVigente(
+            f"la estadía no cumple el mínimo de {item['minimo_noches']} noches de la política del hotel"
+        )
+    tarifa, total = cotizacion.tarifa_primera, item["total_clp"]
+    snapshot = politicas.snapshot_para_reserva(cuerpo_politica, item)
     reserva_id = f"RSV-{uuid.uuid4().hex[:12]}"
     try:
         with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
             conexion.execute(
                 "INSERT INTO reservas (id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, "
-                "tarifa_noche_aceptada_clp, personas, total_aceptado_clp) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "tarifa_noche_aceptada_clp, personas, total_aceptado_clp, politica_snapshot, recargos) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa,
-                 personas, total),
+                 personas, total, psycopg.types.json.Json(snapshot),
+                 psycopg.types.json.Json(item.get("recargos") or [])),
             )
             # Entrega 1A: precio congelado noche a noche, con su origen.
             with conexion.cursor() as cursor:
@@ -479,8 +490,14 @@ def crear_reserva(
                 )
             conexion.execute(
                 "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
-                (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, f"Alojamiento {(fin - inicio).days} noches", total),
+                (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, f"Alojamiento {(fin - inicio).days} noches",
+                 item["subtotal_noches_clp"]),
             )
+            for recargo in item.get("recargos") or []:
+                conexion.execute(
+                    "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
+                    (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, recargo["detalle"], recargo["monto_clp"]),
+                )
     except ExclusionViolation as error:
         raise SinCupo(f"sin cupo para {habitacion_id} en [{inicio}, {fin})") from error
     return {
@@ -491,6 +508,10 @@ def crear_reserva(
         "estado": "confirmada",
         "tarifa_noche_aceptada_clp": tarifa,
         "total_clp": total,
+        "subtotal_noches_clp": item["subtotal_noches_clp"],
+        "recargos": item.get("recargos") or [],
+        "desglose": item.get("desglose"),
+        "politica_cancelacion": snapshot["texto_cancelacion"],
         "personas": personas,
     }
 

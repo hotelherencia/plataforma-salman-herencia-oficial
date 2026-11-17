@@ -22,7 +22,7 @@ import psycopg
 
 from . import roles
 from . import canal_publico
-from . import reservas
+from . import politicas, reservas
 from . import seguridad
 from .modelo_lenguaje import NoConfigurado
 
@@ -33,17 +33,17 @@ VERSION_PROMPT = "n0-2026-11-09"
 VERSION_POLITICA = "n0-2026-11-04"
 
 CANALES = frozenset({"manual", "landing", "correo", "whatsapp"})
-PLANTILLAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato", "escalar"})
-PLANTILLAS_INFORMATIVAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato"})
+PLANTILLAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato", "informacion", "escalar"})
+PLANTILLAS_INFORMATIVAS = frozenset({"cotizacion", "sin_disponibilidad", "pedir_dato", "informacion"})
 ROLES_GESTION = roles.con_admin_hotel("recepcion")
 
 # Lista cerrada de herramientas por nivel (FR-A02). En N0 el modelo solo puede
 # consultar la oferta y proponer borrador; N2 añade crear_solicitud, que
 # envuelve la misma operación del canal público (v1-issue-22).
 NIVELES = {
-    "N0": ("consultar_disponibilidad", "proponer_borrador"),
-    "N1": ("consultar_disponibilidad", "proponer_borrador"),
-    "N2": ("consultar_disponibilidad", "proponer_borrador", "crear_solicitud"),
+    "N0": ("consultar_disponibilidad", "consultar_politicas", "proponer_borrador"),
+    "N1": ("consultar_disponibilidad", "consultar_politicas", "proponer_borrador"),
+    "N2": ("consultar_disponibilidad", "consultar_politicas", "proponer_borrador", "crear_solicitud"),
 }
 
 # NFR-A02: el modelo jamás envía autoridad como argumento.
@@ -144,6 +144,24 @@ def validar_decision(decision: dict, politica: dict, herramientas_permitidas) ->
             raise DecisionInvalida("personas debe estar entre 1 y 30")
         if (fin - inicio).days > int(politica.get("max_noches") or 30):
             raise DecisionInvalida("el rango supera el maximo de noches de la politica")
+        for campo in ("hora_llegada", "hora_salida"):
+            if argumentos.get(campo):
+                try:
+                    politicas._hora(argumentos[campo], campo)
+                except politicas.PoliticaInvalida as error:
+                    raise DecisionInvalida(str(error)) from error
+        if "cama_adicional" in argumentos and not isinstance(argumentos["cama_adicional"], bool):
+            raise DecisionInvalida("cama_adicional debe ser sí o no")
+        if "mascotas" in argumentos and not isinstance(argumentos["mascotas"], bool):
+            raise DecisionInvalida("mascotas debe ser sí o no")
+        if "ninos" in argumentos:
+            ninos = argumentos["ninos"]
+            if not isinstance(ninos, int) or isinstance(ninos, bool) or ninos < 1:
+                raise DecisionInvalida("ninos inválido")
+    elif herramienta == "consultar_politicas":
+        tema = argumentos.get("tema")
+        if tema is not None and tema not in politicas.TEMAS_CONOCIMIENTO:
+            raise DecisionInvalida(f"tema desconocido: {tema}")
     elif herramienta == "proponer_borrador":
         if argumentos.get("plantilla") not in PLANTILLAS:
             raise DecisionInvalida(f"plantilla desconocida: {argumentos.get('plantilla')}")
@@ -183,19 +201,72 @@ def _item_oferta(campos: dict, resultados: dict) -> dict:
     return oferta[indice]
 
 
+
+def _componer_informacion(saludo: str, campos: dict, resultados: dict) -> str:
+    """El servidor arma la respuesta con los hechos de consultar_politicas, no el modelo."""
+    datos = resultados.get("consultar_politicas") or {}
+    hechos = datos.get("hechos")
+    lineas = [saludo, ""]
+    if datos.get("pendiente"):
+        lineas.append("Este punto está pendiente de confirmar con recepción.")
+    if datos.get("tema") == "faq" and isinstance(hechos, list):
+        for item in hechos:
+            marca = " (pendiente de confirmar)" if item.get("confirmacion") != "confirmado" else ""
+            lineas.append(f"• {item['pregunta']}{marca} {item['respuesta']}")
+    elif datos.get("tema") == "cancelacion" and isinstance(hechos, dict):
+        lineas.append(hechos.get("texto") or politicas.texto_cancelacion({"cancelacion": hechos}))
+        if hechos.get("confirmacion") != "confirmado":
+            lineas.append("Esta política está pendiente de confirmar.")
+    elif isinstance(hechos, dict):
+        for clave in (
+            "hora_llegada_desde", "hora_salida_hasta", "incluido", "tipo", "disponible",
+            "medios", "nota", "nota_confirmacion", "texto_visible", "se_aceptan",
+        ):
+            if hechos.get(clave) not in (None, ""):
+                lineas.append(f"{clave.replace('_', ' ')}: {hechos[clave]}")
+        for nombre, clave in (("Llegada anticipada", "llegada_anticipada"), ("Salida tardía", "salida_tardia")):
+            bloque = hechos.get(clave) if clave in hechos else None
+            if not bloque and clave in (hechos or {}):
+                bloque = hechos[clave]
+            recargo = (bloque or {}).get("recargo") if isinstance(bloque, dict) else None
+            if recargo and recargo.get("modo") == "monto_clp":
+                lineas.append(f"{nombre}: {_clp(recargo['valor'])} por {recargo.get('por') or 'hora'}, sujeto a disponibilidad.")
+    else:
+        lineas.append("Derivo tu consulta con recepción para darte una respuesta precisa.")
+    return "\n".join(lineas).strip()
+
+
 def componer(plantilla: str, campos: dict, saludo: str, resultados: dict) -> str:
     """FR-A03: el texto lo compone el servidor; las cifras salen de las
     herramientas del turno, jamás del modelo."""
     saludo = (saludo or "").strip()
     if plantilla == "cotizacion":
         item = _item_oferta(campos, resultados)
-        return (
-            f"{saludo}\n\n"
-            f"Tenemos disponibilidad: {item['habitacion_id']} ({item['tipo']}) — "
-            f"{_clp(item['tarifa_noche_clp'])} por noche, {_clp(item['total_clp'])} en total. "
-            f"Cancelación: {item['politica_cancelacion']}. "
+        if item.get("recargos"):
+            texto = (
+                f"{saludo}\n\n"
+                f"Tenemos disponibilidad: {item['habitacion_id']} ({item['tipo']}) — "
+                f"{_clp(item['tarifa_noche_clp'])} por noche, "
+                f"{_clp(item.get('subtotal_noches_clp', item['total_clp']))} en alojamiento."
+            )
+            for recargo in item["recargos"]:
+                texto += f" {recargo['detalle']}: {_clp(recargo['monto_clp'])}."
+            texto += f" Total: {_clp(item['total_clp'])}."
+        else:
+            texto = (
+                f"{saludo}\n\n"
+                f"Tenemos disponibilidad: {item['habitacion_id']} ({item['tipo']}) — "
+                f"{_clp(item['tarifa_noche_clp'])} por noche, {_clp(item['total_clp'])} en total. "
+            )
+        if item.get("desglose") and item.get("recargos"):
+            d = item["desglose"]
+            texto += f" IVA incluido (neto {_clp(d['neto'])}, IVA {_clp(d['iva'])})."
+        pendiente = " (pendiente de confirmar)" if item.get("cancelacion_confirmacion") == politicas.PENDIENTE else ""
+        texto += (
+            f" Cancelación: {item['politica_cancelacion']}{pendiente}. "
             f"Cotización vigente hasta {item['vigente_hasta']}."
         )
+        return texto
     if plantilla == "sin_disponibilidad":
         return (
             f"{saludo}\n\n"
@@ -205,9 +276,33 @@ def componer(plantilla: str, campos: dict, saludo: str, resultados: dict) -> str
     if plantilla == "pedir_dato":
         faltante = (campos or {}).get("faltante") or "las fechas de llegada y salida, y cuántas personas viajan"
         return f"{saludo}\n\n¿Me ayudas con {faltante}?"
+    if plantilla == "informacion":
+        return _componer_informacion(saludo, campos, resultados)
     if plantilla == "escalar":
         return f"{saludo}\n\nDerivo tu consulta con recepción para atenderte mejor."
     raise DecisionInvalida(f"plantilla desconocida: {plantilla}")
+
+
+
+def _cifras_del_saludo_justificadas(saludo: str, resultados: dict) -> bool:
+    """True si cada número del saludo aparece en la oferta o en las políticas del turno."""
+    tokens = set(re.findall(r"\d+", saludo))
+    if not tokens:
+        return True
+    permitidas: set[str] = set()
+    oferta = (resultados.get("consultar_disponibilidad") or {}).get("oferta") or []
+    for item in oferta:
+        for clave in ("tarifa_noche_clp", "total_clp", "subtotal_noches_clp", "total_recargos_clp"):
+            if item.get(clave) is not None:
+                permitidas.add(str(item[clave]))
+        for recargo in item.get("recargos") or []:
+            permitidas.add(str(recargo.get("monto_clp")))
+            if recargo.get("horas"):
+                permitidas.add(str(recargo["horas"]))
+        permitidas.update(re.findall(r"\d+", item.get("politica_cancelacion") or ""))
+    hechos = resultados.get("consultar_politicas") or {}
+    permitidas.update(re.findall(r"\d+", json.dumps(hechos, ensure_ascii=False)))
+    return tokens <= permitidas
 
 
 def verificar(borrador: dict, resultados: dict) -> str:
@@ -217,7 +312,8 @@ def verificar(borrador: dict, resultados: dict) -> str:
         return "rechazo:plantilla_desconocida"
     saludo = borrador.get("saludo") or ""
     if any(c.isdigit() for c in saludo) or "$" in saludo:
-        return "rechazo:cifra_en_texto_libre"
+        if not _cifras_del_saludo_justificadas(saludo, resultados):
+            return "rechazo:cifra_en_texto_libre"
     if plantilla == "cotizacion":
         oferta = (resultados.get("consultar_disponibilidad") or {}).get("oferta")
         if not oferta:
@@ -225,6 +321,8 @@ def verificar(borrador: dict, resultados: dict) -> str:
         item = (borrador.get("campos") or {}).get("item", 0)
         if not isinstance(item, int) or isinstance(item, bool) or not 0 <= item < len(oferta):
             return "rechazo:referencia_inexistente"
+    if plantilla == "informacion" and not resultados.get("consultar_politicas"):
+        return "rechazo:sin_politicas_del_turno"
     return "ok"
 
 
@@ -531,10 +629,24 @@ def procesar(
             return _escalar(conexion, consulta_id, f"decision invalida: {error}")
         herramienta = normalizada["herramienta"]
         argumentos = normalizada["argumentos"]
+        if herramienta == "consultar_politicas":
+            cuerpo_pol = politicas.de(conexion, consulta["empresa_id"])["cuerpo"]
+            resultado = politicas.conocimiento(cuerpo_pol, argumentos.get("tema"))
+            resultados["consultar_politicas"] = resultado
+            _trazar(conexion, consulta_id, turno, herramienta, argumentos,
+                    {"tema": resultado["tema"], "pendiente": resultado.get("pendiente")},
+                    "ejecutada", "ok", modelo.nombre)
+            mensajes.extend(notas_de_herramienta(normalizada, resultado))
+            continue
         if herramienta == "consultar_disponibilidad":
+            extras = {
+                k: argumentos[k] for k in ("hora_llegada", "hora_salida", "cama_adicional", "ninos", "mascotas")
+                if k in argumentos and argumentos[k] not in (None, False)
+            }
             oferta = reservas.oferta(
                 conexion, _como_fecha(argumentos["inicio"]), _como_fecha(argumentos["fin"]),
                 argumentos["personas"], datetime.now(),
+                empresa_id=consulta["empresa_id"], extras=extras or None,
             )
             resultados["consultar_disponibilidad"] = oferta
             resultados["rango"] = {
@@ -675,9 +787,17 @@ def _recotizar(conexion, borrador: dict, actor: str) -> dict:
     if traza is None:
         raise TransicionInvalida("sin argumentos de cotizacion en la traza")
     argumentos = traza[0] if isinstance(traza[0], dict) else json.loads(traza[0])
+    extras = {
+        k: argumentos[k] for k in ("hora_llegada", "hora_salida", "cama_adicional", "ninos", "mascotas")
+        if k in argumentos and argumentos[k] not in (None, False)
+    }
+    empresa_id = conexion.execute(
+        "SELECT empresa_id FROM consultas_agente WHERE id = %s", (borrador["consulta_id"],)
+    ).fetchone()[0]
     oferta = reservas.oferta(
         conexion, _como_fecha(argumentos["inicio"]), _como_fecha(argumentos["fin"]),
         argumentos["personas"], datetime.now(),
+        empresa_id=empresa_id, extras=extras or None,
     )
     items = oferta.get("oferta") or []
     item_nuevo = borrador["campos"].get("item", 0)

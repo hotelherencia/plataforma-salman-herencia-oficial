@@ -1,4 +1,4 @@
-"""Entregas 1A y 1A.2 — regresión de precios antes de 0021 / después de 0022.
+"""Entregas 1A y 1A.2 — regresión de precios antes de 0021 / después de 0022/0023.
 
 Prueba que ni la migración a tipos de habitación (0021) ni la unificación de
 la fuente de precio (0022: tarifas por habitación → precio base del tipo,
@@ -17,7 +17,7 @@ precio propio y excepciones por fecha) cambian NINGÚN precio efectivo:
    (llegadas cada 4 días × 1/2/3/7 noches × 1/2/3 personas), las estadías y
    la cotización pública de /reservar (canal_publico.disponibilidad) para
    llegadas desde hoy.
-3. Aplica 0021 y 0022 (y vuelve a ejecutar ambas: idempotentes) y repite con
+3. Aplica 0021, 0022 y 0023 (y vuelve a ejecutarlas: idempotentes) y repite con
    el código nuevo. Todo debe ser idéntico. Variante: un precio base fijado
    en el mantenedor entre 1A y 1A.2 (posible en producción) también se
    conserva.
@@ -46,6 +46,7 @@ AHORA = datetime(2026, 11, 17, 10, 0)
 IDS_REALES = list(inventario_documental.IDS_INVENTARIO_REAL)
 MIGRACION_1A = "0021_tipos_habitacion"
 MIGRACION_1A2 = "0022_precio_unico"
+MIGRACION_1A3 = "0023_politicas_hotel"
 
 
 def _noches(desde, hasta):
@@ -112,6 +113,18 @@ def _sembrar(conexion):
 
 def _todas(conexion):
     return [f[0] for f in conexion.execute("SELECT id FROM habitaciones ORDER BY id").fetchall()]
+
+
+
+def _esencia_precios(cuerpo):
+    """Compara solo identidad de precio (1A.2). La 1A.3 añade desglose IVA y política editable."""
+    keys = ("habitacion_id", "tipo", "capacidad", "tarifa_noche_clp", "total_clp")
+    return {
+        "oferta": [{k: item[k] for k in keys} for item in cuerpo["oferta"]],
+        "emitida_en": cuerpo["emitida_en"],
+        "vigencia_minutos": cuerpo["vigencia_minutos"],
+        "capacidad_maxima_habitacion": cuerpo["capacidad_maxima_habitacion"],
+    }
 
 
 class RegresionPreciosMigraciones1ATest(unittest.TestCase):
@@ -186,14 +199,14 @@ class RegresionPreciosMigraciones1ATest(unittest.TestCase):
             with psycopg.connect(self.url) as conexion:
                 entre_1a_y_1a2(conexion)
                 conexion.commit()
-        self.assertEqual(migracion.aplicar_migraciones(self.url), [MIGRACION_1A2])
-        # Repetir ambas a mano: idempotentes, sin cambios.
+        self.assertEqual(migracion.aplicar_migraciones(self.url), [MIGRACION_1A2, MIGRACION_1A3])
+        # Repetir 0021–0023 a mano: idempotentes, sin cambios de precio.
         with psycopg.connect(self.url) as conexion:
             foto = self._foto_precios(conexion)
-            for nombre in (MIGRACION_1A, MIGRACION_1A2):
+            for nombre in (MIGRACION_1A, MIGRACION_1A2, MIGRACION_1A3):
                 conexion.execute((migracion.DIRECTORIO_MIGRACIONES / f"{nombre}.sql").read_text(encoding="utf-8"))
             conexion.commit()
-            self.assertEqual(self._foto_precios(conexion), foto, "0021/0022 repetidas no cambian nada")
+            self.assertEqual(self._foto_precios(conexion), foto, "0021/0022/0023 repetidas no cambian nada")
 
     @staticmethod
     def _foto_precios(conexion):
@@ -220,11 +233,11 @@ class RegresionPreciosMigraciones1ATest(unittest.TestCase):
                              f"{etiqueta}: rejilla de ocupación")
             if noche_esperada is antes["noche"]:
                 for combinacion, esperado in antes["oferta"].items():
-                    self.assertEqual(reservas_db.oferta(conexion, *combinacion, AHORA), esperado,
-                                     f"{etiqueta}: oferta {combinacion}")
+                    self.assertEqual(_esencia_precios(reservas_db.oferta(conexion, *combinacion, AHORA)),
+                                     _esencia_precios(esperado), f"{etiqueta}: oferta {combinacion}")
                 for combinacion, esperado in antes["publica"].items():
-                    self.assertEqual(canal_publico.disponibilidad(conexion, *combinacion, AHORA), esperado,
-                                     f"{etiqueta}: /reservar {combinacion}")
+                    self.assertEqual(_esencia_precios(canal_publico.disponibilidad(conexion, *combinacion, AHORA)),
+                                     _esencia_precios(esperado), f"{etiqueta}: /reservar {combinacion}")
                 for (hid, llegada, salida), (sin_tarifa, precio) in antes["estadias"].items():
                     cotizacion = precios.cotizar(conexion, hid, llegada, salida)
                     self.assertEqual(cotizacion.sin_tarifa, sin_tarifa, f"{etiqueta}: sin tarifa {hid} {llegada}")

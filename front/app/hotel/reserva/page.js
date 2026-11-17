@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import Subnav from '../_componentes/subnav'
+import { SUBNAV_RESERVAS } from '../../../lib/menu-hotel'
 
 export default function Reserva() {
   // V1-ISSUE-35: sin defaults inválidos; si viene de la oferta u otra
@@ -67,6 +69,7 @@ export default function Reserva() {
 
   return (
     <MarcoHotel titulo="Reservar">
+      <Subnav items={SUBNAV_RESERVAS} />
       <section className="tarjeta">
         <form className="formulario" onSubmit={confirmar}>
           <Campo etiqueta="Habitación" value={campos.habitacion_id} onChange={(e) => setCampos({ ...campos, habitacion_id: e.target.value })} />

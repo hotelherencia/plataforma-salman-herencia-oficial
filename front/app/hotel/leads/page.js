@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
+import Subnav from '../_componentes/subnav'
+import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 
 /** Bandeja de leads (V1-ISSUE-20 punto 8, spec-api-v1 «Contacto y leads de la
  *  landing»): las consultas generales del formulario propio de la landing
@@ -62,6 +64,7 @@ export default function Leads() {
   if (sesion.fase === 'ok' && !puedeGestionar) {
     return (
       <MarcoHotel titulo="Leads de contacto">
+      <Subnav items={SUBNAV_BANDEJAS} />
         <p className="estado">La bandeja de leads es solo para recepción o la administración del hotel.</p>
       </MarcoHotel>
     )
@@ -69,6 +72,7 @@ export default function Leads() {
 
   return (
     <MarcoHotel titulo="Leads de contacto">
+      <Subnav items={SUBNAV_BANDEJAS} />
       <section className="tarjeta">
         <div className="filtros">
           {[
