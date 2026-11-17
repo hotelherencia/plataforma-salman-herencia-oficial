@@ -81,17 +81,8 @@ class EstadosOAuth:
             return ahora <= expira and tx_guardado == tx
 
 
-# CE-HH-2026-001 C-03: valores `amr` (RFC 8176) que acreditan un segundo factor.
-AMR_CON_MFA = frozenset({"mfa", "otp", "hwk", "swk", "sms", "fpt", "face", "pop"})
 VIDA_PENDIENTE_MFA_SEG = 300
 MAX_INTENTOS_MFA = 5
-
-
-def acredita_mfa(claims: dict) -> bool:
-    amr = claims.get("amr") or []
-    if isinstance(amr, str):
-        amr = [amr]
-    return any(valor in AMR_CON_MFA for valor in amr)
 
 
 class PendientesMfa:

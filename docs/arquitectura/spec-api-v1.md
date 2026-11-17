@@ -32,12 +32,14 @@ una operación que no está en la tabla no se publica.
   (`POST /cuenta/2fa` + `POST /cuenta/2fa/activar`); `GET /sesion` declara
   `totp_activado` y `mfa_pendiente` (administrador sin 2FA activo: el front
   muestra un aviso persistente). Migración: la columna nace desactivada, nadie queda fuera.
-  **C-03 + excepción de enrolamiento (2026-11-17):** un administrador que
-  entra con Google sin MFA acreditado y sin TOTP recibe
-  `/login?error=mfa_requerido` en producción, salvo si su email verificado
-  está en `MFA_ENROLAMIENTO_PERMITIDO_EMAILS` (por defecto
-  `hotelherenciacl@gmail.com`): entra para enrolarse y se audita
-  `ok sin 2fa (mfa_excepcion_enrolamiento)`. Con TOTP activo se pide el código.
+  **Política 2FA (2026-11-17, reemplaza C-03 basado en `amr`):** la decisión
+  depende solo del TOTP de la plataforma, igual para Google y usuario/clave.
+  Con TOTP activo (cualquier rol) siempre se pide el código, aunque Google
+  envíe `amr`. Un administrador sin TOTP entra para poder enrolarse: queda
+  `mfa_pendiente=true`, auditoría `ok sin 2fa (mfa_excepcion_enrolamiento)` y
+  evento de seguridad `mfa_excepcion_enrolamiento`. Modo estricto opcional:
+  `GOOGLE_ADMIN_EXIGE_MFA=1` rechaza por Google al administrador sin TOTP
+  (`/login?error=mfa_requerido`); el enrolamiento sigue por usuario/clave.
   **SEC-A02 (2026-11-05):** el secreto pendiente vive en su propia columna
   (`totp_secreto_pendiente`, migración 0013): iniciar un reenrolamiento jamás
   desprotege la cuenta, y reemplazar o desactivar el factor exige la clave

@@ -73,7 +73,10 @@ def abrir_sesion(
         conexion, usuario_id, empresa_id,
         horas_vigencia=config.session_horas if config else 12,
     )
-    seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "ok", ip=ip)
+    resultado = "ok"
+    if rol == "administrador" and not totp_activado:
+        resultado = _registrar_excepcion_enrolamiento(credenciales.usuario, "/sesion")
+    seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", resultado, ip=ip)
     conexion.commit()
     comun.fijar_cookie_sesion(response, request, sid)
     return {
@@ -185,40 +188,33 @@ def callback_login_google(
         return destino
     usuario_id, empresa_id, rol, nombre = usuario
     resultado_auditoria = "ok"
-    if rol == "administrador" and not google_oidc.acredita_mfa(claims):
-        # CE-HH-2026-001 C-03: un administrador no entra solo con la cuenta
-        # de Google. Sin MFA acreditado por Google (amr), se pide el TOTP
-        # local si está activo; sin ninguno de los dos, se rechaza en prod.
-        (totp_activado,) = conexion.execute(
-            "SELECT totp_activado FROM usuarios WHERE id = %s", (usuario_id,)
-        ).fetchone()
-        if totp_activado:
-            tx = request.app.state.pendientes_mfa.nuevo(usuario_id, empresa_id, nombre)
-            seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "pendiente 2fa")
-            conexion.commit()
-            destino = RedirectResponse(f"{front}/login?paso=totp_google", status_code=302)
-            comun.fijar_cookie_mfa_tx(destino, request, tx, google_oidc.VIDA_PENDIENTE_MFA_SEG)
-            comun.borrar_cookie_oauth_tx(destino, request)
-            return destino
-        exige_mfa = _admin_google_exige_mfa(config)
-        if exige_mfa and _excepcion_enrolamiento_mfa(claims):
-            # Excepción acotada (2026-11-17): la cuenta titular aún no tiene
-            # TOTP y el alta solo existe dentro de la plataforma (huevo y
-            # gallina). Entra para enrolarse; el front muestra el aviso
-            # persistente (mfa_pendiente en GET /sesion). En cuanto active el
-            # TOTP, la rama de arriba vuelve a exigir el código.
-            observabilidad.evento_seguridad(
-                "mfa_excepcion_enrolamiento", actor=nombre[:64], ruta="/auth/google/callback"
-            )
-            resultado_auditoria = "ok sin 2fa (mfa_excepcion_enrolamiento)"
-        elif exige_mfa:
+    # Política de 2FA (2026-11-17, reemplaza la variante C-03 basada en `amr`,
+    # que Google casi nunca envía): la decisión depende SOLO del TOTP de la
+    # plataforma.
+    # - TOTP activo (cualquier rol): siempre se pide el código de 6 dígitos.
+    # - Administrador sin TOTP: entra para poder enrolarse (el alta solo existe
+    #   dentro de la plataforma); queda auditado y GET /sesion declara
+    #   mfa_pendiente para el aviso persistente. GOOGLE_ADMIN_EXIGE_MFA=1 lo
+    #   endurece (rechazo con mfa_requerido) cuando todos ya estén enrolados.
+    (totp_activado,) = conexion.execute(
+        "SELECT totp_activado FROM usuarios WHERE id = %s", (usuario_id,)
+    ).fetchone()
+    if totp_activado:
+        tx = request.app.state.pendientes_mfa.nuevo(usuario_id, empresa_id, nombre)
+        seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "pendiente 2fa")
+        conexion.commit()
+        destino = RedirectResponse(f"{front}/login?paso=totp_google", status_code=302)
+        comun.fijar_cookie_mfa_tx(destino, request, tx, google_oidc.VIDA_PENDIENTE_MFA_SEG)
+        comun.borrar_cookie_oauth_tx(destino, request)
+        return destino
+    if rol == "administrador":
+        if _admin_google_exige_mfa():
             seguridad.auditar(conexion, nombre, "login", "/auth/google/callback", "rechazado sin 2fa")
             conexion.commit()
             destino = RedirectResponse(f"{front}/login?error=mfa_requerido", status_code=302)
             comun.borrar_cookie_oauth_tx(destino, request)
             return destino
-        else:
-            resultado_auditoria = "ok sin 2fa"
+        resultado_auditoria = _registrar_excepcion_enrolamiento(nombre, "/auth/google/callback")
     sid = seguridad.crear_sesion(
         conexion, usuario_id, empresa_id,
         horas_vigencia=config.session_horas,
@@ -231,38 +227,21 @@ def callback_login_google(
     return destino
 
 
-def _admin_google_exige_mfa(config) -> bool:
-    """C-03: por defecto se exige en producción (COOKIE_SEGURA=1).
-    GOOGLE_ADMIN_EXIGE_MFA=1/0 lo fuerza en cualquier entorno."""
-    valor = os.environ.get("GOOGLE_ADMIN_EXIGE_MFA")
-    if valor in ("0", "1"):
-        return valor == "1"
-    return bool(getattr(config, "cookie_segura", False))
+RESULTADO_EXCEPCION_ENROLAMIENTO = "ok sin 2fa (mfa_excepcion_enrolamiento)"
 
 
-# Cuentas que pueden entrar con Google SIN 2FA mientras no lo hayan activado,
-# solo para poder enrolarse desde la plataforma. Lista separada por comas;
-# coincidencia exacta sin distinguir mayúsculas. Vacío = sin excepción.
-EMAILS_ENROLAMIENTO_MFA_POR_DEFECTO = "hotelherenciacl@gmail.com"
+def _admin_google_exige_mfa() -> bool:
+    """Modo estricto opcional: GOOGLE_ADMIN_EXIGE_MFA=1 rechaza al
+    administrador sin TOTP que entra con Google (mfa_requerido). Sin definir
+    o con cualquier otro valor, entra para enrolarse (mfa_pendiente)."""
+    return os.environ.get("GOOGLE_ADMIN_EXIGE_MFA") == "1"
 
 
-def _emails_enrolamiento_mfa() -> frozenset[str]:
-    valor = os.environ.get("MFA_ENROLAMIENTO_PERMITIDO_EMAILS", EMAILS_ENROLAMIENTO_MFA_POR_DEFECTO)
-    return frozenset(e.strip().casefold() for e in valor.split(",") if e.strip())
-
-
-def _excepcion_enrolamiento_mfa(claims: dict) -> bool:
-    """True solo si Google verificó el email y está en la lista blanca.
-
-    verificar_id_token ya rechaza email_verified falso; se vuelve a exigir
-    aquí (identidad estricta `is True`) para que la excepción nunca dependa
-    de una sola comprobación."""
-    if claims.get("email_verified") is not True:
-        return False
-    email = claims.get("email")
-    if not isinstance(email, str) or not email.strip():
-        return False
-    return email.strip().casefold() in _emails_enrolamiento_mfa()
+def _registrar_excepcion_enrolamiento(nombre: str, ruta: str) -> str:
+    """Administrador sin TOTP que entra para activarlo: alerta de seguridad
+    y resultado de auditoría común a Google y a usuario/clave."""
+    observabilidad.evento_seguridad("mfa_excepcion_enrolamiento", actor=nombre[:64], ruta=ruta)
+    return RESULTADO_EXCEPCION_ENROLAMIENTO
 
 
 @router.post("/auth/google/totp")

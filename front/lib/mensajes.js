@@ -20,7 +20,7 @@ export function traducirDetalle(detalle) {
 // Errores que el callback de Google devuelve en /login?error=… .
 const ERRORES_LOGIN = {
   mfa_requerido:
-    'Tu cuenta de administrador necesita doble factor (Google Authenticator) para entrar con Google, y aún no lo tiene activo. Entra con tu usuario y clave y actívalo en «Mi cuenta».',
+    'Para entrar con Google, tu cuenta de administrador debe tener activo el doble factor (Google Authenticator). Entra con tu usuario y clave y actívalo en «Mi cuenta».',
   cuenta_sin_vinculo: 'Tu cuenta de Google no está vinculada a un usuario de la plataforma.',
   acceso_denegado: 'Acceso con Google cancelado o denegado.',
 }

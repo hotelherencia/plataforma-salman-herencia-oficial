@@ -199,8 +199,10 @@ class GoogleOauthHttpTest(unittest.TestCase):
                 "SELECT actor, accion, recurso, resultado FROM auditoria "
                 "WHERE accion = 'login' AND recurso = '/auth/google/callback'"
             ).fetchall()
-        # C-03: admin sin amr ni TOTP en dev entra, pero queda auditado como tal.
-        self.assertEqual(filas, [(ADMIN[0], "login", "/auth/google/callback", "ok sin 2fa")])
+        # Admin sin TOTP entra para enrolarse, y queda auditado como tal.
+        self.assertEqual(
+            filas, [(ADMIN[0], "login", "/auth/google/callback", "ok sin 2fa (mfa_excepcion_enrolamiento)")]
+        )
 
     def test_state_de_un_solo_uso_se_rechaza_al_reusar(self):
         estado = self.estado_fresco()
@@ -349,7 +351,9 @@ if __name__ == "__main__":
 
 
 class GoogleAdminMfaTest(unittest.TestCase):
-    """CE-HH-2026-001 C-03: administrador vía Google exige MFA (amr) o TOTP local."""
+    """Política 2FA (2026-11-17): la decisión depende solo del TOTP de la
+    plataforma, no del `amr` de Google. Sin TOTP el admin entra para
+    enrolarse (mfa_pendiente); con TOTP siempre se pide el código."""
 
     setUpClass = classmethod(GoogleOauthHttpTest.setUpClass.__func__)
     estado_fresco = GoogleOauthHttpTest.estado_fresco
@@ -362,17 +366,27 @@ class GoogleAdminMfaTest(unittest.TestCase):
 
     def tearDown(self):
         os.environ.pop("GOOGLE_ADMIN_EXIGE_MFA", None)
-        os.environ.pop("MFA_ENROLAMIENTO_PERMITIDO_EMAILS", None)
 
-    def activar_totp_admin(self) -> str:
+    def activar_totp(self, nombre: str = ADMIN[0]) -> str:
         from servicio import totp
         with psycopg.connect(URL_TEST) as conexion:
-            (usuario_id,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = %s", (ADMIN[0],)).fetchone()
+            (usuario_id,) = conexion.execute("SELECT id FROM usuarios WHERE nombre = %s", (nombre,)).fetchone()
             secreto = seguridad.iniciar_alta_totp(conexion, usuario_id)
             seguridad.activar_totp(conexion, usuario_id)
             conexion.commit()
         self.totp = totp
         return secreto
+
+    activar_totp_admin = activar_totp
+
+    def crear_admin(self, nombre: str, email: str, rol: str = "administrador") -> None:
+        with psycopg.connect(URL_TEST) as conexion:
+            (empresa_id,) = conexion.execute(
+                "SELECT empresa_id FROM usuarios WHERE nombre = %s", (ADMIN[0],)
+            ).fetchone()
+            seguridad.crear_usuario(conexion, empresa_id, nombre, rol, "clave-sintetica-2")
+            seguridad.vincular_email(conexion, nombre, email)
+            conexion.commit()
 
     def login_google(self, **claims):
         estado = self.estado_fresco()
@@ -382,6 +396,13 @@ class GoogleAdminMfaTest(unittest.TestCase):
             return self.cliente.get(
                 "/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False
             )
+
+    def ultima_auditoria_login(self) -> str | None:
+        with psycopg.connect(URL_TEST) as conexion:
+            fila = conexion.execute(
+                "SELECT resultado FROM auditoria WHERE accion = 'login' ORDER BY creado_en DESC LIMIT 1"
+            ).fetchone()
+        return fila[0] if fila else None
 
     def test_admin_con_totp_pide_codigo_antes_de_abrir_sesion(self):
         secreto = self.activar_totp_admin()
@@ -400,7 +421,9 @@ class GoogleAdminMfaTest(unittest.TestCase):
         bueno = self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
         self.assertEqual(bueno.status_code, 200, bueno.text)
         self.assertTrue(bueno.cookies.get("sid"))
-        self.assertEqual(self.cliente.get("/sesion").json()["usuario"], ADMIN[0])
+        sesion = self.cliente.get("/sesion").json()
+        self.assertEqual(sesion["usuario"], ADMIN[0])
+        self.assertFalse(sesion["mfa_pendiente"])
 
         reuso = self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
         self.assertEqual(reuso.status_code, 401)
@@ -423,14 +446,43 @@ class GoogleAdminMfaTest(unittest.TestCase):
         self.assertEqual(r.status_code, 401)
         self.assertEqual(r.json()["detail"], "login_google_expirado")
 
-    def test_admin_con_mfa_de_google_entra_directo(self):
+    def test_amr_de_google_no_salta_el_codigo(self):
+        """Antes un amr con «mfa» entraba directo; ahora el TOTP manda."""
         self.activar_totp_admin()
         r = self.login_google(amr=["pwd", "mfa"])
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?paso=totp_google")
+        self.assertIsNone(r.cookies.get("sid"))
+
+    def test_cualquier_admin_sin_totp_entra_con_mfa_pendiente(self):
+        self.crear_admin("admin2", "otro.admin@herencia.cl")
+        r = self.login_google(email="otro.admin@herencia.cl")
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.headers["location"], FRONT)
         self.assertTrue(r.cookies.get("sid"))
+        sesion = self.cliente.get("/sesion").json()
+        self.assertEqual(sesion["usuario"], "admin2")
+        self.assertFalse(sesion["totp_activado"])
+        self.assertTrue(sesion["mfa_pendiente"])
+        self.assertEqual(self.ultima_auditoria_login(), "ok sin 2fa (mfa_excepcion_enrolamiento)")
+        # Desde esa sesión puede iniciar el alta del autenticador.
+        self.assertEqual(self.cliente.post("/cuenta/2fa").status_code, 200)
 
-    def test_admin_sin_mfa_ni_totp_se_rechaza_si_se_exige(self):
+    def test_admin_sin_totp_entra_tambien_con_cookie_segura_por_defecto(self):
+        """Producción (COOKIE_SEGURA=1) ya no bloquea el enrolamiento."""
+        import dataclasses
+        app = crear_app(configuracion=dataclasses.replace(self.config, cookie_segura=True))
+        cliente = TestClient(app, base_url="https://testserver")
+        inicio = cliente.get("/auth/google", follow_redirects=False)
+        estado = parse_qs(urlparse(inicio.headers["location"]).query)["state"][0]
+        token = id_token_de(**claims_google())
+        with mock.patch.object(google_oidc, "intercambiar_codigo", return_value={"id_token": token}), \
+             mock.patch.object(google_oidc, "obtener_jwks", return_value=jwk_de_prueba()):
+            r = cliente.get("/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False)
+        self.assertEqual(r.status_code, 302, r.text)
+        self.assertEqual(r.headers["location"], FRONT)
+        self.assertTrue(r.cookies.get("sid"))
+
+    def test_admin_sin_totp_se_rechaza_en_modo_estricto(self):
         os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
         r = self.login_google()
         self.assertEqual(r.status_code, 302)
@@ -438,95 +490,50 @@ class GoogleAdminMfaTest(unittest.TestCase):
         self.assertIsNone(r.cookies.get("sid"))
         self.assertEqual(self.ultima_auditoria_login(), "rechazado sin 2fa")
 
-    # --- Excepción de enrolamiento (MFA_ENROLAMIENTO_PERMITIDO_EMAILS) ---
-
-    def vincular_titular(self):
-        """El admin sintético pasa a usar el correo de la cuenta titular."""
-        with psycopg.connect(URL_TEST) as conexion:
-            conexion.execute("UPDATE usuarios SET email = %s WHERE nombre = %s", (EMAIL_TITULAR, ADMIN[0]))
-            conexion.commit()
-
-    def ultima_auditoria_login(self) -> str | None:
-        with psycopg.connect(URL_TEST) as conexion:
-            fila = conexion.execute(
-                "SELECT resultado FROM auditoria WHERE accion = 'login' ORDER BY creado_en DESC, id DESC LIMIT 1"
-            ).fetchone()
-        return fila[0] if fila else None
-
-    def test_titular_sin_totp_entra_para_enrolarse(self):
-        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
-        os.environ.pop("MFA_ENROLAMIENTO_PERMITIDO_EMAILS", None)  # valor por defecto
-        self.vincular_titular()
-        r = self.login_google(email=EMAIL_TITULAR)
-        self.assertEqual(r.status_code, 302)
-        self.assertEqual(r.headers["location"], FRONT)
-        self.assertTrue(r.cookies.get("sid"))
-        sesion = self.cliente.get("/sesion").json()
-        self.assertEqual(sesion["usuario"], ADMIN[0])
-        self.assertFalse(sesion["totp_activado"])
-        self.assertTrue(sesion["mfa_pendiente"])
-        self.assertEqual(self.ultima_auditoria_login(), "ok sin 2fa (mfa_excepcion_enrolamiento)")
-        # Desde esa sesión puede iniciar el alta del autenticador.
-        alta = self.cliente.post("/cuenta/2fa")
-        self.assertEqual(alta.status_code, 200, alta.text)
-
-    def test_otro_admin_sin_totp_sigue_bloqueado(self):
-        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
-        r = self.login_google()  # admin@herencia.cl, fuera de la lista
-        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
-        self.assertIsNone(r.cookies.get("sid"))
-
-    def test_titular_con_totp_activo_sigue_pidiendo_codigo(self):
-        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
-        self.vincular_titular()
-        self.activar_totp_admin()
-        r = self.login_google(email=EMAIL_TITULAR)
+    def test_rol_no_admin_con_totp_tambien_pide_codigo(self):
+        self.crear_admin("recepcion1", "recepcion@herencia.cl", rol="recepcion")
+        self.activar_totp("recepcion1")
+        r = self.login_google(email="recepcion@herencia.cl")
         self.assertEqual(r.headers["location"], f"{FRONT}/login?paso=totp_google")
         self.assertIsNone(r.cookies.get("sid"))
 
-    def test_lista_sin_distinguir_mayusculas_y_coincidencia_exacta(self):
-        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
-        self.vincular_titular()
-        os.environ["MFA_ENROLAMIENTO_PERMITIDO_EMAILS"] = " otro@x.cl , HotelHerenciaCL@Gmail.COM "
-        r = self.login_google(email=EMAIL_TITULAR)
-        self.assertEqual(r.headers["location"], FRONT)
-        self.assertTrue(r.cookies.get("sid"))
-        # Coincidencia exacta: un prefijo o un dominio parecido no califica.
-        self.cliente.cookies.clear()
-        os.environ["MFA_ENROLAMIENTO_PERMITIDO_EMAILS"] = "hotelherenciacl@gmail.co,hotelherencia@gmail.com"
-        r = self.login_google(email=EMAIL_TITULAR)
-        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
-
-    def test_lista_vacia_desactiva_la_excepcion(self):
-        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
-        os.environ["MFA_ENROLAMIENTO_PERMITIDO_EMAILS"] = ""
-        self.vincular_titular()
-        r = self.login_google(email=EMAIL_TITULAR)
-        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
-        self.assertIsNone(r.cookies.get("sid"))
-
-    def test_titular_con_email_no_verificado_no_entra(self):
-        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
-        self.vincular_titular()
-        r = self.login_google(email=EMAIL_TITULAR, email_verified=False)
+    def test_email_no_verificado_no_entra(self):
+        r = self.login_google(email_verified=False)
         self.assertEqual(r.status_code, 502)
         self.assertIsNone(r.cookies.get("sid"))
-        # Un valor "verdadero" que no es True literal tampoco abre la excepción.
-        self.cliente.cookies.clear()
-        r = self.login_google(email=EMAIL_TITULAR, email_verified="true")
-        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
+
+    def test_email_no_autorizado_no_entra(self):
+        r = self.login_google(email="intruso@gmail.com")
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=cuenta_sin_vinculo")
         self.assertIsNone(r.cookies.get("sid"))
 
-    def test_sesion_de_admin_con_totp_no_marca_mfa_pendiente(self):
-        secreto = self.activar_totp_admin()
-        self.login_google()
-        self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
+
+class LoginClaveMfaTest(unittest.TestCase):
+    """Usuario/clave sigue la misma política: admin sin TOTP entra con
+    mfa_pendiente y auditoría de excepción; con TOTP exige el código."""
+
+    setUpClass = classmethod(GoogleOauthHttpTest.setUpClass.__func__)
+    activar_totp = GoogleAdminMfaTest.activar_totp
+    ultima_auditoria_login = GoogleAdminMfaTest.ultima_auditoria_login
+
+    def setUp(self):
+        GoogleOauthHttpTest.setUp(self)
+        self.app.state.freno_logins = seguridad.FrenoDeLogins()
+
+    def test_admin_sin_totp_entra_con_mfa_pendiente(self):
+        r = self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(self.cliente.get("/sesion").json()["mfa_pendiente"])
+        self.assertEqual(self.ultima_auditoria_login(), "ok sin 2fa (mfa_excepcion_enrolamiento)")
+
+    def test_admin_con_totp_exige_codigo(self):
+        secreto = self.activar_totp()
+        r = self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
+        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r.json()["detail"], "codigo_totp_requerido")
+        r = self.cliente.post(
+            "/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1], "totp": self.totp.codigo(secreto)}
+        )
+        self.assertEqual(r.status_code, 200, r.text)
         self.assertFalse(self.cliente.get("/sesion").json()["mfa_pendiente"])
-
-
-class AcreditaMfaTest(unittest.TestCase):
-    def test_valores_amr(self):
-        self.assertTrue(google_oidc.acredita_mfa({"amr": ["pwd", "mfa"]}))
-        self.assertTrue(google_oidc.acredita_mfa({"amr": "otp"}))
-        self.assertFalse(google_oidc.acredita_mfa({"amr": ["pwd"]}))
-        self.assertFalse(google_oidc.acredita_mfa({}))
+        self.assertEqual(self.ultima_auditoria_login(), "ok")

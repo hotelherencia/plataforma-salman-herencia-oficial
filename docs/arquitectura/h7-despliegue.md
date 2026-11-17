@@ -130,8 +130,7 @@ Flujo original del runbook (referencia, previo a la creación por API):
    | `ORIGEN_FRONT` | misma URL del front (CORS) |
    | `COOKIE_SEGURA` | `1` (cookie Secure + SameSite=None entre orígenes) |
    | `SERVICIO_HOST` | `0.0.0.0` |
-   | `GOOGLE_ADMIN_EXIGE_MFA` | opcional: `1`/`0` fuerza la exigencia de 2FA al administrador que entra con Google (por defecto sigue a `COOKIE_SEGURA`) |
-   | `MFA_ENROLAMIENTO_PERMITIDO_EMAILS` | opcional: correos (coma) que pueden entrar con Google sin 2FA **mientras no lo activen**, para enrolarse; por defecto `hotelherenciacl@gmail.com`; vacío = sin excepción |
+   | `GOOGLE_ADMIN_EXIGE_MFA` | opcional, **no definir** por ahora. `1` = modo estricto: el administrador sin TOTP no entra con Google (`mfa_requerido`). Sin definir: entra para activar su 2FA con aviso persistente. Con TOTP activo el código se pide siempre |
    | `SERVICIO_PUERTO` | opcional: el código reserva `$PORT` (Railway lo inyecta); `SERVICIO_PUERTO` manda si se define |
 
 4. **Login con Google en producción**: en Cloud Console, agregar la URI
