@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import BarraNav from './barra.jsx'
 import { useSesion } from '../lib/api'
@@ -44,7 +45,16 @@ function LienzoPrivado({ children }) {
   return (
     <div className="aplicacion">
       <BarraNav />
-      <div className="contenido">{children}</div>
+      <div className="contenido">
+        {sesion.usuario?.mfa_pendiente && (
+          <p role="status" className="alerta aviso-mfa-pendiente">
+            Tu cuenta de administrador aún no tiene doble factor. Actívalo ahora con Google
+            Authenticator en <Link href="/cuenta">Mi cuenta</Link>: desde entonces se pedirá el
+            código en cada acceso.
+          </p>
+        )}
+        {children}
+      </div>
     </div>
   )
 }

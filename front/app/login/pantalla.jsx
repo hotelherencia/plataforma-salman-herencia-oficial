@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api, urlApi, refrescarSesion, useSesion, mensajeMotivoSesion, mensajeDeError } from '../../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
+import { mensajeErrorLogin } from '../../lib/mensajes.js'
 
 /** Formulario de acceso compartido (V1-ISSUE-27): lo usa la ruta /login y el
  *  Lienzo, que lo muestra en cualquier ruta interna cuando no hay sesión, en
@@ -27,12 +28,9 @@ export default function PantallaAcceso({ despues } = {}) {
     const params = new URLSearchParams(window.location.search)
     // CE-HH C-03: administrador que entró con Google y tiene TOTP activo.
     if (params.get('paso') === 'totp_google') setFase('totp_google')
-    if (params.get('error') === 'mfa_requerido') {
-      setError('Las cuentas de administrador requieren doble factor. Entra con usuario y clave y activa el autenticador.')
-    } else if (params.get('error') === 'cuenta_sin_vinculo') {
-      setError('Tu cuenta de Google no está vinculada a un usuario de la plataforma.')
-    } else if (params.get('error') === 'acceso_denegado') {
-      setError('Acceso con Google cancelado o denegido.')
+    const errorGoogle = mensajeErrorLogin(params.get('error'))
+    if (errorGoogle) {
+      setError(errorGoogle)
     } else if (params.get('error') === 'sesion_empresa_ajena') {
       setError(mensajeMotivoSesion('sesion_empresa_ajena'))
     }

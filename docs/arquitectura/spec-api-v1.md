@@ -30,7 +30,14 @@ una operación que no está en la tabla no se publica.
   **401** con `detail="codigo_totp_requerido"`; código incorrecto → **401**
   `detail="código 2FA inválido"`. La alta se confirma con un código válido
   (`POST /cuenta/2fa` + `POST /cuenta/2fa/activar`); `GET /sesion` declara
-  `totp_activado`. Migración: la columna nace desactivada, nadie queda fuera.
+  `totp_activado` y `mfa_pendiente` (administrador sin 2FA activo: el front
+  muestra un aviso persistente). Migración: la columna nace desactivada, nadie queda fuera.
+  **C-03 + excepción de enrolamiento (2026-11-17):** un administrador que
+  entra con Google sin MFA acreditado y sin TOTP recibe
+  `/login?error=mfa_requerido` en producción, salvo si su email verificado
+  está en `MFA_ENROLAMIENTO_PERMITIDO_EMAILS` (por defecto
+  `hotelherenciacl@gmail.com`): entra para enrolarse y se audita
+  `ok sin 2fa (mfa_excepcion_enrolamiento)`. Con TOTP activo se pide el código.
   **SEC-A02 (2026-11-05):** el secreto pendiente vive en su propia columna
   (`totp_secreto_pendiente`, migración 0013): iniciar un reenrolamiento jamás
   desprotege la cuenta, y reemplazar o desactivar el factor exige la clave

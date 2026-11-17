@@ -1889,3 +1889,12 @@ a.boton-primario {
     justify-self: stretch;
   }
 }
+
+/* Aviso persistente: administrador sin doble factor (excepción de enrolamiento). */
+.aviso-mfa-pendiente {
+  margin: 0 0 16px;
+}
+.aviso-mfa-pendiente a {
+  font-weight: 600;
+  text-decoration: underline;
+}

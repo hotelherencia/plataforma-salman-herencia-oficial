@@ -16,3 +16,16 @@ const TRADUCCIONES = {
 export function traducirDetalle(detalle) {
   return Object.prototype.hasOwnProperty.call(TRADUCCIONES, detalle) ? TRADUCCIONES[detalle] : detalle
 }
+
+// Errores que el callback de Google devuelve en /login?error=… .
+const ERRORES_LOGIN = {
+  mfa_requerido:
+    'Tu cuenta de administrador necesita doble factor (Google Authenticator) para entrar con Google, y aún no lo tiene activo. Entra con tu usuario y clave y actívalo en «Mi cuenta».',
+  cuenta_sin_vinculo: 'Tu cuenta de Google no está vinculada a un usuario de la plataforma.',
+  acceso_denegado: 'Acceso con Google cancelado o denegado.',
+}
+
+/** Mensaje para el parámetro `error` de /login, o null si no es conocido. */
+export function mensajeErrorLogin(codigo) {
+  return Object.prototype.hasOwnProperty.call(ERRORES_LOGIN, codigo) ? ERRORES_LOGIN[codigo] : null
+}

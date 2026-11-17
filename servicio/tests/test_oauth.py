@@ -27,6 +27,7 @@ URL_TEST = os.environ.get(
 EMPRESA = "EMP-SINTETICA-001"
 ADMIN = ("admin", "clave-admin-sintetica")
 EMAIL_ADMIN = "admin@herencia.cl"
+EMAIL_TITULAR = "hotelherenciacl@gmail.com"
 CLIENT_ID = "cliente-id-de-prueba"
 CLIENT_SECRET = "secreto-de-prueba"
 FRONT = "http://localhost:3000"
@@ -361,6 +362,7 @@ class GoogleAdminMfaTest(unittest.TestCase):
 
     def tearDown(self):
         os.environ.pop("GOOGLE_ADMIN_EXIGE_MFA", None)
+        os.environ.pop("MFA_ENROLAMIENTO_PERMITIDO_EMAILS", None)
 
     def activar_totp_admin(self) -> str:
         from servicio import totp
@@ -434,6 +436,92 @@ class GoogleAdminMfaTest(unittest.TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
         self.assertIsNone(r.cookies.get("sid"))
+        self.assertEqual(self.ultima_auditoria_login(), "rechazado sin 2fa")
+
+    # --- Excepción de enrolamiento (MFA_ENROLAMIENTO_PERMITIDO_EMAILS) ---
+
+    def vincular_titular(self):
+        """El admin sintético pasa a usar el correo de la cuenta titular."""
+        with psycopg.connect(URL_TEST) as conexion:
+            conexion.execute("UPDATE usuarios SET email = %s WHERE nombre = %s", (EMAIL_TITULAR, ADMIN[0]))
+            conexion.commit()
+
+    def ultima_auditoria_login(self) -> str | None:
+        with psycopg.connect(URL_TEST) as conexion:
+            fila = conexion.execute(
+                "SELECT resultado FROM auditoria WHERE accion = 'login' ORDER BY creado_en DESC, id DESC LIMIT 1"
+            ).fetchone()
+        return fila[0] if fila else None
+
+    def test_titular_sin_totp_entra_para_enrolarse(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        os.environ.pop("MFA_ENROLAMIENTO_PERMITIDO_EMAILS", None)  # valor por defecto
+        self.vincular_titular()
+        r = self.login_google(email=EMAIL_TITULAR)
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.headers["location"], FRONT)
+        self.assertTrue(r.cookies.get("sid"))
+        sesion = self.cliente.get("/sesion").json()
+        self.assertEqual(sesion["usuario"], ADMIN[0])
+        self.assertFalse(sesion["totp_activado"])
+        self.assertTrue(sesion["mfa_pendiente"])
+        self.assertEqual(self.ultima_auditoria_login(), "ok sin 2fa (mfa_excepcion_enrolamiento)")
+        # Desde esa sesión puede iniciar el alta del autenticador.
+        alta = self.cliente.post("/cuenta/2fa")
+        self.assertEqual(alta.status_code, 200, alta.text)
+
+    def test_otro_admin_sin_totp_sigue_bloqueado(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        r = self.login_google()  # admin@herencia.cl, fuera de la lista
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
+        self.assertIsNone(r.cookies.get("sid"))
+
+    def test_titular_con_totp_activo_sigue_pidiendo_codigo(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        self.vincular_titular()
+        self.activar_totp_admin()
+        r = self.login_google(email=EMAIL_TITULAR)
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?paso=totp_google")
+        self.assertIsNone(r.cookies.get("sid"))
+
+    def test_lista_sin_distinguir_mayusculas_y_coincidencia_exacta(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        self.vincular_titular()
+        os.environ["MFA_ENROLAMIENTO_PERMITIDO_EMAILS"] = " otro@x.cl , HotelHerenciaCL@Gmail.COM "
+        r = self.login_google(email=EMAIL_TITULAR)
+        self.assertEqual(r.headers["location"], FRONT)
+        self.assertTrue(r.cookies.get("sid"))
+        # Coincidencia exacta: un prefijo o un dominio parecido no califica.
+        self.cliente.cookies.clear()
+        os.environ["MFA_ENROLAMIENTO_PERMITIDO_EMAILS"] = "hotelherenciacl@gmail.co,hotelherencia@gmail.com"
+        r = self.login_google(email=EMAIL_TITULAR)
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
+
+    def test_lista_vacia_desactiva_la_excepcion(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        os.environ["MFA_ENROLAMIENTO_PERMITIDO_EMAILS"] = ""
+        self.vincular_titular()
+        r = self.login_google(email=EMAIL_TITULAR)
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
+        self.assertIsNone(r.cookies.get("sid"))
+
+    def test_titular_con_email_no_verificado_no_entra(self):
+        os.environ["GOOGLE_ADMIN_EXIGE_MFA"] = "1"
+        self.vincular_titular()
+        r = self.login_google(email=EMAIL_TITULAR, email_verified=False)
+        self.assertEqual(r.status_code, 502)
+        self.assertIsNone(r.cookies.get("sid"))
+        # Un valor "verdadero" que no es True literal tampoco abre la excepción.
+        self.cliente.cookies.clear()
+        r = self.login_google(email=EMAIL_TITULAR, email_verified="true")
+        self.assertEqual(r.headers["location"], f"{FRONT}/login?error=mfa_requerido")
+        self.assertIsNone(r.cookies.get("sid"))
+
+    def test_sesion_de_admin_con_totp_no_marca_mfa_pendiente(self):
+        secreto = self.activar_totp_admin()
+        self.login_google()
+        self.cliente.post("/auth/google/totp", json={"codigo": self.totp.codigo(secreto)})
+        self.assertFalse(self.cliente.get("/sesion").json()["mfa_pendiente"])
 
 
 class AcreditaMfaTest(unittest.TestCase):

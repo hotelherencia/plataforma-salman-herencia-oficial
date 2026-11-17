@@ -1,7 +1,7 @@
 // Mensajes del canal público (fix-e2e): ningún detalle técnico llega al visitante.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { traducirDetalle } from '../lib/mensajes.js'
+import { traducirDetalle, mensajeErrorLogin } from '../lib/mensajes.js'
 
 test('503 de servicio anterior se traduce a un mensaje con salida por WhatsApp', () => {
   const m = traducirDetalle('canal público temporalmente no disponible')
@@ -21,4 +21,16 @@ test('detalle ya amable pasa sin cambios', () => {
 
 test('claves heredadas de Object.prototype no se traducen', () => {
   assert.equal(traducirDetalle('constructor'), 'constructor')
+})
+
+test('mfa_requerido en /login explica el doble factor en español', () => {
+  const m = mensajeErrorLogin('mfa_requerido')
+  assert.match(m, /doble factor/)
+  assert.match(m, /Mi cuenta/)
+})
+
+test('errores de login desconocidos o heredados no producen mensaje', () => {
+  assert.equal(mensajeErrorLogin('x'), null)
+  assert.equal(mensajeErrorLogin('toString'), null)
+  assert.equal(mensajeErrorLogin(null), null)
 })
