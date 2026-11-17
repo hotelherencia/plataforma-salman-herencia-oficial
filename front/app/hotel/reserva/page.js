@@ -12,6 +12,8 @@ export default function Reserva() {
     habitacion_id: '',
     inicio: '',
     fin: '',
+    hora_llegada: '',
+    hora_salida: '',
     nombre: '',
     documento: '',
   })
@@ -23,6 +25,8 @@ export default function Reserva() {
       habitacion_id: params.get('habitacion_id') || c.habitacion_id,
       inicio: params.get('inicio') || c.inicio,
       fin: params.get('fin') || c.fin,
+      hora_llegada: params.get('hora_llegada') || c.hora_llegada,
+      hora_salida: params.get('hora_salida') || c.hora_salida,
     }))
   }, [])
   const [salida, setSalida] = useState(null)
@@ -47,6 +51,8 @@ export default function Reserva() {
             nombre: campos.nombre,
             ...(campos.documento.trim() ? { documento: campos.documento.trim() } : {}),
           },
+          ...(campos.hora_llegada ? { hora_llegada: campos.hora_llegada } : {}),
+          ...(campos.hora_salida ? { hora_salida: campos.hora_salida } : {}),
         },
       })
       if (r.estado >= 400) {
@@ -75,6 +81,8 @@ export default function Reserva() {
           <Campo etiqueta="Habitación" value={campos.habitacion_id} onChange={(e) => setCampos({ ...campos, habitacion_id: e.target.value })} />
           <Campo etiqueta="Desde" type="date" value={campos.inicio} onChange={(e) => setCampos({ ...campos, inicio: e.target.value })} />
           <Campo etiqueta="Hasta" type="date" value={campos.fin} onChange={(e) => setCampos({ ...campos, fin: e.target.value })} />
+          <Campo etiqueta="Hora de llegada" type="time" value={campos.hora_llegada} onChange={(e) => setCampos({ ...campos, hora_llegada: e.target.value })} />
+          <Campo etiqueta="Hora de salida" type="time" value={campos.hora_salida} onChange={(e) => setCampos({ ...campos, hora_salida: e.target.value })} />
           <Campo etiqueta="Huésped" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
           <Campo etiqueta="Documento (opcional)" value={campos.documento} onChange={(e) => setCampos({ ...campos, documento: e.target.value })} />
           <button type="submit" className="boton-primario">Confirmar reserva</button>

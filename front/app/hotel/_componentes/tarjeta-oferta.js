@@ -60,7 +60,7 @@ export function CabeceraOferta({ emitidaEn, vigenciaMinutos, cantidad }) {
   )
 }
 
-export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, politicaCancelacion, vigenteHasta, inicio, fin }) {
+export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, politicaCancelacion, vigenteHasta, inicio, fin, horaLlegada, horaSalida, recargos, totalRecargosClp, subtotalNochesClp }) {
   return (
     <li className="ficha-oferta">
       <div className="ficha-oferta-cabecera">
@@ -76,6 +76,18 @@ export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, po
           <span className="ficha-campo-etiqueta">tarifa por noche</span>
           <span className="ficha-campo-valor">${tarifaNocheClp}</span>
         </div>
+        {totalRecargosClp > 0 && (
+          <div className="ficha-campo ancho">
+            <span className="ficha-campo-etiqueta">alojamiento</span>
+            <span className="ficha-campo-valor">${subtotalNochesClp ?? (totalClp - totalRecargosClp)}</span>
+          </div>
+        )}
+        {(recargos || []).map((r) => (
+          <div className="ficha-campo ancho" key={r.concepto}>
+            <span className="ficha-campo-etiqueta">recargos: {r.detalle || r.concepto}</span>
+            <span className="ficha-campo-valor">${r.monto_clp}</span>
+          </div>
+        ))}
         <div className="ficha-campo ancho">
           <span className="ficha-campo-etiqueta"><IconoEscudo /> política de cancelación</span>
           <span className="ficha-campo-valor">{politicaCancelacion}</span>
@@ -87,7 +99,7 @@ export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, po
       </div>
       <Link
         className="boton-primario ficha-oferta-accion"
-        href={`/hotel/reserva?habitacion_id=${encodeURIComponent(habitacionId)}&inicio=${encodeURIComponent(inicio || '')}&fin=${encodeURIComponent(fin || '')}`}
+        href={`/hotel/reserva?habitacion_id=${encodeURIComponent(habitacionId)}&inicio=${encodeURIComponent(inicio || '')}&fin=${encodeURIComponent(fin || '')}${horaLlegada ? `&hora_llegada=${encodeURIComponent(horaLlegada)}` : ''}${horaSalida ? `&hora_salida=${encodeURIComponent(horaSalida)}` : ''}`}
       >
         Reservar estas noches
       </Link>

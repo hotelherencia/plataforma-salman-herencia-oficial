@@ -7,7 +7,7 @@ import Subnav from '../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../lib/menu-hotel'
 
 export default function Oferta() {
-  const [consulta, setConsulta] = useState({ inicio: '2026-11-10', fin: '2026-11-12', personas: '2' })
+  const [consulta, setConsulta] = useState({ inicio: '2026-11-10', fin: '2026-11-12', personas: '2', hora_llegada: '', hora_salida: '' })
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
 
@@ -21,6 +21,8 @@ export default function Oferta() {
         fin: consulta.fin,
         personas: consulta.personas,
       })
+      if (consulta.hora_llegada) params.set('hora_llegada', consulta.hora_llegada)
+      if (consulta.hora_salida) params.set('hora_salida', consulta.hora_salida)
       const r = await api(`/hotel/oferta?${params}`)
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setSalida(r.datos)
@@ -37,6 +39,8 @@ export default function Oferta() {
           <Campo etiqueta="Desde" type="date" value={consulta.inicio} onChange={(e) => setConsulta({ ...consulta, inicio: e.target.value })} />
           <Campo etiqueta="Hasta" type="date" value={consulta.fin} onChange={(e) => setConsulta({ ...consulta, fin: e.target.value })} />
           <Campo etiqueta="Personas" type="number" value={consulta.personas} onChange={(e) => setConsulta({ ...consulta, personas: e.target.value })} />
+          <Campo etiqueta="Hora de llegada" type="time" value={consulta.hora_llegada} onChange={(e) => setConsulta({ ...consulta, hora_llegada: e.target.value })} />
+          <Campo etiqueta="Hora de salida" type="time" value={consulta.hora_salida} onChange={(e) => setConsulta({ ...consulta, hora_salida: e.target.value })} />
           <button type="submit" className="boton-primario">Consultar oferta</button>
         </form>
       </section>
@@ -63,6 +67,11 @@ export default function Oferta() {
                   vigenteHasta={item.vigente_hasta}
                   inicio={consulta.inicio}
                   fin={consulta.fin}
+                  horaLlegada={consulta.hora_llegada}
+                  horaSalida={consulta.hora_salida}
+                  recargos={item.recargos}
+                  totalRecargosClp={item.total_recargos_clp}
+                  subtotalNochesClp={item.subtotal_noches_clp}
                 />
               ))}
             </ul>
