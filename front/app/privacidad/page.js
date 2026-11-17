@@ -3,6 +3,7 @@ import Link from 'next/link'
 export const metadata = {
   title: 'Política de tratamiento | Hotel Herencia',
   description: 'Cómo Hotel Herencia trata los datos que envías al consultar o solicitar alojamiento.',
+  robots: { index: false, follow: false, nocache: true, noarchive: true },
 }
 
 export default function Privacidad() {

@@ -29,10 +29,8 @@ class ArranqueTest(unittest.TestCase):
         respuesta = cliente.get("/salud")
 
         self.assertEqual(respuesta.status_code, 200)
-        cuerpo = respuesta.json()
-        self.assertEqual(cuerpo["nucleo"], "cargado")
-        self.assertEqual(cuerpo["hotel"], "cargado")
-        self.assertEqual(cuerpo["empresa"], EMPRESA_DEL_NUCLEO)
+        self.assertEqual(respuesta.json(), {"estado": "ok"})
+        self.assertEqual(app.state.aplicacion.nucleo.empresa.id, EMPRESA_DEL_NUCLEO)
         self.assertEqual(app.state.aplicacion.hotel.empresa.id, app.state.aplicacion.nucleo.empresa.id)
 
     def test_no_arranca_si_el_hotel_trae_otra_empresa(self):

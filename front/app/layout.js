@@ -7,6 +7,7 @@ import { NOMBRE_COMERCIAL } from '../lib/marca'
 export const metadata = {
   title: NOMBRE_COMERCIAL,
   description: 'Plataforma de operación de Hotel Herencia (hotel, V1)',
+  robots: { index: false, follow: false, nocache: true, noarchive: true },
   referrer: 'origin',
   icons: {
     icon: [

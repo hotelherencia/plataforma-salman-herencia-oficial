@@ -34,16 +34,19 @@ class EmpresaTitularTest(unittest.TestCase):
         self.assertEqual(empresa.nombre, "Herencia SpA")
         self.assertFalse(empresa.es_sintetico)
 
-    def test_salud_expone_nombre_y_rut_del_titular(self):
+    def test_salud_publico_no_expone_datos_internos(self):
         app = crear_app(configuracion=_config(
             empresa_titular=True,
             empresa_rut=EMPRESA_TITULAR_RUT,
         ))
         cuerpo = TestClient(app).get("/salud").json()
-        self.assertEqual(cuerpo["empresa"], "EMP-HERENCIA-001")
-        self.assertEqual(cuerpo["empresa_nombre"], "Herencia SpA")
-        self.assertEqual(cuerpo["empresa_rut"], "76.707.504-9")
-        self.assertFalse(cuerpo["es_sintetica"])
+        self.assertEqual(cuerpo, {"estado": "ok"})
+        self.assertNotIn("empresa_rut", cuerpo)
+        self.assertNotIn("empresa", cuerpo)
+        self.assertNotIn("empresa_nombre", cuerpo)
+        # El titular sigue activo en el núcleo; ya no se publica por /salud.
+        self.assertEqual(app.state.aplicacion.nucleo.empresa.id, "EMP-HERENCIA-001")
+        self.assertEqual(app.state.aplicacion.nucleo.empresa.nombre, "Herencia SpA")
 
 
 if __name__ == "__main__":

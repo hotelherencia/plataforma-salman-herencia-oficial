@@ -323,6 +323,7 @@ class OPSA02ReadinessTest(BaseAuditoriaTest):
         self.app.state.database_url = "postgresql://plataforma:plataforma@127.0.0.1:54999/nada"
         r = self.cliente.get("/salud")
         self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json(), {"estado": "ok"})
 
 
 if __name__ == "__main__":

@@ -30,7 +30,6 @@ from .configuracion import Configuracion, cargar_desde_entorno  # noqa: E402
 from .empresa_titular import (  # noqa: E402
     EMPRESA_TITULAR,
     EMPRESA_TITULAR_MARCA,
-    EMPRESA_TITULAR_RUT,
 )
 from . import documental  # noqa: E402
 from . import inventario_documental  # noqa: E402
@@ -188,7 +187,17 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     if aplicacion is None:
         aplicacion = construir_aplicacion(nucleo=Nucleo(empresa=empresa_desde_config(configuracion)))
     observabilidad.configurar_logging()
-    app = FastAPI(title="plataforma-salman-herencia-api", version="1.1.0")
+    # En producción (COOKIE_SEGURA=1) se apagan /docs, /redoc y /openapi.json.
+    # En desarrollo y en la suite de pruebas (cookie_segura=False o sin config)
+    # el contrato OpenAPI sigue disponible para los tests y el trabajo local.
+    exponer_docs = not (configuracion and configuracion.cookie_segura)
+    app = FastAPI(
+        title="plataforma-salman-herencia-api",
+        version="1.1.0",
+        docs_url="/docs" if exponer_docs else None,
+        redoc_url="/redoc" if exponer_docs else None,
+        openapi_url="/openapi.json" if exponer_docs else None,
+    )
     app.add_middleware(canal_publico.TopeCuerpoPublico)
     app.state.aplicacion = aplicacion
     app.state.configuracion = configuracion
@@ -333,21 +342,8 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
 
     @app.get("/salud")
     def salud() -> dict:
-        empresa = aplicacion.nucleo.empresa
-        rut = None
-        if configuracion is not None and configuracion.empresa_rut:
-            rut = configuracion.empresa_rut
-        elif not empresa.es_sintetico and empresa.id == EMPRESA_TITULAR.id:
-            rut = EMPRESA_TITULAR_RUT
-        return {
-            "estado": "ok",
-            "nucleo": "cargado",
-            "hotel": "cargado",
-            "empresa": empresa.id,
-            "empresa_nombre": empresa.nombre,
-            "empresa_rut": rut,
-            "es_sintetica": empresa.es_sintetico,
-        }
+        # Liveness pública: solo el estado. Sin RUT, ids ni datos internos.
+        return {"estado": "ok"}
 
     @app.get("/readiness")
     def readiness() -> dict:
