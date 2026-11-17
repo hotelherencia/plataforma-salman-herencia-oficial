@@ -214,6 +214,24 @@ export function mensajeDeError(datos, estado) {
  *  reconoce la operación (cae en el texto genérico). */
 export function resumenConfirmacion(datos) {
   if (!datos || typeof datos !== 'object') return null
+  // Entrega 1A: alta por lote y tipos de habitación.
+  if (datos.tipo_id && Array.isArray(datos.habitaciones) && typeof datos.creadas === 'number') {
+    const ids = datos.habitaciones
+    const rango = ids.length > 1 ? `${ids[0]} a ${ids[ids.length - 1]}` : ids[0]
+    const precio = datos.precio_base_clp ? ` · cotizan ${clp(datos.precio_base_clp)}/noche (base del tipo)` : ' · sin precio base: aún no se ofrecen'
+    return `${datos.creadas} habitación(es) creada(s): ${rango}${precio}`
+  }
+  if (datos.tipo && datos.cambios && datos.tipo.tipo_id) {
+    const cambios = Object.entries(datos.cambios).map(([campo, [antes, despues]]) => {
+      const fmt = (v) => (campo === 'precio_base_clp' ? (v ? clp(v) : 'sin precio') : String(v))
+      const nombre = { precio_base_clp: 'precio base', capacidad_base: 'capacidad', nombre: 'nombre', activo: 'activo', orden: 'orden' }[campo] || campo
+      return `${nombre} ${fmt(antes)} → ${fmt(despues)}`
+    })
+    return `Tipo ${datos.tipo.nombre}: ${cambios.length ? cambios.join(' · ') : 'sin cambios'}`
+  }
+  if (datos.tipo_id && datos.nombre && typeof datos.capacidad_base === 'number') {
+    return `Tipo ${datos.nombre} creado (${datos.tipo_id})${datos.precio_base_clp ? ` · precio base ${clp(datos.precio_base_clp)}` : ' · sin precio base'}`
+  }
   if (datos.pago_id) {
     const monto = typeof datos.monto_clp === 'number' ? ` de $${datos.monto_clp}` : ''
     return `Pago ${datos.pago_id}${monto}: estado «${datos.estado}»`

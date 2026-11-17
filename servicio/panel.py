@@ -52,8 +52,9 @@ def _habitaciones(
         filtros.append("tipo = %s")
         parametros.append(tipo)
     if solo_inventario_real:
-        # HAB-01..17 únicamente (titular). Coincide con inventario_documental._RE_HAB_REAL.
-        filtros.append("id ~ '^HAB-(0[1-9]|1[0-7])$'")
+        # Titular: HAB-01..17 (coincide con inventario_documental._RE_HAB_REAL)
+        # más las altas por lote de la administración (en_inventario, 1A).
+        filtros.append("(id ~ '^HAB-(0[1-9]|1[0-7])$' OR en_inventario)")
     if filtros:
         consulta += " WHERE " + " AND ".join(filtros)
     return [

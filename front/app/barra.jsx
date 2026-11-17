@@ -24,6 +24,7 @@ import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 const OPERACION_HOTEL = [
   ['/hotel/panel', 'Panel'],
   ['/hotel/ocupacion', 'Ocupación'],
+  ['/hotel/tipos', 'Tipos y habitaciones'],
   ['/hotel/habitaciones', 'Habitaciones y tarifas'],
   ['/hotel/oferta', 'Oferta'],
   ['/hotel/reserva', 'Nueva reserva'],

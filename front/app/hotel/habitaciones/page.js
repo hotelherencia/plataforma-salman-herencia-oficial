@@ -119,8 +119,9 @@ export default function Habitaciones() {
         <section className="tarjeta">
           <h2>Nueva habitación</h2>
           <p className="nota-clave">
-            Solo crea: si el identificador ya existe se rechaza sin tocar la habitación. Nace disponible y limpia, y no
-            se ofrece hasta que tenga tarifa (regístrala en su ficha).
+            Solo crea: si el identificador ya existe se rechaza sin tocar la habitación. Nace disponible y limpia, y
+            cotiza con el precio base de su tipo (o queda sin tarifa si el tipo no lo tiene). Para crear varias de una
+            vez, usa <a href="/hotel/tipos">Tipos y habitaciones</a>.
           </p>
           <form className="formulario" onSubmit={darDeAlta}>
             <Campo etiqueta="Habitación" value={alta.habitacion_id} placeholder="p. ej. HAB-201" onChange={(e) => setAlta({ ...alta, habitacion_id: e.target.value })} />
@@ -132,7 +133,7 @@ export default function Habitaciones() {
         </section>
       )}
 
-      <button onClick={() => { setSalida(null); setError(''); renovarClaveAlta(); renovarClaveTarifa(); renovarClaveLimpieza(); renovarClaveMantenimiento() }} className="boton-secundario">Nueva operación</button>
+      <button onClick={() => { setSalida(null); setError(''); renovarClaveAlta(); renovarClaveLimpieza(); renovarClaveMantenimiento() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>

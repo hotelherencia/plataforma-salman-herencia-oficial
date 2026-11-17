@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import agente, canal_publico
 from .. import leads as leads_mod
+from ..tipos_habitacion import MAX_LOTE, PATRON_ID_TIPO, PATRON_PREFIJO
 
 
 class Credenciales(BaseModel):
@@ -165,3 +166,51 @@ class DocumentoHuespedIn(BaseModel):
     opcional en el esquema (un cuerpo vacío es legal y lo resuelve el
     dominio con 409); la obligatoriedad la fija `cobro.entrada`."""
     documento: str | None = Field(default=None, min_length=1, max_length=50)
+
+
+# --- Entrega 1A: tipos de habitación y alta por lote -----------------------
+
+
+class TipoHabitacionIn(BaseModel):
+    tipo_id: str = Field(pattern=PATRON_ID_TIPO)
+    nombre: str = Field(min_length=1, max_length=80)
+    capacidad_base: int = Field(gt=0, le=30)
+    precio_base_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    orden: int = Field(default=100, ge=0, le=10_000)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_sin_bordes(cls, valor: str) -> str:
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("el nombre no puede quedar vacío")
+        return valor
+
+
+class TipoHabitacionEdicionIn(BaseModel):
+    """Campos omitidos no cambian; `precio_base_clp: null` quita el precio base."""
+
+    nombre: str | None = Field(default=None, min_length=1, max_length=80)
+    capacidad_base: int | None = Field(default=None, gt=0, le=30)
+    precio_base_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    orden: int | None = Field(default=None, ge=0, le=10_000)
+    activo: bool | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_sin_bordes(cls, valor: str | None) -> str | None:
+        if valor is None:
+            return None
+        valor = valor.strip()
+        if not valor:
+            raise ValueError("el nombre no puede quedar vacío")
+        return valor
+
+
+class LoteHabitacionesIn(BaseModel):
+    tipo_id: str = Field(pattern=PATRON_ID_TIPO)
+    cantidad: int = Field(ge=1, le=MAX_LOTE)
+    prefijo: str = Field(default="HAB-", pattern=PATRON_PREFIJO)
+    desde_numero: int = Field(ge=0, le=99_999)
+    digitos: int = Field(default=2, ge=1, le=5)
+    capacidad: int | None = Field(default=None, gt=0, le=30)

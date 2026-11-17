@@ -47,14 +47,16 @@ def definir_habitacion(
     """Alta o edición (spec-hotel-operacion-v1 §2.2–2.3). Con
     `If-None-Match: *` solo crea: una habitación existente responde 409."""
     comun.exigir_admin(sesion)
-    # Titular: no se pueden crear/editar ids fuera de HAB-01..17.
+    # Titular: no se pueden crear/editar ids fuera de HAB-01..17, salvo las
+    # unidades que la administración dio de alta por lote (entrega 1A).
     if (
         not request.app.state.aplicacion.nucleo.empresa.es_sintetico
         and not inventario_documental.es_id_inventario_real(habitacion_id)
+        and not reservas_db.en_inventario(conexion, habitacion_id)
     ):
         raise HTTPException(
             status_code=422,
-            detail="solo HAB-01..17 forman el inventario real del titular",
+            detail="solo HAB-01..17 y las habitaciones dadas de alta por lote forman el inventario real del titular",
         )
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     solo_crear = (if_none_match or "").strip() == "*"
@@ -153,11 +155,7 @@ def listar_habitaciones(
     En titular solo HAB-01..17 (inventario documental 2026-11-11)."""
     habitaciones = reservas_db.listar_habitaciones(conexion)
     if not request.app.state.aplicacion.nucleo.empresa.es_sintetico:
-        habitaciones = [
-            h
-            for h in habitaciones
-            if inventario_documental.es_id_inventario_real(h.get("habitacion_id") or h.get("id") or "")
-        ]
+        habitaciones = [h for h in habitaciones if inventario_documental.es_inventario_operativo(h)]
     return {"habitaciones": habitaciones}
 
 @router.get("/hotel/habitaciones/{habitacion_id}")

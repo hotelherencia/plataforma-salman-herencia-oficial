@@ -1898,3 +1898,267 @@ a.boton-primario {
   font-weight: 600;
   text-decoration: underline;
 }
+
+/* Tipos y habitaciones (entrega 1A, app/hotel/tipos/page.js) */
+
+.tipos-solo-lectura {
+  display: inline-block;
+  margin: 0.4rem 0 0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: var(--papel);
+  color: var(--tinta-suave);
+  font-size: 0.82rem;
+}
+
+.tipos-totales {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  gap: 0.8rem;
+  margin: 1rem 0 0;
+}
+
+.tipos-totales > div {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  background: var(--papel-suave);
+}
+
+.tipos-totales dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.tipos-totales dd {
+  margin: 0.2rem 0 0;
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  font-weight: 600;
+  color: var(--verde);
+  line-height: 1.1;
+}
+
+.tipos-totales .tipos-total-alerta dd {
+  color: var(--acento);
+}
+
+.tipos-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr));
+  gap: 0 1.4rem;
+  align-items: start;
+}
+
+.tipo-tarjeta {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.tipo-tarjeta.tipo-inactivo {
+  opacity: 0.7;
+}
+
+.tipo-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.tipo-cabecera h2 {
+  margin: 0;
+}
+
+.tipo-codigo {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+}
+
+.tipo-precio {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tipo-precio strong {
+  font-family: var(--serif);
+  font-size: 1.55rem;
+  color: var(--verde);
+  line-height: 1.1;
+}
+
+.tipo-precio-etiqueta {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.tipo-cifras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.tipo-origenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.origen {
+  display: inline-block;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.origen-tipo {
+  background: var(--verde-suave);
+  color: var(--verde-oscuro);
+}
+
+.origen-tarifa {
+  background: var(--superficie-fuerte);
+  color: #6b3f2a;
+}
+
+.origen-habitacion {
+  background: var(--acento-suave);
+  color: #5a2f1c;
+}
+
+.origen-ninguno {
+  background: var(--peligro-suave);
+  color: var(--peligro);
+}
+
+.tipo-habitaciones summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--verde-oscuro);
+}
+
+.tipo-habitaciones ul {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.tipo-habitaciones li {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 1fr) 5.5rem auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.tipo-habitaciones li:nth-child(odd) {
+  background: var(--papel-suave);
+}
+
+.tipo-habitaciones li.fuera {
+  opacity: 0.65;
+}
+
+.tipo-fuera {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+}
+
+.tipo-edicion {
+  padding-top: 0.8rem;
+  border-top: 1px dashed var(--linea);
+}
+
+.campo-casilla {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.campo-casilla input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--verde);
+}
+
+.tipo-impacto,
+.lote-vista-previa {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  background: var(--exito-fondo);
+  border: 1px solid var(--exito-borde);
+  font-size: 0.86rem;
+}
+
+.lote-vista-previa {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.lote-vista-previa strong {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+.lote-aviso {
+  color: var(--acento);
+  font-size: 0.82rem;
+}
+
+.tipos-formularios {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 0 1.4rem;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .tipos-formularios {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.boton-primario:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 560px) {
+  .tipo-cabecera {
+    flex-direction: column;
+  }
+
+  .tipo-precio {
+    justify-items: start;
+    text-align: left;
+  }
+}

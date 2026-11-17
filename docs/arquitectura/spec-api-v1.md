@@ -250,6 +250,14 @@ el contrato:
   `^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$` (si no, 422); con `If-None-Match: *` solo
   crea (existe → 409). Responde `creada` y `cambios {campo: [antes, después]}`
   y deja auditoría. No toca reservas, tarifas ni estados.
+- **Precio de una noche (entrega 1A, `servicio/precios.py`)**: resolvedor
+  único para oferta, reserva, ocupación, listado y canal público. De menor a
+  mayor prioridad: precio base del tipo (`tipos_habitacion.precio_base_clp`)
+  → precio propio de la habitación (`habitaciones.precio_propio_clp`,
+  reservado) → tarifa por habitación y fechas (regla de vigencia de abajo).
+  Sin ninguno, la noche queda sin tarifa y no se vende. La reserva guarda el
+  precio de cada noche y su origen en `reserva_noches` y el total en
+  `reservas.total_aceptado_clp`.
 - `PUT /hotel/tarifas`: append-only; vigente en la noche *d* la de mayor
   `fecha_desde` con `fecha_desde ≤ d < fecha_hasta`, a igualdad la registrada
   más recientemente. Deja auditoría.
@@ -440,7 +448,7 @@ autorizados (D-AGT-03, D-WSP-01). Sin las tres variables
 el puerto responde 503 «no configurado» y no persiste nada. Ninguna prueba
 llama a Meta.
 
-## Operaciones de esta versión (63)
+## Operaciones de esta versión (67)
 
 | Operación | Efecto |
 |---|---|
@@ -464,6 +472,10 @@ llama a Meta.
 | `POST /usuarios/{id}/baja` | `activo=false` y revoca sesiones. Solo administrador, sobre otro usuario; no al último administrador activo (409). |
 | `PUT /hotel/habitaciones/{id}` | Alta o cambio de habitación: tipo, capacidad (con `If-None-Match: *` solo alta). Devuelve `creada` y `cambios`; auditado. Solo administrador. |
 | `PUT /hotel/tarifas` | Tarifa por rango y unidad (append-only; regla de vigencia arriba). No cambia el precio de una reserva ya aceptada. La carga idéntica (misma unidad, rango y precio) → 409 (#299, 2026-11-06): el cambio de precio es el mismo rango con precio distinto, que gana por recencia (CA-HAB-03). Auditado. |
+| `GET /hotel/tipos` | Tipos de habitación (entrega 1A) con sus habitaciones, el precio de hoy de cada una y su origen (`tipo`, `habitacion` o `tarifa`) y el resumen por tipo. Cualquier rol; `puede_editar` solo para administrador. En titular, solo el inventario operativo (HAB-01..17 y altas por lote). |
+| `POST /hotel/tipos` | Alta de un tipo (`tipo_id` `^[a-z0-9][a-z0-9_]{0,49}$`, nombre, capacidad base, precio base opcional). Ya existe → 409. Auditado. Solo administrador. |
+| `PUT /hotel/tipos/{id}` | Edición parcial del tipo (nombre, capacidad base, `precio_base_clp` —`null` lo quita—, orden, activo). El precio base lo heredan las habitaciones del tipo sin precio propio ni tarifa por fechas; las reservas aceptadas no cambian (precio congelado por noche). Devuelve `cambios`; auditado. Solo administrador. |
+| `POST /hotel/habitaciones/lote` | Alta de N habitaciones (1–100) de un tipo con numeración `prefijo + número` con `digitos` (p. ej. `HAB-` desde 18 → HAB-18…). Todo o nada: alguna ya existe → 409 con `existentes`; tipo inexistente → 422; tipo inactivo → 409. Nacen en servicio, limpias y `en_inventario`. Auditado por habitación y por lote. Solo administrador. |
 | `GET /hotel/oferta?inicio&fin&personas` | Solo lo disponible, con tarifa vigente **en cada noche** de `[inicio, fin)` (spec-hotel-operacion-v1 §2.8, 2026-11-03) y vencimiento de la oferta. `total_clp` es la suma noche a noche con la tarifa vigente de cada noche (DECISIÓN 2026-11-06, #305); `tarifa_noche_clp` es la tarifa de la primera noche. Incluye unidades ocupadas o sucias si el rango no solapa; excluye mantenimiento, bloqueada y fuera de servicio. |
 | `GET /hotel/habitaciones` | Inventario operativo de las unidades (REQUISITO PROPUESTO, 2026-11-03, orden del propietario tras la revisión E2E: la pantalla operaba a ciegas sin lectura del estado). Por unidad: `tipo`, `capacidad`, `estado_operativo`, `estado_preparacion`, `mantenimiento`, `tareas_pendientes`, `limpieza_pendiente` y última tarifa configurada como referencia. Solo lectura, cualquier rol de la sesión; las mutaciones conservan sus reglas de rol (limpieza: recepción o administrador; mantenimiento: solo administrador). |
 | `GET /hotel/habitaciones/{id}` | Ficha de la habitación: datos, estados, historial de tarifas (con `vigente_hoy`), reservas en cualquier estado, tareas y —solo administrador— auditoría. Cualquier rol; inexistente → 403. |

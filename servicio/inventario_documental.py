@@ -63,6 +63,13 @@ def es_id_inventario_real(habitacion_id: str) -> bool:
     return bool(_RE_HAB_REAL.match(habitacion_id or ""))
 
 
+def es_inventario_operativo(habitacion: dict) -> bool:
+    """Inventario operativo del titular: HAB-01..17 más las unidades que la
+    administración dio de alta por lote (`en_inventario`, entrega 1A)."""
+    habitacion_id = habitacion.get("habitacion_id") or habitacion.get("id") or ""
+    return es_id_inventario_real(habitacion_id) or bool(habitacion.get("en_inventario"))
+
+
 def ruta_lote(raiz: Path | None = None) -> Path:
     base = raiz or Path(__file__).resolve().parents[1]
     return base / LOTE_RELATIVO

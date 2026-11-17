@@ -15,6 +15,8 @@ import psycopg
 from hotel_inventario.servicio import HORA_LLEGADA, LIMITE_CANCELACION_GRATUITA
 from nucleo.servicio import AccesoDenegado as AccesoNucleo
 
+from . import reservas as reservas_db
+
 ROLES_PAGO_MANUAL = frozenset({"recepcion", "caja", "administrador"})
 ROLES_CAJA = frozenset({"caja", "administrador"})
 
@@ -195,7 +197,7 @@ def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: s
     _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     r = conexion.execute(
         "SELECT r.id, r.habitacion_id, h.tipo, r.inicio, r.fin, r.huesped_nombre, r.huesped_documento, r.estado, "
-        "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
+        "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas, r.total_aceptado_clp FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
         "WHERE r.id = %s",
         (reserva_id,),
     ).fetchone()
@@ -212,6 +214,10 @@ def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: s
         "tarifa_noche_aceptada_clp": r[8],
         "personas": r[10],
         "creada_en": r[9].isoformat(),
+        # Entrega 1A: total y precio congelado por noche (null/vacío en
+        # reservas anteriores a la migración 0021).
+        "total_aceptado_clp": r[11],
+        "precio_por_noche": reservas_db.noches_de_reserva(conexion, reserva_id),
         "cargos": [
             {"cargo_id": c[0], "tipo": c[1], "concepto": c[2], "monto_clp": c[3], "referencia": c[4],
              "registrado_en": c[5].isoformat()}

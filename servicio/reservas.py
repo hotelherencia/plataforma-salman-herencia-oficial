@@ -11,6 +11,8 @@ from datetime import date, datetime, timedelta
 import psycopg
 from psycopg.errors import ExclusionViolation
 
+from . import precios
+
 VIGENCIA_OFERTA = timedelta(minutes=15)
 ESTABLECIMIENTO_SINTETICO = "EST-SINT-001"
 # HECHO DOCUMENTADO: texto de hotel_inventario.servicio.POLITICA_CANCELACION
@@ -26,7 +28,8 @@ ESTADOS_QUE_OCUPAN_CUPO = ("confirmada", "en_estadia")
 ESTADOS_NO_VENDIBLES = ("bloqueada", "fuera_de_servicio")
 # Regla única de vigencia de tarifas (spec-hotel-operacion-v1 §2.5): la de mayor
 # fecha_desde que cubre la noche; a igualdad, la registrada más recientemente.
-ORDEN_VIGENCIA_TARIFA = "ORDER BY t.fecha_desde DESC, t.creado_en DESC, t.id DESC"
+# Vive en servicio/precios.py junto al resto del resolvedor (entrega 1A).
+ORDEN_VIGENCIA_TARIFA = precios.ORDEN_VIGENCIA_TARIFA
 
 
 class SinCupo(Exception):
@@ -115,6 +118,11 @@ def guardar_habitacion(
     return {"creada": False, "cambios": cambios}
 
 
+def en_inventario(conexion: psycopg.Connection, habitacion_id: str) -> bool:
+    fila = conexion.execute("SELECT en_inventario FROM habitaciones WHERE id = %s", (habitacion_id,)).fetchone()
+    return bool(fila and fila[0])
+
+
 def fijar_servicio(conexion: psycopg.Connection, habitacion_id: str, en_servicio: bool, motivo: str | None) -> dict:
     """Retiro de operación (baja lógica) y reincorporación (spec-hotel-operacion-v1
     §2.4). Retirar exige que ninguna reserva confirmada o en estadía use la
@@ -189,12 +197,9 @@ def insertar_tarifa(
 
 
 def tarifa_vigente(conexion: psycopg.Connection, habitacion_id: str, fecha: date) -> int | None:
-    fila = conexion.execute(
-        "SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = %s AND t.fecha_desde <= %s "
-        f"AND t.fecha_hasta > %s {ORDEN_VIGENCIA_TARIFA} LIMIT 1",
-        (habitacion_id, fecha, fecha),
-    ).fetchone()
-    return fila[0] if fila else None
+    """Precio de la noche `fecha` según el resolvedor único (servicio/precios.py)."""
+    precio = precios.precio_noche(conexion, habitacion_id, fecha)
+    return precio.precio_clp if precio else None
 
 
 def precio_noches(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> tuple[int, int]:
@@ -205,40 +210,23 @@ def precio_noches(conexion: psycopg.Connection, habitacion_id: str, inicio: date
     quedan alineadas (lo ofertado es lo cargado). `tarifa_noche_aceptada_clp`
     conserva su significado de referencia: tarifa de la noche de inicio
     (base de la penalidad de cancelación, spec-hotel-operacion §3).
-    Reemplaza la regla provisional D-TAR-02 (tarifa de inicio × noches).
+    El cálculo vive en `precios.cotizar` (entrega 1A).
     """
-    tarifa_primera = tarifa_vigente(conexion, habitacion_id, inicio)
-    total = 0
-    noche = inicio
-    while noche < fin:
-        total += tarifa_vigente(conexion, habitacion_id, noche)
-        noche += timedelta(days=1)
-    return tarifa_primera, total
+    cotizacion = precios.cotizar(conexion, habitacion_id, inicio, fin)
+    return cotizacion.tarifa_primera, cotizacion.total
 
 
 def tarifas_por_noche(conexion: psycopg.Connection, desde: date, hasta: date) -> dict[tuple[str, date], int]:
-    """Tarifa vigente de cada (habitación, noche) en [desde, hasta), con la
-    misma regla que `tarifa_vigente` (una sola consulta para la rejilla)."""
-    filas = conexion.execute(
-        "SELECT h.id, d::date, (SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
-        f"AND t.fecha_desde <= d::date AND t.fecha_hasta > d::date {ORDEN_VIGENCIA_TARIFA} LIMIT 1) "
-        "FROM habitaciones h CROSS JOIN generate_series(%s::date, %s::date - 1, interval '1 day') d",
-        (desde, hasta),
-    ).fetchall()
-    return {(f[0], f[1]): f[2] for f in filas if f[2] is not None}
+    """Precio vigente de cada (habitación, noche) en [desde, hasta), con el
+    mismo resolvedor que la oferta (una carga para toda la rejilla)."""
+    return {clave: p.precio_clp for clave, p in precios.precios_del_rango(conexion, desde, hasta).items()}
 
 
 def primera_noche_sin_tarifa(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> date | None:
-    """Primera noche de [inicio, fin) sin tarifa vigente, o None si todas la
-    tienen (spec-hotel-operacion-v1 §2.8: la misma regla que pinta `sin_tarifa`
-    en la ocupación). No fija el precio: eso sigue en `tarifa_vigente(inicio)`."""
-    fila = conexion.execute(
-        "SELECT d::date FROM generate_series(%s::date, %s::date - 1, interval '1 day') d "
-        "WHERE NOT EXISTS (SELECT 1 FROM tarifas t WHERE t.habitacion_id = %s "
-        "AND t.fecha_desde <= d::date AND t.fecha_hasta > d::date) ORDER BY d LIMIT 1",
-        (inicio, fin, habitacion_id),
-    ).fetchone()
-    return fila[0] if fila else None
+    """Primera noche de [inicio, fin) sin precio, o None si todas lo tienen
+    (spec-hotel-operacion-v1 §2.8: la misma regla que pinta `sin_tarifa` en la
+    ocupación)."""
+    return precios.cotizar(conexion, habitacion_id, inicio, fin).sin_tarifa
 
 
 def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> bool:
@@ -259,20 +247,31 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
         "ORDER BY id",
         (personas, list(ESTADOS_NO_VENDIBLES)),
     ).fetchall()
+    ids = [u[0] for u in unidades]
+    ocupadas = {
+        f[0]
+        for f in conexion.execute(
+            "SELECT DISTINCT habitacion_id FROM reservas WHERE habitacion_id = ANY(%s) "
+            "AND estado IN ('confirmada', 'en_estadia') "
+            "AND daterange(inicio, fin, '[)') && daterange(%s, %s, '[)')",
+            (ids, inicio, fin),
+        ).fetchall()
+    } if ids else set()
+    tabla = precios.cargar(conexion, inicio, fin, ids) if ids else None
     items = []
     for habitacion_id, tipo, capacidad in unidades:
-        if primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin) is not None or not _libre(
-            conexion, habitacion_id, inicio, fin
-        ):
+        if habitacion_id in ocupadas:
             continue
-        tarifa, total = precio_noches(conexion, habitacion_id, inicio, fin)
+        cotizacion = precios.cotizar_en(tabla, habitacion_id, inicio, fin)
+        if cotizacion.sin_tarifa is not None:
+            continue
         items.append(
             {
                 "habitacion_id": habitacion_id,
                 "tipo": tipo,
                 "capacidad": capacidad,
-                "tarifa_noche_clp": tarifa,
-                "total_clp": total,
+                "tarifa_noche_clp": cotizacion.tarifa_primera,
+                "total_clp": cotizacion.total,
                 "politica_cancelacion": POLITICA_CANCELACION,
                 "vigente_hasta": (ahora + VIGENCIA_OFERTA).isoformat(),
             }
@@ -295,13 +294,18 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
 _COLUMNAS_HABITACION = (
     "h.id, h.tipo, h.capacidad, h.estado_operativo, h.estado_preparacion, h.mantenimiento, "
     "COALESCE((SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
-    "ORDER BY t.fecha_desde DESC, t.creado_en DESC, t.id DESC LIMIT 1), 0), "
+    "ORDER BY t.fecha_desde DESC, t.creado_en DESC, t.id DESC LIMIT 1), h.precio_propio_clp, "
+    "(SELECT th.precio_base_clp FROM tipos_habitacion th WHERE th.id = h.tipo), 0), "
     "(SELECT COUNT(*) FROM tareas_operativas ta WHERE ta.habitacion_id = h.id AND ta.estado = 'pendiente'), "
     "EXISTS(SELECT 1 FROM tareas_operativas ta WHERE ta.habitacion_id = h.id "
     "AND ta.estado = 'pendiente' AND ta.tipo = 'limpieza'), "
-    "(SELECT t.tarifa_noche_clp FROM tarifas t WHERE t.habitacion_id = h.id "
-    f"AND t.fecha_desde <= %s AND t.fecha_hasta > %s {ORDEN_VIGENCIA_TARIFA} LIMIT 1), "
-    "h.motivo_fuera_de_servicio, h.fuera_de_servicio_desde, h.creado_en"
+    # Columna 9: la tarifa vigente hoy la completa el resolvedor único
+    # (precios.py) en `_completar_precio_hoy`; aquí queda el hueco posicional.
+    "NULL::integer, "
+    "h.motivo_fuera_de_servicio, h.fuera_de_servicio_desde, h.creado_en, "
+    "h.en_inventario, h.precio_propio_clp, "
+    "(SELECT th.nombre FROM tipos_habitacion th WHERE th.id = h.tipo), "
+    "(SELECT th.precio_base_clp FROM tipos_habitacion th WHERE th.id = h.tipo)"
 )
 
 
@@ -321,7 +325,23 @@ def _habitacion_a_dict(f) -> dict:
         "motivo_fuera_de_servicio": f[10],
         "fuera_de_servicio_desde": f[11].isoformat() if f[11] else None,
         "creado_en": f[12].isoformat(),
+        "en_inventario": f[13],
+        "precio_propio_clp": f[14],
+        "tipo_nombre": f[15],
+        "precio_base_tipo_clp": f[16],
     }
+
+
+def _completar_precio_hoy(conexion: psycopg.Connection, habitaciones: list[dict], hoy: date) -> list[dict]:
+    """Precio vigente hoy y su origen, con el mismo resolvedor de la oferta."""
+    if not habitaciones:
+        return habitaciones
+    tabla = precios.cargar(conexion, hoy, hoy + timedelta(days=1), [h["habitacion_id"] for h in habitaciones])
+    for h in habitaciones:
+        precio = tabla.precio(h["habitacion_id"], hoy)
+        h["tarifa_vigente_hoy_clp"] = precio.precio_clp if precio else None
+        h["origen_precio_hoy"] = precio.origen if precio else None
+    return habitaciones
 
 
 def listar_habitaciones(conexion: psycopg.Connection, hoy: date | None = None) -> list[dict]:
@@ -331,9 +351,9 @@ def listar_habitaciones(conexion: psycopg.Connection, hoy: date | None = None) -
     referencia (`tarifa_noche_clp`) y la vigente hoy. Solo lectura."""
     hoy = hoy or date.today()
     filas = conexion.execute(
-        f"SELECT {_COLUMNAS_HABITACION} FROM habitaciones h ORDER BY h.id", (hoy, hoy)
+        f"SELECT {_COLUMNAS_HABITACION} FROM habitaciones h ORDER BY h.id"
     ).fetchall()
-    return [_habitacion_a_dict(f) for f in filas]
+    return _completar_precio_hoy(conexion, [_habitacion_a_dict(f) for f in filas], hoy)
 
 
 def ficha_habitacion(
@@ -349,11 +369,11 @@ def ficha_habitacion(
     para administrador— la auditoría cuyo recurso es la habitación."""
     hoy = hoy or date.today()
     fila = conexion.execute(
-        f"SELECT {_COLUMNAS_HABITACION} FROM habitaciones h WHERE h.id = %s", (hoy, hoy, habitacion_id)
+        f"SELECT {_COLUMNAS_HABITACION} FROM habitaciones h WHERE h.id = %s", (habitacion_id,)
     ).fetchone()
     if fila is None:
         raise HabitacionInexistente("acceso denegado")
-    ficha = _habitacion_a_dict(fila)
+    ficha = _completar_precio_hoy(conexion, [_habitacion_a_dict(fila)], hoy)[0]
     vigente_id = conexion.execute(
         "SELECT t.id FROM tarifas t WHERE t.habitacion_id = %s AND t.fecha_desde <= %s AND t.fecha_hasta > %s "
         f"{ORDEN_VIGENCIA_TARIFA} LIMIT 1",
@@ -484,18 +504,26 @@ def crear_reserva(
         raise SinCupo(f"la unidad {habitacion_id} admite hasta {habitacion[2]} personas")
     # Cada noche necesita tarifa (§2.8) y cada noche se cobra con su tarifa
     # vigente (#305, DECISIÓN 2026-11-06; reemplaza D-TAR-02).
-    descubierta = primera_noche_sin_tarifa(conexion, habitacion_id, inicio, fin)
-    if descubierta is not None:
-        raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {descubierta}")
-    tarifa, total = precio_noches(conexion, habitacion_id, inicio, fin)
+    cotizacion = precios.cotizar(conexion, habitacion_id, inicio, fin)
+    if cotizacion.sin_tarifa is not None:
+        raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {cotizacion.sin_tarifa}")
+    tarifa, total = cotizacion.tarifa_primera, cotizacion.total
     reserva_id = f"RSV-{uuid.uuid4().hex[:12]}"
     try:
         with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
             conexion.execute(
                 "INSERT INTO reservas (id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, "
-                "tarifa_noche_aceptada_clp, personas) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa, personas),
+                "tarifa_noche_aceptada_clp, personas, total_aceptado_clp) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa,
+                 personas, total),
             )
+            # Entrega 1A: precio congelado noche a noche, con su origen.
+            with conexion.cursor() as cursor:
+                cursor.executemany(
+                    "INSERT INTO reserva_noches (reserva_id, noche, precio_clp, origen) VALUES (%s, %s, %s, %s)",
+                    [(reserva_id, noche, p.precio_clp, p.origen) for noche, p in cotizacion.noches],
+                )
             conexion.execute(
                 "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
                 (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, f"Alojamiento {(fin - inicio).days} noches", total),
@@ -512,3 +540,14 @@ def crear_reserva(
         "total_clp": total,
         "personas": personas,
     }
+
+
+def noches_de_reserva(conexion: psycopg.Connection, reserva_id: str) -> list[dict]:
+    """Precio congelado por noche (vacío para reservas anteriores a la 1A)."""
+    return [
+        {"noche": f[0].isoformat(), "precio_clp": f[1], "origen": f[2]}
+        for f in conexion.execute(
+            "SELECT noche, precio_clp, origen FROM reserva_noches WHERE reserva_id = %s ORDER BY noche",
+            (reserva_id,),
+        ).fetchall()
+    ]
