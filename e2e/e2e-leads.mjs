@@ -169,7 +169,7 @@ console.log(`landing en ${LANDING} → api ${API}, front ${FRONT}`)
 const cookieAdmin = await loginApi(ADMIN[0], ADMIN[1])
 const leadsPorApi = async () => (await api('GET', '/hotel/leads', { cookie: cookieAdmin })).datos.leads
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 try {
   const ctx = await navegador.newContext({ viewport: { width: 1280, height: 720 } })
   await ctx.addInitScript(({ front, api: apiBase }) => {

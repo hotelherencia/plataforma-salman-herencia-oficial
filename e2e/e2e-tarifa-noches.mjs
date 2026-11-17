@@ -16,6 +16,7 @@
  */
 
 import { chromium } from 'playwright'
+import { irDesdeMenu } from './ayudas-menu.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -96,22 +97,12 @@ const alerta = (page) => page.evaluate(() => document.querySelector('[role=alert
 const confirmacion = (page) => page.evaluate(() => document.querySelector('.operacion-confirmada')?.textContent || null)
 const textoPagina = (page) => page.evaluate(() => document.body.innerText)
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 async function paginaDe(credenciales) {
   const ctx = await navegador.newContext({ baseURL: FRONT })
   const page = await ctx.newPage()
   await loginUi(page, credenciales)
   return page
-}
-
-async function irDesdeMenu(page, enlace, ruta) {
-  await page.goto(`${FRONT}/`)
-  await page.waitForTimeout(1200)
-  await page.getByRole('link', { name: 'Hotel', exact: true }).first().click()
-  await page.waitForTimeout(1400)
-  await page.getByRole('link', { name: enlace, exact: true }).first().click()
-  await page.waitForTimeout(1400)
-  esperar(page.url().endsWith(ruta), `el menú llevó a ${page.url()}`)
 }
 
 try {
@@ -181,13 +172,13 @@ try {
 
   const admin = await paginaDe(ADMIN)
   await caso('TN-03', '/hotel/tipos → /hotel/oferta → /hotel/reserva', 'registrar el precio de las noches siguientes como excepción de la habitación, ofrecer y confirmar', 'administrador → recepcion', 'se ofrece; el total y la tarifa confirmados son los ofrecidos y el cargo coincide', async () => {
-    await admin.goto(`${FRONT}/hotel/tipos`)
+    await admin.goto(`${FRONT}/hotel/configuracion?seccion=precios`)
     await admin.waitForTimeout(1800)
     const tarjeta = admin.locator('article', { has: admin.locator('#tipo-doble') })
     await tarjeta.getByRole('button', { name: /Nueva excepción/ }).click()
     const form = tarjeta.locator('form', { has: admin.getByRole('button', { name: 'Crear excepción' }) })
     await form.getByLabel('Aplica a').selectOption('habitacion')
-    await form.getByLabel('Habitación').selectOption(HAB)
+    await form.getByRole('combobox', { name: /^Habitación$/ }).selectOption(HAB)
     await form.getByLabel('Primera noche (Llegada)').fill(D(45))
     await form.getByLabel('Hasta la Salida del (no incluida)').fill(D(60))
     await form.getByRole('textbox', { name: 'Precio por noche' }).fill('63000')

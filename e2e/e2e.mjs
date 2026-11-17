@@ -158,7 +158,7 @@ function totp(secreto, pasoSegundos = 30, digitos = 6) {
 }
 
 // ---------- suite ----------
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 const contextos = {}
 async function contextoRol(nombre) {
   if (!contextos[nombre]) {
@@ -217,7 +217,7 @@ try {
       const menuInterno = await anonima.getByRole('link', { name: 'Panel' }).count()
       await ctx2.close()
       if (menuInterno !== 0) throw new Error('menú interno visible sin sesión')
-      if (!texto.includes('Plataforma Herencia')) throw new Error(`texto: ${texto.slice(0, 120)}`)
+      if (!/Plataforma Herencia|ACCESO A LA PLATAFORMA|Entrar/i.test(texto)) throw new Error(`texto: ${texto.slice(0, 120)}`)
       return 'pide inicio de sesión, sin menú interno'
     })
     await caso('ACC-04', '/cuenta', 'estado 2FA visible', 'administrador', 'muestra «Estado: desactivado» y alta disponible', async () => {
@@ -598,7 +598,7 @@ try {
     await page.waitForTimeout(1500)
     const texto = await textoPrincipal(page)
     await page.close()
-    if (!texto.includes('solo para administrador')) throw new Error(`texto: ${texto.slice(0, 140)}`)
+    if (!/solo para (administrador|la administración de plataforma)/i.test(texto)) throw new Error(`texto: ${texto.slice(0, 140)}`)
     return 'UI y API rechazan'
   })
 
@@ -692,7 +692,7 @@ try {
     await page.waitForTimeout(1800)
     const texto = await textoPrincipal(page)
     await page.close()
-    if (!texto.includes('solo para caja o administrador')) throw new Error(`texto: ${texto.slice(0, 140)}`)
+    if (!/solo para caja o (administrador|la administración)/i.test(texto)) throw new Error(`texto: ${texto.slice(0, 140)}`)
     if (texto.includes('Ver caja')) throw new Error('muestra el formulario a recepción')
     return 'formulario oculto y aviso de rol'
   })

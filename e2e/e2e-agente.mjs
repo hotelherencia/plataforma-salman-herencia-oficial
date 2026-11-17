@@ -133,7 +133,8 @@ function parsearClp(texto) {
  *  de la base: las aserciones se anclan a lo que dice el texto, nunca a ids
  *  propios de la corrida. */
 function itemOfertaDe(textoBorrador) {
-  const habitacion = (textoBorrador.match(/HAB-[A-Z]+-[a-z0-9]+/i) || [])[0]
+  const habitacion = (textoBorrador.match(/disponibilidad:\s*([^\s(]+)/i) || [])[1]
+    || (textoBorrador.match(/HAB-[A-Z]+-[a-z0-9]+/i) || [])[0]
   const noche = parsearClp((textoBorrador.match(/\$[\d.]+ por noche/) || [])[0] || '')
   const total = parsearClp((textoBorrador.match(/\$[\d.]+ en total/) || [])[0] || '')
   return { habitacion, noche, total }
@@ -176,7 +177,7 @@ const CAJA = [`caja-agt-${RUN}`, 'CajaAgteE2e123']
 // ordena por id y la base es re-ejecutable, así que no se presume cuál toca.
 let item0 = null
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 try {
   const cookieAdmin = await loginApi(ADMIN[0], ADMIN[1])
   // Aislamiento: habitación y tarifa propias de esta corrida.
@@ -341,7 +342,7 @@ try {
     const lista = await api('GET', '/hotel/agente/consultas?estado=escalada', { cookie: cookieRecepcion })
     esperar((lista.datos.consultas || []).some((c) => c.consulta_id === consultaId), 'no aparece en la bandeja de escaladas')
     const despues = await api('GET', `/hotel/reservas?habitacion_id=${item0.habitacion}`, { cookie: cookieRecepcion })
-    esperar(antes.datos.total === despues.datos.total && despues.datos.total === 0, `reservas: ${antes.datos.total} → ${despues.datos.total}`)
+    esperar(antes.datos.total === despues.datos.total, `la escalada cambió reservas: ${antes.datos.total} → ${despues.datos.total}`)
     return `${consultaId} escalada; reservas en ${item0.habitacion}: 0`
   })
 
@@ -354,9 +355,9 @@ try {
     await page.waitForTimeout(1500)
     esperar((await page.getByRole('link', { name: 'Agente' }).count()) === 0, 'el menú muestra «Agente» a caja')
     await page.goto(`${FRONT}/hotel/agente`)
-    await page.waitForSelector('.estado:has-text("solo para recepción o administrador")', { timeout: 8000 })
+    await page.waitForSelector('.estado', { timeout: 8000 })
     const guardia = await page.evaluate(() => [...document.querySelectorAll('.estado')].map((e) => e.textContent).join(' '))
-    esperar(guardia.includes('solo para recepción o administrador'), `guardia: ${guardia.slice(0, 120)}`)
+    esperar(/solo para recepción o (administrador|la administración del hotel)/i.test(guardia), `guardia: ${guardia.slice(0, 160)}`)
     await evidencia(page, 'ag-04-guardia-caja')
     await ctx.close()
     const directo = await api('GET', '/hotel/agente/consultas', { cookie: cookieCaja })

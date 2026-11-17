@@ -93,7 +93,7 @@ const EN_5 = sumarDias(HOY, 5)
 const EN_7 = sumarDias(HOY, 7)
 const HAB = `HAB-PUB-${RUN}`
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 try {
   const cookieAdmin = await loginApi(ADMIN[0], ADMIN[1])
   // Aislamiento: habitación y tarifa propias de esta corrida.

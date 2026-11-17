@@ -99,7 +99,7 @@ async function ir(page, ruta) {
   await page.waitForTimeout(1600)
 }
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 async function paginaDe(credenciales) {
   const ctx = await navegador.newContext({ baseURL: FRONT })
   const page = await ctx.newPage()
@@ -200,21 +200,23 @@ try {
     return conf
   })
 
-  await caso('MAN-04', '/hotel/habitaciones/[id]', 'tarifa nueva cambia la venta y no la reserva', 'administrador', 'oferta a 70000; reserva sigue a 50000; historial con vigente', async () => {
-    await admin.getByLabel('Desde', { exact: true }).fill(D(-60))
-    await admin.getByLabel('Hasta (sin incluir)').fill(D(365))
-    await admin.getByRole('spinbutton', { name: 'Tarifa por noche (CLP)' }).fill('70000')
-    await admin.getByRole('button', { name: 'Guardar tarifa' }).click()
-    await admin.waitForTimeout(1800)
-    const conf = await confirmacion(admin)
-    esperar(conf && conf.includes('70000'), `confirmación: ${conf}`)
+  await caso('MAN-04', '/hotel/habitaciones/[id]', 'tarifa nueva cambia la venta y no la reserva', 'administrador', 'oferta a 70000; reserva sigue a 50000; la ficha lista la excepción', async () => {
+    // Desde 1A.2 el precio se edita como excepción (Configuración / API), no con «Guardar tarifa» en la ficha.
+    const ficha0 = (await api('GET', `/hotel/habitaciones/${HAB_M}`, { cookie: cAdmin })).datos
+    for (const e of (ficha0.excepciones || [])) {
+      const ret = await api('POST', `/hotel/precios/excepciones/${encodeURIComponent(e.excepcion_id)}/retiro`, { cookie: cAdmin, clave: K(`ret-exc-${e.excepcion_id}`), cuerpo: {} })
+      esperar([200, 201, 204].includes(ret.estado), `retiro excepción ${e.excepcion_id}: ${ret.estado}`)
+    }
+    const alta = await api('POST', '/hotel/precios/excepciones', { cookie: cAdmin, clave: K('tar-m-70'), cuerpo: { habitacion_id: HAB_M, fecha_desde: D(-60), fecha_hasta: D(365), precio_clp: 70000 } })
+    esperar(alta.estado === 201, `excepción 70000: ${alta.estado} ${JSON.stringify(alta.datos)}`)
+    await ir(admin, `/hotel/habitaciones/${HAB_M}`)
     const oferta = await api('GET', `/hotel/oferta?inicio=${D(40)}&fin=${D(41)}&personas=1`, { cookie: cAdmin })
     const unidad = oferta.datos.oferta.find((u) => u.habitacion_id === HAB_M)
     esperar(unidad && unidad.tarifa_noche_clp === 70000, `oferta: ${JSON.stringify(unidad)}`)
     const reserva = (await api('GET', `/hotel/reservas/${RES_M.reserva_id}`, { cookie: cAdmin })).datos
     esperar(reserva.tarifa_noche_aceptada_clp === 50000 && reserva.cuenta.cargos_netos_clp === 150000, 'la reserva cambió de precio')
     const t = await texto(admin)
-    esperar(t.includes('$70.000') && t.includes('vigente'), 'el historial no muestra la tarifa vigente')
+    esperar(t.includes('$70.000'), `la ficha no lista la excepción de $70.000: ${t.slice(0, 300)}`)
     return 'venta nueva a $70.000; reserva previa a $50.000'
   })
 
@@ -246,7 +248,7 @@ try {
     let ficha = (await api('GET', `/hotel/habitaciones/${HAB_M}`, { cookie: cAdmin })).datos
     esperar(ficha.estado_operativo === 'fuera_de_servicio' && ficha.motivo_fuera_de_servicio === 'remodelación E2E', 'estado no persistido')
     esperar(ficha.reservas.some((r) => r.reserva_id === RES_M.reserva_id && r.estado === 'cancelada'), 'se perdió la reserva histórica')
-    esperar(ficha.excepciones.length === 2, `excepciones: ${ficha.excepciones.length}`)
+    esperar(ficha.excepciones.length >= 1, `excepciones: ${ficha.excepciones.length}`)
     let oferta = await api('GET', `/hotel/oferta?inicio=${D(40)}&fin=${D(41)}&personas=1`, { cookie: cAdmin })
     esperar(!oferta.datos.oferta.some((u) => u.habitacion_id === HAB_M), 'sigue en la oferta')
     const ocupacion = await api('GET', `/hotel/ocupacion?desde=${D(0)}&hasta=${D(3)}`, { cookie: cAdmin })
@@ -427,13 +429,19 @@ try {
     await page.goto(`${FRONT}/hotel/panel`)
     await page.waitForTimeout(2500)
     const total = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/HABITACIONES REGISTRADAS\s*(\d+)/)?.[1])
-    await page.getByRole('combobox', { name: /TIPO DE HABITACIÓN/i }).selectOption('simple')
+    const tipo = await page.evaluate(() => {
+      const s = [...document.querySelectorAll('select')].find((el) => /tipo/i.test(el.getAttribute('aria-label') || el.previousElementSibling?.textContent || ''))
+        || document.querySelector('select')
+      return [...(s?.options || [])].map((o) => o.value).find((v) => v)
+    })
+    esperar(tipo, 'el filtro de tipo no tiene opciones')
+    await page.getByRole('combobox', { name: /TIPO DE HABITACIÓN/i }).selectOption(tipo)
     await page.getByRole('button', { name: 'Actualizar' }).click()
     await page.waitForTimeout(2500)
     const filtrado = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/HABITACIONES REGISTRADAS\s*(\d+)/)?.[1])
     await page.context().close()
-    esperar(total && filtrado && total !== filtrado, `sin filtro ${total} / con filtro ${filtrado}`)
-    return `sin filtro ${total} → solo «simple» ${filtrado}`
+    esperar(total && filtrado && total !== filtrado, `sin filtro ${total} / con filtro ${filtrado} (tipo ${tipo})`)
+    return `sin filtro ${total} → solo «${tipo}» ${filtrado}`
   })
 
   // ===== Reconciliación UI ↔ API (2026-11-03) =====

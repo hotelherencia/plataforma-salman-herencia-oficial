@@ -107,7 +107,7 @@ const servidor = await servirLanding()
 const LANDING = `http://127.0.0.1:${servidor.address().port}`
 console.log(`landing en ${LANDING} → front ${FRONT}`)
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 try {
   const ctx = await navegador.newContext({ viewport: { width: 1280, height: 720 } })
   await ctx.addInitScript((base) => {

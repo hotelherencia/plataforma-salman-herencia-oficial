@@ -15,6 +15,7 @@
  */
 
 import { chromium } from 'playwright'
+import { irDesdeMenu } from './ayudas-menu.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -94,7 +95,7 @@ async function loginUi(page, [usuario, clave]) {
 const alerta = (page) => page.evaluate(() => document.querySelector('[role=alert]')?.textContent || null)
 const confirmacion = (page) => page.evaluate(() => document.querySelector('.operacion-confirmada')?.textContent || null)
 
-const navegador = await chromium.launch()
+const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 async function paginaDe(credenciales) {
   const ctx = await navegador.newContext({ baseURL: FRONT })
   const page = await ctx.newPage()
@@ -139,13 +140,7 @@ try {
   }
 
   await caso('RV-01', '/hotel/reserva', 'desde el menú, reservar una habitación retirada', 'recepcion', '409: alerta «fuera del cupo»; la API no registra reserva', async () => {
-    await recepcion.goto(`${FRONT}/`)
-    await recepcion.waitForTimeout(1200)
-    await recepcion.getByRole('link', { name: 'Hotel', exact: true }).first().click()
-    await recepcion.waitForTimeout(1400)
-    await recepcion.getByRole('link', { name: 'Nueva reserva', exact: true }).click()
-    await recepcion.waitForTimeout(1400)
-    esperar(recepcion.url().endsWith('/hotel/reserva'), `menú llevó a ${recepcion.url()}`)
+    await irDesdeMenu(recepcion, 'Nueva reserva', '/hotel/reserva', FRONT)
     await llenarYConfirmar(HAB_R, 'Huésped Retirada')
     const a = await alerta(recepcion)
     await evidencia(recepcion, 'retirada-rechazada')
