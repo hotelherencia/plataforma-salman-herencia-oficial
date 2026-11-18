@@ -7,7 +7,9 @@ import { ETIQUETAS_ROL, ROLES, esAdminPlataforma } from '../../../lib/roles'
 
 export default function Usuarios() {
   const sesion = useSesion()
-  const [alta, setAlta] = useState({ nombre: '', rol: 'recepcion', clave: '' })
+  const [alta, setAlta] = useState({ nombre: '', rol: 'recepcion', clave: '', email: '' })
+  // #352: vincular el correo de Google de un usuario existente.
+  const [vinculo, setVinculo] = useState({ id: '', email: '' })
   const [claveCambio, setClaveCambio] = useState({ id: '', clave: '' })
   const [revocacionId, setRevocacionId] = useState('')
   const [bajaId, setBajaId] = useState('')
@@ -19,6 +21,7 @@ export default function Usuarios() {
   const [claveCambioOp, renovarClaveCambio] = useClaveOperacion()
   const [claveRevocacion, renovarClaveRevocacion] = useClaveOperacion()
   const [claveBaja, renovarClaveBaja] = useClaveOperacion()
+  const [claveVinculo, renovarClaveVinculo] = useClaveOperacion()
 
   const esAdmin = sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol)
 
@@ -62,6 +65,7 @@ export default function Usuarios() {
     setClaveCambio((c) => ({ ...c, id }))
     setRevocacionId(id)
     setBajaId(id)
+    setVinculo((v) => ({ ...v, id }))
   }
 
   if (sesion.fase === 'ok' && !esAdminPlataforma(sesion.usuario.rol)) {
@@ -87,7 +91,7 @@ export default function Usuarios() {
       </section>
       <section className="tarjeta">
         <h2>Alta de usuario</h2>
-        <form className="formulario" onSubmit={(e) => postear('/usuarios', alta, claveAlta, renovarClaveAlta, e)}>
+        <form className="formulario" onSubmit={(e) => postear('/usuarios', { nombre: alta.nombre, rol: alta.rol, clave: alta.clave, ...(alta.email.trim() ? { email: alta.email.trim() } : {}) }, claveAlta, renovarClaveAlta, e)}>
           <Campo etiqueta="Nombre" value={alta.nombre} onChange={(e) => setAlta({ ...alta, nombre: e.target.value })} />
           <CampoSelect etiqueta="Rol" value={alta.rol} onChange={(e) => setAlta({ ...alta, rol: e.target.value })}>
             {ROLES.map((rol) => <option key={rol} value={rol}>{ETIQUETAS_ROL[rol]}</option>)}
@@ -97,6 +101,8 @@ export default function Usuarios() {
             usuarios, seguridad y ajustes del sistema (tasa de IVA). Todo rol administrativo exige doble factor.
           </p>
           <CampoClave etiqueta="Clave" autoComplete="new-password" value={alta.clave} onChange={(e) => setAlta({ ...alta, clave: e.target.value })} />
+          <Campo etiqueta="Correo de Google (opcional)" type="email" autoComplete="off" value={alta.email} onChange={(e) => setAlta({ ...alta, email: e.target.value })} />
+          <p className="nota-chica">Con el correo, el usuario puede entrar con «Continuar con Google». Los roles administrativos enrolan el doble factor en el primer ingreso.</p>
           <button type="submit" className="boton-primario">Crear usuario</button>
         </form>
         <p className="nota-clave">Clave de idempotencia: <code>{claveAlta}</code></p>
@@ -110,6 +116,15 @@ export default function Usuarios() {
           <button type="submit" className="boton-primario">Cambiar clave</button>
         </form>
         <p className="nota-clave">Clave de idempotencia: <code>{claveCambioOp}</code></p>
+      </section>
+      <section className="tarjeta">
+        <h2>Correo de Google (vincular o quitar)</h2>
+        <form className="formulario" onSubmit={(e) => postear(`/usuarios/${vinculo.id}/email`, { email: vinculo.email.trim() || null }, claveVinculo, renovarClaveVinculo, e)}>
+          <Campo etiqueta="Usuario (id)" value={vinculo.id} onChange={(e) => setVinculo({ ...vinculo, id: e.target.value })} />
+          <Campo etiqueta="Correo de Google (vacío = quitar)" type="email" autoComplete="off" value={vinculo.email} onChange={(e) => setVinculo({ ...vinculo, email: e.target.value })} />
+          <button type="submit" className="boton-primario" disabled={enviando}>Guardar correo</button>
+        </form>
+        <p className="nota-clave">Clave de idempotencia: <code>{claveVinculo}</code></p>
       </section>
       <section className="tarjeta">
         <h2>Revocación de sesiones (sobre otro usuario)</h2>
