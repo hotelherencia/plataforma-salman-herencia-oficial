@@ -143,6 +143,15 @@ Plataforma Hotel Herencia» con 326 ítems (2026-11-05): corpus documental
 cerrado, decisiones del propietario abiertas y el backlog de construcción
 V1 en `backlog/v1/` — ver `backlog/v1/indice.md` para el estado real.
 
+**Hallazgos de operación del propietario (2026-11-18, épica #368):**
+
+- Doce entregas en producción, PR #370 a #382, con migraciones 0026 a 0031.
+- La landing enlaza «Reservar este tipo» (landinpage#2).
+- Las decisiones del día son #348 (tope por cliente) y #355 (correo configurable y revisión cada 15 minutos).
+- Siguen pendientes #352 (alta de la cuenta administradora por el propietario), #381 (front sin textos técnicos y panel con gráficas) y la épica #358.
+
+Registro completo en `backlog/hallazgos-2026-11-18.md`; números vigentes en `docs/arquitectura/estado-v1.md`; guía de buzones en `docs/operacion/correo.md`.
+
 ## Reglas y validación
 
 Ver `AGENTS.md` (documentación de negocio en castellano; construcción autorizada
