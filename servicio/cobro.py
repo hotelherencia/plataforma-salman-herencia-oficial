@@ -8,7 +8,7 @@
 - Una reserva ajena o inexistente responde 403 sin revelar cuál es el caso.
 """
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import psycopg
 from psycopg.errors import ExclusionViolation
@@ -190,7 +190,8 @@ def reasignar(
     ).fetchone()
     if fila is None:
         raise ReasignacionInvalida(f"la habitación {destino} no existe")
-    if fila[2] or fila[0] in reservas_db.ESTADOS_NO_VENDIBLES:
+    (inicio, fin) = conexion.execute("SELECT inicio, fin FROM reservas WHERE id = %s", (reserva_id,)).fetchone()
+    if fila[0] in reservas_db.ESTADOS_NO_VENDIBLES or reservas_db.mantenimiento_solapa(conexion, destino, inicio, fin):
         raise ReasignacionInvalida(f"la habitación {destino} está fuera del cupo (mantenimiento o bloqueo)")
     if personas is not None and fila[3] < personas:
         raise ReasignacionInvalida(f"la habitación {destino} admite hasta {fila[3]} personas")
@@ -265,7 +266,8 @@ def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, docu
         "SELECT estado_operativo, estado_preparacion, mantenimiento FROM habitaciones WHERE id = %s FOR UPDATE",
         (_reserva[1],),
     ).fetchone()
-    if habitacion[2]:
+    hoy = date.today()
+    if reservas_db.mantenimiento_solapa(conexion, _reserva[1], hoy, hoy + timedelta(days=1)):
         raise HabitacionNoLista("la habitación tiene mantenimiento abierto")
     # Espejo del dominio (check_in): OCUPADA no bloquea — el turnover de una
     # reserva no solapada está permitido (DECISIÓN 2026-10-30). Solo bloquean
@@ -426,7 +428,10 @@ def salida(conexion: psycopg.Connection, empresa_id: str, reserva_id: str) -> di
 
 # --- Operación de la habitación y de la cuenta (spec-api-v1, 2026-10-30) ---
 
-ROLES_LIMPIEZA = roles.con_admin_hotel("recepcion")
+ROLES_LIMPIEZA = roles.con_admin_hotel("recepcion", roles.ASEO)
+ROLES_VISTA_ASEO = roles.con_admin_hotel("recepcion", roles.ASEO)
+ROLES_VERIFICACION_ASEO = roles.con_admin_hotel()
+ROLES_OBSERVACION = roles.con_admin_hotel("recepcion")
 ROLES_MANTENIMIENTO = roles.con_admin_hotel()
 ROLES_CANCELACION = roles.con_admin_hotel("recepcion")
 ROLES_CARGO = ROLES_PAGO_MANUAL
@@ -444,13 +449,14 @@ def _habitacion_o_403(conexion: psycopg.Connection, habitacion_id: str):
     return fila
 
 
-def completar_limpieza(conexion: psycopg.Connection, habitacion_id: str) -> dict:
-    """Completa la limpieza pendiente y, si la unidad estaba sucia, la deja limpia."""
+def completar_limpieza(conexion: psycopg.Connection, habitacion_id: str, actor: str | None = None) -> dict:
+    """Completa la limpieza pendiente y, si la unidad estaba sucia, la deja
+    limpia. #362: registra quién la hizo (puede haber varias personas de aseo)."""
     _habitacion_o_403(conexion, habitacion_id)
     actualizadas = conexion.execute(
-        "UPDATE tareas_operativas SET estado = 'completada', completada_en = now() "
+        "UPDATE tareas_operativas SET estado = 'completada', completada_en = now(), completada_por = %s "
         "WHERE habitacion_id = %s AND tipo = 'limpieza' AND estado = 'pendiente'",
-        (habitacion_id,),
+        (actor, habitacion_id),
     ).rowcount
     conexion.execute(
         "UPDATE habitaciones SET estado_preparacion = 'limpia' "
@@ -463,11 +469,142 @@ def completar_limpieza(conexion: psycopg.Connection, habitacion_id: str) -> dict
     return {"habitacion_id": habitacion_id, "estado_preparacion": preparacion, "tareas_completadas": actualizadas}
 
 
-def fijar_mantenimiento(conexion: psycopg.Connection, habitacion_id: str, abierto: bool) -> dict:
+class OperacionAseoInvalida(Exception):
+    """409 (#363): la limpieza no está para verificar u la observación no existe."""
+
+
+def vista_aseo(conexion: psycopg.Connection, hoy: date) -> dict:
+    """#362: lista para el personal de aseo. Primero las habitaciones con
+    limpieza pendiente; luego el estado de cada una (ocupada, llega o sale
+    hoy, libre). Sin nombres ni datos del huésped ni precios."""
+    filas = conexion.execute(
+        "SELECT h.id, h.tipo, h.estado_operativo, h.estado_preparacion, "
+        f"{reservas_db.SQL_MANTENIMIENTO_SOLAPA}, "
+        "(SELECT t.id FROM tareas_operativas t WHERE t.habitacion_id = h.id AND t.tipo = 'limpieza' "
+        " AND t.estado = 'pendiente' ORDER BY t.creado_en LIMIT 1), "
+        "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia'), "
+        "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'confirmada' AND r.inicio = %s), "
+        "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia' AND r.fin = %s) "
+        "FROM habitaciones h ORDER BY h.id",
+        (hoy, hoy + timedelta(days=1), hoy, hoy),
+    ).fetchall()
+    observaciones: dict[str, list] = {}
+    for o in conexion.execute(
+        "SELECT id, habitacion_id, texto, autor, creado_en FROM observaciones_habitacion "
+        "WHERE atendida_en IS NULL ORDER BY creado_en"
+    ).fetchall():
+        observaciones.setdefault(o[1], []).append(
+            {"observacion_id": o[0], "texto": o[2], "autor": o[3], "registrada_en": o[4].isoformat()})
+    ultimas: dict[str, dict] = {}
+    for t in conexion.execute(
+        "SELECT DISTINCT ON (habitacion_id) habitacion_id, id, completada_en, completada_por, verificacion, "
+        "verificada_por, observacion FROM tareas_operativas WHERE tipo = 'limpieza' AND estado = 'completada' "
+        "ORDER BY habitacion_id, completada_en DESC"
+    ).fetchall():
+        ultimas[t[0]] = {"tarea_id": t[1], "completada_en": t[2].isoformat() if t[2] else None,
+                         "completada_por": t[3], "verificacion": t[4], "verificada_por": t[5], "observacion": t[6]}
+    habitaciones = []
+    for f in filas:
+        if f[6]:
+            situacion = "sale_hoy" if f[8] else "ocupada"
+        elif f[7]:
+            situacion = "llega_hoy"
+        else:
+            situacion = "libre"
+        habitaciones.append({
+            "habitacion_id": f[0], "tipo": f[1], "estado_operativo": f[2], "estado_preparacion": f[3],
+            "mantenimiento_hoy": bool(f[4]), "tarea_limpieza_id": f[5], "limpieza_pendiente": f[5] is not None,
+            "situacion": situacion, "observaciones": observaciones.get(f[0], []),
+            "ultima_limpieza": ultimas.get(f[0]),
+        })
+    habitaciones.sort(key=lambda h: (not h["limpieza_pendiente"], h["situacion"] != "llega_hoy", h["habitacion_id"]))
+    por_verificar = [h["habitacion_id"] for h in habitaciones
+                     if h["ultima_limpieza"] and h["ultima_limpieza"]["verificacion"] is None]
+    return {"fecha": hoy.isoformat(), "habitaciones": habitaciones, "por_verificar": por_verificar,
+            "pendientes": sum(1 for h in habitaciones if h["limpieza_pendiente"])}
+
+
+def verificar_limpieza(conexion: psycopg.Connection, tarea_id: str, aprobada: bool,
+                       observacion: str | None, actor: str) -> dict:
+    """#363: la administración verifica la limpieza. Rechazada → la unidad
+    vuelve a sucia con una tarea nueva y la observación queda para aseo."""
+    tarea = conexion.execute(
+        "SELECT habitacion_id, estado, verificacion FROM tareas_operativas "
+        "WHERE id = %s AND tipo = 'limpieza' FOR UPDATE",
+        (tarea_id,),
+    ).fetchone()
+    if tarea is None or tarea[1] != "completada":
+        raise OperacionAseoInvalida("esa limpieza no existe o aún no se completa")
+    if tarea[2] is not None:
+        raise OperacionAseoInvalida(f"esa limpieza ya fue {tarea[2]}")
+    texto = (observacion or "").strip() or None
+    if not aprobada and not texto:
+        raise OperacionAseoInvalida("al rechazar, deja una observación para aseo")
+    habitacion_id = tarea[0]
+    conexion.execute(
+        "UPDATE tareas_operativas SET verificacion = %s, verificada_por = %s, verificada_en = now(), observacion = %s "
+        "WHERE id = %s",
+        ("verificada" if aprobada else "rechazada", actor, texto, tarea_id),
+    )
+    if aprobada:
+        conexion.execute(
+            "UPDATE habitaciones SET estado_preparacion = 'inspeccionada' WHERE id = %s AND estado_preparacion = 'limpia'",
+            (habitacion_id,),
+        )
+    else:
+        conexion.execute("UPDATE habitaciones SET estado_preparacion = 'sucia' WHERE id = %s", (habitacion_id,))
+        conexion.execute(
+            "INSERT INTO tareas_operativas (id, habitacion_id, tipo, estado) VALUES (%s, %s, 'limpieza', 'pendiente')",
+            (f"TSK-{uuid.uuid4().hex[:12]}", habitacion_id),
+        )
+        agregar_observacion(conexion, habitacion_id, f"Limpieza rechazada: {texto}", actor)
+    (preparacion,) = conexion.execute(
+        "SELECT estado_preparacion FROM habitaciones WHERE id = %s", (habitacion_id,)
+    ).fetchone()
+    return {"tarea_id": tarea_id, "habitacion_id": habitacion_id,
+            "verificacion": "verificada" if aprobada else "rechazada", "estado_preparacion": preparacion}
+
+
+def agregar_observacion(conexion: psycopg.Connection, habitacion_id: str, texto: str, autor: str) -> dict:
+    """#363: nota de la administración para aseo en una habitación."""
+    _habitacion_o_403(conexion, habitacion_id)
+    texto = (texto or "").strip()
+    if not texto:
+        raise OperacionAseoInvalida("la observación no puede ir vacía")
+    observacion_id = f"OBS-{uuid.uuid4().hex[:12]}"
+    conexion.execute(
+        "INSERT INTO observaciones_habitacion (id, habitacion_id, texto, autor) VALUES (%s, %s, %s, %s)",
+        (observacion_id, habitacion_id, texto[:500], autor),
+    )
+    return {"observacion_id": observacion_id, "habitacion_id": habitacion_id, "texto": texto[:500], "autor": autor}
+
+
+def atender_observacion(conexion: psycopg.Connection, habitacion_id: str, observacion_id: str, actor: str) -> dict:
+    fila = conexion.execute(
+        "UPDATE observaciones_habitacion SET atendida_en = now(), atendida_por = %s "
+        "WHERE id = %s AND habitacion_id = %s AND atendida_en IS NULL RETURNING id",
+        (actor, observacion_id, habitacion_id),
+    ).fetchone()
+    if fila is None:
+        raise OperacionAseoInvalida("esa observación no existe o ya fue atendida")
+    return {"observacion_id": observacion_id, "habitacion_id": habitacion_id, "atendida_por": actor}
+
+
+def fijar_mantenimiento(conexion: psycopg.Connection, habitacion_id: str, abierto: bool,
+                        desde: date | None = None, hasta: date | None = None) -> dict:
+    """#349: el mantenimiento puede llevar rango de fechas; solo saca la unidad
+    del cupo en ese rango (sin fechas, solo el día en curso)."""
     _habitacion_o_403(conexion, habitacion_id)
     (actual,) = conexion.execute(
         "SELECT mantenimiento FROM habitaciones WHERE id = %s", (habitacion_id,)
     ).fetchone()
+    if abierto:
+        # Sin fecha, el mantenimiento empieza hoy (y sin término bloquea hasta hoy).
+        desde = desde or date.today()
+        conexion.execute(
+            "UPDATE habitaciones SET mantenimiento_desde = %s, mantenimiento_hasta = %s WHERE id = %s",
+            (desde, hasta, habitacion_id),
+        )
     if abierto and not actual:
         conexion.execute("UPDATE habitaciones SET mantenimiento = true WHERE id = %s", (habitacion_id,))
         conexion.execute(
@@ -475,13 +612,19 @@ def fijar_mantenimiento(conexion: psycopg.Connection, habitacion_id: str, abiert
             (f"TSK-{uuid.uuid4().hex[:12]}", habitacion_id),
         )
     elif not abierto and actual:
-        conexion.execute("UPDATE habitaciones SET mantenimiento = false WHERE id = %s", (habitacion_id,))
+        conexion.execute(
+            "UPDATE habitaciones SET mantenimiento = false, mantenimiento_desde = NULL, mantenimiento_hasta = NULL "
+            "WHERE id = %s",
+            (habitacion_id,),
+        )
         conexion.execute(
             "UPDATE tareas_operativas SET estado = 'completada', completada_en = now() "
             "WHERE habitacion_id = %s AND tipo = 'mantenimiento' AND estado = 'pendiente'",
             (habitacion_id,),
         )
-    return {"habitacion_id": habitacion_id, "mantenimiento": abierto}
+    return {"habitacion_id": habitacion_id, "mantenimiento": abierto,
+            "desde": desde.isoformat() if abierto and desde else None,
+            "hasta": hasta.isoformat() if abierto and hasta else None}
 
 
 def asentar_cargo(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, concepto: str, monto_clp: int) -> dict:

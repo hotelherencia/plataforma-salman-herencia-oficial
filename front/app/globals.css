@@ -2499,3 +2499,25 @@ a.boton-primario {
 .lista-simple {
   padding-left: 1.2rem;
 }
+
+/* #362/#363: aseo */
+.lista-aseo {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.tarjeta-aseo.pendiente {
+  border-left: 4px solid var(--alerta, #b45309);
+}
+.aseo-cabecera,
+.acciones-aseo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.acciones-aseo .entrada {
+  flex: 1 1 12rem;
+  min-width: 0;
+}

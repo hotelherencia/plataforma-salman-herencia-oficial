@@ -7,6 +7,7 @@ los módulos de rutas no necesitan capturar la fábrica.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Iterator
 
 import psycopg
@@ -34,6 +35,17 @@ def conexion(request: Request) -> Iterator[psycopg.Connection]:
         )
     with psycopg.connect(database_url) as conn:
         yield conn
+
+
+# #362: el rol aseo solo alcanza estas rutas (lista blanca); el resto → 403.
+RUTAS_ASEO = tuple(re.compile(p) for p in (
+    r"^/sesion$",
+    r"^/cuenta(/.*)?$",
+    r"^/usuarios/[^/]+/clave$",
+    r"^/hotel/aseo$",
+    r"^/hotel/habitaciones/[^/]+/limpieza$",
+    r"^/hotel/habitaciones/[^/]+/observaciones/[^/]+/atendida$",
+))
 
 
 def requerir_sesion(
@@ -84,6 +96,8 @@ def requerir_sesion(
                 headers={"set-cookie": borrado.headers["set-cookie"]},
             )
         raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
+    if sesion.rol == roles.ASEO and not any(p.match(request.url.path) for p in RUTAS_ASEO):
+        raise seguridad.ErrorPermiso("el rol aseo no tiene acceso a esta operación")
     return sesion
 
 

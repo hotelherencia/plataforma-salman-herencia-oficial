@@ -44,7 +44,8 @@ def _habitaciones(
     solo_inventario_real: bool = False,
 ) -> list[dict]:
     consulta = (
-        "SELECT id, tipo, capacidad, estado_operativo, estado_preparacion, mantenimiento, creado_en "
+        "SELECT id, tipo, capacidad, estado_operativo, estado_preparacion, mantenimiento, creado_en, "
+        "mantenimiento_desde, mantenimiento_hasta "
         "FROM habitaciones"
     )
     parametros: list = []
@@ -68,6 +69,8 @@ def _habitaciones(
             "mantenimiento": f[5],
             "en_servicio": f[3] != "fuera_de_servicio",
             "registrada_el": _fecha_local(f[6]),
+            "mantenimiento_desde": f[7],
+            "mantenimiento_hasta": f[8],
         }
         for f in conexion.execute(consulta + " ORDER BY id", parametros).fetchall()
     ]
@@ -109,8 +112,19 @@ def _contiene(reserva: dict, noche: date) -> bool:
     return reserva["inicio"] <= noche < reserva["fin_efectivo"]
 
 
-def _motivo_no_vendible(habitacion: dict) -> str | None:
-    if habitacion["mantenimiento"]:
+def _mantenimiento_en(habitacion: dict, noche: date, hoy: date) -> bool:
+    """#349: misma regla que reservas.SQL_MANTENIMIENTO_SOLAPA, por noche."""
+    if not habitacion["mantenimiento"]:
+        return False
+    desde = habitacion.get("mantenimiento_desde")
+    if desde is None:
+        return True
+    hasta = habitacion.get("mantenimiento_hasta") or (max(hoy, desde) + timedelta(days=1))
+    return desde <= noche < hasta
+
+
+def _motivo_no_vendible(habitacion: dict, noche: date | None = None, hoy: date | None = None) -> str | None:
+    if habitacion["mantenimiento"] and (noche is None or _mantenimiento_en(habitacion, noche, hoy or noche)):
         return "mantenimiento"
     if habitacion["estado_operativo"] in ESTADOS_NO_VENDIBLES:
         return habitacion["estado_operativo"]
@@ -135,7 +149,6 @@ def ocupacion(
     salida = []
     for h in habitaciones:
         propias = [r for r in reservas if r["habitacion_id"] == h["habitacion_id"]]
-        motivo = _motivo_no_vendible(h)
         celdas = []
         for noche in noches:
             celda: dict = {"fecha": noche.isoformat()}
@@ -151,8 +164,8 @@ def ocupacion(
                     celda.update(estado="finalizada", reserva_id=finalizada["reserva_id"])
                 else:
                     celda["estado"] = "sin_ocupar"
-            elif motivo:
-                celda.update(estado="no_vendible", motivo=motivo)
+            elif (motivo_noche := _motivo_no_vendible(h, noche, hoy)):
+                celda.update(estado="no_vendible", motivo=motivo_noche)
                 resumen[noche]["no_vendibles"] += 1
             elif (h["habitacion_id"], noche) not in tarifas:
                 celda["estado"] = "sin_tarifa"
@@ -261,13 +274,14 @@ def indicadores(
         "habitaciones_total": _indicador(len(habitaciones), "unidades", "habitaciones registradas", hab),
         "habitaciones_ocupadas": _indicador(contar(lambda h: h["estado_operativo"] == "ocupada"), "unidades",
                                             "estado_operativo = ocupada", hab),
-        "habitaciones_vendibles": _indicador(contar(lambda h: _motivo_no_vendible(h) is None), "unidades",
-                                             "sin mantenimiento y fuera de bloqueada/fuera_de_servicio", hab),
+        "habitaciones_vendibles": _indicador(contar(lambda h: _motivo_no_vendible(h, hoy, hoy) is None), "unidades",
+                                             "sin mantenimiento hoy y fuera de bloqueada/fuera_de_servicio", hab),
         "habitaciones_sucias": _indicador(contar(lambda h: h["estado_preparacion"] == "sucia"), "unidades",
                                           "estado_preparacion = sucia", hab),
         "limpiezas_pendientes": _indicador(limpiezas, "tareas", "tareas de limpieza pendientes",
                                            "tareas_operativas"),
-        "en_mantenimiento": _indicador(contar(lambda h: h["mantenimiento"]), "unidades", "mantenimiento = true", hab),
+        "en_mantenimiento": _indicador(contar(lambda h: _mantenimiento_en(h, hoy, hoy)), "unidades",
+                                       "mantenimiento vigente hoy (#349)", hab),
         "fuera_de_servicio": _indicador(contar(lambda h: h["estado_operativo"] == "fuera_de_servicio"), "unidades",
                                         "estado_operativo = fuera_de_servicio", hab),
     }

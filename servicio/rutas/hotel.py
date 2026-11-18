@@ -28,7 +28,7 @@ from .. import seguridad
 from . import comun
 from .modelos import (
     CargoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
-    PagoIn, PATRON_ID_HABITACION, ReasignacionIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
+    ObservacionIn, PagoIn, PATRON_ID_HABITACION, ReasignacionIn, VerificacionAseoIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
 
@@ -484,6 +484,90 @@ def reasignar_habitacion(
     conexion.commit()
     return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
+@router.get("/hotel/aseo")
+def ver_aseo(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """#362: habitaciones por limpiar y estado de cada una (rol aseo incluido)."""
+    comun.exigir_rol(sesion, cobro.ROLES_VISTA_ASEO)
+    return cobro.vista_aseo(conexion, date.today())
+
+
+def _operacion_aseo(conexion, sesion, idempotency_key, cuerpo, funcion, accion, recurso) -> JSONResponse:
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = funcion()
+        except cobro.RecursoAjenoOInexistente as error:
+            raise seguridad.ErrorPermiso(str(error)) from error
+        except cobro.OperacionAseoInvalida as error:
+            return 409, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, accion, recurso, "ok")
+        return 200, resultado
+
+    try:
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+
+@router.post("/hotel/limpiezas/{tarea_id}/verificacion")
+def verificar_limpieza(
+    tarea_id: str,
+    verificacion: VerificacionAseoIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#363: la administración verifica (o rechaza con observación) una limpieza."""
+    comun.exigir_rol(sesion, cobro.ROLES_VERIFICACION_ASEO)
+    cuerpo = {"operacion": "verificacion", "tarea_id": tarea_id, **json.loads(verificacion.model_dump_json())}
+    return _operacion_aseo(
+        conexion, sesion, idempotency_key, cuerpo,
+        lambda: cobro.verificar_limpieza(conexion, tarea_id, verificacion.aprobada, verificacion.observacion, sesion.nombre),
+        "limpieza_verificacion", tarea_id,
+    )
+
+
+@router.post("/hotel/habitaciones/{habitacion_id}/observaciones")
+def observar_habitacion(
+    habitacion_id: str,
+    observacion: ObservacionIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#363: nota para el personal de aseo en una habitación."""
+    comun.exigir_rol(sesion, cobro.ROLES_OBSERVACION)
+    cuerpo = {"operacion": "observacion", "habitacion_id": habitacion_id, "texto": observacion.texto}
+    return _operacion_aseo(
+        conexion, sesion, idempotency_key, cuerpo,
+        lambda: cobro.agregar_observacion(conexion, habitacion_id, observacion.texto, sesion.nombre),
+        "observacion_aseo", habitacion_id,
+    )
+
+
+@router.post("/hotel/habitaciones/{habitacion_id}/observaciones/{observacion_id}/atendida")
+def atender_observacion(
+    habitacion_id: str,
+    observacion_id: str,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, cobro.ROLES_VISTA_ASEO)
+    cuerpo = {"operacion": "observacion_atendida", "habitacion_id": habitacion_id, "observacion_id": observacion_id}
+    return _operacion_aseo(
+        conexion, sesion, idempotency_key, cuerpo,
+        lambda: cobro.atender_observacion(conexion, habitacion_id, observacion_id, sesion.nombre),
+        "observacion_atendida", observacion_id,
+    )
+
+
 @router.post("/hotel/reservas/{reserva_id}/salida")
 def check_out(
     reserva_id: str,
@@ -566,7 +650,7 @@ def completar_limpieza_habitacion(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.completar_limpieza(conexion, habitacion_id)
+            resultado = cobro.completar_limpieza(conexion, habitacion_id, actor=sesion.nombre)
         except cobro.RecursoAjenoOInexistente as error:
             raise seguridad.ErrorPermiso(str(error)) from error
         seguridad.auditar(conexion, sesion.nombre, "limpieza", habitacion_id, "completada")
@@ -593,7 +677,8 @@ def fijar_mantenimiento_habitacion(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.fijar_mantenimiento(conexion, habitacion_id, cuerpo_mantenimiento.abierto)
+            resultado = cobro.fijar_mantenimiento(conexion, habitacion_id, cuerpo_mantenimiento.abierto,
+                                                  cuerpo_mantenimiento.desde, cuerpo_mantenimiento.hasta)
         except cobro.RecursoAjenoOInexistente as error:
             raise seguridad.ErrorPermiso(str(error)) from error
         seguridad.auditar(

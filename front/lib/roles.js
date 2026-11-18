@@ -7,7 +7,7 @@
 //   ajustes del sistema como la tasa de IVA).
 // - administrador: rol histórico = ambas administraciones.
 
-export const ROLES = ['administrador', 'admin_hotel', 'admin_plataforma', 'recepcion', 'caja']
+export const ROLES = ['administrador', 'admin_hotel', 'admin_plataforma', 'recepcion', 'caja', 'aseo']
 
 export const ETIQUETAS_ROL = {
   administrador: 'Administrador (hotel y plataforma)',
@@ -15,6 +15,7 @@ export const ETIQUETAS_ROL = {
   admin_plataforma: 'Administrador de plataforma',
   recepcion: 'Recepción',
   caja: 'Caja',
+  aseo: 'Aseo',
 }
 
 export function esAdminHotel(rol) {
@@ -33,6 +34,16 @@ export function exigeDobleFactor(rol) {
 /** Recepción o administración del hotel (bandejas, cancelación, limpieza). */
 export function gestionaRecepcion(rol) {
   return rol === 'recepcion' || esAdminHotel(rol)
+}
+
+/** #362: personal de aseo; solo ve /hotel/aseo. */
+export function esAseo(rol) {
+  return rol === 'aseo'
+}
+
+/** Quién ve la lista de aseo (aseo, recepción o administración del hotel). */
+export function veAseo(rol) {
+  return esAseo(rol) || gestionaRecepcion(rol)
 }
 
 export function etiquetaRol(rol) {
