@@ -57,6 +57,20 @@ class Configuracion:
     whatsapp_verify_token: str | None = None
     whatsapp_phone_number_id: str | None = None
     recaptcha_secret_key: str | None = None
+    # #353: avisos al administrador. Cada canal se enciende solo con su
+    # configuración completa; sin ella queda apagado (la solicitud se guarda igual).
+    aviso_correo_destino: str | None = None
+    smtp_host: str | None = None
+    smtp_puerto: int = 587
+    smtp_usuario: str | None = None
+    smtp_clave: str | None = None
+    smtp_remitente: str | None = None
+    aviso_whatsapp_destino: str | None = None
+    whatsapp_access_token: str | None = None
+    aviso_whatsapp_plantilla: str | None = None
+    aviso_whatsapp_idioma: str = "es"
+    # Reintentos periódicos del despachador (0 = sin hilo; las pruebas lo usan).
+    avisos_intervalo_segundos: int = 0
     # Titular real (V1-ISSUE-26 / #314). Con EMPRESA_TITULAR=1 o EMPRESA_ID /
     # EMPRESA_NOMBRE el núcleo deja de ser EMP-SINTETICA-001.
     empresa_titular: bool = False
@@ -114,6 +128,17 @@ def cargar_desde_entorno() -> Configuracion:
         whatsapp_verify_token=os.environ.get("WHATSAPP_VERIFY_TOKEN"),
         whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID"),
         recaptcha_secret_key=os.environ.get("RECAPTCHA_SECRET_KEY") or None,
+        aviso_correo_destino=os.environ.get("AVISO_CORREO_DESTINO") or None,
+        smtp_host=os.environ.get("SMTP_HOST") or None,
+        smtp_puerto=int(os.environ.get("SMTP_PUERTO") or "587"),
+        smtp_usuario=os.environ.get("SMTP_USUARIO") or None,
+        smtp_clave=os.environ.get("SMTP_CLAVE") or None,
+        smtp_remitente=os.environ.get("SMTP_REMITENTE") or None,
+        aviso_whatsapp_destino=os.environ.get("AVISO_WHATSAPP_DESTINO") or None,
+        whatsapp_access_token=os.environ.get("WHATSAPP_ACCESS_TOKEN") or None,
+        aviso_whatsapp_plantilla=os.environ.get("AVISO_WHATSAPP_PLANTILLA") or None,
+        aviso_whatsapp_idioma=os.environ.get("AVISO_WHATSAPP_IDIOMA") or "es",
+        avisos_intervalo_segundos=int(os.environ.get("AVISOS_INTERVALO_SEGUNDOS") or "60"),
         empresa_titular=os.environ.get("EMPRESA_TITULAR", "0") == "1",
         empresa_id=os.environ.get("EMPRESA_ID") or None,
         empresa_nombre=os.environ.get("EMPRESA_NOMBRE") or None,

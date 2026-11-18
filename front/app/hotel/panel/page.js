@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
+import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
+import { gestionaRecepcion } from '../../../lib/roles'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -64,6 +66,7 @@ function Tarjeta({ titulo, indicador, alerta, valor }) {
 
 export default function Panel() {
   const sesion = useSesion()
+  const solicitudesPendientes = useContadorSolicitudes(sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol))
   const [filtros, setFiltros] = useState({ desde: '', hasta: '', tipo: '' })
   const [tipos, setTipos] = useState([])
   const [datos, setDatos] = useState(null)
@@ -149,6 +152,12 @@ export default function Panel() {
             {datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}
           </p>
 
+          {solicitudesPendientes > 0 && (
+            <p className="estado" role="status" data-solicitudes-pendientes>
+              <a href="/hotel/solicitudes">{solicitudesPendientes} solicitud(es) de reserva por responder</a>
+              <Insignia valor={solicitudesPendientes} />
+            </p>
+          )}
           <section className="tarjeta" aria-label="Situación de hoy">
             <h2>Situación de hoy</h2>
             <div className="kpi-rejilla">

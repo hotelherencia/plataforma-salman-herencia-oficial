@@ -249,6 +249,12 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         )
     else:
         app.state.mensajeria = None
+    # #353: despachador de avisos al administrador (apagado sin canales).
+    from .avisos import Despachador, canales_desde_config
+    app.state.avisos = Despachador(canales_desde_config(configuracion),
+                                   configuracion.database_url if configuracion else None)
+    if configuracion is not None and not configuracion.en_vercel:
+        app.state.avisos.iniciar(configuracion.avisos_intervalo_segundos)
     app.state.estados_oauth = google_oidc.EstadosOAuth()
     app.state.pendientes_mfa = google_oidc.PendientesMfa()
 

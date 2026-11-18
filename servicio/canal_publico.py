@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 import psycopg
 
+from . import avisos
 from . import roles
 from . import entrada_publica
 from . import precios
@@ -274,6 +275,9 @@ def crear_solicitud(
     )
     seguridad.auditar(conexion, f"publico:{solicitud_id}", "solicitud_recibida",
                       solicitud_id, "recibida")
+    # #353: aviso al administrador en la misma transacción (bandeja de salida).
+    avisos.registrar_evento(conexion, "solicitud_recibida", solicitud_id, {
+        "tipo": tipo, "inicio": inicio.isoformat(), "fin": fin.isoformat(), "personas": personas, "origen": origen})
     return vista_publica(_fila_publica(conexion, solicitud_id))
 
 
