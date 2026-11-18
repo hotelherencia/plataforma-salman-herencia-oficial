@@ -278,23 +278,29 @@ class SECA05StateOAuthTest(BaseAuditoriaTest):
         self.assertEqual(r.status_code, 302, r.text)
         return r.headers["location"].split("state=")[1]
 
+    def assertRechazado(self, r):
+        # #351: el rechazo vuelve a /login con aviso (antes 400 JSON); sin sesión.
+        self.assertEqual(r.status_code, 302, r.text)
+        self.assertTrue(r.headers["location"].endswith("/login?error=google_vencido"), r.headers["location"])
+        self.assertNotIn("sid=", r.headers.get("set-cookie", ""))
+
     def test_state_de_otro_navegador_rechazado(self):
         atacante = TestClient(self.app)
         state = self.state_para(atacante)  # state ligado a la cookie del atacante
         victima = TestClient(self.app)
         victima.cookies.clear()
         r = self.callback_con(victima, state)
-        self.assertEqual(r.status_code, 400, r.text)
+        self.assertRechazado(r)
         # el state se consume igual: no es reutilizable
         r = self.callback_con(atacante, state)
-        self.assertEqual(r.status_code, 400, r.text)
+        self.assertRechazado(r)
 
     def test_callback_sin_cookie_rechazado(self):
         cliente = TestClient(self.app)
         state = self.state_para(cliente)
         cliente.cookies.clear()
         r = self.callback_con(cliente, state)
-        self.assertEqual(r.status_code, 400, r.text)
+        self.assertRechazado(r)
 
     def test_flujo_ok_con_la_cookie_de_transaccion(self):
         cliente = TestClient(self.app)
