@@ -80,6 +80,15 @@ Proyección técnica: `estado_operativo` (disponible/ocupada) ×
   inicial 3 en 7 días, activo; lo cambia la administración del hotel en
   Configuración → «Reservas web» (`PUT /hotel/ajustes/tope_solicitudes_cliente`).
   No hay cupo por canal: el límite físico es la disponibilidad por tipo.
+- **Lead contactado por correo** (#355, decisión del propietario
+  2026-11-18): la plataforma revisa cada 15 minutos (configurable) la
+  carpeta de enviados de los buzones de lectura configurados en
+  Configuración → «Correo». Si hay un correo enviado al correo de un lead
+  `nuevo` con fecha posterior a su creación, el lead pasa a `contactado`
+  con la nota «auto: correo enviado desde <buzón> el <fecha>» y autor
+  `auto:correo`. Solo se leen destinatarios y fecha (nunca asunto ni
+  cuerpo). Ese contacto automático se puede deshacer (vuelve a `nuevo`);
+  uno manual, no. Guía de configuración: `docs/operacion/correo.md`.
 
 ## Pantallas del front (mapa a operaciones)
 

@@ -360,6 +360,14 @@ def gestionar(
     if fila is None:
         raise LeadAjenoOInexistente("acceso denegado")
     actual = fila[0]
+    # #355: el «contactado» automático (revisión de correo) se puede deshacer.
+    deshacer_auto = actual == "contactado" and estado == "nuevo" and conexion.execute(
+        "SELECT gestion_por = 'auto:correo' FROM leads WHERE id = %s", (lead_id,)).fetchone()[0]
+    if deshacer_auto:
+        conexion.execute("UPDATE leads SET estado = 'nuevo', nota = %s, gestion_por = NULL, gestion_en = NULL "
+                         "WHERE id = %s", (nota or f"deshecho el contacto automático por {actor}", lead_id))
+        seguridad.auditar(conexion, actor, "lead_gestion", lead_id, "contactado:nuevo (deshace auto)")
+        return _fila_bandeja(conexion, lead_id)
     if estado not in _TRANSICIONES.get(actual, frozenset()):
         raise TransicionInvalida(f"no se puede pasar de {actual} a {estado}")
     conexion.execute(

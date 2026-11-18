@@ -441,6 +441,19 @@ unitarios de la landing y build de producción del front. **Solo se aprueba el
 deploy con TODO en verde**; en rojo: revisar, evaluar y corregir antes de
 desplegar.
 
+## Variables añadidas el 2026-11-18 (épica #368)
+
+- `CORREO_CLAVE_CIFRADO` (obligatoria para #355): clave Fernet que cifra las claves de los buzones de correo. Se creó en Railway el 2026-11-18. Rotarla obliga a reingresar las claves de los buzones.
+- Avisos (#353), todas opcionales:
+  - `AVISO_CORREO_DESTINO` y `SMTP_*`;
+  - `AVISO_WHATSAPP_*` y `WHATSAPP_ACCESS_TOKEN`;
+  - `AVISOS_INTERVALO_SEGUNDOS`.
+  El buzón de envío configurado en Configuración → «Correo» reemplaza al SMTP de variables.
+- `LEADS_VENTANA_NUEVO_DIAS` (#354): por defecto 30.
+- `TAREAS_DE_FONDO`: `0` apaga los hilos periódicos. Las apps de prueba no los encienden.
+
+Detalle y estado en `backlog/hallazgos-2026-11-18.md`.
+
 ## Operación continua (añadido 2026-11-03, de los issues v1-issue-04/05)
 
 ### Aprobación de deploys (Railway, política post-incidente)

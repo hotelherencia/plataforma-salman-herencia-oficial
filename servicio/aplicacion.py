@@ -183,6 +183,7 @@ from .rutas import hotel_tipos as rutas_hotel_tipos  # noqa: E402  (entrega 1A)
 from .rutas import productos as rutas_productos  # noqa: E402  (#357)
 from .rutas import politicas as rutas_politicas  # noqa: E402  (entrega 1A.3)
 from .rutas import ajustes as rutas_ajustes  # noqa: E402  (#348)
+from .rutas import correo as rutas_correo  # noqa: E402  (#355)
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
@@ -253,9 +254,15 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     # #353: despachador de avisos al administrador (apagado sin canales).
     from .avisos import Despachador, canales_desde_config
     app.state.avisos = Despachador(canales_desde_config(configuracion),
-                                   configuracion.database_url if configuracion else None)
-    if configuracion is not None and not configuracion.en_vercel:
+                                   configuracion.database_url if configuracion else None,
+                                   configuracion.front_url if configuracion else "")
+    if configuracion is not None and configuracion.tareas_de_fondo:
         app.state.avisos.iniciar(configuracion.avisos_intervalo_segundos)
+    # #355: revisión periódica de enviados para marcar leads contactados.
+    from .correo import Revisor
+    app.state.revisor_correo = Revisor(configuracion.database_url if configuracion else None)
+    if configuracion is not None and configuracion.tareas_de_fondo:
+        app.state.revisor_correo.iniciar()
     app.state.estados_oauth = google_oidc.EstadosOAuth()
     app.state.pendientes_mfa = google_oidc.PendientesMfa()
 
@@ -385,6 +392,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     app.include_router(rutas_hotel_tipos.router)
     app.include_router(rutas_politicas.router)
     app.include_router(rutas_ajustes.router)
+    app.include_router(rutas_correo.router)
     app.include_router(hotel.router)
     app.include_router(rutas_productos.router)
     app.include_router(rutas_agente.router)

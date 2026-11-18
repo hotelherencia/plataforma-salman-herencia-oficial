@@ -43,10 +43,24 @@ def _validar_tope(valor: dict) -> dict:
             "dias": _entero(actual["dias"], "dias", 1, 365)}
 
 
+def _validar_revision(valor: dict) -> dict:
+    if not isinstance(valor, dict) or set(valor) - {"activo", "intervalo_minutos", "registrar_buzon"}:
+        raise AjusteInvalido("campos permitidos: activo, intervalo_minutos, registrar_buzon")
+    actual = {**DEFECTOS["revision_correo"], **valor}
+    for campo in ("activo", "registrar_buzon"):
+        if not isinstance(actual[campo], bool):
+            raise AjusteInvalido(f"{campo} debe ser verdadero o falso")
+    return {"activo": actual["activo"], "registrar_buzon": actual["registrar_buzon"],
+            "intervalo_minutos": _entero(actual["intervalo_minutos"], "intervalo_minutos", 5, 1440)}
+
+
 DEFECTOS: dict[str, dict] = {
     "tope_solicitudes_cliente": {"activo": True, "max_solicitudes": 3, "dias": 7},
+    # #355: revisión de enviados cada 15 minutos; la nota registra el buzón,
+    # no la persona (decisión del propietario 2026-11-18).
+    "revision_correo": {"activo": True, "intervalo_minutos": 15, "registrar_buzon": True},
 }
-_VALIDADORES = {"tope_solicitudes_cliente": _validar_tope}
+_VALIDADORES = {"tope_solicitudes_cliente": _validar_tope, "revision_correo": _validar_revision}
 
 
 def leer(conexion: psycopg.Connection, empresa_id: str, clave: str) -> dict:

@@ -10,6 +10,7 @@ import { tasaTexto } from '../../../lib/iva'
 import { PESTANAS_CONFIGURACION } from '../../../lib/menu-hotel'
 import MantenedorTiposPrecios from '../_componentes/mantenedor-tipos-precios'
 import AjustesReservasWeb from '../_componentes/ajustes-reservas-web'
+import AjustesCorreo from '../_componentes/ajustes-correo'
 
 const ETIQUETA_CONF = {
   confirmado: 'Confirmado',
@@ -73,6 +74,7 @@ function ConfiguracionHotel() {
         <EditorPoliticas sesion={sesion} seccion={seccion} />
       )}
       {seccion === 'reservas_web' && <AjustesReservasWeb />}
+      {seccion === 'correo' && <AjustesCorreo />}
     </MarcoHotel>
   )
 }
