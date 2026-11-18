@@ -11,6 +11,7 @@ import uuid
 from datetime import date, datetime
 
 import psycopg
+from psycopg.errors import ExclusionViolation
 
 from hotel_inventario.servicio import HORA_LLEGADA, LIMITE_CANCELACION_GRATUITA
 from nucleo.servicio import AccesoDenegado as AccesoNucleo
@@ -154,7 +155,78 @@ def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> 
     return {"fecha": fecha.isoformat(), "pagos": pagos, "total_clp": sum(p["monto_clp"] for p in pagos)}
 
 
-def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, documento: str | None = None) -> dict:
+class ReasignacionInvalida(Exception):
+    """409 (#360/#361): la unidad destino no sirve para esta reserva."""
+
+
+ROLES_REASIGNACION = roles.con_admin_hotel("recepcion")
+
+
+def reasignar(
+    conexion: psycopg.Connection, empresa_id: str, reserva_id: str, destino: str, motivo: str, actor: str
+) -> dict:
+    """#361: mueve la reserva (confirmada o en estadía) a otra unidad con la
+    tarifa pactada. Valida que la unidad esté en venta, sin mantenimiento,
+    con capacidad y libre en el rango (la exclusión de la base decide la
+    carrera). En estadía la destino debe estar preparada; la origen queda
+    sucia con tarea de limpieza, igual que en la salida."""
+    reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
+    origen, estado = reserva[1], reserva[2]
+    if estado not in ESTADOS_CON_CUENTA_ABIERTA:
+        raise TransicionInvalida(f"la reserva está {estado}")
+    if destino == origen:
+        raise ReasignacionInvalida(f"la reserva ya está en {destino}")
+    motivo = (motivo or "").strip()
+    if len(motivo) < 3:
+        raise ReasignacionInvalida("indica el motivo del cambio de habitación")
+    (personas,) = conexion.execute("SELECT personas FROM reservas WHERE id = %s", (reserva_id,)).fetchone()
+    # Cerrojo en orden estable para no cruzarse con otra reasignación inversa.
+    for hid in sorted((origen, destino)):
+        conexion.execute("SELECT 1 FROM habitaciones WHERE id = %s FOR UPDATE", (hid,))
+    fila = conexion.execute(
+        "SELECT estado_operativo, estado_preparacion, mantenimiento, capacidad "
+        "FROM habitaciones WHERE id = %s",
+        (destino,),
+    ).fetchone()
+    if fila is None:
+        raise ReasignacionInvalida(f"la habitación {destino} no existe")
+    if fila[2] or fila[0] in reservas_db.ESTADOS_NO_VENDIBLES:
+        raise ReasignacionInvalida(f"la habitación {destino} está fuera del cupo (mantenimiento o bloqueo)")
+    if personas is not None and fila[3] < personas:
+        raise ReasignacionInvalida(f"la habitación {destino} admite hasta {fila[3]} personas")
+    if estado == "en_estadia" and fila[1] not in ("limpia", "inspeccionada"):
+        raise ReasignacionInvalida(f"la habitación {destino} no está lista (preparación: {fila[1]})")
+    try:
+        with conexion.transaction():
+            conexion.execute("UPDATE reservas SET habitacion_id = %s WHERE id = %s", (destino, reserva_id))
+    except ExclusionViolation as error:
+        raise ReasignacionInvalida(f"la habitación {destino} está ocupada en parte de esas fechas") from error
+    if estado == "en_estadia":
+        conexion.execute("UPDATE habitaciones SET estado_operativo = 'ocupada' WHERE id = %s", (destino,))
+        (otra,) = conexion.execute(
+            "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado = 'en_estadia'", (origen,)
+        ).fetchone()
+        if otra == 0:
+            conexion.execute(
+                "UPDATE habitaciones SET estado_operativo = 'disponible', estado_preparacion = 'sucia' WHERE id = %s",
+                (origen,),
+            )
+            conexion.execute(
+                "INSERT INTO tareas_operativas (id, habitacion_id, tipo, estado) VALUES (%s, %s, 'limpieza', 'pendiente')",
+                (f"TAR-{uuid.uuid4().hex[:12]}", origen),
+            )
+    reasignacion_id = f"REA-{uuid.uuid4().hex[:12]}"
+    conexion.execute(
+        "INSERT INTO reasignaciones (id, reserva_id, desde_habitacion_id, hacia_habitacion_id, motivo, actor, estado_reserva) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (reasignacion_id, reserva_id, origen, destino, motivo, actor, estado),
+    )
+    return {"reasignacion_id": reasignacion_id, "reserva_id": reserva_id, "desde_habitacion_id": origen,
+            "hacia_habitacion_id": destino, "estado": estado, "motivo": motivo}
+
+
+def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, documento: str | None = None,
+            documento_tipo: str | None = None, habitacion_id: str | None = None, actor: str = "sistema") -> dict:
     """Check-in (spec-api-v1 «Operación de la habitación»): en la misma
     transacción valida mantenimiento, disponibilidad, preparación y que ninguna
     otra estadía ocupe la unidad; al pasar, la reserva queda en_estadia y la
@@ -181,8 +253,14 @@ def entrada(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, docu
         if not documento or not documento.strip():
             raise TransicionInvalida("registra el documento del huésped para pasar la entrada")
         conexion.execute(
-            "UPDATE reservas SET huesped_documento = %s WHERE id = %s", (documento.strip(), reserva_id)
+            "UPDATE reservas SET huesped_documento = %s, huesped_documento_tipo = %s WHERE id = %s",
+            (documento.strip(), documento_tipo, reserva_id),
         )
+    # #360: la unidad se confirma al llegar; si recepción elige otra, se
+    # reasigna aquí mismo y la entrada sigue sobre la nueva.
+    if habitacion_id and habitacion_id != _reserva[1]:
+        reasignar(conexion, empresa_id, reserva_id, habitacion_id, "asignada en la entrada", actor)
+        _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     habitacion = conexion.execute(
         "SELECT estado_operativo, estado_preparacion, mantenimiento FROM habitaciones WHERE id = %s FOR UPDATE",
         (_reserva[1],),
@@ -273,6 +351,15 @@ def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: s
         ],
         "cuenta": {"cargos_netos_clp": neto, "pagado_clp": pagado, "saldo_clp": neto - pagado},
         "liquidacion": None,
+        "reasignaciones": [
+            {"desde_habitacion_id": a[0], "hacia_habitacion_id": a[1], "motivo": a[2], "actor": a[3],
+             "registrado_en": a[4].isoformat()}
+            for a in conexion.execute(
+                "SELECT desde_habitacion_id, hacia_habitacion_id, motivo, actor, creado_en FROM reasignaciones "
+                "WHERE reserva_id = %s ORDER BY creado_en",
+                (reserva_id,),
+            ).fetchall()
+        ],
     }
     if ver_documento:
         detalle["huesped_documento"] = r[6]

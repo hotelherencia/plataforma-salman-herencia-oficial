@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 import { SelectorReserva } from '../_componentes/selector-reserva'
+import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
+import { validarDocumento } from '../../../lib/documento'
 import { gestionaRecepcion } from '../../../lib/roles'
 
 const ETIQUETA_ESTADO = {
@@ -25,6 +27,9 @@ export default function Estadia() {
   const [cargo, setCargo] = useState({ reserva_id: '', concepto: 'minibar', monto_clp: '5000' })
   // #356: la reserva del cargo precargada queda fija; solo se cambia a propósito.
   const [cargoFijo, setCargoFijo] = useState(false)
+  // #360/#367: unidad confirmada al llegar y documento validado si falta.
+  const [unidadLlegada, setUnidadLlegada] = useState('')
+  const [docEntrada, setDocEntrada] = useState({ tipo: 'rut', numero: '' })
   const [enviando, setEnviando] = useState(false)
   const enVueloRef = useRef(false)
 
@@ -96,19 +101,21 @@ export default function Estadia() {
     // D-ENT-01 (2026-11-06): la entrada exige documento del huésped. Si la
     // reserva no lo trae (p. ej. conversión de solicitud pública), se pide
     // aquí y se reintenta con el cuerpo.
-    let documento = null
-    if (detalleReserva && !detalleReserva.huesped_documento) {
-      const pedido = window.prompt('Documento del huésped (obligatorio para el check-in):')
-      if (!pedido || !pedido.trim()) { setError('El documento del huésped es obligatorio para la entrada.'); return }
-      documento = pedido.trim()
+    const cuerpo = {}
+    if (detalleActivo && !detalleActivo.huesped_documento) {
+      const doc = validarDocumento(docEntrada.tipo, docEntrada.numero)
+      if (!doc.ok) { setError(`Documento del huésped: ${doc.error}`); return }
+      cuerpo.documento = doc.valor
+      cuerpo.documento_tipo = docEntrada.tipo
     }
+    if (detalleActivo && unidadLlegada && unidadLlegada !== detalleActivo.habitacion_id) cuerpo.habitacion_id = unidadLlegada
     enVueloRef.current = true
     setEnviando(true)
     try {
       const r = await api(`/hotel/reservas/${reservaId.trim()}/entrada`, {
         metodo: 'POST',
         claveIdempotencia: claveEntrada,
-        cuerpo: documento ? { documento } : {},
+        cuerpo,
       })
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
@@ -216,6 +223,20 @@ export default function Estadia() {
         <h2>Check-in (entrada a la estadía)</h2>
         <form className="formulario" onSubmit={checkIn}>
           <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+          {detalleActivo && detalleActivo.estado === 'confirmada' && (
+            <SelectorUnidad
+              etiqueta="Habitación al llegar (confirma o cambia)"
+              inicio={detalleActivo.inicio}
+              fin={detalleActivo.fin}
+              personas={detalleActivo.personas || 1}
+              incluir={detalleActivo.habitacion_id}
+              valor={unidadLlegada || detalleActivo.habitacion_id}
+              alCambiar={setUnidadLlegada}
+            />
+          )}
+          {detalleActivo && detalleActivo.estado === 'confirmada' && !detalleActivo.huesped_documento && (
+            <CampoDocumento tipo={docEntrada.tipo} numero={docEntrada.numero} alCambiar={setDocEntrada} />
+          )}
           <button type="submit" className="boton-primario" disabled={enviando || noAdmiteEntrada}>
             {enviando ? "Procesando…" : "Registrar entrada"}
           </button>
