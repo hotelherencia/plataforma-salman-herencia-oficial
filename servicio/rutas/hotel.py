@@ -783,8 +783,13 @@ def crear_solicitud_publica(
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
+    tipo = solicitud.tipo
+    if tipo is None:
+        tipo = canal_publico.tipo_de_unidad(conexion, solicitud.habitacion_id)
+        if tipo is None:
+            raise HTTPException(status_code=409, detail="no hay cupo para esa habitación en ese rango")
     resultado = canal_publico.crear_solicitud(
-        conexion, request.app.state.aplicacion.nucleo.empresa.id, solicitud.habitacion_id, solicitud.inicio,
+        conexion, request.app.state.aplicacion.nucleo.empresa.id, tipo, solicitud.inicio,
         solicitud.fin, solicitud.personas, solicitud.huesped_nombre,
         solicitud.huesped_contacto, clave,
     )

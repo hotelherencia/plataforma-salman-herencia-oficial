@@ -81,7 +81,9 @@ test('tipos con nombre visible y oferta agrupada con política una sola vez', ()
     { habitacion_id: 'HAB-17', tipo: 'triple', capacidad: 3, tarifa_noche_clp: 65000, total_clp: 130000, politica_cancelacion: pol },
   ]
   const g = agruparOferta(items)
-  assert.deepEqual(g.map((x) => [x.nombre, x.disponibles, x.capacidad, x.habitacion_id]), [['Matrimonial', 2, 2, 'HAB-01'], ['Triple', 1, 3, 'HAB-17']])
+  assert.deepEqual(g.map((x) => [x.nombre, x.disponibles, x.capacidad, x.tipo]), [['Matrimonial', 2, 2, 'matrimonial'], ['Triple', 1, 3, 'triple']])
+  // #346: el grupo no lleva número de habitación (la solicitud va por tipo)
+  assert.ok(g.every((x) => !('habitacion_id' in x)))
   assert.equal(politicaUnica(items), pol)
 })
 

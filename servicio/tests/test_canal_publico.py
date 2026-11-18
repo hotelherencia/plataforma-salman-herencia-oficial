@@ -87,11 +87,23 @@ class CanalPublicoBaseTest(unittest.TestCase):
             exigir_base_libre(conexion)
             return conexion.execute(sql, parametros).fetchall()
 
-    def cuerpo_solicitud(self, habitacion="HAB-SINT-101", inicio=str(MANANA), fin=str(EN_3), personas=2):
+    def cuerpo_solicitud(self, tipo="doble", inicio=str(MANANA), fin=str(EN_3), personas=2, habitacion=None):
+        # #346: la solicitud es por tipo; `habitacion` ejercita la compatibilidad
+        # con el front anterior (habitacion_id que se traduce a su tipo).
+        destino = {"habitacion_id": habitacion} if habitacion else {"tipo": tipo}
         return {
-            "habitacion_id": habitacion, "inicio": inicio, "fin": fin, "personas": personas,
+            **destino, "inicio": inicio, "fin": fin, "personas": personas,
             "huesped_nombre": "Visitante Sintético", "huesped_contacto": "visitante@example.test",
         }
+
+    def tarifa_102(self):
+        with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
+            conexion.execute(
+                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
+                "VALUES ('TAR-102', 'HAB-SINT-102', '2026-01-01', '2027-12-31', 60000)"
+            )
+            conexion.commit()
 
     def crear_solicitud(self, **kwargs):
         clave = kwargs.pop("clave", self.clave())
@@ -219,7 +231,7 @@ class SolicitudesPublicasTest(CanalPublicoBaseTest):
         r1 = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
                                headers={"Idempotency-Key": clave})
         self.assertEqual(r1.status_code, 201, r1.text)
-        r2 = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(habitacion="HAB-SINT-102"),
+        r2 = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(fin=str(EN_3 + timedelta(days=1))),
                                headers={"Idempotency-Key": clave})
         self.assertEqual(r2.status_code, 409, r2.text)
         self.assertEqual(self.select("SELECT count(*) FROM solicitudes")[0][0], 1)
@@ -342,15 +354,9 @@ class BandejaSolicitudesTest(CanalPublicoBaseTest):
             headers={"Idempotency-Key": self.clave()}).status_code, 403)
 
     def test_bn33_bandeja_filtra_por_estado(self):
-        with psycopg.connect(URL_TEST) as conexion:
-            exigir_base_libre(conexion)
-            conexion.execute(
-                "INSERT INTO excepciones_precio (id, habitacion_id, fecha_desde, fecha_hasta, precio_clp) "
-                "VALUES ('TAR-102', 'HAB-SINT-102', '2026-01-01', '2027-12-31', 60000)"
-            )
-            conexion.commit()
+        self.tarifa_102()
         una = self.crear_solicitud()
-        dos = self.crear_solicitud(habitacion="HAB-SINT-102")
+        dos = self.crear_solicitud()
         self.assertEqual(self.cliente.post(
             f"/hotel/solicitudes/{una}/conversion", headers={"Idempotency-Key": self.clave()}).status_code, 201)
         recibidas = self.cliente.get("/hotel/solicitudes", params={"estado": "recibida"})
@@ -374,3 +380,77 @@ class BandejaSolicitudesTest(CanalPublicoBaseTest):
         respuesta = self.cliente.post(
             "/hotel/solicitudes/SOL-NO-EXISTE/conversion", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 403, respuesta.text)
+
+
+class SolicitudPorTipoTest(CanalPublicoBaseTest):
+    """#346 / #347: el visitante pide un tipo; el hotel asigna la unidad."""
+
+    def test_pt01_solicitud_guarda_tipo_y_no_expone_numero(self):
+        respuesta = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
+                                      headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        cuerpo = respuesta.json()
+        self.assertNotIn("habitacion_id", cuerpo)
+        self.assertNotIn("HAB-SINT", json.dumps(cuerpo))
+        self.assertEqual(cuerpo["tipo"], "doble")
+        fila = self.select("SELECT tipo, habitacion_id FROM solicitudes WHERE id=%s", (cuerpo["solicitud_id"],))
+        self.assertEqual(fila[0], ("doble", None))
+
+    def test_pt02_compatibilidad_habitacion_id_se_traduce_a_tipo(self):
+        respuesta = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(habitacion="HAB-SINT-101"),
+                                      headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(respuesta.status_code, 201, respuesta.text)
+        self.assertNotIn("habitacion_id", respuesta.json())
+        fila = self.select("SELECT tipo, habitacion_id FROM solicitudes")
+        self.assertEqual(fila[0], ("doble", None))
+
+    def test_pt03_tipo_y_unidad_a_la_vez_o_ninguno_422(self):
+        ambos = {**self.cuerpo_solicitud(), "habitacion_id": "HAB-SINT-101"}
+        ninguno = {k: v for k, v in self.cuerpo_solicitud().items() if k != "tipo"}
+        for cuerpo in (ambos, ninguno):
+            with self.subTest(cuerpo=sorted(cuerpo)):
+                r = self.anonima.post("/publico/solicitudes", json=cuerpo, headers={"Idempotency-Key": self.clave()})
+                self.assertEqual(r.status_code, 422, r.text)
+
+    def test_pt04_tipo_inexistente_409_sin_persistir(self):
+        r = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(tipo="suite-inexistente"),
+                              headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r.status_code, 409, r.text)
+        self.assertEqual(self.select("SELECT count(*) FROM solicitudes")[0][0], 0)
+
+    def test_pt05_regresion_347_segunda_solicitud_del_mismo_tipo_se_convierte_en_otra_unidad(self):
+        # Dos unidades libres del tipo: antes ambas solicitudes apuntaban a
+        # HAB-SINT-101 y la segunda conversión daba un falso «sin cupo».
+        self.tarifa_102()
+        una = self.crear_solicitud()
+        dos = self.crear_solicitud()
+        r1 = self.cliente.post(f"/hotel/solicitudes/{una}/conversion", headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r1.status_code, 201, r1.text)
+        r2 = self.cliente.post(f"/hotel/solicitudes/{dos}/conversion", headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r2.status_code, 201, r2.text)
+        unidades = {r1.json()["habitacion_id"], r2.json()["habitacion_id"]}
+        self.assertEqual(unidades, {"HAB-SINT-101", "HAB-SINT-102"})
+        asignadas = self.select("SELECT habitacion_id FROM solicitudes WHERE id = ANY(%s) ORDER BY id", ([una, dos],))
+        self.assertEqual({a[0] for a in asignadas}, unidades)
+
+    def test_pt06_tercera_solicitud_sin_unidades_libres_409_y_queda_recibida(self):
+        self.tarifa_102()
+        ids = [self.crear_solicitud() for _ in range(2)]
+        for sid in ids:
+            self.assertEqual(self.cliente.post(f"/hotel/solicitudes/{sid}/conversion",
+                                               headers={"Idempotency-Key": self.clave()}).status_code, 201)
+        # sin unidades con tarifa libres, el canal público ya no acepta el tipo
+        r = self.anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
+                              headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r.status_code, 409, r.text)
+
+    def test_pt07_solicitud_anterior_con_unidad_la_prefiere_al_convertir(self):
+        self.tarifa_102()
+        sid = self.crear_solicitud()
+        with psycopg.connect(URL_TEST) as conexion:
+            exigir_base_libre(conexion)
+            conexion.execute("UPDATE solicitudes SET habitacion_id = 'HAB-SINT-102' WHERE id = %s", (sid,))
+            conexion.commit()
+        r = self.cliente.post(f"/hotel/solicitudes/{sid}/conversion", headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r.status_code, 201, r.text)
+        self.assertEqual(r.json()["habitacion_id"], "HAB-SINT-102")

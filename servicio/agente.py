@@ -571,7 +571,7 @@ def _crear_solicitud_del_turno(
         return rechazar("supera el limite de la politica")
     try:
         solicitud = canal_publico.crear_solicitud(
-            conexion, empresa_id, oferta[ref]["habitacion_id"], inicio, fin, personas,
+            conexion, empresa_id, oferta[ref]["tipo"], inicio, fin, personas,
             argumentos["nombre"].strip(), argumentos["contacto"].strip(),
             f"agente:{consulta_id}", origen="agente",
         )

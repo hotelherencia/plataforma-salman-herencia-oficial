@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .. import agente, canal_publico, roles
 from .. import leads as leads_mod
@@ -108,12 +108,22 @@ class SolicitudPublicaIn(BaseModel):
     # Lista blanca: un campo no declarado es 422, no se ignora en silencio.
     model_config = ConfigDict(extra="forbid")
 
-    habitacion_id: str = Field(min_length=1, max_length=50)
+    # #346: la solicitud es por tipo. `habitacion_id` solo se acepta por
+    # compatibilidad con el front ya desplegado y se traduce a su tipo; la
+    # unidad nunca se guarda ni se devuelve al visitante.
+    tipo: str | None = Field(default=None, min_length=1, max_length=50)
+    habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
     inicio: date
     fin: date
     personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
     huesped_nombre: str = Field(min_length=1, max_length=120)
     huesped_contacto: str = Field(min_length=1, max_length=120)
+
+    @model_validator(mode="after")
+    def _tipo_o_unidad(self):
+        if (self.tipo is None) == (self.habitacion_id is None):
+            raise ValueError("indica tipo (o, por compatibilidad, habitacion_id), no ambos")
+        return self
 
 
 class RechazoSolicitudIn(BaseModel):

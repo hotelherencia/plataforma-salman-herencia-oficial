@@ -112,7 +112,7 @@ function Reservar() {
         setOferta(r.datos)
         setPersonasConsultadas(String(Number(proximasPersonas)))
         const grupos = agruparOferta(r.datos.oferta)
-        setElegida(grupos[0] ? grupos[0].habitacion_id : '')
+        setElegida(grupos[0] ? grupos[0].tipo : '')
       }
     } catch {
       setError('La API no está disponible: nada se puede confirmar. Intenta de nuevo en unos minutos.')
@@ -198,7 +198,7 @@ function Reservar() {
       const r = await api('/publico/solicitudes', {
         metodo: 'POST',
         cuerpo: {
-          habitacion_id: elegida, inicio, fin, personas: Number(personas),
+          tipo: elegida, inicio, fin, personas: Number(personas),
           huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
         },
         claveIdempotencia: clave,
@@ -305,8 +305,8 @@ function Reservar() {
                     <input
                       type="radio"
                       name="habitacion"
-                      checked={elegida === g.habitacion_id}
-                      onChange={() => setElegida(g.habitacion_id)}
+                      checked={elegida === g.tipo}
+                      onChange={() => setElegida(g.tipo)}
                     />
                     <span className="opcion-cuerpo">
                       <span className="opcion-titulo">{g.nombre}</span>

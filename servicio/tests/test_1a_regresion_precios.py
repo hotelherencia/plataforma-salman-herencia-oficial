@@ -199,7 +199,11 @@ class RegresionPreciosMigraciones1ATest(unittest.TestCase):
             with psycopg.connect(self.url) as conexion:
                 entre_1a_y_1a2(conexion)
                 conexion.commit()
-        self.assertEqual(migracion.aplicar_migraciones(self.url), [MIGRACION_1A2, MIGRACION_1A3])
+        # Las migraciones posteriores a la 1A.3 (p. ej. 0024, #346) también se
+        # aplican aquí; lo que se fija es que 0022 y 0023 van primero y en orden.
+        aplicadas = migracion.aplicar_migraciones(self.url)
+        self.assertEqual(aplicadas[:2], [MIGRACION_1A2, MIGRACION_1A3])
+        self.assertTrue(all(n > MIGRACION_1A3 for n in aplicadas[2:]), aplicadas)
         # Repetir 0021–0023 a mano: idempotentes, sin cambios de precio.
         with psycopg.connect(self.url) as conexion:
             foto = self._foto_precios(conexion)
