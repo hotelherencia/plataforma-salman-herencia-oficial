@@ -23,6 +23,7 @@ from .. import leads as leads_mod
 from .. import observabilidad
 from .. import politicas, recaptcha
 from .. import panel
+from .. import productos as productos_db
 from .. import reservas as reservas_db
 from .. import seguridad
 from . import comun
@@ -729,15 +730,23 @@ def asentar_cargo_reserva(
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
     comun.exigir_rol(sesion, cobro.ROLES_CARGO)
+    # #357 (criterio 5): el concepto libre queda para la administración del hotel;
+    # recepción y caja asientan productos del catálogo.
+    if not cargo.producto_id:
+        comun.exigir_rol(sesion, cobro.ROLES_CONCEPTO_LIBRE)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
-    cuerpo = {"reserva_id": reserva_id, **json.loads(cargo.model_dump_json())}
+    datos = cargo.model_dump(mode="json", exclude_none=True)
+    if not cargo.producto_id:
+        datos.pop("cantidad", None)  # mismo cuerpo idempotente que antes de #357
+    cuerpo = {"reserva_id": reserva_id, **datos}
 
     def operacion() -> tuple[int, dict]:
         try:
             resultado = cobro.asentar_cargo(
-                conexion, sesion.empresa_id, reserva_id, cargo.concepto, cargo.monto_clp
+                conexion, sesion.empresa_id, reserva_id, cargo.concepto, cargo.monto_clp,
+                producto_id=cargo.producto_id, cantidad=cargo.cantidad, actor=sesion.nombre,
             )
-        except cobro.TransicionInvalida as error:
+        except (cobro.TransicionInvalida, productos_db.ProductoInvalido) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "cargo", f"{reserva_id}:{resultado['cargo_id']}", "asentado")
         return 201, resultado
@@ -765,7 +774,8 @@ def reversar_cargo_reserva(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.reversar_cargo(conexion, sesion.empresa_id, reserva_id, cargo_id, cuerpo_reverso.motivo)
+            resultado = cobro.reversar_cargo(conexion, sesion.empresa_id, reserva_id, cargo_id, cuerpo_reverso.motivo,
+                                             actor=sesion.nombre)
         except (cobro.TransicionInvalida, cobro.CargoNoReversable) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "cargo_reverso", f"{reserva_id}:{cargo_id}", resultado["cargo_id"])

@@ -127,8 +127,48 @@ class MantenimientoIn(BaseModel):
 
 
 class CargoIn(BaseModel):
-    concepto: str = Field(min_length=1, max_length=200)
-    monto_clp: int = Field(gt=0, le=1_000_000_000)
+    """#357: producto del catálogo + cantidad (precio automático), o concepto
+    libre con monto (solo administración del hotel, con motivo en el front)."""
+    producto_id: str | None = Field(default=None, max_length=40)
+    cantidad: int = Field(default=1, ge=1, le=100)
+    concepto: str | None = Field(default=None, min_length=1, max_length=200)
+    monto_clp: int | None = Field(default=None, gt=0, le=1_000_000_000)
+
+    @model_validator(mode="after")
+    def _producto_o_concepto(self):
+        if self.producto_id:
+            if self.concepto is not None or self.monto_clp is not None:
+                raise ValueError("con producto_id, el concepto y el precio salen del catálogo")
+        elif not self.concepto or self.monto_clp is None:
+            raise ValueError("indica producto_id, o concepto y monto_clp")
+        return self
+
+
+class ProductoIn(BaseModel):
+    nombre: str = Field(min_length=2, max_length=120)
+    categoria: Literal["minibar", "cafeteria", "servicio", "extra"]
+    precio_clp: int = Field(gt=0, le=100_000_000)
+    controla_stock: bool = False
+    stock: int = Field(default=0, ge=0, le=1_000_000)
+
+
+class ProductoCambioIn(BaseModel):
+    nombre: str | None = Field(default=None, min_length=2, max_length=120)
+    categoria: Literal["minibar", "cafeteria", "servicio", "extra"] | None = None
+    precio_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    activo: bool | None = None
+    controla_stock: bool | None = None
+
+
+class AjusteStockIn(BaseModel):
+    delta: int = Field(ge=-100_000, le=100_000)
+    motivo: str = Field(min_length=3, max_length=200)
+
+    @model_validator(mode="after")
+    def _no_cero(self):
+        if self.delta == 0:
+            raise ValueError("el ajuste no puede ser 0")
+        return self
 
 
 class ReversoCargoIn(BaseModel):

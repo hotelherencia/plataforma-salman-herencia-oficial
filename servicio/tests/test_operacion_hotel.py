@@ -654,13 +654,21 @@ class CargosEstadiaTest(OperacionBaseTest):
         rid = self.reservar()
         self.crear_usuario("caja1", "caja")
         caja = self.login("caja1", "clave-usuario-1")
-        cuerpo = {"concepto": "consumo", "monto_clp": 7_500}
+        # #357: caja asienta productos del catálogo (el concepto libre es de la administración).
+        with psycopg.connect(URL_TEST) as conexion:
+            conexion.execute(
+                "INSERT INTO productos (id, nombre, categoria, precio_clp) VALUES (%s, %s, 'extra', %s) "
+                "ON CONFLICT (id) DO NOTHING",
+                ('PRD-TEST-CONSUMO', 'Consumo prueba', 7500),
+            )
+            conexion.commit()
+        cuerpo = {"producto_id": "PRD-TEST-CONSUMO"}
         r1 = caja.post(f"/hotel/reservas/{rid}/cargos", json=cuerpo, headers={"Idempotency-Key": "cargo-1"})
         self.assertEqual(r1.status_code, 201, r1.text)
         r2 = caja.post(f"/hotel/reservas/{rid}/cargos", json=cuerpo, headers={"Idempotency-Key": "cargo-1"})
         self.assertEqual(r2.status_code, 201)
         self.assertEqual(r1.json()["cargo_id"], r2.json()["cargo_id"])
-        r3 = caja.post(f"/hotel/reservas/{rid}/cargos", json={"concepto": "otro", "monto_clp": 1},
+        r3 = caja.post(f"/hotel/reservas/{rid}/cargos", json={"producto_id": "PRD-TEST-CONSUMO", "cantidad": 2},
                        headers={"Idempotency-Key": "cargo-1"})
         self.assertEqual(r3.status_code, 409)
         self.assertEqual(self.select("SELECT count(*) FROM cargos WHERE reserva_id=%s", (rid,))[0][0], 2)  # alojamiento + 1 cargo
