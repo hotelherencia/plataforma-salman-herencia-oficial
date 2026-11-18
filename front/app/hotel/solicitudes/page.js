@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
+import { nombreTipo } from '../../reservar/continuidad'
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 
@@ -128,7 +129,8 @@ export default function Solicitudes() {
               <thead>
                 <tr>
                   <th>Solicitud</th>
-                  <th>Habitación</th>
+                  <th>Tipo</th>
+                  <th>Habitación asignada</th>
                   <th>Llegada</th>
                   <th>Salida</th>
                   <th>Personas</th>
@@ -144,7 +146,8 @@ export default function Solicitudes() {
                 {lista.map((s) => (
                   <tr key={s.solicitud_id}>
                     <td>{s.solicitud_id}</td>
-                    <td>{s.habitacion_id}</td>
+                    <td>{nombreTipo(s.tipo)}</td>
+                    <td>{s.habitacion_id || 'al convertir'}</td>
                     <td>{s.inicio}</td>
                     <td>{s.fin}</td>
                     <td>{s.personas}</td>

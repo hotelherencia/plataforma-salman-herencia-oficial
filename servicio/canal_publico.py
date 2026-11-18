@@ -211,10 +211,15 @@ def _hash_cuerpo(cuerpo: dict) -> str:
     return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
 
 
+def tipo_de_unidad(conexion: psycopg.Connection, habitacion_id: str) -> str | None:
+    fila = conexion.execute("SELECT tipo FROM habitaciones WHERE id = %s", (habitacion_id,)).fetchone()
+    return fila[0] if fila else None
+
+
 def crear_solicitud(
     conexion: psycopg.Connection,
     empresa_id: str,
-    habitacion_id: str,
+    tipo: str,
     inicio: date,
     fin: date,
     personas: int,
@@ -223,27 +228,28 @@ def crear_solicitud(
     clave: str,
     origen: str = "landing",
 ) -> dict:
-    """Persiste la solicitud con la regla de la oferta. Reintento (misma clave
-    y cuerpo) devuelve la solicitud original con reintento=true; misma clave y
-    otro cuerpo → ClaveEnConflicto (409). Sin cupo o sin tarifa → 409 y nada
-    se persiste."""
+    """Persiste la solicitud por TIPO de habitación (#346): el visitante no
+    elige ni recibe un número; el hotel asigna la unidad al convertir.
+    Reintento (misma clave y cuerpo) devuelve la solicitud original con
+    reintento=true; misma clave y otro cuerpo → ClaveEnConflicto (409). Sin
+    unidad libre con tarifa del tipo → 409 y nada se persiste."""
     _validar_rango(inicio, fin, personas)
     nombre = entrada_publica.limpiar_texto(huesped_nombre)
     contacto = entrada_publica.limpiar_texto(huesped_contacto)
+    tipo = entrada_publica.limpiar_texto(tipo)
     if not nombre:
         raise SolicitudInvalida("huesped_nombre es obligatorio")
     if not contacto:
         raise SolicitudInvalida("huesped_contacto es obligatorio")
+    if not tipo:
+        raise SolicitudInvalida("tipo es obligatorio")
 
     oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now(), empresa_id=empresa_id)
-    if habitacion_id not in {item["habitacion_id"] for item in oferta["oferta"]}:
-        descubierta = precios.cotizar(conexion, habitacion_id, inicio, fin).sin_tarifa
-        if descubierta is not None:
-            raise SinCupoOSinTarifa(f"sin tarifa vigente para {habitacion_id} la noche {descubierta}")
-        raise SinCupoOSinTarifa(f"no hay cupo para {habitacion_id} en ese rango")
+    if not any(item["tipo"] == tipo for item in oferta["oferta"]):
+        raise SinCupoOSinTarifa(_motivo_sin_cupo(conexion, tipo, inicio, fin))
 
     cuerpo = {
-        "habitacion_id": habitacion_id, "inicio": inicio.isoformat(), "fin": fin.isoformat(),
+        "tipo": tipo, "inicio": inicio.isoformat(), "fin": fin.isoformat(),
         "personas": personas, "huesped_nombre": nombre, "huesped_contacto": contacto,
     }
     cuerpo_hash = _hash_cuerpo(cuerpo)
@@ -254,26 +260,43 @@ def crear_solicitud(
     if existente is not None:
         if existente[1] != cuerpo_hash:
             raise ClaveEnConflicto("esa clave ya se usó con otros datos")
-        original = _fila_publica(conexion, existente[0])
+        original = vista_publica(_fila_publica(conexion, existente[0]))
         original["reintento"] = True
         return original
 
     solicitud_id = f"SOL-{uuid.uuid4().hex[:12]}"
     conexion.execute(
-        "INSERT INTO solicitudes (id, empresa_id, habitacion_id, inicio, fin, personas, "
+        "INSERT INTO solicitudes (id, empresa_id, tipo, habitacion_id, inicio, fin, personas, "
         "huesped_nombre, huesped_contacto, estado, origen, idempotency_key, cuerpo_hash) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s)",
-        (solicitud_id, empresa_id, habitacion_id, inicio, fin, personas,
+        "VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s)",
+        (solicitud_id, empresa_id, tipo, inicio, fin, personas,
          nombre, contacto, origen, clave, cuerpo_hash),
     )
     seguridad.auditar(conexion, f"publico:{solicitud_id}", "solicitud_recibida",
                       solicitud_id, "recibida")
-    return _fila_publica(conexion, solicitud_id)
+    return vista_publica(_fila_publica(conexion, solicitud_id))
+
+
+def _motivo_sin_cupo(conexion: psycopg.Connection, tipo: str, inicio: date, fin: date) -> str:
+    """Mensaje legible y sin número de unidad: «sin tarifa» solo si ninguna
+    unidad del tipo tiene precio para todo el rango (falta configurar el
+    precio); si alguna lo tiene, lo que falta es cupo."""
+    primera_sin_tarifa = None
+    for (habitacion_id,) in conexion.execute(
+        "SELECT id FROM habitaciones WHERE tipo = %s ORDER BY id", (tipo,)
+    ).fetchall():
+        descubierta = precios.cotizar(conexion, habitacion_id, inicio, fin).sin_tarifa
+        if descubierta is None:
+            return f"no hay cupo para el tipo {tipo} en ese rango"
+        primera_sin_tarifa = primera_sin_tarifa or descubierta
+    if primera_sin_tarifa is not None:
+        return f"sin tarifa vigente para el tipo {tipo} la noche {primera_sin_tarifa}"
+    return f"no hay cupo para el tipo {tipo} en ese rango"
 
 
 def _fila_publica(conexion: psycopg.Connection, solicitud_id: str) -> dict:
     fila = conexion.execute(
-        "SELECT id, habitacion_id, inicio, fin, personas, huesped_nombre, huesped_contacto, "
+        "SELECT id, tipo, habitacion_id, inicio, fin, personas, huesped_nombre, huesped_contacto, "
         "estado, origen, reserva_id, creado_en FROM solicitudes WHERE id = %s",
         (solicitud_id,),
     ).fetchone()
@@ -281,17 +304,24 @@ def _fila_publica(conexion: psycopg.Connection, solicitud_id: str) -> dict:
         raise SolicitudAjenaOInexistente("acceso denegado")
     return {
         "solicitud_id": fila[0],
-        "habitacion_id": fila[1],
-        "inicio": fila[2].isoformat(),
-        "fin": fila[3].isoformat(),
-        "personas": fila[4],
-        "huesped_nombre": fila[5],
-        "huesped_contacto": fila[6],
-        "estado": fila[7],
-        "origen": fila[8],
-        "reserva_id": fila[9],
-        "creado_en": fila[10].isoformat(),
+        "tipo": fila[1],
+        # Unidad asignada (interna): NULL hasta la conversión.
+        "habitacion_id": fila[2],
+        "inicio": fila[3].isoformat(),
+        "fin": fila[4].isoformat(),
+        "personas": fila[5],
+        "huesped_nombre": fila[6],
+        "huesped_contacto": fila[7],
+        "estado": fila[8],
+        "origen": fila[9],
+        "reserva_id": fila[10],
+        "creado_en": fila[11].isoformat(),
     }
+
+
+def vista_publica(fila: dict) -> dict:
+    """Lo que ve el visitante: nunca el número de habitación (#346)."""
+    return {k: v for k, v in fila.items() if k != "habitacion_id"}
 
 
 def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None) -> dict:
@@ -312,7 +342,7 @@ def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None) -
 
 def _solicitud_de_la_empresa(conexion: psycopg.Connection, solicitud_id: str, empresa_id: str):
     fila = conexion.execute(
-        "SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas "
+        "SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas, tipo "
         "FROM solicitudes WHERE id = %s AND empresa_id = %s",
         (solicitud_id, empresa_id),
     ).fetchone()
@@ -325,23 +355,38 @@ def convertir(
     conexion: psycopg.Connection, empresa_id: str, solicitud_id: str, actor: str
 ) -> dict:
     """Crea la reserva por reservas.crear_reserva (misma carrera por la
-    última unidad); sin cupo o sin tarifa → 409 y la solicitud queda recibida."""
+    última unidad) sobre CUALQUIER unidad libre del tipo pedido (#347). Si la
+    solicitud traía una unidad (filas anteriores a #346) se prueba primero.
+    Sin unidad libre con tarifa → 409 y la solicitud queda recibida."""
     solicitud = _solicitud_de_la_empresa(conexion, solicitud_id, empresa_id)
     if solicitud[1] != "recibida":
         raise TransicionInvalida(f"la solicitud está {solicitud[1]}")
-    try:
-        reserva = reservas_db.crear_reserva(
-            conexion, empresa_id, solicitud[2], solicitud[3], solicitud[4], solicitud[5], None,
-            personas=solicitud[6],
-        )
-    except (reservas_db.SinCupo, reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:
-        raise SinCupoOSinTarifa(str(error)) from error
+    preferida, inicio, fin, nombre, personas, tipo = solicitud[2], solicitud[3], solicitud[4], solicitud[5], solicitud[6], solicitud[7]
+    oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now(), empresa_id=empresa_id)
+    candidatas = [i["habitacion_id"] for i in sorted(
+        (i for i in oferta["oferta"] if i["tipo"] == tipo),
+        key=lambda i: (i["habitacion_id"] != preferida, i["total_clp"], i["habitacion_id"]),
+    )]
+    reserva = None
+    ultimo_error: Exception | None = None
+    for habitacion_id in candidatas:
+        try:
+            reserva = reservas_db.crear_reserva(
+                conexion, empresa_id, habitacion_id, inicio, fin, nombre, None, personas=personas,
+            )
+            break
+        except (reservas_db.SinCupo, reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:
+            ultimo_error = error  # carrera: otra operación tomó esa unidad; se prueba la siguiente
+    if reserva is None:
+        detalle = str(ultimo_error) if ultimo_error else f"no quedan habitaciones del tipo {tipo} libres en ese rango"
+        raise SinCupoOSinTarifa(detalle)
     conexion.execute(
-        "UPDATE solicitudes SET estado = 'convertida', reserva_id = %s, "
+        "UPDATE solicitudes SET estado = 'convertida', reserva_id = %s, habitacion_id = %s, "
         "convertida_en = now(), convertida_por = %s WHERE id = %s",
-        (reserva["reserva_id"], actor, solicitud_id),
+        (reserva["reserva_id"], reserva["habitacion_id"], actor, solicitud_id),
     )
-    seguridad.auditar(conexion, actor, "solicitud_conversion", solicitud_id, f"convertida:{reserva['reserva_id']}")
+    seguridad.auditar(conexion, actor, "solicitud_conversion", solicitud_id,
+                      f"convertida:{reserva['reserva_id']}:{reserva['habitacion_id']}")
     cuerpo = _fila_publica(conexion, solicitud_id)
     cuerpo["reintento"] = False
     return cuerpo

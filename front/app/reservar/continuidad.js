@@ -158,8 +158,8 @@ export function erroresContacto(nombre, contacto) {
 
 /**
  * Agrupa la oferta por tipo: una opción por tipo con su capacidad, cuántas
- * quedan y el precio (desde el menor). La solicitud usa la primera habitación
- * libre del tipo; recepción asigna la definitiva al confirmar.
+ * quedan y el precio (desde el menor). La solicitud se envía por TIPO (#346):
+ * el visitante nunca elige ni ve un número; el hotel asigna la unidad.
  */
 export function agruparOferta(items) {
   const grupos = new Map()
@@ -169,7 +169,6 @@ export function agruparOferta(items) {
       nombre: nombreTipo(item.tipo),
       capacidad: item.capacidad ?? null,
       disponibles: 0,
-      habitacion_id: item.habitacion_id,
       tarifa_noche_clp: item.tarifa_noche_clp,
       total_clp: item.total_clp,
       precios_distintos: false,
@@ -179,7 +178,6 @@ export function agruparOferta(items) {
     if (item.total_clp < g.total_clp) {
       g.total_clp = item.total_clp
       g.tarifa_noche_clp = item.tarifa_noche_clp
-      g.habitacion_id = item.habitacion_id
     }
     if (item.capacidad != null && (g.capacidad == null || item.capacidad > g.capacidad)) g.capacidad = item.capacidad
     grupos.set(item.tipo, g)
