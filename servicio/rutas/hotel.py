@@ -979,7 +979,7 @@ def contador_avisos(
     despachador = getattr(request.app.state, "avisos", None)
     return {
         "solicitudes_recibidas": avisos.solicitudes_recibidas(conexion, sesion.empresa_id),
-        "canales_activos": [c.nombre for c in despachador.canales] if despachador else [],
+        "canales_activos": [c.nombre for c in despachador.canales_vigentes(conexion)] if despachador else [],
     }
 
 @router.get("/hotel/solicitudes")

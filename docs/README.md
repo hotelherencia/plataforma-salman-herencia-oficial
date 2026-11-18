@@ -10,6 +10,9 @@ Documentación que no es spec activa ni código. El árbol de construcción vige
   despliegue (`arquitectura.md`), secuencias de uso (`flujos.md`), entidades y
   reglas de negocio (`dominio.md`). HECHO DOCUMENTADO, verificado contra el
   sistema desplegado; es la lectura de onboarding.
+- `operacion/` — guías de operación de la plataforma (2026-11-18): `correo.md`
+  configura los buzones (IMAP/SMTP, API de Gmail, Microsoft 365) que leen
+  enviados y envían avisos (#355).
 - `definicion-herencia/` — especificación SDD V1.0 de Hotel Herencia (Documento
   Maestro M01–M24, 23 paquetes F00–F22, 153 requisitos, 45 decisiones, 306
   casos, 109 entidades). Se conserva porque sus IDs no tienen trazabilidad en

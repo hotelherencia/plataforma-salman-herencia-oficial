@@ -87,6 +87,10 @@ class Configuracion:
     # Vercel define VERCEL=1 en build y runtime: ahí nunca corre la siembra
     # documental, aunque INVENTARIO_DOCUMENTAL esté puesta.
     en_vercel: bool = False
+    # #355: hilos periódicos (reintentos de avisos, revisión de correo). Solo
+    # el arranque real los enciende; las apps de prueba no (evita que hilos
+    # de pruebas anteriores toquen la base o servidores ficticios).
+    tareas_de_fondo: bool = False
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -151,4 +155,5 @@ def cargar_desde_entorno() -> Configuracion:
         inventario_documental=os.environ.get("INVENTARIO_DOCUMENTAL", "0") == "1",
         migrar_al_arrancar=os.environ.get("MIGRAR_AL_ARRANCAR", "1") != "0",
         en_vercel=os.environ.get("VERCEL", "") == "1",
+        tareas_de_fondo=os.environ.get("VERCEL", "") != "1" and os.environ.get("TAREAS_DE_FONDO", "1") != "0",
     )

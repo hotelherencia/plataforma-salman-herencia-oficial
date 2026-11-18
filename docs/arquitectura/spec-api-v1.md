@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (91)
+## Operaciones de esta versión (97)
 
 | Operación | Efecto |
 |---|---|
@@ -520,6 +520,12 @@ los compone el servidor.
 | `POST /usuarios` | Alta `{nombre, rol, clave, email?}` con hash argon2id. (#352) `email` opcional: correo de Google con que entra (minúsculas; ya vinculado a otro → 409). Solo administrador. Nombre repetido → 409. |
 | `GET /hotel/ajustes` | (#348, 2026-11-18) Ajustes operativos editables desde Configuración; hoy `tope_solicitudes_cliente {activo, max_solicitudes, dias}` (inicial 3 en 7 días). Solo administración del hotel. |
 | `PUT /hotel/ajustes/{clave}` | (#348) Guarda un ajuste validado (422 si no cumple) y lo audita. Idempotente. Solo administración del hotel. |
+| `GET /hotel/correo/buzones` | (#355, 2026-11-18) Buzones de correo configurados (lectura de enviados o envío de avisos), sin secretos: solo `secretos_guardados`. Incluye `cifrado_disponible`, el ajuste `revision_correo` y el catálogo de proveedores (IMAP/SMTP con clave u OAuth2, API de Gmail, Microsoft Graph). Solo administración del hotel. |
+| `POST /hotel/correo/buzones` | (#355) Alta `{etiqueta, proposito, proveedor, parametros, secretos, activo}`; secretos cifrados con `CORREO_CLAVE_CIFRADO` (sin ella → 409). Validación → 422. Idempotente; la huella guarda el hash de los secretos, no los secretos. |
+| `PUT /hotel/correo/buzones/{id}` | (#355) Edita un buzón; un secreto omitido o vacío conserva el guardado, `null` lo borra. Un solo buzón de envío activo por empresa. |
+| `DELETE /hotel/correo/buzones/{id}` | (#355) Elimina el buzón (auditado). |
+| `POST /hotel/correo/buzones/{id}/prueba` | (#355) Prueba la conexión: lectura → cuenta enviados de 7 días (solo metadatos); envío → correo de prueba al destino. Responde `{ok, detalle}`. |
+| `POST /hotel/correo/revision` | (#355) «Revisar ahora»: revisa los enviados y pasa a `contactado` los leads `nuevo` a cuyo correo el hotel escribió después de su creación (nota «auto: correo enviado desde <buzón> el <fecha>», autor `auto:correo`, reversible). El ciclo automático corre cada `revision_correo.intervalo_minutos` (inicial 15). |
 | `POST /usuarios/{id}/email` | (#352, 2026-11-18) Vincula `{email}` (o desvincula con `null`) el correo de Google con que entra el usuario; un correo pertenece a un solo usuario (409). La auditoría registra el vínculo sin copiar el correo. Solo administración de plataforma. |
 | `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión propia exige `clave_actual` (401 si no coincide). La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |

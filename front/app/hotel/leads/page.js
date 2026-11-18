@@ -175,7 +175,7 @@ export default function Leads() {
                       {l.leads_del_contacto > 1 && <span className="nota-clave"> · {l.leads_del_contacto} leads del mismo contacto</span>}
                     </td>
                     <td>{l.nota ?? '—'}</td>
-                    <td>{l.gestion_por ? `${l.gestion_por} · ${l.gestion_en}` : '—'}</td>
+                    <td>{l.gestion_por ? `${l.gestion_por === 'auto:correo' ? 'automático (correo)' : l.gestion_por} · ${l.gestion_en}` : '—'}</td>
                     <td>
                       {l.estado !== 'cerrado' ? (
                         <div className="acciones-fila">
@@ -188,6 +188,12 @@ export default function Leads() {
                           {l.estado === 'nuevo' && (
                             <button type="button" className="boton-primario" onClick={() => gestionar(l.id, 'contactado')}>
                               Contactado
+                            </button>
+                          )}
+                          {l.estado === 'contactado' && l.gestion_por === 'auto:correo' && (
+                            <button type="button" className="boton-fantasma" title="Marcado por la revisión de correo"
+                              onClick={() => gestionar(l.id, 'nuevo')}>
+                              Deshacer (automático)
                             </button>
                           )}
                           <button type="button" className="boton-secundario" onClick={() => gestionar(l.id, 'cerrado')}>

@@ -14,6 +14,7 @@ export const PESTANAS_CONFIGURACION = [
   ['politicas', 'Políticas y registro de Llegada/Salida'],
   ['faq', 'Preguntas frecuentes'],
   ['reservas_web', 'Reservas web'],
+  ['correo', 'Correo'],
 ]
 
 export const SUBNAV_RESERVAS = [

@@ -136,15 +136,42 @@ def canales_desde_config(config) -> list:
     return canales
 
 
+@dataclass
+class CanalBuzon:
+    """#355: correo de avisos por el buzón de envío configurado en la
+    plataforma (SMTP, API de Gmail o Microsoft Graph)."""
+    buzon: object
+    front_url: str
+    nombre: str = "correo"
+
+    def enviar(self, evento: dict) -> None:
+        asunto, cuerpo, _ = _texto(evento, self.front_url)
+        self.buzon.enviar(asunto, cuerpo)
+
+
 class Despachador:
-    def __init__(self, canales: list, database_url: str | None):
+    def __init__(self, canales: list, database_url: str | None, front_url: str = "", usar_buzones: bool = True):
         self.canales = canales
         self.database_url = database_url
+        self.front_url = front_url
+        self.usar_buzones = usar_buzones
         self._parar = threading.Event()
 
     @property
     def activo(self) -> bool:
-        return bool(self.canales and self.database_url)
+        return bool(self.database_url and (self.canales or self.usar_buzones))
+
+    def canales_vigentes(self, conexion: psycopg.Connection) -> list:
+        """Los de variables de entorno; el buzón de envío activo de la
+        plataforma (#355) reemplaza al correo por SMTP de entorno."""
+        canales = list(self.canales)
+        if self.usar_buzones:
+            from . import correo
+
+            buzon = correo.buzon_envio_activo(conexion)
+            if buzon is not None:
+                canales = [c for c in canales if c.nombre != "correo"] + [CanalBuzon(buzon, self.front_url)]
+        return canales
 
     def despachar(self, limite: int = 20) -> dict:
         """Envía lo pendiente. Seguro con varios procesos (SKIP LOCKED)."""
@@ -152,7 +179,7 @@ class Despachador:
         if not self.activo:
             return resultado
         with psycopg.connect(self.database_url) as conexion:
-            for canal in self.canales:
+            for canal in self.canales_vigentes(conexion):
                 filas = conexion.execute(
                     "SELECT e.id, e.tipo, e.referencia, e.datos FROM avisos_eventos e "
                     "LEFT JOIN avisos_envios v ON v.evento_id = e.id AND v.canal = %s "
