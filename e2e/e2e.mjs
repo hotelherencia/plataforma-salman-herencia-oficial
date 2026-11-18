@@ -276,9 +276,14 @@ try {
       await evidencia(page, 'hab-02-alta')
       return `${HAB_NUEVA} listada tras el alta`
     })
-    await caso('HAB-03', '/hotel/habitaciones', 'abrir mantenimiento excluye de la oferta', 'administrador', 'oferta sin HAB-103; al cerrar vuelve', async () => {
+    await caso('HAB-03', '/hotel/habitaciones', 'abrir mantenimiento con rango excluye de la oferta en esas fechas', 'administrador', 'oferta sin HAB-103 en el rango; al cerrar vuelve', async () => {
       const fila = page.locator('.inventario-fila', { hasText: HAB_C })
       await fila.getByRole('button', { name: 'Abrir mantenimiento' }).click()
+      // #349: el mantenimiento pide el rango; solo en él sale de la oferta.
+      const formulario = page.getByRole('form', { name: 'Abrir mantenimiento' })
+      await formulario.getByRole('textbox', { name: 'Desde' }).fill(EN_30_DIAS)
+      await formulario.getByRole('textbox', { name: /Hasta/ }).fill(EN_33_DIAS)
+      await formulario.getByRole('button', { name: 'Abrir mantenimiento' }).click()
       await page.waitForTimeout(1800)
       let oferta = await api('GET', `/hotel/oferta?inicio=${EN_30_DIAS}&fin=${EN_33_DIAS}&personas=2`, { cookie: cookieAdmin })
       const ids = oferta.datos.oferta.map((u) => u.habitacion_id)

@@ -122,7 +122,10 @@ class DisponibilidadPublicaTest(CanalPublicoBaseTest):
         )
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         cuerpo = respuesta.json()
-        self.assertIn("HAB-SINT-101", {i["habitacion_id"] for i in cuerpo["oferta"]})
+        # #346 (criterio 3): el visitante ve tipo y precio, nunca el número.
+        self.assertTrue(cuerpo["oferta"])
+        self.assertTrue(all("habitacion_id" not in i and i["tipo"] for i in cuerpo["oferta"]))
+        self.assertNotIn("HAB-SINT", json.dumps(cuerpo))
         self.assertIn("tarifa_noche_clp", cuerpo["oferta"][0])
         self.assertNotIn("huesped", json.dumps(cuerpo).lower())
 
@@ -147,6 +150,8 @@ class DisponibilidadPublicaTest(CanalPublicoBaseTest):
 
     def test_cp03_disponibilidad_respeta_misma_regla_de_oferta(self):
         # mantenimiento en el rango excluye la unidad (idéntico a /hotel/oferta; #349)
+        params = {"inicio": str(MANANA), "fin": str(EN_3), "personas": 2}
+        antes = len(self.anonima.get("/publico/disponibilidad", params=params).json()["oferta"])
         self.assertEqual(self.cliente.post(
             "/hotel/habitaciones/HAB-SINT-101/mantenimiento",
             json={"abierto": True, "desde": str(MANANA), "hasta": str(EN_3)},
@@ -155,7 +160,9 @@ class DisponibilidadPublicaTest(CanalPublicoBaseTest):
             "/publico/disponibilidad", params={"inicio": str(MANANA), "fin": str(EN_3), "personas": 2}
         )
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
-        self.assertNotIn("HAB-SINT-101", {i["habitacion_id"] for i in respuesta.json()["oferta"]})
+        self.assertEqual(len(respuesta.json()["oferta"]), antes - 1)
+        interna = self.cliente.get("/hotel/oferta", params=params).json()["oferta"]
+        self.assertNotIn("HAB-SINT-101", {i["habitacion_id"] for i in interna})
 
     def test_cp04_rutas_internas_siguen_pidiendo_sesion(self):
         respuesta = self.anonima.get(

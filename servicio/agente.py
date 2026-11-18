@@ -236,6 +236,11 @@ def _componer_informacion(saludo: str, campos: dict, resultados: dict) -> str:
     return "\n".join(lineas).strip()
 
 
+def _nombre_tipo(tipo: str) -> str:
+    """#346/#369: al huésped solo se le nombra el tipo, nunca la unidad."""
+    return str(tipo or "").replace("_mas_", " + ").replace("_", " ").strip() or "disponible"
+
+
 def componer(plantilla: str, campos: dict, saludo: str, resultados: dict) -> str:
     """FR-A03: el texto lo compone el servidor; las cifras salen de las
     herramientas del turno, jamás del modelo."""
@@ -245,7 +250,7 @@ def componer(plantilla: str, campos: dict, saludo: str, resultados: dict) -> str
         if item.get("recargos"):
             texto = (
                 f"{saludo}\n\n"
-                f"Tenemos disponibilidad: {item['habitacion_id']} ({item['tipo']}) — "
+                f"Tenemos disponibilidad: habitación {_nombre_tipo(item['tipo'])} — "
                 f"{_clp(item['tarifa_noche_clp'])} por noche, "
                 f"{_clp(item.get('subtotal_noches_clp', item['total_clp']))} en alojamiento."
             )
@@ -255,7 +260,7 @@ def componer(plantilla: str, campos: dict, saludo: str, resultados: dict) -> str
         else:
             texto = (
                 f"{saludo}\n\n"
-                f"Tenemos disponibilidad: {item['habitacion_id']} ({item['tipo']}) — "
+                f"Tenemos disponibilidad: habitación {_nombre_tipo(item['tipo'])} — "
                 f"{_clp(item['tarifa_noche_clp'])} por noche, {_clp(item['total_clp'])} en total. "
             )
         if item.get("desglose") and item.get("recargos"):

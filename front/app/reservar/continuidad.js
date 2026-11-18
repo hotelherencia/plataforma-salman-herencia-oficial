@@ -82,6 +82,9 @@ export function leerParametros(params) {
   const crudoFin = tomar('salida', 'fin')
   const crudoPersonas = tomar('personas')
   const crudoRef = tomar('ref')
+  // landinpage#1: la tarjeta de la landing pide un tipo (código, sin PII).
+  const crudoTipo = tomar('tipo')
+  const tipo = /^[a-z0-9_]{2,40}$/.test(crudoTipo) ? crudoTipo : ''
   const avisos = []
   const inicio = fechaIso(crudoInicio) ? crudoInicio : ''
   const fin = fechaIso(crudoFin) ? crudoFin : ''
@@ -90,19 +93,33 @@ export function leerParametros(params) {
   if (crudoFin && !fin) avisos.push('La salida indicada en el enlace no es válida.')
   if (crudoPersonas && !personas) avisos.push('La cantidad de personas del enlace no es válida.')
   const ref = referenciaValida(crudoRef) ? crudoRef : ''
-  return { inicio, fin, personas, ref, avisos }
+  return { inicio, fin, personas, ref, tipo, avisos }
+}
+
+/**
+ * landinpage#1: preselecciona el tipo pedido si tiene cupo; si no, elige el
+ * primero disponible y explica por qué (sin prometer números de habitación).
+ */
+export function elegirTipo(grupos, preferido) {
+  if (!grupos.length) return { tipo: '', aviso: '' }
+  if (preferido && grupos.some((g) => g.tipo === preferido)) return { tipo: preferido, aviso: '' }
+  const aviso = preferido
+    ? `No queda cupo en ${nombreTipo(preferido)} para esas fechas; te mostramos los otros tipos disponibles.`
+    : ''
+  return { tipo: grupos[0].tipo, aviso }
 }
 
 /**
  * URL canónica de /reservar: solo llegada, salida y personas válidas (sin `ref`,
  * sin alias inicio/fin, sin parámetros ajenos). null si ya es canónica.
  */
-export function urlCanonica(href, { inicio, fin, personas }) {
+export function urlCanonica(href, { inicio, fin, personas, tipo }) {
   const url = new URL(href)
   const q = new URLSearchParams()
   if (inicio) q.set('llegada', inicio)
   if (fin) q.set('salida', fin)
   if (personas) q.set('personas', personas)
+  if (tipo) q.set('tipo', tipo)
   const destino = `${url.pathname}${q.toString() ? `?${q}` : ''}`
   return destino === `${url.pathname}${url.search}` ? null : destino
 }

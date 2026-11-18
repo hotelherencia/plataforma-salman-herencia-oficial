@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   agruparOferta, enlaceWhatsapp, erroresContacto, fechaIso, guardarReferencia, leerParametros, leerReferencia,
-  nombreTipo, politicaUnica, urlCanonica, validarRango,
+  elegirTipo, nombreTipo, politicaUnica, urlCanonica, validarRango,
 } from '../app/reservar/continuidad.js'
 
 const REF = 'Abc_123-xyz'.repeat(4)
@@ -91,4 +91,26 @@ test('WhatsApp con fechas y personas validadas, sin valores crudos', () => {
   const u = new URL(enlaceWhatsapp('2030-01-10', '2030-01-12', '5'))
   assert.equal(u.searchParams.get('text'), 'Hola, quiero consultar disponibilidad en Hotel Herencia para 5 personas del 2030-01-10 al 2030-01-12.')
   assert.equal(new URL(enlaceWhatsapp('<x>', "' OR 1", '99')).searchParams.get('text'), 'Hola, quiero consultar disponibilidad en Hotel Herencia.')
+})
+
+test('landinpage#1: el tipo del enlace se lee por lista blanca y queda en la URL canónica', () => {
+  const p = (q) => new URLSearchParams(q)
+  assert.equal(leerParametros(p('llegada=2030-01-10&salida=2030-01-12&tipo=matrimonial')).tipo, 'matrimonial')
+  assert.equal(leerParametros(p('tipo=<script>')).tipo, '')
+  assert.equal(leerParametros(p('tipo=HAB-01')).tipo, '')
+  assert.equal(
+    urlCanonica('https://x.test/reservar?inicio=2030-01-10&fin=2030-01-12&tipo=doble&ref=abc', { inicio: '2030-01-10', fin: '2030-01-12', personas: '2', tipo: 'doble' }),
+    '/reservar?llegada=2030-01-10&salida=2030-01-12&personas=2&tipo=doble',
+  )
+})
+
+test('landinpage#1: preselecciona el tipo con cupo; si no hay, lo dice y ofrece otros', () => {
+  const grupos = [{ tipo: 'doble' }, { tipo: 'matrimonial' }]
+  assert.deepEqual(elegirTipo(grupos, 'matrimonial'), { tipo: 'matrimonial', aviso: '' })
+  const sinCupo = elegirTipo(grupos, 'triple')
+  assert.equal(sinCupo.tipo, 'doble')
+  assert.match(sinCupo.aviso, /No queda cupo en Triple/)
+  assert.doesNotMatch(sinCupo.aviso, /HAB-|\d{2,}/)
+  assert.deepEqual(elegirTipo(grupos, ''), { tipo: 'doble', aviso: '' })
+  assert.deepEqual(elegirTipo([], 'doble'), { tipo: '', aviso: '' })
 })
