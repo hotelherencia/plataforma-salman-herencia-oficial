@@ -31,6 +31,22 @@ class PagoDuplicadoConDatosDistintos(Exception):
     monto o modo distintos; no es un reintento, es un conflicto."""
 
 
+class PagoEnExceso(Exception):
+    """409 (#365): el monto supera el saldo y no se confirmó el exceso."""
+
+    def __init__(self, saldo_clp: int, exceso_clp: int):
+        super().__init__(
+            f"el pago supera el saldo pendiente ({saldo_clp} CLP) en {exceso_clp} CLP; "
+            "confírmalo explícitamente si corresponde"
+        )
+        self.saldo_clp = saldo_clp
+        self.exceso_clp = exceso_clp
+
+
+class CargoNoReversable(Exception):
+    """409 (#359): el cargo no existe en la reserva, ya fue reversado o es un reverso."""
+
+
 class PasarelaNoConfigurada(Exception):
     """503: puerto sin adaptador; nada queda marcado como cobrado."""
 
@@ -71,8 +87,15 @@ def registrar_pago_manual(
     reserva_id: str,
     monto_clp: int,
     clave: str,
+    confirmar_exceso: bool = False,
 ) -> dict:
+    """Pago manual. #365: compara con el saldo de la cuenta bajo el cerrojo de
+    la reserva; un monto menor queda como pago parcial (con saldo pendiente) y
+    uno mayor exige `confirmar_exceso`. #364: la respuesta trae el huésped."""
     _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
+    huesped, habitacion = conexion.execute(
+        "SELECT huesped_nombre, habitacion_id FROM reservas WHERE id = %s", (reserva_id,)
+    ).fetchone()
     existente = conexion.execute(
         "SELECT id, monto_clp, modo FROM pagos WHERE reserva_id = %s AND clave = %s", (reserva_id, clave)
     ).fetchone()
@@ -82,8 +105,14 @@ def registrar_pago_manual(
                 f"ya existe un pago con la clave «{clave}» por {existente[1]} CLP; "
                 "usa otra clave de cobro o el mismo monto para reintentar"
             )
+        neto, pagado = cuenta_de_reserva(conexion, reserva_id)
         return {"pago_id": existente[0], "reserva_id": reserva_id, "monto_clp": existente[1],
-                "clave": clave, "modo": "manual", "estado": "confirmado", "reintento": True}
+                "clave": clave, "modo": "manual", "estado": "confirmado", "reintento": True,
+                "huesped_nombre": huesped, "habitacion_id": habitacion, "saldo_despues_clp": neto - pagado}
+    neto, pagado = cuenta_de_reserva(conexion, reserva_id)
+    saldo_antes = neto - pagado
+    if monto_clp > saldo_antes and not confirmar_exceso:
+        raise PagoEnExceso(saldo_antes, monto_clp - max(saldo_antes, 0))
     clave_efecto = f"{reserva_id}:{clave}"
     try:
         nucleo.aplicar_resultado_pago(empresa_id, clave_efecto, "confirmado", monto_clp)
@@ -101,20 +130,25 @@ def registrar_pago_manual(
         "VALUES (%s, %s, %s, %s, 'manual', 'confirmado', %s)",
         (pago_id, reserva_id, monto_clp, clave, efecto_id),
     )
+    saldo_despues = saldo_antes - monto_clp
+    tipo = "total" if saldo_despues == 0 else ("parcial" if saldo_despues > 0 else "exceso")
     return {"pago_id": pago_id, "reserva_id": reserva_id, "monto_clp": monto_clp,
-            "clave": clave, "modo": "manual", "estado": "confirmado", "efecto_nucleo_id": efecto_id}
+            "clave": clave, "modo": "manual", "estado": "confirmado", "efecto_nucleo_id": efecto_id,
+            "huesped_nombre": huesped, "habitacion_id": habitacion,
+            "saldo_antes_clp": saldo_antes, "saldo_despues_clp": saldo_despues, "tipo": tipo}
 
 
 def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> dict:
     filas = conexion.execute(
-        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado "
+        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado, r.huesped_nombre "
         "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
         "WHERE r.empresa_id = %s AND p.creado_en::date = %s AND p.estado = 'confirmado' "
         "ORDER BY p.creado_en",
         (empresa_id, fecha),
     ).fetchall()
     pagos = [
-        {"pago_id": f[0], "reserva_id": f[1], "habitacion_id": f[2], "monto_clp": f[3], "modo": f[4], "estado": f[5]}
+        {"pago_id": f[0], "reserva_id": f[1], "habitacion_id": f[2], "monto_clp": f[3], "modo": f[4], "estado": f[5],
+         "huesped_nombre": f[6]}
         for f in filas
     ]
     return {"fecha": fecha.isoformat(), "pagos": pagos, "total_clp": sum(p["monto_clp"] for p in pagos)}
@@ -221,9 +255,11 @@ def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: s
         "precio_por_noche": reservas_db.noches_de_reserva(conexion, reserva_id),
         "cargos": [
             {"cargo_id": c[0], "tipo": c[1], "concepto": c[2], "monto_clp": c[3], "referencia": c[4],
-             "registrado_en": c[5].isoformat()}
+             "registrado_en": c[5].isoformat(), "reversado": c[6]}
             for c in conexion.execute(
-                "SELECT id, tipo, concepto, monto_clp, referencia, creado_en FROM cargos "
+                "SELECT id, tipo, concepto, monto_clp, referencia, creado_en, "
+                "EXISTS(SELECT 1 FROM cargos x WHERE x.reserva_id = cargos.reserva_id AND x.tipo = 'reverso' "
+                "AND x.referencia = cargos.id) FROM cargos "
                 "WHERE reserva_id = %s ORDER BY creado_en, id",
                 (reserva_id,),
             ).fetchall()
@@ -307,6 +343,7 @@ ROLES_LIMPIEZA = roles.con_admin_hotel("recepcion")
 ROLES_MANTENIMIENTO = roles.con_admin_hotel()
 ROLES_CANCELACION = roles.con_admin_hotel("recepcion")
 ROLES_CARGO = ROLES_PAGO_MANUAL
+ROLES_REVERSO = roles.con_admin_hotel()
 ESTADOS_CON_CUENTA_ABIERTA = ("confirmada", "en_estadia")
 
 
@@ -371,6 +408,37 @@ def asentar_cargo(conexion: psycopg.Connection, empresa_id: str, reserva_id: str
         (cargo_id, reserva_id, concepto, monto_clp),
     )
     return {"cargo_id": cargo_id, "reserva_id": reserva_id, "concepto": concepto, "monto_clp": monto_clp, "tipo": "cargo"}
+
+
+def reversar_cargo(
+    conexion: psycopg.Connection, empresa_id: str, reserva_id: str, cargo_id: str, motivo: str
+) -> dict:
+    """#359: anular un cargo es asentar su reverso (movimiento contrario), nunca
+    borrarlo. Un cargo se reversa una sola vez y solo con la cuenta abierta."""
+    reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
+    if reserva[2] not in ESTADOS_CON_CUENTA_ABIERTA:
+        raise TransicionInvalida(f"la reserva está {reserva[2]}")
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise CargoNoReversable("indica el motivo del reverso")
+    cargo = conexion.execute(
+        "SELECT concepto, monto_clp, tipo FROM cargos WHERE id = %s AND reserva_id = %s", (cargo_id, reserva_id)
+    ).fetchone()
+    if cargo is None or cargo[2] != "cargo":
+        raise CargoNoReversable("ese cargo no existe en la reserva o ya es un reverso")
+    if conexion.execute(
+        "SELECT 1 FROM cargos WHERE reserva_id = %s AND tipo = 'reverso' AND referencia = %s", (reserva_id, cargo_id)
+    ).fetchone():
+        raise CargoNoReversable("ese cargo ya fue reversado")
+    reverso_id = f"CRG-{uuid.uuid4().hex[:12]}"
+    concepto = f"Reverso de {cargo[0]}: {motivo}"[:200]
+    conexion.execute(
+        "INSERT INTO cargos (id, reserva_id, concepto, monto_clp, tipo, referencia) VALUES (%s, %s, %s, %s, 'reverso', %s)",
+        (reverso_id, reserva_id, concepto, cargo[1], cargo_id),
+    )
+    neto, pagado = cuenta_de_reserva(conexion, reserva_id)
+    return {"cargo_id": reverso_id, "reserva_id": reserva_id, "tipo": "reverso", "referencia": cargo_id,
+            "concepto": concepto, "monto_clp": cargo[1], "saldo_clp": neto - pagado}
 
 
 def cancelar(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, ahora: datetime) -> dict:

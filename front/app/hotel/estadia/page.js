@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
+import { SelectorReserva } from '../_componentes/selector-reserva'
 import { gestionaRecepcion } from '../../../lib/roles'
 
 const ETIQUETA_ESTADO = {
@@ -22,6 +23,8 @@ export default function Estadia() {
   const [claveCancela, renovarClaveCancela] = useClaveOperacion()
   const [claveCargo, renovarClaveCargo] = useClaveOperacion()
   const [cargo, setCargo] = useState({ reserva_id: '', concepto: 'minibar', monto_clp: '5000' })
+  // #356: la reserva del cargo precargada queda fija; solo se cambia a propósito.
+  const [cargoFijo, setCargoFijo] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const enVueloRef = useRef(false)
 
@@ -32,6 +35,7 @@ export default function Estadia() {
     if (r) {
       setReservaId(r)
       setCargo((prev) => ({ ...prev, reserva_id: prev.reserva_id || r }))
+      setCargoFijo(true)
     }
   }, [])
 
@@ -243,7 +247,17 @@ export default function Estadia() {
       <section className="tarjeta">
         <h2>Asentar cargo (minibar, consumo, extra)</h2>
         <form className="formulario" onSubmit={asentarCargo}>
-          <Campo etiqueta="Reserva" value={cargo.reserva_id} onChange={(e) => setCargo({ ...cargo, reserva_id: e.target.value })} />
+          <SelectorReserva
+            valor={cargo.reserva_id}
+            fijo={cargoFijo}
+            alCambiar={(id) => { setCargo((c) => ({ ...c, reserva_id: id })); if (id) refrescarDetalle(id) }}
+            alLiberar={() => { setCargoFijo(false); setCargo((c) => ({ ...c, reserva_id: '' })) }}
+          />
+          {detalleCargoActivo && (
+            <p className="nota-clave" data-cargo-huesped>
+              Huésped <strong>{detalleCargoActivo.huesped_nombre}</strong> · habitación {detalleCargoActivo.habitacion_id}
+            </p>
+          )}
           <Campo etiqueta="Concepto" value={cargo.concepto} onChange={(e) => setCargo({ ...cargo, concepto: e.target.value })} />
           <Campo etiqueta="Monto (CLP)" type="number" value={cargo.monto_clp} onChange={(e) => setCargo({ ...cargo, monto_clp: e.target.value })} />
           <button type="submit" className="boton-primario" disabled={enviando || noAdmiteCargo}>

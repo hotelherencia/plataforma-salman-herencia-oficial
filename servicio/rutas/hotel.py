@@ -28,7 +28,7 @@ from .. import seguridad
 from . import comun
 from .modelos import (
     CargoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
-    PagoIn, PATRON_ID_HABITACION, RechazoSolicitudIn, ReservaIn, ServicioIn,
+    PagoIn, PATRON_ID_HABITACION, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
 
@@ -384,8 +384,11 @@ def registrar_pago(
         comun.exigir_rol(sesion, cobro.ROLES_PAGO_MANUAL)
         try:
             registrado = cobro.registrar_pago_manual(
-                conexion, request.app.state.aplicacion.nucleo, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave
+                conexion, request.app.state.aplicacion.nucleo, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave,
+                confirmar_exceso=pago.confirmar_exceso,
             )
+        except cobro.PagoEnExceso as error:
+            return 409, {"detail": str(error), "saldo_clp": error.saldo_clp, "exceso_clp": error.exceso_clp}
         except cobro.PagoRechazadoPorNucleo as error:
             seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "rechazado-nucleo")
             return 403, {"detail": str(error)}
@@ -616,6 +619,35 @@ def asentar_cargo_reserva(
         except cobro.TransicionInvalida as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "cargo", f"{reserva_id}:{resultado['cargo_id']}", "asentado")
+        return 201, resultado
+
+    try:
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+@router.post("/hotel/reservas/{reserva_id}/cargos/{cargo_id}/reverso")
+def reversar_cargo_reserva(
+    reserva_id: str,
+    cargo_id: str,
+    cuerpo_reverso: ReversoCargoIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#359: reverso contable de un cargo (solo administración del hotel)."""
+    comun.exigir_rol(sesion, cobro.ROLES_REVERSO)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    cuerpo = {"reserva_id": reserva_id, "cargo_id": cargo_id, "motivo": cuerpo_reverso.motivo}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = cobro.reversar_cargo(conexion, sesion.empresa_id, reserva_id, cargo_id, cuerpo_reverso.motivo)
+        except (cobro.TransicionInvalida, cobro.CargoNoReversable) as error:
+            return 409, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, "cargo_reverso", f"{reserva_id}:{cargo_id}", resultado["cargo_id"])
         return 201, resultado
 
     try:

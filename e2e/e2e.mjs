@@ -404,10 +404,12 @@ try {
     const page = await ctx.newPage()
     await loginUi(page, 'caja_e2e', 'CajaE2e1234')
     await caso('PAG-01', '/hotel/pago', 'pago manual de caja registra efecto', 'caja', '201 confirmado; la caja del día lo lista', async () => {
-      await page.goto(`${FRONT}/hotel/pago`)
+      // #356/#364: la reserva llega precargada y queda fija (sin ID a mano).
+      await page.goto(`${FRONT}/hotel/pago?reserva_id=${encodeURIComponent(reservaId)}`)
       await page.waitForTimeout(1500)
-      await page.getByRole('textbox', { name: 'Reserva' }).fill(reservaId)
       await page.getByRole('spinbutton', { name: 'Monto (CLP)' }).fill('100000')
+      // #365: abono menor que la deuda → aviso de saldo pendiente
+      if ((await page.locator('[data-pago="parcial"]').count()) !== 1) throw new Error('sin aviso de pago parcial')
       await page.getByRole('textbox', { name: 'Clave del cobro' }).fill('e2e-cobro-1')
       await page.getByRole('button', { name: 'Registrar pago' }).click()
       await page.waitForTimeout(2000)
@@ -421,7 +423,6 @@ try {
     await caso('PAG-02', '/hotel/pago', 'pasarela sin adaptador', 'caja', '503 «no configurado», nada cobrado', async () => {
       await page.getByRole('button', { name: 'Nueva operación' }).click()
       await page.waitForTimeout(500)
-      await page.getByRole('textbox', { name: 'Reserva' }).fill(reservaId)
       await page.getByRole('spinbutton', { name: 'Monto (CLP)' }).fill('1000')
       await page.getByRole('combobox', { name: 'Modo' }).selectOption('pasarela')
       await page.getByRole('button', { name: 'Registrar pago' }).click()

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, useSesion } from '../../../../lib/api'
+import { esAdminHotel } from '../../../../lib/roles'
 import Subnav from '../../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 
@@ -31,6 +32,32 @@ export default function DetalleReserva() {
   const sesion = useSesion()
   const [reserva, setReserva] = useState(null)
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
+  const [version, setVersion] = useState(0)
+  const puedeReversar = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
+
+  // #359: anular un cargo = asentar su reverso (movimiento contrario), nunca borrar.
+  async function reversar(cargo) {
+    const motivo = window.prompt(`Motivo del reverso de «${cargo.concepto}» (${clp(cargo.monto_clp)}):`)
+    if (motivo === null) return
+    if (motivo.trim().length < 3) { setError('Indica un motivo (mínimo 3 caracteres).'); return }
+    setError('')
+    setAviso('')
+    try {
+      const r = await api(`/hotel/reservas/${encodeURIComponent(reservaId)}/cargos/${encodeURIComponent(cargo.cargo_id)}/reverso`, {
+        metodo: 'POST',
+        claveIdempotencia: `rev-${cargo.cargo_id}-${crypto.randomUUID().slice(0, 6)}`,
+        cuerpo: { motivo: motivo.trim() },
+      })
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else {
+        setAviso(`Reverso asentado por ${clp(r.datos.monto_clp)}. Saldo: ${clp(r.datos.saldo_clp)}.`)
+        setVersion((v) => v + 1)
+      }
+    } catch {
+      setError('La API no está disponible')
+    }
+  }
 
   useEffect(() => {
     if (sesion.fase !== 'ok') return
@@ -41,7 +68,7 @@ export default function DetalleReserva() {
         else setReserva(r.datos)
       })
       .catch(() => setError('La API no está disponible'))
-  }, [sesion.fase, reservaId])
+  }, [sesion.fase, reservaId, version])
 
   return (
     <MarcoHotel titulo={`Reserva ${reservaId}`}>
@@ -50,6 +77,7 @@ export default function DetalleReserva() {
         <Link href="/hotel/reservas">← Reservas</Link> · <Link href="/hotel/ocupacion">Ocupación</Link>
       </p>
       {error && <p role="alert" className="alerta">{error}</p>}
+      {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       {reserva && (
         <>
           <section className="tarjeta" aria-label="Reserva">
@@ -117,6 +145,7 @@ export default function DetalleReserva() {
                   <th>Tipo</th>
                   <th>Concepto</th>
                   <th>Monto</th>
+                  {puedeReversar && <th>Acción</th>}
                 </tr>
               </thead>
               <tbody>
@@ -126,6 +155,13 @@ export default function DetalleReserva() {
                     <td>{c.tipo}</td>
                     <td>{c.concepto}</td>
                     <td>{c.tipo === 'reverso' ? `−${clp(c.monto_clp)}` : clp(c.monto_clp)}</td>
+                    {puedeReversar && (
+                      <td>
+                        {c.tipo === 'cargo' && !c.reversado && ['confirmada', 'en_estadia'].includes(reserva.estado) ? (
+                          <button type="button" className="boton-fantasma" onClick={() => reversar(c)}>Reversar</button>
+                        ) : c.reversado ? 'reversado' : '—'}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
