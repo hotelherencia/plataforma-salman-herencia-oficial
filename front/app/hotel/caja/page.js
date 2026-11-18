@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
 import { esAdminHotel } from '../../../lib/roles'
@@ -57,9 +58,10 @@ export default function Caja() {
             <table className="tabla">
               <thead>
                 <tr>
+                  <th>Huésped</th>
+                  <th>Habitación</th>
                   <th>Pago</th>
                   <th>Reserva</th>
-                  <th>Habitación</th>
                   <th>Monto</th>
                   <th>Modo</th>
                   <th>Estado</th>
@@ -68,9 +70,10 @@ export default function Caja() {
               <tbody>
                 {caja.pagos.map((p) => (
                   <tr key={p.pago_id}>
-                    <td>{p.pago_id}</td>
-                    <td>{p.reserva_id}</td>
+                    <td>{p.huesped_nombre || '—'}</td>
                     <td>{p.habitacion_id}</td>
+                    <td className="nota-tecnica">{p.pago_id}</td>
+                    <td><Link href={`/hotel/reservas/${p.reserva_id}`}>{p.reserva_id}</Link></td>
                     <td>${p.monto_clp}</td>
                     <td>{p.modo}</td>
                     <td>{p.estado}</td>

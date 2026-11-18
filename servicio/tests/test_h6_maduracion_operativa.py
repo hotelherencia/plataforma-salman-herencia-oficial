@@ -87,10 +87,10 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 201, respuesta.text)
         return respuesta.json()["reserva_id"]
 
-    def pagar(self, reserva_id, monto, clave="cob-1", idem="pag-1"):
+    def pagar(self, reserva_id, monto, clave="cob-1", idem="pag-1", confirmar_exceso=False):
         return self.cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": monto, "clave": clave, "modo": "manual"},
+            json={"monto_clp": monto, "clave": clave, "modo": "manual", "confirmar_exceso": confirmar_exceso},
             headers={"Idempotency-Key": idem},
         )
 
@@ -499,7 +499,11 @@ class MaduracionOperativaTest(unittest.TestCase):
     def test_cancelacion_con_saldo_a_favor_se_confirma_sin_reembolso(self):
         rid = self.reservar("HAB-SINT-102", FUTURO, (date.fromisoformat(FUTURO) + timedelta(days=1)).isoformat(),
                             "Héctor", clave="r-hec")
-        self.assertEqual(self.pagar(rid, 70_000, "cob-hec", "pag-hec").status_code, 201)
+        # #365: pagar de más exige confirmarlo; sin confirmación → 409 y nada se registra.
+        sin_confirmar = self.pagar(rid, 70_000, "cob-hec", "pag-hec-0")
+        self.assertEqual(sin_confirmar.status_code, 409, sin_confirmar.text)
+        self.assertGreater(sin_confirmar.json()["exceso_clp"], 0)
+        self.assertEqual(self.pagar(rid, 70_000, "cob-hec", "pag-hec", confirmar_exceso=True).status_code, 201)
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             (pagos_antes,) = conexion.execute("SELECT count(*) FROM pagos WHERE reserva_id = %s", (rid,)).fetchone()

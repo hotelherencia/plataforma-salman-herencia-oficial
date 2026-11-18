@@ -2461,3 +2461,25 @@ a.boton-primario {
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+
+/* #356/#364: reserva fija y ficha del huésped en caja */
+.reserva-fija {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ficha-reserva {
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.ficha-reserva p {
+  margin: 0.25rem 0;
+}
+.campo-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px;
+}

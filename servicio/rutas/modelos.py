@@ -79,6 +79,8 @@ class PagoIn(BaseModel):
     monto_clp: int = Field(gt=0, le=1_000_000_000)
     clave: str = Field(min_length=1, max_length=100)
     modo: str = Field(pattern="^(manual|pasarela)$")
+    # #365: un monto mayor que el saldo exige confirmación explícita.
+    confirmar_exceso: bool = False
 
 
 class UsuarioIn(BaseModel):
@@ -102,6 +104,10 @@ class MantenimientoIn(BaseModel):
 class CargoIn(BaseModel):
     concepto: str = Field(min_length=1, max_length=200)
     monto_clp: int = Field(gt=0, le=1_000_000_000)
+
+
+class ReversoCargoIn(BaseModel):
+    motivo: str = Field(min_length=3, max_length=150)
 
 
 class SolicitudPublicaIn(BaseModel):
