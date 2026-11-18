@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (88)
+## Operaciones de esta versión (89)
 
 | Operación | Efecto |
 |---|---|
@@ -517,7 +517,8 @@ los compone el servidor.
 | `GET /auth/google/callback` | Valida `state` **consumiéndolo en todo intento** y exigiendo que la cookie `oauth_tx` coincida con la que originó el login (state de otro navegador → 400, SEC-A05); intercambia `code`, verifica el ID token y abre la sesión con cookie `sid`, redirigiendo a `FRONT_URL`. Email sin vínculo → `/login?error=cuenta_sin_vinculo`; `access_denied` → `/login?error=acceso_denegado`. |
 | `POST /auth/google/totp` | Segundo paso del login Google de un administrador con TOTP activo: valida el código contra la transacción MFA pendiente (cookie propia, un solo uso) y abre la sesión con cookie `sid`. Sin transacción → 400; código errado → 401; freno de intentos → 429. Sin sesión previa. |
 | `GET /usuarios` | Lista `id`, `nombre`, `rol`, `activo` de la empresa. Solo administrador. |
-| `POST /usuarios` | Alta `{nombre, rol, clave}` con hash argon2id. Solo administrador. Nombre repetido → 409. |
+| `POST /usuarios` | Alta `{nombre, rol, clave, email?}` con hash argon2id. (#352) `email` opcional: correo de Google con que entra (minúsculas; ya vinculado a otro → 409). Solo administrador. Nombre repetido → 409. |
+| `POST /usuarios/{id}/email` | (#352, 2026-11-18) Vincula `{email}` (o desvincula con `null`) el correo de Google con que entra el usuario; un correo pertenece a un solo usuario (409). La auditoría registra el vínculo sin copiar el correo. Solo administración de plataforma. |
 | `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión propia exige `clave_actual` (401 si no coincide). La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |
 | `POST /usuarios/{id}/baja` | `activo=false` y revoca sesiones. Solo administrador, sobre otro usuario; no al último administrador activo (409). |

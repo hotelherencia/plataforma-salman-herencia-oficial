@@ -37,6 +37,7 @@ export function FilaUsuario({ usuario, alElegir }) {
       <span role="cell" className="reserva-celda">{etiquetaRol(usuario.rol)}</span>
       <span role="cell" className={`reserva-estado ${usuario.activo ? 'estado-confirmada' : 'estado-cancelada'}`}>
         {usuario.activo ? 'activo' : 'inactivo'}
+        {usuario.google_vinculado && ' · Google'}
       </span>
       <span role="cell" className="usuario-accion">
         <button type="button" className="boton-fantasma" onClick={() => alElegir(usuario.id)}>

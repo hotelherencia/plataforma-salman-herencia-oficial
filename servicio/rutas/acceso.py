@@ -16,7 +16,7 @@ from .. import roles
 from .. import google_oidc, idempotencia, observabilidad, seguridad, totp, totp_qr
 from ..canal_publico import ip_visible
 from . import comun
-from .modelos import ClaveActualIn, ClaveIn, CodigoTotpIn, Credenciales, UsuarioIn
+from .modelos import ClaveActualIn, ClaveIn, CodigoTotpIn, Credenciales, EmailUsuarioIn, UsuarioIn
 
 router = APIRouter()
 
@@ -406,11 +406,47 @@ def alta_usuario(
         ).fetchone()
         if existe is not None:
             return 409, {"detail": "nombre de usuario ya existe en la empresa"}
+        if usuario.email and seguridad.email_en_uso(conexion, usuario.email):
+            return 409, {"detail": "ese correo de Google ya está vinculado a otro usuario"}
         usuario_id = seguridad.crear_usuario(
-            conexion, sesion.empresa_id, usuario.nombre, usuario.rol, usuario.clave
+            conexion, sesion.empresa_id, usuario.nombre, usuario.rol, usuario.clave, usuario.email
         )
-        seguridad.auditar(conexion, sesion.nombre, "usuario", usuario_id, "creado")
-        return 201, {"id": usuario_id, "nombre": usuario.nombre, "rol": usuario.rol, "activo": True}
+        # La auditoría registra el vínculo sin copiar el correo (Ley 21.719).
+        seguridad.auditar(conexion, sesion.nombre, "usuario", usuario_id,
+                          "creado con Google" if usuario.email else "creado")
+        return 201, {"id": usuario_id, "nombre": usuario.nombre, "rol": usuario.rol, "activo": True,
+                     "google_vinculado": bool(usuario.email)}
+
+    try:
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+
+@router.post("/usuarios/{usuario_id}/email")
+def vincular_email_usuario(
+    usuario_id: str,
+    cuerpo_email: EmailUsuarioIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#352: la administración de plataforma vincula o desvincula el correo de
+    Google con que entra un usuario. Un correo pertenece a un solo usuario."""
+    comun.exigir_admin_plataforma(sesion)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_email.model_dump_json())}
+
+    def operacion() -> tuple[int, dict]:
+        objetivo = seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
+        if cuerpo_email.email and seguridad.email_en_uso(conexion, cuerpo_email.email, usuario_id):
+            return 409, {"detail": "ese correo de Google ya está vinculado a otro usuario"}
+        conexion.execute("UPDATE usuarios SET email = %s WHERE id = %s", (cuerpo_email.email, usuario_id))
+        seguridad.auditar(conexion, sesion.nombre, "usuario-google", usuario_id,
+                          "vinculado" if cuerpo_email.email else "desvinculado")
+        return 200, {"id": usuario_id, "nombre": objetivo[1], "google_vinculado": bool(cuerpo_email.email)}
 
     try:
         codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)

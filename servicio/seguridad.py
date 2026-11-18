@@ -46,13 +46,20 @@ def verificar_clave(hash_guardado: str, clave: str) -> bool:
         return False
 
 
-def crear_usuario(conexion: psycopg.Connection, empresa_id: str, nombre: str, rol: str, clave: str) -> str:
+def crear_usuario(conexion: psycopg.Connection, empresa_id: str, nombre: str, rol: str, clave: str,
+                  email: str | None = None) -> str:
     usuario_id = f"USR-{uuid.uuid4().hex[:12]}"
     conexion.execute(
-        "INSERT INTO usuarios (id, empresa_id, nombre, rol, clave_hash) VALUES (%s, %s, %s, %s, %s)",
-        (usuario_id, empresa_id, nombre, rol, hashear_clave(clave)),
+        "INSERT INTO usuarios (id, empresa_id, nombre, rol, clave_hash, email) VALUES (%s, %s, %s, %s, %s, %s)",
+        (usuario_id, empresa_id, nombre, rol, hashear_clave(clave), email),
     )
     return usuario_id
+
+
+def email_en_uso(conexion: psycopg.Connection, email: str, salvo_usuario: str | None = None) -> bool:
+    return conexion.execute(
+        "SELECT 1 FROM usuarios WHERE email = %s AND id IS DISTINCT FROM %s", (email, salvo_usuario)
+    ).fetchone() is not None
 
 
 def asegurar_admin_inicial(
@@ -302,10 +309,11 @@ def revocar_sesiones_de_usuario(
 def listar_usuarios(conexion: psycopg.Connection, empresa_id: str) -> list[dict]:
     """Gestión de usuarios (spec-api-v1): jamás devuelve clave_hash."""
     filas = conexion.execute(
-        "SELECT id, nombre, rol, activo FROM usuarios WHERE empresa_id = %s ORDER BY nombre",
+        "SELECT id, nombre, rol, activo, email IS NOT NULL FROM usuarios WHERE empresa_id = %s ORDER BY nombre",
         (empresa_id,),
     ).fetchall()
-    return [{"id": f[0], "nombre": f[1], "rol": f[2], "activo": f[3]} for f in filas]
+    # #352: solo si tiene Google vinculado; el correo no se expone en el listado.
+    return [{"id": f[0], "nombre": f[1], "rol": f[2], "activo": f[3], "google_vinculado": f[4]} for f in filas]
 
 
 def buscar_usuario_en_empresa(conexion: psycopg.Connection, empresa_id: str, usuario_id: str):

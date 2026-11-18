@@ -97,10 +97,30 @@ class PagoIn(BaseModel):
     confirmar_exceso: bool = False
 
 
+_PATRON_CORREO = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
 class UsuarioIn(BaseModel):
     nombre: str = Field(min_length=1, max_length=100)
     rol: str = Field(pattern=roles.PATRON_ROL)
     clave: str = Field(min_length=6, max_length=200)
+    # #352: correo de la cuenta Google con la que este usuario entra (opcional).
+    email: str | None = Field(default=None, max_length=320, pattern=_PATRON_CORREO)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_minusculas(cls, valor):
+        return valor.strip().lower() if isinstance(valor, str) and valor.strip() else None
+
+
+class EmailUsuarioIn(BaseModel):
+    """#352: vincula (o, con null, desvincula) el correo de Google de un usuario."""
+    email: str | None = Field(default=None, max_length=320, pattern=_PATRON_CORREO)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_minusculas(cls, valor):
+        return valor.strip().lower() if isinstance(valor, str) and valor.strip() else None
 
 
 class ClaveIn(BaseModel):
