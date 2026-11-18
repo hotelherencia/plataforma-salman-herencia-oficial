@@ -95,7 +95,9 @@ class EntradaPublicaSeguraTest(LeadsBaseTest):
         ).json()
         self.assertIn("capacidad_maxima_habitacion", oferta)
         self.assertIn("capacidad", oferta["oferta"][0])
-        base = {"habitacion_id": oferta["oferta"][0]["habitacion_id"], "inicio": MANANA.isoformat(),
+        # #346: la disponibilidad pública no expone números; la solicitud va por tipo.
+        self.assertNotIn("habitacion_id", oferta["oferta"][0])
+        base = {"tipo": oferta["oferta"][0]["tipo"], "inicio": MANANA.isoformat(),
                 "fin": EN_3.isoformat(), "personas": 2, "huesped_nombre": "Ana\u0000 Sintética",
                 "huesped_contacto": "ana@example.test"}
         extra = self.anonima.post("/publico/solicitudes", json={**base, "estado": "confirmada"},

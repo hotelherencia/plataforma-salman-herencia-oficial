@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { api, clp, mensajeDeError, Campo, useClaveOperacion, alRechazar } from '../../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
 import {
-  agruparOferta, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
+  agruparOferta, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
   leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
 } from './continuidad'
 
@@ -80,6 +80,9 @@ function Reservar() {
   const [oferta, setOferta] = useState(null)
   const [personasConsultadas, setPersonasConsultadas] = useState(inicial.personas || '2')
   const [elegida, setElegida] = useState('')
+  // landinpage#1: tipo pedido por el enlace (o el último que eligió el visitante).
+  const preferidoRef = useRef(inicial.tipo)
+  const [avisoTipo, setAvisoTipo] = useState('')
   const [nombre, setNombre] = useState('')
   const [contacto, setContacto] = useState('')
   const [erroresCampo, setErroresCampo] = useState({})
@@ -111,8 +114,9 @@ function Reservar() {
       } else {
         setOferta(r.datos)
         setPersonasConsultadas(String(Number(proximasPersonas)))
-        const grupos = agruparOferta(r.datos.oferta)
-        setElegida(grupos[0] ? grupos[0].tipo : '')
+        const { tipo: elegidoAhora, aviso } = elegirTipo(agruparOferta(r.datos.oferta), preferidoRef.current)
+        setElegida(elegidoAhora)
+        setAvisoTipo(aviso)
       }
     } catch {
       setError('La API no está disponible: nada se puede confirmar. Intenta de nuevo en unos minutos.')
@@ -132,7 +136,7 @@ function Reservar() {
     if (i && f) buscar(i, f, p || '2')
     const almacen = almacenLocal()
     if (refUrl) guardarReferencia(almacen, refUrl)
-    const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p })
+    const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p, tipo: inicial.tipo })
     if (canonica) window.history.replaceState(window.history.state, '', canonica)
 
     const ref = refUrl || leerReferencia(almacen)
@@ -298,6 +302,7 @@ function Reservar() {
               <p className="estado">
                 Valores por noche con IVA incluido; la oferta vence en {oferta.vigencia_minutos} minutos.
               </p>
+              {avisoTipo && <p className="estado" role="status" data-aviso-tipo>{avisoTipo}</p>}
               <fieldset className="lista-opciones">
                 <legend className="sr-only">Tipo de habitación</legend>
                 {grupos.map((g) => (
@@ -306,7 +311,7 @@ function Reservar() {
                       type="radio"
                       name="habitacion"
                       checked={elegida === g.tipo}
-                      onChange={() => setElegida(g.tipo)}
+                      onChange={() => { setElegida(g.tipo); preferidoRef.current = g.tipo; setAvisoTipo('') }}
                     />
                     <span className="opcion-cuerpo">
                       <span className="opcion-titulo">{g.nombre}</span>

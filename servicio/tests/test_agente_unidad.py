@@ -155,7 +155,9 @@ class ComponerTest(unittest.TestCase):
             resultados={"consultar_disponibilidad": OFERTA_EJEMPLO},
         )
         item = OFERTA_EJEMPLO["oferta"][0]
-        self.assertIn("HAB-SINT-101", texto)
+        # #346/#369 (2026-11-18): al huésped se le nombra el tipo, nunca la unidad.
+        self.assertNotIn("HAB-SINT-101", texto)
+        self.assertIn(f"habitación {item['tipo']}", texto)
         self.assertIn("$50.000", texto)   # tarifa por noche
         self.assertIn("$100.000", texto)  # total
         self.assertIn(item["politica_cancelacion"], texto)

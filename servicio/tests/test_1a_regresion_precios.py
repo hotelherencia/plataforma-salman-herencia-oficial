@@ -116,9 +116,11 @@ def _todas(conexion):
 
 
 
-def _esencia_precios(cuerpo):
-    """Compara solo identidad de precio (1A.2). La 1A.3 añade desglose IVA y política editable."""
-    keys = ("habitacion_id", "tipo", "capacidad", "tarifa_noche_clp", "total_clp")
+def _esencia_precios(cuerpo, sin_unidad=False):
+    """Compara solo identidad de precio (1A.2). La 1A.3 añade desglose IVA y política editable.
+    #346: la disponibilidad pública ya no trae habitacion_id (`sin_unidad`)."""
+    keys = ("tipo", "capacidad", "tarifa_noche_clp", "total_clp") if sin_unidad else (
+        "habitacion_id", "tipo", "capacidad", "tarifa_noche_clp", "total_clp")
     return {
         "oferta": [{k: item[k] for k in keys} for item in cuerpo["oferta"]],
         "emitida_en": cuerpo["emitida_en"],
@@ -240,8 +242,8 @@ class RegresionPreciosMigraciones1ATest(unittest.TestCase):
                     self.assertEqual(_esencia_precios(reservas_db.oferta(conexion, *combinacion, AHORA)),
                                      _esencia_precios(esperado), f"{etiqueta}: oferta {combinacion}")
                 for combinacion, esperado in antes["publica"].items():
-                    self.assertEqual(_esencia_precios(canal_publico.disponibilidad(conexion, *combinacion, AHORA)),
-                                     _esencia_precios(esperado), f"{etiqueta}: /reservar {combinacion}")
+                    self.assertEqual(_esencia_precios(canal_publico.disponibilidad(conexion, *combinacion, AHORA), True),
+                                     _esencia_precios(esperado, True), f"{etiqueta}: /reservar {combinacion}")
                 for (hid, llegada, salida), (sin_tarifa, precio) in antes["estadias"].items():
                     cotizacion = precios.cotizar(conexion, hid, llegada, salida)
                     self.assertEqual(cotizacion.sin_tarifa, sin_tarifa, f"{etiqueta}: sin tarifa {hid} {llegada}")

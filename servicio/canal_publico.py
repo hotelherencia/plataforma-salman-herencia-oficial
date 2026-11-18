@@ -204,7 +204,11 @@ def disponibilidad(
     empresa_id: str | None = None, extras: dict | None = None,
 ) -> dict:
     _validar_rango(inicio, fin, personas)
-    return reservas_db.oferta(conexion, inicio, fin, personas, ahora, empresa_id=empresa_id, extras=extras)
+    resultado = reservas_db.oferta(conexion, inicio, fin, personas, ahora, empresa_id=empresa_id, extras=extras)
+    # #346 (criterio 3): el visitante nunca recibe un número de habitación; ve
+    # una línea por unidad libre con su tipo y precio, y el hotel asigna al convertir.
+    resultado["oferta"] = [{k: v for k, v in item.items() if k != "habitacion_id"} for item in resultado["oferta"]]
+    return resultado
 
 
 def _hash_cuerpo(cuerpo: dict) -> str:
