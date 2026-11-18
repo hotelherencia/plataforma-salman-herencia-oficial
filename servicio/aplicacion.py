@@ -182,6 +182,7 @@ from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 from .rutas import hotel_tipos as rutas_hotel_tipos  # noqa: E402  (entrega 1A)
 from .rutas import productos as rutas_productos  # noqa: E402  (#357)
 from .rutas import politicas as rutas_politicas  # noqa: E402  (entrega 1A.3)
+from .rutas import ajustes as rutas_ajustes  # noqa: E402  (#348)
 
 
 def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion | None = None) -> FastAPI:
@@ -383,6 +384,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     # con parámetro de la habitación.
     app.include_router(rutas_hotel_tipos.router)
     app.include_router(rutas_politicas.router)
+    app.include_router(rutas_ajustes.router)
     app.include_router(hotel.router)
     app.include_router(rutas_productos.router)
     app.include_router(rutas_agente.router)
