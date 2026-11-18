@@ -168,17 +168,19 @@ def callback_login_google(
     # El state se consume en todo intento (tomar lo extrae siempre): un
     # rechazo por cookie ausente o distinta no deja el state reutilizable.
     tx = request.cookies.get(comun.NOMBRE_COOKIE_OAUTH_TX)
+    # #351: todo rechazo vuelve a /login con un aviso y la cookie borrada, para
+    # poder reintentar con otra cuenta (antes quedaba un JSON de la API).
     if state is None or not request.app.state.estados_oauth.tomar(state, tx=tx):
-        raise HTTPException(status_code=400, detail="state inválido o expirado")
+        return _volver_al_login(front, request, "google_vencido")
     if code is None:
-        raise HTTPException(status_code=400, detail="falta el código de autorización")
+        return _volver_al_login(front, request, "google_vencido")
     try:
         tokens = google_oidc.intercambiar_codigo(
             code, config.google_client_id, config.google_client_secret, config.google_redirect_uri
         )
         claims = google_oidc.verificar_id_token(tokens["id_token"], config.google_client_id)
-    except (google_oidc.ErrorGoogleOidc, KeyError) as fallo:
-        raise HTTPException(status_code=502, detail="fallo al validar la identidad con Google") from fallo
+    except (google_oidc.ErrorGoogleOidc, KeyError):
+        return _volver_al_login(front, request, "google_fallo")
     email = claims["email"]
     usuario = seguridad.buscar_usuario_por_email(conexion, email)
     if usuario is None:
@@ -224,6 +226,12 @@ def callback_login_google(
     conexion.commit()
     destino = RedirectResponse(front, status_code=302)
     comun.fijar_cookie_sesion(destino, request, sid)
+    comun.borrar_cookie_oauth_tx(destino, request)
+    return destino
+
+
+def _volver_al_login(front: str, request: Request, codigo: str) -> RedirectResponse:
+    destino = RedirectResponse(f"{front}/login?error={codigo}", status_code=302)
     comun.borrar_cookie_oauth_tx(destino, request)
     return destino
 

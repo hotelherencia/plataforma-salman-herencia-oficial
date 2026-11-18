@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, urlApi, refrescarSesion, useSesion, mensajeMotivoSesion, mensajeDeError } from '../../lib/api'
+import { api, urlApi, refrescarSesion, useSesion, mensajeMotivoSesion, mensajeDeError, CampoClave } from '../../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
 import { mensajeErrorLogin } from '../../lib/mensajes.js'
 
@@ -15,6 +15,7 @@ export default function PantallaAcceso({ despues } = {}) {
   const [credenciales, setCredenciales] = useState({ usuario: '', clave: '', totp: '' })
   const [fase, setFase] = useState('clave') // 'clave' | 'totp' | 'totp_google'
   const [error, setError] = useState('')
+  const [ofrecerOtraCuenta, setOfrecerOtraCuenta] = useState(false)
   const [googleDisponible, setGoogleDisponible] = useState(false)
   const sesion = useSesion()
 
@@ -31,6 +32,9 @@ export default function PantallaAcceso({ despues } = {}) {
     const errorGoogle = mensajeErrorLogin(params.get('error'))
     if (errorGoogle) {
       setError(errorGoogle)
+      // #351: tras un fallo con Google, ofrecer otra cuenta (el selector se
+      // fuerza con prompt=select_account en el servicio).
+      setOfrecerOtraCuenta(params.get('error') !== 'mfa_requerido')
     } else if (params.get('error') === 'sesion_empresa_ajena') {
       setError(mensajeMotivoSesion('sesion_empresa_ajena'))
     }
@@ -115,15 +119,12 @@ export default function PantallaAcceso({ despues } = {}) {
                 onChange={(e) => setCredenciales({ ...credenciales, usuario: e.target.value })}
               />
             </label>
-            <label className="campo">
-              <span className="campo-etiqueta">Clave</span>
-              <input
-                className="entrada"
-                type="password"
-                value={credenciales.clave}
-                onChange={(e) => setCredenciales({ ...credenciales, clave: e.target.value })}
-              />
-            </label>
+            <CampoClave
+              etiqueta="Clave"
+              autoComplete="current-password"
+              value={credenciales.clave}
+              onChange={(e) => setCredenciales({ ...credenciales, clave: e.target.value })}
+            />
           </>
         ) : (
           <>
@@ -155,8 +156,8 @@ export default function PantallaAcceso({ despues } = {}) {
         )}
         <button type="submit" className="boton-primario">Entrar</button>
         {googleDisponible && (
-          <a className="boton-fantasma" href={urlApi('/auth/google')}>
-            Entrar con Google
+          <a className="boton-fantasma" href={urlApi('/auth/google')} data-google-reintento={ofrecerOtraCuenta ? '1' : undefined}>
+            {ofrecerOtraCuenta ? 'Probar con otra cuenta de Google' : 'Entrar con Google'}
           </a>
         )}
         {error && (

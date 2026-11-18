@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, MarcoHotel, urlApi, Campo, useClaveOperacion, refrescarSesion } from '../../lib/api'
+import { api, MarcoHotel, urlApi, Campo, CampoClave, useClaveOperacion, refrescarSesion } from '../../lib/api'
 
 export default function Cuenta() {
   const [sesion, setSesion] = useState(null)
@@ -145,16 +145,14 @@ export default function Cuenta() {
             próximos accesos.
           </p>
           <form className="formulario" onSubmit={cambiarClave}>
-            <Campo
+            <CampoClave
               etiqueta="Clave actual"
-              type="password"
               autoComplete="current-password"
               value={claveActual}
               onChange={(e) => setClaveActual(e.target.value)}
             />
-            <Campo
+            <CampoClave
               etiqueta="Clave nueva"
-              type="password"
               autoComplete="new-password"
               value={claveNueva}
               onChange={(e) => setClaveNueva(e.target.value)}
@@ -177,16 +175,12 @@ export default function Cuenta() {
             Cada inicio de sesión pide, además de la clave, el código de 6 dígitos del autenticador.
             Reemplazar el autenticador o desactivar el doble factor exige tu clave actual.
           </p>
-          <label className="campo">
-            <span className="campo-etiqueta">Tu clave actual (confirma cambios)</span>
-            <input
-              className="entrada"
-              type="password"
-              autoComplete="current-password"
-              value={claveReauth}
-              onChange={(e) => setClaveReauth(e.target.value)}
-            />
-          </label>
+          <CampoClave
+            etiqueta="Tu clave actual (confirma cambios)"
+            autoComplete="current-password"
+            value={claveReauth}
+            onChange={(e) => setClaveReauth(e.target.value)}
+          />
           <div className="acciones-fila">
             <button onClick={reemplazar} className="boton-fantasma">Reemplazar autenticador</button>
             <button onClick={desactivar} className="boton-fantasma">Desactivar doble factor</button>

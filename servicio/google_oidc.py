@@ -149,6 +149,9 @@ def url_de_consentimiento(client_id: str, estado: str, redirect_uri: str = REDIR
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": ALCANCE,
+        # #351: siempre ofrecer el selector de cuentas; sin esto Google reusa
+        # la cuenta recordada y tras un fallo no se puede probar con otra.
+        "prompt": "select_account",
         "state": estado,
     })
     return f"{URL_AUTORIZACION}?{consulta}"

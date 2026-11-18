@@ -18,6 +18,7 @@ import psycopg
 from fastapi.testclient import TestClient
 
 from servicio import google_oidc, seguridad
+from servicio.rutas import comun
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 
@@ -214,23 +215,43 @@ class GoogleOauthHttpTest(unittest.TestCase):
             )
         self.assertEqual(primera.status_code, 302)
         r, cambio, _ = self.callback(state=estado, code="c1")
-        self.assertEqual(r.status_code, 400)
+        self.assertRechazoAlLogin(r, "google_vencido")
         cambio.assert_not_called()
 
     def test_state_desconocido_o_expirado_se_rechaza(self):
         r, cambio, _ = self.callback(state="state-inventado", code="c1")
-        self.assertEqual(r.status_code, 400)
+        self.assertRechazoAlLogin(r, "google_vencido")
         cambio.assert_not_called()
         estado_vencido = self.app.state.estados_oauth.nuevo(ahora=time.time() - 700)
         r, cambio, _ = self.callback(state=estado_vencido, code="c1")
-        self.assertEqual(r.status_code, 400)
+        self.assertRechazoAlLogin(r, "google_vencido")
         cambio.assert_not_called()
 
     def test_falta_code_se_rechaza(self):
         estado = self.estado_fresco()
         r, cambio, _ = self.callback(state=estado)
-        self.assertEqual(r.status_code, 400)
+        self.assertRechazoAlLogin(r, "google_vencido")
         cambio.assert_not_called()
+
+    def test_351_consentimiento_ofrece_selector_de_cuentas(self):
+        r = self.cliente.get("/auth/google", follow_redirects=False)
+        self.assertEqual(r.status_code, 302)
+        consulta = parse_qs(urlparse(r.headers["location"]).query)
+        self.assertEqual(consulta["prompt"], ["select_account"])
+
+    def test_351_fallo_de_google_vuelve_al_login_sin_sesion(self):
+        estado = self.estado_fresco()
+        with mock.patch.object(google_oidc, "intercambiar_codigo", side_effect=google_oidc.ErrorGoogleOidc("caido")):
+            r = self.cliente.get("/auth/google/callback", params={"state": estado, "code": "c1"},
+                                 follow_redirects=False)
+        self.assertRechazoAlLogin(r, "google_fallo")
+        self.assertNotIn(comun.NOMBRE_COOKIE_SESION, r.cookies)
+
+    def assertRechazoAlLogin(self, r, codigo):
+        self.assertEqual(r.status_code, 302, r.text)
+        self.assertTrue(r.headers["location"].endswith(f"/login?error={codigo}"), r.headers["location"])
+        # la cookie de la transacción OAuth se borra para permitir otro intento
+        self.assertIn(comun.NOMBRE_COOKIE_OAUTH_TX, r.headers.get("set-cookie", ""))
 
     def test_email_sin_vinculo_redirige_al_front(self):
         estado = self.estado_fresco()
@@ -276,7 +297,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
                     r = self.cliente.get(
                         "/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False
                     )
-                self.assertEqual(r.status_code, 502)
+                self.assertEqual((r.status_code, r.headers.get("location", "").rsplit("/", 1)[-1]), (302, "login?error=google_fallo"))
                 self.assertIsNone(r.cookies.get("sid"))
 
     def test_firma_invalida_se_rechaza(self):
@@ -289,7 +310,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
             r = self.cliente.get(
                 "/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False
             )
-        self.assertEqual(r.status_code, 502)
+        self.assertEqual((r.status_code, r.headers.get("location", "").rsplit("/", 1)[-1]), (302, "login?error=google_fallo"))
 
     def test_kid_desconocido_se_rechaza(self):
         estado = self.estado_fresco()
@@ -302,7 +323,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
             r = self.cliente.get(
                 "/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False
             )
-        self.assertEqual(r.status_code, 502)
+        self.assertEqual((r.status_code, r.headers.get("location", "").rsplit("/", 1)[-1]), (302, "login?error=google_fallo"))
 
     def test_fallo_del_intercambio_se_rechaza(self):
         estado = self.estado_fresco()
@@ -311,7 +332,7 @@ class GoogleOauthHttpTest(unittest.TestCase):
             r = self.cliente.get(
                 "/auth/google/callback", params={"state": estado, "code": "c1"}, follow_redirects=False
             )
-        self.assertEqual(r.status_code, 502)
+        self.assertEqual((r.status_code, r.headers.get("location", "").rsplit("/", 1)[-1]), (302, "login?error=google_fallo"))
         self.assertIsNone(r.cookies.get("sid"))
 
     def test_admin_email_se_vincula_al_arrancar(self):
@@ -499,7 +520,7 @@ class GoogleAdminMfaTest(unittest.TestCase):
 
     def test_email_no_verificado_no_entra(self):
         r = self.login_google(email_verified=False)
-        self.assertEqual(r.status_code, 502)
+        self.assertEqual((r.status_code, r.headers.get("location", "").rsplit("/", 1)[-1]), (302, "login?error=google_fallo"))
         self.assertIsNone(r.cookies.get("sid"))
 
     def test_email_no_autorizado_no_entra(self):

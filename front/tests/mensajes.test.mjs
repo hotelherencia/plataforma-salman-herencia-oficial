@@ -34,3 +34,8 @@ test('errores de login desconocidos o heredados no producen mensaje', () => {
   assert.equal(mensajeErrorLogin('toString'), null)
   assert.equal(mensajeErrorLogin(null), null)
 })
+
+test('#351: errores de Google con reintento tienen mensaje', () => {
+  assert.match(mensajeErrorLogin('google_vencido'), /Vuelve a intentarlo/)
+  assert.match(mensajeErrorLogin('google_fallo'), /otra cuenta/)
+})

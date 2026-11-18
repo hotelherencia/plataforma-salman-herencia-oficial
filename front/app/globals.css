@@ -2435,3 +2435,29 @@ a.boton-primario {
 .vista-huesped dd { margin: 0.15rem 0 0; }
 .politicas-lista { padding-left: 1.1rem; }
 .politicas-lado { display: flex; flex-direction: column; gap: 1rem; }
+
+/* #350: campo de clave con «Mostrar/Ocultar» */
+.campo-clave {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.campo-clave .entrada {
+  flex: 1;
+  min-width: 0;
+}
+.boton-ver-clave {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.boton-ver-clave:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

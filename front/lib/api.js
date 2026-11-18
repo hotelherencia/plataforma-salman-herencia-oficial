@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { traducirDetalle } from './mensajes.js'
 import { etiquetaRol } from './roles.js'
@@ -313,6 +313,37 @@ export function Campo({ etiqueta, ...props }) {
     <label className="campo">
       <span className="campo-etiqueta">{etiqueta}</span>
       <input className="entrada" {...props} />
+    </label>
+  )
+}
+
+/** Campo de clave con «Mostrar/Ocultar» (#350). Vuelve a ocultarse al
+ *  enviar el formulario que lo contiene. */
+export function CampoClave({ etiqueta, autoComplete = 'current-password', ...props }) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    const formulario = ref.current?.closest('form')
+    if (!formulario) return undefined
+    const ocultar = () => setVisible(false)
+    formulario.addEventListener('submit', ocultar)
+    return () => formulario.removeEventListener('submit', ocultar)
+  }, [])
+  return (
+    <label className="campo" ref={ref}>
+      <span className="campo-etiqueta">{etiqueta}</span>
+      <span className="campo-clave">
+        <input className="entrada" type={visible ? 'text' : 'password'} autoComplete={autoComplete} {...props} />
+        <button
+          type="button"
+          className="boton-ver-clave"
+          aria-pressed={visible}
+          aria-label={visible ? 'Ocultar clave' : 'Mostrar clave'}
+          onClick={() => setVisible((v) => !v)}
+        >
+          {visible ? 'Ocultar' : 'Mostrar'}
+        </button>
+      </span>
     </label>
   )
 }

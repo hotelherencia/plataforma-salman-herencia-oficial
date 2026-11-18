@@ -23,6 +23,8 @@ const ERRORES_LOGIN = {
     'Para entrar con Google, tu cuenta de administrador debe tener activo el doble factor (Google Authenticator). Entra con tu usuario y clave y actívalo en «Mi cuenta».',
   cuenta_sin_vinculo: 'Tu cuenta de Google no está vinculada a un usuario de la plataforma.',
   acceso_denegado: 'Acceso con Google cancelado o denegado.',
+  google_vencido: 'El intento de acceso con Google venció o se abrió en otra pestaña. Vuelve a intentarlo.',
+  google_fallo: 'No pudimos validar tu identidad con Google. Intenta de nuevo o con otra cuenta.',
 }
 
 /** Mensaje para el parámetro `error` de /login, o null si no es conocido. */

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
+import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoClave, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
 import { ETIQUETAS_ROL, ROLES, esAdminPlataforma } from '../../../lib/roles'
 
@@ -96,7 +96,7 @@ export default function Usuarios() {
             Administrador del hotel: precios, tipos, habitaciones, reservas, caja y reportes. Administrador de plataforma:
             usuarios, seguridad y ajustes del sistema (tasa de IVA). Todo rol administrativo exige doble factor.
           </p>
-          <Campo etiqueta="Clave" type="password" value={alta.clave} onChange={(e) => setAlta({ ...alta, clave: e.target.value })} />
+          <CampoClave etiqueta="Clave" autoComplete="new-password" value={alta.clave} onChange={(e) => setAlta({ ...alta, clave: e.target.value })} />
           <button type="submit" className="boton-primario">Crear usuario</button>
         </form>
         <p className="nota-clave">Clave de idempotencia: <code>{claveAlta}</code></p>
@@ -106,7 +106,7 @@ export default function Usuarios() {
         <p className="estado">La administración de plataforma reemplaza la clave de otra persona. La tuya se cambia en Mi cuenta, con la clave actual.</p>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${claveCambio.id}/clave`, { clave: claveCambio.clave }, claveCambioOp, renovarClaveCambio, e)}>
           <Campo etiqueta="Usuario (id)" value={claveCambio.id} onChange={(e) => setClaveCambio({ ...claveCambio, id: e.target.value })} />
-          <Campo etiqueta="Clave nueva" type="password" value={claveCambio.clave} onChange={(e) => setClaveCambio({ ...claveCambio, clave: e.target.value })} />
+          <CampoClave etiqueta="Clave nueva" autoComplete="new-password" value={claveCambio.clave} onChange={(e) => setClaveCambio({ ...claveCambio, clave: e.target.value })} />
           <button type="submit" className="boton-primario">Cambiar clave</button>
         </form>
         <p className="nota-clave">Clave de idempotencia: <code>{claveCambioOp}</code></p>
