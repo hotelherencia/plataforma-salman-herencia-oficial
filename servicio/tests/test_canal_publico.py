@@ -62,6 +62,13 @@ class CanalPublicoBaseTest(unittest.TestCase):
             conexion.commit()
         self.app.state.freno_logins = seguridad.FrenoDeLogins()
         self.app.state.freno_solicitudes.max_por_minuto = 1000  # el freno se ejercita aparte
+        # #348: el tope por cliente se ejercita en test_tope_cliente.py.
+        with psycopg.connect(URL_TEST) as conexion:
+            conexion.execute("DELETE FROM ajustes")
+            conexion.execute(
+                "INSERT INTO ajustes (empresa_id, clave, valor, actualizado_por) VALUES "
+                "(%s, 'tope_solicitudes_cliente', '{\"activo\": false}', 'pruebas')", (EMPRESA,))
+            conexion.commit()
         self.cliente = TestClient(self.app)
         self.assertEqual(self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]}).status_code, 200)
         self.anonima = TestClient(self.app)

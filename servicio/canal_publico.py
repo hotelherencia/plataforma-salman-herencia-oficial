@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 import psycopg
 
+from . import ajustes
 from . import avisos
 from . import roles
 from . import entrada_publica
@@ -43,6 +44,37 @@ class SinCupoOSinTarifa(Exception):
     def __init__(self, detalle: str):
         super().__init__(detalle)
         self.detalle = detalle
+
+
+class TopePorCliente(SinCupoOSinTarifa):
+    """409 (#348): el cliente ya alcanzó el tope de solicitudes del período."""
+
+
+def contacto_normalizado(contacto: str) -> str:
+    """Correo en minúsculas o teléfono como +dígitos (misma regla que la migración 0030)."""
+    texto = (contacto or "").strip()
+    if "@" in texto:
+        return texto.lower()
+    digitos = "".join(c for c in texto if c.isdigit())
+    if len(digitos) == 9 and digitos.startswith("9"):
+        return "+56" + digitos
+    return "+" + digitos if digitos else texto.lower()
+
+
+def _exigir_tope(conexion: psycopg.Connection, empresa_id: str, contacto: str) -> None:
+    tope = ajustes.leer(conexion, empresa_id, "tope_solicitudes_cliente")
+    if not tope["activo"]:
+        return
+    (n,) = conexion.execute(
+        "SELECT count(*) FROM solicitudes WHERE empresa_id = %s AND contacto_normalizado = %s "
+        "AND estado IN ('recibida', 'convertida') AND creado_en > now() - make_interval(days => %s)",
+        (empresa_id, contacto, tope["dias"]),
+    ).fetchone()
+    if n >= tope["max_solicitudes"]:
+        raise TopePorCliente(
+            f"ya registramos {n} solicitudes con este contacto en los últimos {tope['dias']} días; "
+            "recepción te responderá a la brevedad. Si necesitas otra, escríbenos por WhatsApp."
+        )
 
 
 class ClaveEnConflicto(Exception):
@@ -269,13 +301,16 @@ def crear_solicitud(
         original["reintento"] = True
         return original
 
+    # #348: tope por cliente (después del reintento idempotente, que no cuenta).
+    normalizado = contacto_normalizado(contacto)
+    _exigir_tope(conexion, empresa_id, normalizado)
     solicitud_id = f"SOL-{uuid.uuid4().hex[:12]}"
     conexion.execute(
         "INSERT INTO solicitudes (id, empresa_id, tipo, habitacion_id, inicio, fin, personas, "
-        "huesped_nombre, huesped_contacto, estado, origen, idempotency_key, cuerpo_hash) "
-        "VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s)",
+        "huesped_nombre, huesped_contacto, estado, origen, idempotency_key, cuerpo_hash, contacto_normalizado) "
+        "VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s, %s)",
         (solicitud_id, empresa_id, tipo, inicio, fin, personas,
-         nombre, contacto, origen, clave, cuerpo_hash),
+         nombre, contacto, origen, clave, cuerpo_hash, normalizado),
     )
     seguridad.auditar(conexion, f"publico:{solicitud_id}", "solicitud_recibida",
                       solicitud_id, "recibida")

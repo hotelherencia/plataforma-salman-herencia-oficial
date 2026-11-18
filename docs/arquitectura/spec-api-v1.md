@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (89)
+## Operaciones de esta versión (91)
 
 | Operación | Efecto |
 |---|---|
@@ -518,6 +518,8 @@ los compone el servidor.
 | `POST /auth/google/totp` | Segundo paso del login Google de un administrador con TOTP activo: valida el código contra la transacción MFA pendiente (cookie propia, un solo uso) y abre la sesión con cookie `sid`. Sin transacción → 400; código errado → 401; freno de intentos → 429. Sin sesión previa. |
 | `GET /usuarios` | Lista `id`, `nombre`, `rol`, `activo` de la empresa. Solo administrador. |
 | `POST /usuarios` | Alta `{nombre, rol, clave, email?}` con hash argon2id. (#352) `email` opcional: correo de Google con que entra (minúsculas; ya vinculado a otro → 409). Solo administrador. Nombre repetido → 409. |
+| `GET /hotel/ajustes` | (#348, 2026-11-18) Ajustes operativos editables desde Configuración; hoy `tope_solicitudes_cliente {activo, max_solicitudes, dias}` (inicial 3 en 7 días). Solo administración del hotel. |
+| `PUT /hotel/ajustes/{clave}` | (#348) Guarda un ajuste validado (422 si no cumple) y lo audita. Idempotente. Solo administración del hotel. |
 | `POST /usuarios/{id}/email` | (#352, 2026-11-18) Vincula `{email}` (o desvincula con `null`) el correo de Google con que entra el usuario; un correo pertenece a un solo usuario (409). La auditoría registra el vínculo sin copiar el correo. Solo administración de plataforma. |
 | `POST /usuarios/{id}/clave` | Cambia la clave (reemplaza el hash) y revoca las demás sesiones de ese usuario. La sesión propia exige `clave_actual` (401 si no coincide). La sesión que ejecuta el cambio sigue viva si es de él. El propio usuario o un administrador. |
 | `POST /usuarios/{id}/revocacion` | Revoca todas las sesiones del usuario. Solo administrador, sobre otro usuario. |

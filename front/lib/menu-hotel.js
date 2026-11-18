@@ -13,6 +13,7 @@ export const PESTANAS_CONFIGURACION = [
   ['precios', 'Precios y excepciones'],
   ['politicas', 'Políticas y registro de Llegada/Salida'],
   ['faq', 'Preguntas frecuentes'],
+  ['reservas_web', 'Reservas web'],
 ]
 
 export const SUBNAV_RESERVAS = [

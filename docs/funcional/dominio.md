@@ -71,6 +71,15 @@ Proyección técnica: `estado_operativo` (disponible/ocupada) ×
 - **Sin sistemas externos reales** (AGENTS.md): Webpay/Mercado Pago/SII/
   Booking/WhatsApp existen solo como puertos; sin adaptador responden 503
   «no configurado» y la API devuelve estado pendiente.
+- **Tope de solicitudes por cliente** (#348, decisión del propietario
+  2026-11-18): un mismo contacto (correo en minúsculas o teléfono
+  normalizado, `+56` para móviles chilenos) puede tener como máximo
+  `max_solicitudes` solicitudes `recibida` o `convertida` en los últimos
+  `dias` días; la siguiente responde 409 y no se guarda. Las rechazadas no
+  cuentan y un reintento con la misma `Idempotency-Key` tampoco. Valor
+  inicial 3 en 7 días, activo; lo cambia la administración del hotel en
+  Configuración → «Reservas web» (`PUT /hotel/ajustes/tope_solicitudes_cliente`).
+  No hay cupo por canal: el límite físico es la disponibilidad por tipo.
 
 ## Pantallas del front (mapa a operaciones)
 
