@@ -112,10 +112,10 @@ class ReconciliacionBaseTest(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, r.text)
 
-    def mantenimiento(self, hab_id, abierto=True):
+    def mantenimiento(self, hab_id, abierto=True, **rango):
         r = self.cliente.post(
             f"/hotel/habitaciones/{hab_id}/mantenimiento",
-            json={"abierto": abierto},
+            json={"abierto": abierto, **rango},
             headers={"Idempotency-Key": self.clave()},
         )
         self.assertEqual(r.status_code, 200, r.text)
@@ -160,7 +160,8 @@ class ReconciliacionBaseTest(unittest.TestCase):
         # R5: confirmada futura [H+1, H+3) en 104, creada ANTES de abrir el
         # mantenimiento (la reserva gana sobre no_vendible en la celda).
         self.r5 = self.reservar("OC-104", H + timedelta(days=1), H + timedelta(days=3), "Confirmada Mantenimiento")
-        self.mantenimiento("OC-104", abierto=True)
+        # #349: el mantenimiento lleva rango; sin fechas solo bloquearía hoy.
+        self.mantenimiento("OC-104", abierto=True, desde=str(H), hasta=str(H + timedelta(days=7)))
         # R6: confirmada futura cancelada [H+10, H+12) en 101.
         self.r6 = self.reservar("OC-101", H + timedelta(days=10), H + timedelta(days=12), "Cancelada")
         self.cancelar(self.r6)

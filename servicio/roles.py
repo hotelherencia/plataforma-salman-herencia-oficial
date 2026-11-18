@@ -20,8 +20,11 @@ ADMIN_HOTEL = "admin_hotel"
 ADMIN_PLATAFORMA = "admin_plataforma"
 RECEPCION = "recepcion"
 CAJA = "caja"
+# #362: personal de aseo. Solo ve y opera la lista de habitaciones por limpiar
+# (rutas en comun.RUTAS_ASEO); sin cobros, precios ni datos del huésped.
+ASEO = "aseo"
 
-ROLES_VALIDOS = (ADMINISTRADOR, ADMIN_HOTEL, ADMIN_PLATAFORMA, RECEPCION, CAJA)
+ROLES_VALIDOS = (ADMINISTRADOR, ADMIN_HOTEL, ADMIN_PLATAFORMA, RECEPCION, CAJA, ASEO)
 PATRON_ROL = "^(" + "|".join(ROLES_VALIDOS) + ")$"
 
 ROLES_ADMIN_HOTEL = frozenset({ADMINISTRADOR, ADMIN_HOTEL})
@@ -35,6 +38,7 @@ ETIQUETAS = {
     ADMIN_PLATAFORMA: "Administrador de plataforma",
     RECEPCION: "Recepción",
     CAJA: "Caja",
+    ASEO: "Aseo",
 }
 
 

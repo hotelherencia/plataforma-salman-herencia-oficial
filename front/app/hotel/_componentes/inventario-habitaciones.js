@@ -75,7 +75,9 @@ export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento
         {ETIQUETA_PREPARACION[h.estado_preparacion] || h.estado_preparacion}
       </span>
       <span role="cell" className={`reserva-estado ${h.mantenimiento ? 'estado-cancelada' : 'estado-finalizada'}`}>
-        {h.mantenimiento ? 'en mantenimiento' : 'activa'}
+        {h.mantenimiento
+          ? `en mantenimiento${h.mantenimiento_desde ? ` desde ${h.mantenimiento_desde}` : ''}${h.mantenimiento_hasta ? ` hasta ${h.mantenimiento_hasta}` : ''}`
+          : 'activa'}
       </span>
       <span role="cell" className="reserva-tarifa">
         {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'sin precio hoy'}

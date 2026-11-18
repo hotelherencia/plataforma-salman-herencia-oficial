@@ -86,11 +86,43 @@ export default function Habitaciones() {
 
   const limpiar = (habitacionId) =>
     accionInventario(`/hotel/habitaciones/${habitacionId}/limpieza`, {}, claveLimpieza, renovarClaveLimpieza)
-  const cambiarMantenimiento = (habitacionId, abrir) =>
-    accionInventario(`/hotel/habitaciones/${habitacionId}/mantenimiento`, { abierto: abrir }, claveMantenimiento, renovarClaveMantenimiento)
+  // #349: abrir mantenimiento pide el rango; solo en esas fechas sale del cupo.
+  const [pedirMant, setPedirMant] = useState(null)
+  const cambiarMantenimiento = (habitacionId, abrir) => {
+    if (abrir) {
+      setPedirMant({ habitacion_id: habitacionId, desde: new Date().toLocaleDateString('sv-SE'), hasta: '' })
+      return
+    }
+    accionInventario(`/hotel/habitaciones/${habitacionId}/mantenimiento`, { abierto: false }, claveMantenimiento, renovarClaveMantenimiento)
+  }
+  function confirmarMantenimiento(e) {
+    e.preventDefault()
+    const { habitacion_id, desde, hasta } = pedirMant
+    if (!desde) { setError('Indica desde cuándo rige el mantenimiento.'); return }
+    if (hasta && hasta <= desde) { setError('«Hasta» debe ser posterior a «Desde».'); return }
+    accionInventario(
+      `/hotel/habitaciones/${habitacion_id}/mantenimiento`,
+      { abierto: true, desde, ...(hasta ? { hasta } : {}) },
+      claveMantenimiento,
+      renovarClaveMantenimiento,
+    )
+    setPedirMant(null)
+  }
 
   return (
     <MarcoHotel titulo="Estado de habitaciones">
+      {pedirMant && (
+        <section className="tarjeta">
+          <form className="formulario" onSubmit={confirmarMantenimiento} aria-label="Abrir mantenimiento">
+            <h2>Mantenimiento de {pedirMant.habitacion_id}</h2>
+            <Campo etiqueta="Desde" type="date" value={pedirMant.desde} onChange={(e) => setPedirMant({ ...pedirMant, desde: e.target.value })} />
+            <Campo etiqueta="Hasta (sin incluir; vacío = solo hasta hoy)" type="date" value={pedirMant.hasta} onChange={(e) => setPedirMant({ ...pedirMant, hasta: e.target.value })} />
+            <p className="nota-clave">La habitación sale de la venta solo en esas fechas; fuera de ellas sigue disponible. La limpieza nunca la quita de la venta.</p>
+            <button type="submit" className="boton-primario">Abrir mantenimiento</button>
+            <button type="button" className="boton-fantasma" onClick={() => setPedirMant(null)}>Cancelar</button>
+          </form>
+        </section>
+      )}
       <section className="tarjeta">
         <h2>Inventario de habitaciones</h2>
         <p className="nota-clave">

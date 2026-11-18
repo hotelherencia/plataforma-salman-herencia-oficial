@@ -39,4 +39,11 @@ describe('menú del hotel (entrega 1A.3)', () => {
     assert.equal(hayOperacionActiva('/hotel/tipos', { puedeVerAgente: true, puedeVerUsuarios: true }), true)
     assert.equal(hayOperacionActiva('/hotel/configuracion', { puedeVerAgente: false, puedeVerUsuarios: false }), true)
   })
+
+  it('#362: el rol aseo solo ve Aseo; caja no lo ve', () => {
+    const aseo = seccionesVisibles({ puedeVerAgente: false, puedeVerUsuarios: false, puedeVerAseo: true, soloAseo: true })
+    assert.deepEqual(aseo.flatMap((s) => s.items.map((i) => i.href)), ['/hotel/aseo'])
+    const caja = seccionesVisibles({ puedeVerAgente: false, puedeVerUsuarios: false, puedeVerAseo: false })
+    assert.ok(!caja.some((s) => s.items.some((i) => i.href === '/hotel/aseo')))
+  })
 })

@@ -120,7 +120,7 @@ export default function Inicio() {
       <section className="modulos-rejilla">
         {MODULOS.map((m) =>
           m.estado === 'operable' ? (
-            <Link key={m.nombre} href={m.href} className="modulo-tarjeta operable">
+            <Link key={m.nombre} href={m.nombre === 'Hotel' && sesion.usuario?.rol === 'aseo' ? '/hotel/aseo' : m.href} className="modulo-tarjeta operable">
               <div className="modulo-cabecera">
                 <span className="modulo-rotulo">Módulo</span>
                 <span className="modulo-insignia operable">Operable</span>

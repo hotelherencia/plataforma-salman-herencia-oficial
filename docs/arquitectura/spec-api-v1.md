@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (77)
+## Operaciones de esta versión (81)
 
 | Operación | Efecto |
 |---|---|
@@ -551,6 +551,10 @@ los compone el servidor.
 | `POST /hotel/reservas/{id}/cargos` | Cargo de texto libre (minibar, consumo, extra). Roles recepción, caja o administrador; solo en `confirmada` o `en_estadia`; monto entero > 0 (si no, 422); otro estado → 409. Ver «Cargos de la estadía». |
 | `POST /hotel/reservas/{id}/cargos/{cargo_id}/reverso` | (#359, 2026-11-18) Reverso contable de un cargo: asienta el movimiento contrario con `referencia` al original; nunca borra. Solo administración del hotel; motivo obligatorio (3–150); cuenta abierta (`confirmada` o `en_estadia`); cargo inexistente, ya reversado o que ya es reverso → 409. Idempotente. |
 | `POST /hotel/reservas/{id}/habitacion` | (#361, 2026-11-18) Cambia la habitación de una reserva `confirmada` o `en_estadia` con `{habitacion_id, motivo}`; conserva la tarifa pactada. Recepción o administración del hotel. Destino fuera del cupo, sin capacidad, no preparada (en estadía) u ocupada en el rango → 409. En estadía la habitación de origen queda sucia con tarea de limpieza. Queda en `reasignaciones` y en la auditoría. La entrada (`/entrada`) acepta además `habitacion_id` para confirmar la unidad al llegar (#360) y `documento_tipo` (`rut` o `pasaporte`, validado; #367). |
+| `GET /hotel/aseo` | (#362, 2026-11-18) Lista para aseo: habitaciones con limpieza pendiente primero; situación (`ocupada`, `sale_hoy`, `llega_hoy`, `libre`), observaciones pendientes y última limpieza (quién, verificación). Sin datos del huésped ni precios. Roles aseo, recepción o administración del hotel. |
+| `POST /hotel/limpiezas/{tarea_id}/verificacion` | (#363) `{aprobada, observacion}`. Verificada → la unidad `limpia` pasa a `inspeccionada`. Rechazada (observación obligatoria) → vuelve a `sucia` con tarea nueva y la observación queda para aseo. Solo administración del hotel; ya verificada o no completada → 409. |
+| `POST /hotel/habitaciones/{id}/observaciones` | (#363) Nota `{texto}` para aseo en una habitación. Recepción o administración del hotel. |
+| `POST /hotel/habitaciones/{id}/observaciones/{obs_id}/atendida` | (#363) Aseo (o recepción/administración) marca la observación como atendida; ya atendida → 409. |
 | `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con reversos y regla de 48 h (ver «Cancelación»). Roles recepción o administrador. |
 | `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **la reserva ya comenzó** (`inicio ≤ hoy` del servidor; si no → 409 «aún no llega su día de entrada»). Exige el documento del huésped (D-ENT-01, DECISIÓN 2026-11-06): si la reserva no lo trae, el cuerpo `{"documento"}` lo registra; sin documento en ninguno → 409. Roles recepción o administrador (D-ROL-ENT, #304). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
 | `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. Roles recepción o administrador (D-ROL-ENT, DECISIÓN 2026-11-06, #304). Si no queda otra estadía en curso en la unidad, la habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente; si otra estadía sigue en curso (turnover no solapado), la unidad permanece `ocupada` y limpia, sin tarea nueva (V1-ISSUE-15, 2026-11-03). |

@@ -20,6 +20,24 @@ ESTADOS_QUE_OCUPAN_CUPO = ("confirmada", "en_estadia")
 # HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): bloqueada y fuera de servicio
 # no entran al cupo para ninguna fecha; el mantenimiento tampoco.
 ESTADOS_NO_VENDIBLES = ("bloqueada", "fuera_de_servicio")
+# #349 (2026-11-18, pedido del propietario): el mantenimiento solo saca la
+# unidad del cupo en su rango de fechas. Sin fecha de término, bloquea desde
+# que se abrió hasta hoy inclusive (rango móvil): las fechas futuras siguen
+# vendibles. Un mantenimiento anterior a esta regla (sin fecha de inicio,
+# abierto por SQL o antes de 0026) conserva la regla antigua: bloquea todo. La limpieza nunca quita cupo.
+# Dos parámetros: inicio y fin del rango consultado.
+SQL_MANTENIMIENTO_SOLAPA = (
+    "(mantenimiento AND daterange(mantenimiento_desde, CASE WHEN mantenimiento_desde IS NULL THEN NULL "
+    "ELSE COALESCE(mantenimiento_hasta, GREATEST(CURRENT_DATE, mantenimiento_desde) + 1) END, '[)') "
+    "&& daterange(%s, %s, '[)'))"
+)
+
+
+def mantenimiento_solapa(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> bool:
+    fila = conexion.execute(
+        f"SELECT {SQL_MANTENIMIENTO_SOLAPA} FROM habitaciones WHERE id = %s", (inicio, fin, habitacion_id)
+    ).fetchone()
+    return bool(fila and fila[0])
 class SinCupo(Exception):
     """409: la unidad ya está reservada en ese rango."""
 
@@ -159,9 +177,9 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
     # en otras fechas; mantenimiento, bloqueada y fuera_de_servicio quedan fuera.
     unidades = conexion.execute(
         "SELECT id, tipo, capacidad FROM habitaciones WHERE capacidad >= %s "
-        "AND mantenimiento = false AND estado_operativo <> ALL(%s) "
+        f"AND NOT {SQL_MANTENIMIENTO_SOLAPA} AND estado_operativo <> ALL(%s) "
         "ORDER BY id",
-        (personas, list(ESTADOS_NO_VENDIBLES)),
+        (personas, inicio, fin, list(ESTADOS_NO_VENDIBLES)),
     ).fetchall()
     ids = [u[0] for u in unidades]
     ocupadas = {
@@ -194,9 +212,9 @@ def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int,
     # UX: con 4+ personas la oferta queda vacía; el front explica el tope por
     # habitación con este dato (no lo inventa).
     tope = conexion.execute(
-        "SELECT max(capacidad) FROM habitaciones WHERE mantenimiento = false "
+        f"SELECT max(capacidad) FROM habitaciones WHERE NOT {SQL_MANTENIMIENTO_SOLAPA} "
         "AND estado_operativo <> ALL(%s)",
-        (list(ESTADOS_NO_VENDIBLES),),
+        (inicio, fin, list(ESTADOS_NO_VENDIBLES)),
     ).fetchone()[0]
     cuerpo_politica = politicas.de(conexion, empresa_id)["cuerpo"] if empresa_id else politicas.inicial()
     tasa = iva.tasa(conexion)
@@ -226,7 +244,8 @@ _COLUMNAS_HABITACION = (
     "h.motivo_fuera_de_servicio, h.fuera_de_servicio_desde, h.creado_en, "
     "h.en_inventario, h.precio_propio_clp, "
     "(SELECT th.nombre FROM tipos_habitacion th WHERE th.id = h.tipo), "
-    "(SELECT th.precio_base_clp FROM tipos_habitacion th WHERE th.id = h.tipo)"
+    "(SELECT th.precio_base_clp FROM tipos_habitacion th WHERE th.id = h.tipo), "
+    "h.mantenimiento_desde, h.mantenimiento_hasta"
 )
 
 
@@ -250,6 +269,9 @@ def _habitacion_a_dict(f) -> dict:
         "precio_propio_clp": f[14],
         "tipo_nombre": f[15],
         "precio_base_tipo_clp": f[16],
+        # #349: rango del mantenimiento (sin término: bloquea hasta hoy).
+        "mantenimiento_desde": f[17].isoformat() if f[5] and f[17] else None,
+        "mantenimiento_hasta": f[18].isoformat() if f[5] and f[18] else None,
     }
 
 
@@ -450,7 +472,9 @@ def crear_reserva(
     habitacion = conexion.execute(
         "SELECT estado_operativo, mantenimiento, capacidad FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
     ).fetchone()
-    if habitacion is not None and (habitacion[1] or habitacion[0] in ESTADOS_NO_VENDIBLES):
+    if habitacion is not None and (
+        habitacion[0] in ESTADOS_NO_VENDIBLES or mantenimiento_solapa(conexion, habitacion_id, inicio, fin)
+    ):
         raise HabitacionNoVendible(f"{habitacion_id} está fuera del cupo: no admite reservas nuevas")
     # #298 (DECISIÓN 2026-11-06): las personas se validan contra la capacidad
     # al confirmar, igual que la oferta las filtra.

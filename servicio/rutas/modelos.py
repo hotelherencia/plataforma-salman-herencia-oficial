@@ -113,6 +113,17 @@ class ClaveIn(BaseModel):
 
 class MantenimientoIn(BaseModel):
     abierto: bool
+    # #349: rango opcional [desde, hasta); sin fechas bloquea solo el día en curso.
+    desde: date | None = None
+    hasta: date | None = None
+
+    @model_validator(mode="after")
+    def _rango(self):
+        if self.desde and self.hasta and self.hasta <= self.desde:
+            raise ValueError("hasta debe ser posterior a desde")
+        if self.hasta and not self.desde:
+            raise ValueError("indica desde cuando das hasta")
+        return self
 
 
 class CargoIn(BaseModel):
@@ -210,6 +221,16 @@ class DocumentoHuespedIn(BaseModel):
             except documento_mod.DocumentoInvalido as error:
                 raise ValueError(str(error)) from error
         return self
+
+
+class VerificacionAseoIn(BaseModel):
+    """#363: verificar la limpieza; al rechazar la observación es obligatoria."""
+    aprobada: bool
+    observacion: str | None = Field(default=None, max_length=500)
+
+
+class ObservacionIn(BaseModel):
+    texto: str = Field(min_length=2, max_length=500)
 
 
 class ReasignacionIn(BaseModel):

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ROLES, esAdminHotel, esAdminPlataforma, exigeDobleFactor, gestionaRecepcion, etiquetaRol } from '../lib/roles.js'
+import { ROLES, esAdminHotel, esAdminPlataforma, exigeDobleFactor, gestionaRecepcion, etiquetaRol, esAseo, veAseo } from '../lib/roles.js'
 
 test('roles: administrador histórico conserva ambas administraciones', () => {
   assert.ok(esAdminHotel('administrador'))
@@ -25,7 +25,10 @@ test('roles: doble factor para todo rol administrativo; bandejas para recepción
   assert.ok(gestionaRecepcion('admin_hotel'))
   assert.ok(!gestionaRecepcion('admin_plataforma'))
   assert.ok(!gestionaRecepcion('caja'))
-  assert.equal(ROLES.length, 5)
+  // #362: aseo es el sexto rol; no administra ni gestiona recepción.
+  assert.equal(ROLES.length, 6)
+  assert.ok(esAseo('aseo') && veAseo('aseo') && veAseo('recepcion') && veAseo('admin_hotel'))
+  assert.ok(!veAseo('caja') && !gestionaRecepcion('aseo') && !exigeDobleFactor('aseo'))
   assert.equal(etiquetaRol('admin_hotel'), 'Administrador del hotel')
   assert.equal(etiquetaRol('desconocido'), 'desconocido')
 })

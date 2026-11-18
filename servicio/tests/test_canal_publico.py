@@ -146,9 +146,10 @@ class DisponibilidadPublicaTest(CanalPublicoBaseTest):
                 self.assertIn(respuesta.status_code, (400, 422), respuesta.text)
 
     def test_cp03_disponibilidad_respeta_misma_regla_de_oferta(self):
-        # mantenimiento abierto excluye la unidad (idéntico a /hotel/oferta)
+        # mantenimiento en el rango excluye la unidad (idéntico a /hotel/oferta; #349)
         self.assertEqual(self.cliente.post(
-            "/hotel/habitaciones/HAB-SINT-101/mantenimiento", json={"abierto": True},
+            "/hotel/habitaciones/HAB-SINT-101/mantenimiento",
+            json={"abierto": True, "desde": str(MANANA), "hasta": str(EN_3)},
             headers={"Idempotency-Key": self.clave()}).status_code, 200)
         respuesta = self.anonima.get(
             "/publico/disponibilidad", params={"inicio": str(MANANA), "fin": str(EN_3), "personas": 2}

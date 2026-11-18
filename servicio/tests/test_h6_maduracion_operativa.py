@@ -384,9 +384,25 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertIsNotNone(tarea)
         # aunque la preparación siga limpia, check_in lo niega (mantenimiento)
         self.assertEqual(self.entrada(rid, "ent-mant").status_code, 409)
+        # #349 (2026-11-18): sin fechas, el mantenimiento bloquea solo hasta hoy;
+        # la unidad sigue vendible a futuro. Con rango, sale de la oferta en él.
+        oferta = self.cliente.get("/hotel/oferta", params={"inicio": FUTURO, "fin": FUTURO_FIN, "personas": 2}
+                                  ).json()["oferta"]
+        self.assertIn("HAB-SINT-102", {i["habitacion_id"] for i in oferta})
+        con_rango = self.cliente.post(
+            "/hotel/habitaciones/HAB-SINT-102/mantenimiento",
+            json={"abierto": True, "desde": FUTURO, "hasta": FUTURO_FIN},
+            headers={"Idempotency-Key": "m-rango"},
+        )
+        self.assertEqual(con_rango.status_code, 200, con_rango.text)
         oferta = self.cliente.get("/hotel/oferta", params={"inicio": FUTURO, "fin": FUTURO_FIN, "personas": 2}
                                   ).json()["oferta"]
         self.assertNotIn("HAB-SINT-102", {i["habitacion_id"] for i in oferta})
+        reabrir = self.cliente.post(
+            "/hotel/habitaciones/HAB-SINT-102/mantenimiento", json={"abierto": True},
+            headers={"Idempotency-Key": "m-hoy"},
+        )
+        self.assertEqual(reabrir.status_code, 200)
         cerrar = self.cliente.post(
             "/hotel/habitaciones/HAB-SINT-102/mantenimiento",
             json={"abierto": False},
