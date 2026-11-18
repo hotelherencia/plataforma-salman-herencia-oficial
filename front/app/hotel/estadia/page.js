@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 import { SelectorReserva } from '../_componentes/selector-reserva'
 import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
+import { SelectorProducto } from '../_componentes/selector-producto'
+import { esAdminHotel } from '../../../lib/roles'
 import { validarDocumento } from '../../../lib/documento'
 import { gestionaRecepcion } from '../../../lib/roles'
 
@@ -17,6 +19,7 @@ const ETIQUETA_ESTADO = {
 
 export default function Estadia() {
   const sesion = useSesion()
+  const puedeConceptoLibre = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
   const [reservaId, setReservaId] = useState('')
   const [detalleReserva, setDetalleReserva] = useState(null)
   const [salida, setSalida] = useState(null)
@@ -24,7 +27,9 @@ export default function Estadia() {
   const [claveEntrada, renovarClaveEntrada] = useClaveOperacion()
   const [claveCancela, renovarClaveCancela] = useClaveOperacion()
   const [claveCargo, renovarClaveCargo] = useClaveOperacion()
-  const [cargo, setCargo] = useState({ reserva_id: '', concepto: 'minibar', monto_clp: '5000' })
+  // #357: el cargo es un producto del catálogo (precio automático); el concepto
+  // libre queda solo para la administración y exige motivo.
+  const [cargo, setCargo] = useState({ reserva_id: '', producto: null, cantidad: '1', libre: false, concepto: '', monto_clp: '', motivo: '' })
   // #356: la reserva del cargo precargada queda fija; solo se cambia a propósito.
   const [cargoFijo, setCargoFijo] = useState(false)
   // #360/#367: unidad confirmada al llegar y documento validado si falta.
@@ -172,15 +177,21 @@ export default function Estadia() {
     if (enVueloRef.current) return
     setError('')
     setSalida(null)
-    const falta = camposFaltantes([[cargo.reserva_id, 'ID de la reserva'], [cargo.monto_clp, 'Monto CLP']])
+    const falta = camposFaltantes(cargo.libre
+      ? [[cargo.reserva_id, 'Reserva'], [cargo.concepto, 'Concepto'], [cargo.monto_clp, 'Monto CLP'], [cargo.motivo, 'Motivo']]
+      : [[cargo.reserva_id, 'Reserva'], [cargo.producto?.producto_id, 'Producto']])
     if (falta) { setError(falta); return }
+    const cantidad = Math.max(1, Number(cargo.cantidad) || 1)
+    const cuerpoCargo = cargo.libre
+      ? { concepto: `${cargo.concepto.trim()} (motivo: ${cargo.motivo.trim()})`.slice(0, 200), monto_clp: Number(cargo.monto_clp) }
+      : { producto_id: cargo.producto.producto_id, cantidad }
     enVueloRef.current = true
     setEnviando(true)
     try {
       const r = await api(`/hotel/reservas/${cargo.reserva_id.trim()}/cargos`, {
         metodo: 'POST',
         claveIdempotencia: claveCargo,
-        cuerpo: { concepto: cargo.concepto, monto_clp: Number(cargo.monto_clp) },
+        cuerpo: cuerpoCargo,
       })
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
@@ -189,6 +200,7 @@ export default function Estadia() {
       else {
         setSalida(r.datos)
         renovarClaveCargo()
+        setCargo((c) => ({ ...c, producto: null, cantidad: '1', concepto: '', monto_clp: '', motivo: '' }))
         await refrescarDetalle(cargo.reserva_id)
       }
     } catch {
@@ -279,8 +291,32 @@ export default function Estadia() {
               Huésped <strong>{detalleCargoActivo.huesped_nombre}</strong> · habitación {detalleCargoActivo.habitacion_id}
             </p>
           )}
-          <Campo etiqueta="Concepto" value={cargo.concepto} onChange={(e) => setCargo({ ...cargo, concepto: e.target.value })} />
-          <Campo etiqueta="Monto (CLP)" type="number" value={cargo.monto_clp} onChange={(e) => setCargo({ ...cargo, monto_clp: e.target.value })} />
+          {!cargo.libre && (
+            <>
+              <SelectorProducto valor={cargo.producto} alCambiar={(p) => setCargo((c) => ({ ...c, producto: p }))} />
+              <Campo etiqueta="Cantidad" type="number" min="1" max="100" value={cargo.cantidad} onChange={(e) => setCargo({ ...cargo, cantidad: e.target.value })} />
+              {cargo.producto && (
+                <p className="estado" role="status" data-cargo-total>
+                  {cargo.producto.nombre}: {clp(cargo.producto.precio_clp)} × {Math.max(1, Number(cargo.cantidad) || 1)} ={' '}
+                  <strong>{clp(cargo.producto.precio_clp * Math.max(1, Number(cargo.cantidad) || 1))}</strong>
+                  {cargo.producto.controla_stock && <> · quedan {cargo.producto.stock}</>}
+                </p>
+              )}
+            </>
+          )}
+          {puedeConceptoLibre && (
+            <label className="campo-check">
+              <input type="checkbox" checked={cargo.libre} onChange={(e) => setCargo({ ...cargo, libre: e.target.checked })} />
+              Concepto libre (solo administración, con motivo)
+            </label>
+          )}
+          {cargo.libre && (
+            <>
+              <Campo etiqueta="Concepto" value={cargo.concepto} onChange={(e) => setCargo({ ...cargo, concepto: e.target.value })} />
+              <Campo etiqueta="Monto (CLP)" type="number" value={cargo.monto_clp} onChange={(e) => setCargo({ ...cargo, monto_clp: e.target.value })} />
+              <Campo etiqueta="Motivo" value={cargo.motivo} onChange={(e) => setCargo({ ...cargo, motivo: e.target.value })} />
+            </>
+          )}
           <button type="submit" className="boton-primario" disabled={enviando || noAdmiteCargo}>
             {enviando ? "Procesando…" : "Asentar cargo"}
           </button>

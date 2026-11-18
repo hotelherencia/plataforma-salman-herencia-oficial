@@ -16,6 +16,7 @@ from psycopg.errors import ExclusionViolation
 from hotel_inventario.servicio import HORA_LLEGADA, LIMITE_CANCELACION_GRATUITA
 from nucleo.servicio import AccesoDenegado as AccesoNucleo
 
+from . import productos as productos_db
 from . import reservas as reservas_db
 from . import roles
 
@@ -335,11 +336,12 @@ def detalle_reserva(conexion: psycopg.Connection, empresa_id: str, reserva_id: s
         "precio_por_noche": reservas_db.noches_de_reserva(conexion, reserva_id),
         "cargos": [
             {"cargo_id": c[0], "tipo": c[1], "concepto": c[2], "monto_clp": c[3], "referencia": c[4],
-             "registrado_en": c[5].isoformat(), "reversado": c[6]}
+             "registrado_en": c[5].isoformat(), "reversado": c[6], "producto_id": c[7], "cantidad": c[8],
+             "precio_unitario_clp": c[9]}
             for c in conexion.execute(
                 "SELECT id, tipo, concepto, monto_clp, referencia, creado_en, "
                 "EXISTS(SELECT 1 FROM cargos x WHERE x.reserva_id = cargos.reserva_id AND x.tipo = 'reverso' "
-                "AND x.referencia = cargos.id) FROM cargos "
+                "AND x.referencia = cargos.id), producto_id, cantidad, precio_unitario_clp FROM cargos "
                 "WHERE reserva_id = %s ORDER BY creado_en, id",
                 (reserva_id,),
             ).fetchall()
@@ -435,6 +437,7 @@ ROLES_OBSERVACION = roles.con_admin_hotel("recepcion")
 ROLES_MANTENIMIENTO = roles.con_admin_hotel()
 ROLES_CANCELACION = roles.con_admin_hotel("recepcion")
 ROLES_CARGO = ROLES_PAGO_MANUAL
+ROLES_CONCEPTO_LIBRE = roles.con_admin_hotel()
 ROLES_REVERSO = roles.con_admin_hotel()
 ESTADOS_CON_CUENTA_ABIERTA = ("confirmada", "en_estadia")
 
@@ -627,21 +630,37 @@ def fijar_mantenimiento(conexion: psycopg.Connection, habitacion_id: str, abiert
             "hasta": hasta.isoformat() if abierto and hasta else None}
 
 
-def asentar_cargo(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, concepto: str, monto_clp: int) -> dict:
-    """Cargo de texto libre (minibar, consumo, extra): solo con la cuenta abierta."""
+def asentar_cargo(conexion: psycopg.Connection, empresa_id: str, reserva_id: str, concepto: str | None,
+                  monto_clp: int | None, producto_id: str | None = None, cantidad: int = 1,
+                  actor: str = "sistema") -> dict:
+    """Cargo a la cuenta abierta. #357: con `producto_id` el concepto y el
+    precio salen del catálogo (precio copiado × cantidad) y, si el producto
+    controla stock, se descuenta en la misma transacción. Sin producto es un
+    concepto libre (la ruta lo restringe a la administración)."""
     _reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     if _reserva[2] not in ESTADOS_CON_CUENTA_ABIERTA:
         raise TransicionInvalida(f"la reserva está {_reserva[2]}")
     cargo_id = f"CRG-{uuid.uuid4().hex[:12]}"
+    precio_unitario = None
+    if producto_id:
+        producto = productos_db.descontar_para_cargo(conexion, producto_id, cantidad, actor, cargo_id)
+        precio_unitario = producto["precio_clp"]
+        monto_clp = precio_unitario * cantidad
+        concepto = producto["nombre"] if cantidad == 1 else f"{producto['nombre']} × {cantidad}"
+    else:
+        cantidad = None
     conexion.execute(
-        "INSERT INTO cargos (id, reserva_id, concepto, monto_clp, tipo) VALUES (%s, %s, %s, %s, 'cargo')",
-        (cargo_id, reserva_id, concepto, monto_clp),
+        "INSERT INTO cargos (id, reserva_id, concepto, monto_clp, tipo, producto_id, cantidad, precio_unitario_clp) "
+        "VALUES (%s, %s, %s, %s, 'cargo', %s, %s, %s)",
+        (cargo_id, reserva_id, concepto, monto_clp, producto_id, cantidad, precio_unitario),
     )
-    return {"cargo_id": cargo_id, "reserva_id": reserva_id, "concepto": concepto, "monto_clp": monto_clp, "tipo": "cargo"}
+    return {"cargo_id": cargo_id, "reserva_id": reserva_id, "concepto": concepto, "monto_clp": monto_clp, "tipo": "cargo",
+            "producto_id": producto_id, "cantidad": cantidad, "precio_unitario_clp": precio_unitario}
 
 
 def reversar_cargo(
-    conexion: psycopg.Connection, empresa_id: str, reserva_id: str, cargo_id: str, motivo: str
+    conexion: psycopg.Connection, empresa_id: str, reserva_id: str, cargo_id: str, motivo: str,
+    actor: str = "sistema",
 ) -> dict:
     """#359: anular un cargo es asentar su reverso (movimiento contrario), nunca
     borrarlo. Un cargo se reversa una sola vez y solo con la cuenta abierta."""
@@ -652,7 +671,8 @@ def reversar_cargo(
     if not motivo:
         raise CargoNoReversable("indica el motivo del reverso")
     cargo = conexion.execute(
-        "SELECT concepto, monto_clp, tipo FROM cargos WHERE id = %s AND reserva_id = %s", (cargo_id, reserva_id)
+        "SELECT concepto, monto_clp, tipo, producto_id, cantidad FROM cargos WHERE id = %s AND reserva_id = %s",
+        (cargo_id, reserva_id)
     ).fetchone()
     if cargo is None or cargo[2] != "cargo":
         raise CargoNoReversable("ese cargo no existe en la reserva o ya es un reverso")
@@ -666,6 +686,9 @@ def reversar_cargo(
         "INSERT INTO cargos (id, reserva_id, concepto, monto_clp, tipo, referencia) VALUES (%s, %s, %s, %s, 'reverso', %s)",
         (reverso_id, reserva_id, concepto, cargo[1], cargo_id),
     )
+    if cargo[3]:
+        # #357: el reverso de un producto con stock lo devuelve.
+        productos_db.devolver_por_reverso(conexion, cargo[3], cargo[4] or 1, actor, reverso_id)
     neto, pagado = cuenta_de_reserva(conexion, reserva_id)
     return {"cargo_id": reverso_id, "reserva_id": reserva_id, "tipo": "reverso", "referencia": cargo_id,
             "concepto": concepto, "monto_clp": cargo[1], "saldo_clp": neto - pagado}

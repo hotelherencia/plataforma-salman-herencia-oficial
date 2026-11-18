@@ -614,15 +614,29 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.alta_usuario("caja1", "caja", "clave-caja", "u-caja")
         cliente = self.cliente_como("caja1", "clave-caja")
         rid = self.reservar("HAB-SINT-103", FUTURO, FUTURO_FIN, "Mónica", clave="r-mon")
-        respuesta = cliente.post(
+        # #357: caja asienta productos del catálogo; el concepto libre le da 403.
+        with psycopg.connect(URL_TEST) as conexion:
+            conexion.execute(
+                "INSERT INTO productos (id, nombre, categoria, precio_clp) VALUES (%s, %s, 'extra', %s) "
+                "ON CONFLICT (id) DO NOTHING",
+                ('PRD-TEST-CONSUMO-5', 'Consumo prueba 5000', 5000),
+            )
+            conexion.commit()
+        libre = cliente.post(
             f"/hotel/reservas/{rid}/cargos",
             json={"concepto": "consumo", "monto_clp": 5_000},
+            headers={"Idempotency-Key": "car-caja-libre"},
+        )
+        self.assertEqual(libre.status_code, 403)
+        respuesta = cliente.post(
+            f"/hotel/reservas/{rid}/cargos",
+            json={"producto_id": "PRD-TEST-CONSUMO-5"},
             headers={"Idempotency-Key": "car-caja"},
         )
         self.assertEqual(respuesta.status_code, 201)
         ajena = cliente.post(
             "/hotel/reservas/RSV-NO-EXISTE/cargos",
-            json={"concepto": "consumo", "monto_clp": 5_000},
+            json={"producto_id": "PRD-TEST-CONSUMO-5"},
             headers={"Idempotency-Key": "car-ajena"},
         )
         self.assertEqual(ajena.status_code, 403)

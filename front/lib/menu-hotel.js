@@ -53,6 +53,7 @@ export const SECCIONES = [
     rotulo: 'Hotel · configuración',
     items: [
       { href: '/hotel/configuracion', nombre: 'Configuración', tambien: ['/hotel/tipos'] },
+      { href: '/hotel/productos', nombre: 'Productos y stock' },
     ],
   },
   {
