@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, useSesion } from '../../../../lib/api'
-import { esAdminHotel } from '../../../../lib/roles'
+import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
+import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 
@@ -26,6 +27,11 @@ const SIGUIENTE_PASO = {
   en_estadia: [['/hotel/estadia', 'Asentar un cargo'], ['/hotel/pago', 'Registrar pago'], ['/hotel/salida', 'Salida y liquidación']],
 }
 
+function hoyIso() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function DetalleReserva() {
   const { id } = useParams()
   const reservaId = decodeURIComponent(id)
@@ -35,6 +41,35 @@ export default function DetalleReserva() {
   const [aviso, setAviso] = useState('')
   const [version, setVersion] = useState(0)
   const puedeReversar = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
+  const puedeMover = sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
+  const [destino, setDestino] = useState('')
+  const [motivoCambio, setMotivoCambio] = useState('')
+
+  // #361: mover al huésped a otra habitación (conserva la tarifa pactada).
+  async function cambiarHabitacion(e) {
+    e.preventDefault()
+    setError('')
+    setAviso('')
+    if (!destino || destino === reserva.habitacion_id) { setError('Elige una habitación distinta de la actual.'); return }
+    if (motivoCambio.trim().length < 3) { setError('Indica el motivo del cambio (mínimo 3 caracteres).'); return }
+    if (!window.confirm(`¿Mover a ${reserva.huesped_nombre} de ${reserva.habitacion_id} a ${destino}?`)) return
+    try {
+      const r = await api(`/hotel/reservas/${encodeURIComponent(reservaId)}/habitacion`, {
+        metodo: 'POST',
+        claveIdempotencia: `rea-${crypto.randomUUID().slice(0, 12)}`,
+        cuerpo: { habitacion_id: destino, motivo: motivoCambio.trim() },
+      })
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else {
+        setAviso(`Huésped movido de ${r.datos.desde_habitacion_id} a ${r.datos.hacia_habitacion_id}.`)
+        setDestino('')
+        setMotivoCambio('')
+        setVersion((v) => v + 1)
+      }
+    } catch {
+      setError('La API no está disponible')
+    }
+  }
 
   // #359: anular un cargo = asentar su reverso (movimiento contrario), nunca borrar.
   async function reversar(cargo) {
@@ -137,6 +172,37 @@ export default function DetalleReserva() {
             <p className="nota-clave">
               Saldo = cargos − reversos − pagos confirmados, calculado por el servidor. La salida solo procede con saldo 0.
             </p>
+            {puedeMover && ['confirmada', 'en_estadia'].includes(reserva.estado) && (
+              <form className="formulario cambio-habitacion" onSubmit={cambiarHabitacion} aria-label="Cambiar habitación">
+                <h3 className="subtitulo">Cambiar habitación</h3>
+                <SelectorUnidad
+                  etiqueta="Mover a"
+                  inicio={reserva.inicio > hoyIso() ? reserva.inicio : hoyIso()}
+                  fin={reserva.fin}
+                  personas={reserva.personas || 1}
+                  valor={destino}
+                  alCambiar={setDestino}
+                />
+                <label className="campo">
+                  <span className="campo-etiqueta">Motivo</span>
+                  <input className="entrada" value={motivoCambio} onChange={(e) => setMotivoCambio(e.target.value)} placeholder="Ej.: ruido, upgrade, mantención" />
+                </label>
+                <button type="submit" className="boton-secundario">Cambiar habitación</button>
+                <p className="nota-clave">Se conserva la tarifa pactada. En estadía, la habitación de origen queda para limpieza.</p>
+              </form>
+            )}
+            {reserva.reasignaciones?.length > 0 && (
+              <>
+                <h3 className="subtitulo">Cambios de habitación</h3>
+                <ul className="lista-simple">
+                  {reserva.reasignaciones.map((a) => (
+                    <li key={a.registrado_en}>
+                      {a.registrado_en.slice(0, 16).replace('T', ' ')} · {a.desde_habitacion_id} → {a.hacia_habitacion_id} · {a.motivo} ({a.actor})
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             <h3 className="subtitulo">Cargos y reversos</h3>
             <div className="tabla-contenedor"><table className="tabla">
               <thead>

@@ -443,6 +443,7 @@ def crear_reserva(
     huesped_documento: str | None,
     personas: int | None = None,
     extras: dict | None = None,
+    huesped_documento_tipo: str | None = None,
 ) -> dict:
     # El estado se lee tras el cerrojo: un retiro concurrente y esta reserva se
     # serializan sobre la fila (spec-hotel-operacion-v1 §2.7, misma regla que la oferta).
@@ -476,9 +477,10 @@ def crear_reserva(
         with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
             conexion.execute(
                 "INSERT INTO reservas (id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, "
-                "tarifa_noche_aceptada_clp, personas, total_aceptado_clp, politica_snapshot, recargos) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, tarifa,
+                "huesped_documento_tipo, tarifa_noche_aceptada_clp, personas, total_aceptado_clp, politica_snapshot, recargos) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento,
+                 huesped_documento_tipo, tarifa,
                  personas, total, psycopg.types.json.Json(snapshot),
                  psycopg.types.json.Json(item.get("recargos") or [])),
             )

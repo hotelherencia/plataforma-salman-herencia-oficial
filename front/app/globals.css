@@ -2483,3 +2483,19 @@ a.boton-primario {
   align-items: center;
   min-height: 44px;
 }
+
+/* #367/#361: documento y cambio de habitación */
+.grupo-documento {
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.cambio-habitacion {
+  margin: 1rem 0;
+}
+.lista-simple {
+  padding-left: 1.2rem;
+}

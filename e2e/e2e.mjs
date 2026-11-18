@@ -328,11 +328,13 @@ try {
     await caso('RES-01', '/hotel/reserva', 'crear reserva desde la UI', 'recepcion', '201 confirmada; aparece en la búsqueda', async () => {
       await page.goto(`${FRONT}/hotel/reserva`)
       await page.waitForTimeout(1500)
-      await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_A)
+      // #367: fechas primero; la habitación se elige entre las libres y el documento es obligatorio.
       await page.getByRole('textbox', { name: 'Desde' }).fill(HOY_FECHA)
       await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_3_DIAS)
+      await page.waitForTimeout(1200)
+      await page.getByRole('combobox', { name: 'Habitación' }).selectOption(HAB_A)
       await page.getByRole('textbox', { name: 'Huésped' }).fill('Huésped Sintético')
-      await page.getByRole('textbox', { name: /Documento/ }).fill('E2E-DOC-123')
+      await page.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
       await page.getByRole('button', { name: 'Confirmar reserva' }).click()
       await page.waitForTimeout(2000)
       const conf = await confirmacion(page)
@@ -344,17 +346,14 @@ try {
       return conf
     })
     await caso('RES-02', '/hotel/reserva', 'reserva sin tarifa vigente es rechazada', 'recepcion', '409 con mensaje «sin tarifa vigente»', async () => {
-      await page.getByRole('button', { name: 'Nueva operación' }).click()
-      await page.waitForTimeout(500)
-      await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_NUEVA)
-      await page.getByRole('textbox', { name: 'Desde' }).fill(EN_30_DIAS)
-      await page.getByRole('textbox', { name: 'Hasta' }).fill(EN_33_DIAS)
-      await page.getByRole('textbox', { name: 'Huésped' }).fill('Sin Tarifa')
-      await page.getByRole('button', { name: 'Confirmar reserva' }).click()
-      await page.waitForTimeout(1800)
-      const a = await alerta(page)
-      if (!a || !a.includes('tarifa')) throw new Error(`alerta: ${a}`)
-      return a
+      // #367: la UI solo ofrece unidades con tarifa; la regla se verifica en la API.
+      const r = await api('POST', '/hotel/reservas', {
+        cookie: cookieRecepcion,
+        clave: K('e2e-sin-tarifa'),
+        cuerpo: { habitacion_id: HAB_NUEVA, inicio: EN_30_DIAS, fin: EN_33_DIAS, huesped: { nombre: 'Sin Tarifa' } },
+      })
+      if (r.estado !== 409 || !String(r.datos.detail).includes('tarifa')) throw new Error(`${r.estado} ${JSON.stringify(r.datos)}`)
+      return r.datos.detail
     })
     await caso('RES-03', '/hotel/reserva', 'solape en misma unidad y fechas', 'recepcion', '409 sin cupo (la carrera la gana una)', async () => {
       const r = await api('POST', '/hotel/reservas', {
@@ -612,11 +611,13 @@ try {
     await page.waitForTimeout(1500)
     const claveAntes = await page.evaluate(() => document.querySelector('.nota-clave code')?.textContent)
     if (!claveAntes) throw new Error('clave no visible antes del envío')
-    await page.getByRole('textbox', { name: 'Habitación' }).fill(HAB_C)
     await page.getByRole('textbox', { name: 'Desde' }).fill(EN_40_DIAS)
     const hasta = sumarDias(new Date(HOY), 42)
     await page.getByRole('textbox', { name: 'Hasta' }).fill(hasta)
+    await page.waitForTimeout(1200)
+    await page.getByRole('combobox', { name: 'Habitación' }).selectOption(HAB_C)
     await page.getByRole('textbox', { name: 'Huésped' }).fill('Idempotencia E2E')
+    await page.getByRole('textbox', { name: 'Número de documento' }).fill('12.345.678-5')
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await page.waitForTimeout(2000)
     const conf = await confirmacion(page)
@@ -760,11 +761,12 @@ try {
     await page.waitForTimeout(1800)
     const pre = await page.evaluate(() => ({
       url: location.pathname + location.search,
-      habitacion: document.querySelectorAll('input')[0]?.value,
-      desde: document.querySelectorAll('input')[1]?.value,
+      habitacion: document.querySelector('select')?.value,
+      desde: document.querySelectorAll('input')[0]?.value,
     }))
     if (!pre.url.includes('/hotel/reserva') || !pre.habitacion || !pre.desde) throw new Error(`no precargó: ${JSON.stringify(pre)}`)
     await page.getByRole('textbox', { name: 'Huésped' }).fill('Flujo Precargado')
+    await page.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
     await page.getByRole('button', { name: 'Confirmar reserva' }).click()
     await page.waitForTimeout(2000)
     const rid = JSON.parse(await page.evaluate(() => document.querySelector('.json-panel')?.textContent || '{}')).reserva_id

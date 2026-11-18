@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .. import agente, canal_publico, roles
+from .. import documento as documento_mod
 from .. import leads as leads_mod
 from ..tipos_habitacion import MAX_LOTE, PATRON_ID_TIPO, PATRON_PREFIJO
 
@@ -57,6 +58,19 @@ class ServicioIn(BaseModel):
 class HuespedIn(BaseModel):
     nombre: str = Field(min_length=1, max_length=200)
     documento: str | None = Field(default=None, max_length=50)
+    # #367: con tipo, el documento es obligatorio y se valida (RUT por dígito
+    # verificador; pasaporte alfanumérico). Sin tipo se acepta el texto
+    # heredado (conversiones y clientes anteriores).
+    documento_tipo: Literal["rut", "pasaporte"] | None = None
+
+    @model_validator(mode="after")
+    def _documento_valido(self):
+        if self.documento_tipo is not None:
+            try:
+                self.documento = documento_mod.normalizar(self.documento_tipo, self.documento or "")
+            except documento_mod.DocumentoInvalido as error:
+                raise ValueError(str(error)) from error
+        return self
 
 
 class ReservaIn(BaseModel):
@@ -183,6 +197,25 @@ class DocumentoHuespedIn(BaseModel):
     opcional en el esquema (un cuerpo vacío es legal y lo resuelve el
     dominio con 409); la obligatoriedad la fija `cobro.entrada`."""
     documento: str | None = Field(default=None, min_length=1, max_length=50)
+    documento_tipo: Literal["rut", "pasaporte"] | None = None
+    # #360: recepción confirma la unidad al llegar; si difiere, se reasigna en
+    # la misma transacción de la entrada.
+    habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def _documento_valido(self):
+        if self.documento_tipo is not None:
+            try:
+                self.documento = documento_mod.normalizar(self.documento_tipo, self.documento or "")
+            except documento_mod.DocumentoInvalido as error:
+                raise ValueError(str(error)) from error
+        return self
+
+
+class ReasignacionIn(BaseModel):
+    """#361: mover la reserva a otra habitación (conserva la tarifa pactada)."""
+    habitacion_id: str = Field(min_length=1, max_length=50)
+    motivo: str = Field(min_length=3, max_length=200)
 
 
 # --- Entrega 1A: tipos de habitación y alta por lote -----------------------

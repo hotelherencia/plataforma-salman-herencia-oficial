@@ -28,7 +28,7 @@ from .. import seguridad
 from . import comun
 from .modelos import (
     CargoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
-    PagoIn, PATRON_ID_HABITACION, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
+    PagoIn, PATRON_ID_HABITACION, ReasignacionIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
 
@@ -344,6 +344,7 @@ def confirmar_reserva(
                 fin=reserva.fin,
                 huesped_nombre=reserva.huesped.nombre,
                 huesped_documento=reserva.huesped.documento,
+                huesped_documento_tipo=reserva.huesped.documento_tipo,
                 personas=reserva.personas,
                 extras=_extras_consulta(
                     reserva.hora_llegada, reserva.hora_salida,
@@ -430,19 +431,54 @@ def check_in(
         "operacion": "entrada",
         "reserva_id": reserva_id,
         "documento": cuerpo.documento if cuerpo else None,
+        "documento_tipo": cuerpo.documento_tipo if cuerpo else None,
+        "habitacion_id": cuerpo.habitacion_id if cuerpo else None,
     }
 
     def operacion() -> tuple[int, dict]:
         try:
             ingreso = cobro.entrada(conexion, sesion.empresa_id, reserva_id,
-                                    documento=cuerpo.documento if cuerpo else None)
-        except (cobro.HabitacionNoLista, cobro.TransicionInvalida) as error:
+                                    documento=cuerpo.documento if cuerpo else None,
+                                    documento_tipo=cuerpo.documento_tipo if cuerpo else None,
+                                    habitacion_id=cuerpo.habitacion_id if cuerpo else None,
+                                    actor=sesion.nombre)
+        except (cobro.HabitacionNoLista, cobro.TransicionInvalida, cobro.ReasignacionInvalida) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "entrada", reserva_id, "en_estadia")
         return 200, ingreso
 
     try:
         codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo_idem, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+@router.post("/hotel/reservas/{reserva_id}/habitacion")
+def reasignar_habitacion(
+    reserva_id: str,
+    reasignacion: ReasignacionIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#361: mover al huésped a otra habitación (antes de llegar o en estadía)."""
+    comun.exigir_rol(sesion, cobro.ROLES_REASIGNACION)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    cuerpo = {"operacion": "reasignacion", "reserva_id": reserva_id, **json.loads(reasignacion.model_dump_json())}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            hecho = cobro.reasignar(conexion, sesion.empresa_id, reserva_id, reasignacion.habitacion_id,
+                                    reasignacion.motivo, sesion.nombre)
+        except (cobro.TransicionInvalida, cobro.ReasignacionInvalida) as error:
+            return 409, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, "reasignacion", reserva_id,
+                          f"{hecho['desde_habitacion_id']}->{hecho['hacia_habitacion_id']}")
+        return 200, hecho
+
+    try:
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
     except idempotencia.ConflictoIdempotencia as error:
         raise HTTPException(status_code=409, detail=str(error))
     conexion.commit()
