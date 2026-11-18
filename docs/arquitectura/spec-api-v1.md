@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (86)
+## Operaciones de esta versión (88)
 
 | Operación | Efecto |
 |---|---|
@@ -555,6 +555,7 @@ los compone el servidor.
 | `POST /hotel/limpiezas/{tarea_id}/verificacion` | (#363) `{aprobada, observacion}`. Verificada → la unidad `limpia` pasa a `inspeccionada`. Rechazada (observación obligatoria) → vuelve a `sucia` con tarea nueva y la observación queda para aseo. Solo administración del hotel; ya verificada o no completada → 409. |
 | `POST /hotel/habitaciones/{id}/observaciones` | (#363) Nota `{texto}` para aseo en una habitación. Recepción o administración del hotel. |
 | `POST /hotel/habitaciones/{id}/observaciones/{obs_id}/atendida` | (#363) Aseo (o recepción/administración) marca la observación como atendida; ya atendida → 409. |
+| `GET /hotel/avisos` | (#353, 2026-11-18) `{solicitudes_recibidas, canales_activos}`: contador para la insignia del menú y del panel (el front sondea cada 60 s) y canales de aviso encendidos (`correo`, `whatsapp`). Roles de gestión de solicitudes. |
 | `GET /hotel/productos` | (#357, 2026-11-18) Catálogo para cargos: `texto` (todas las palabras, en nombre o categoría), `categoria` (`minibar`, `cafeteria`, `servicio`, `extra`), `inactivos` (solo administración). Recepción, caja o administración del hotel. |
 | `POST /hotel/productos` | (#357) Alta `{nombre, categoria, precio_clp (IVA incluido), controla_stock, stock}`; nombre único sin distinguir mayúsculas → 409. Solo administración del hotel. |
 | `PUT /hotel/productos/{id}` | (#357) Cambia nombre, categoría, precio, `activo` o `controla_stock`. Los cargos asentados conservan su precio. Solo administración del hotel. |
@@ -574,7 +575,8 @@ los compone el servidor.
 | `POST /publico/leads` | Sin sesión: persiste un lead `nuevo` con `Idempotency-Key` propia (origen landing, tabla y espacio de claves propios). Ver «Contacto y leads de la landing». |
 | `GET /publico/referencia?token=` | Sin sesión: con la referencia opaca del lead devuelve solo `{nombre, correo}` para precargar `/reservar` (nunca teléfono ni mensaje). La referencia caduca a las 72 h (`LEAD_REFERENCIA_HORAS`, 1 h a 30 días) y se revoca al cerrar el lead (SOC-016, 2026-11-16); vencida, revocada o inexistente → 404; formato inválido o parámetros extra → 422; freno por IP → 429. |
 | `GET /hotel/metricas-publicas` | Solo `administrador`: contadores en memoria de esta instancia del canal público por ruta y clase de resultado (`ok`, `entrada_rechazada`, `freno`, `recaptcha_rechazado`, `no_encontrado`, `conflicto`, `no_disponible`, `error`). Sin datos personales ni tokens; la vista agregada son los logs JSON `evento=publico` (2026-11-16). |
-| `GET /hotel/leads?estado=` | Bandeja de leads (nuevo/contactado/cerrado) con datos de contacto y mensaje. Roles recepción o administrador; solo la empresa de la sesión. |
+| `GET /hotel/leads?estado=` | Bandeja de leads (nuevo/contactado/cerrado) con datos de contacto y mensaje. (#354, 2026-11-18) Por defecto solo la ventana vigente (`LEADS_VENTANA_NUEVO_DIAS`, 30 por defecto) con `corte` visible; `desde`, `hasta`, `contacto_id` y `todos` la cambian. Cada lead trae `contacto_id`, `leads_del_contacto` y `situacion` (`nuevo` dentro de la ventana, `sin_gestionar_antiguo` fuera); `sin_gestionar_antiguos` cuenta los que quedaron fuera. Roles recepción o administrador; solo la empresa de la sesión. |
+| `GET /hotel/leads/contactos` | (#354) Contactos deduplicados (correo en minúsculas o teléfono normalizado) con cantidad de leads y último contacto: base para fidelización, un envío por persona y nunca por lead. Roles recepción o administrador. |
 | `POST /hotel/leads/{id}/estado` | Avanza el lead (`contactado`/`cerrado` con nota) con auditoría; transición inválida → 409, ajeno → 403. Roles recepción o administrador. |
 | `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |
 | `GET /hotel/agente/consultas?estado=` | Bandeja del agente por estado, sin texto completo. Roles recepción o administrador. |

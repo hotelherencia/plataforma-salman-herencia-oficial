@@ -7,6 +7,7 @@ import { api, useSesion } from '../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 import { esAdminPlataforma, esAseo, gestionaRecepcion, veAseo } from '../lib/roles'
 import { hayOperacionActiva, itemActivo, seccionesVisibles } from '../lib/menu-hotel'
+import { Insignia, useContadorSolicitudes } from './hotel/_componentes/contador-solicitudes'
 
 /**
  * Marco de PLATAFORMA (capa Herencia): marca, empresa de la sesión y
@@ -36,6 +37,8 @@ export default function BarraNav() {
     soloAseo: sesion.fase === 'ok' && esAseo(sesion.usuario.rol),
   }
   const secciones = enHotel ? seccionesVisibles(visibilidad) : []
+  // #353: insignia de solicitudes por responder (recepción y administración del hotel).
+  const contador = useContadorSolicitudes(enHotel && visibilidad.puedeVerAgente)
   const operacionActiva = hayOperacionActiva(ruta, visibilidad)
   const [abierto, setAbierto] = useState(false)
   const botonRef = useRef(null)
@@ -114,6 +117,7 @@ export default function BarraNav() {
                   className={itemActivo(ruta, item) ? 'nav-enlace activo' : 'nav-enlace'}
                 >
                   {item.nombre}
+                  {item.href === '/hotel/solicitudes' && <Insignia valor={contador} />}
                 </Link>
               ))}
             </div>
@@ -176,6 +180,7 @@ export default function BarraNav() {
                     className={itemActivo(ruta, item) ? 'nav-enlace activo' : 'nav-enlace'}
                   >
                     {item.nombre}
+                    {item.href === '/hotel/solicitudes' && <Insignia valor={contador} />}
                   </Link>
                 ))}
               </div>

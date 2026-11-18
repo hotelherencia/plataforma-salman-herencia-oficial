@@ -17,7 +17,7 @@ import os
 import re
 import secrets
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 import psycopg
 
@@ -40,6 +40,56 @@ _TRANSICIONES = {"nuevo": frozenset({"contactado", "cerrado"}), "contactado": fr
 # al cerrar el lead.
 REFERENCIA_HORAS_DEFECTO = 72
 REFERENCIA_HORAS_MAX = 24 * 30
+# #354 (2026-11-18): «nuevo» = sin gestión y creado dentro de la ventana
+# (LEADS_VENTANA_NUEVO_DIAS, por defecto 30, propuesta del issue; entre 1 y
+# 365). Fuera de la ventana, el lead sin gestión es «sin gestionar (antiguo)».
+VENTANA_NUEVO_DEFECTO = 30
+
+
+def ventana_nuevo_dias() -> int:
+    try:
+        dias = int(os.environ.get("LEADS_VENTANA_NUEVO_DIAS") or VENTANA_NUEVO_DEFECTO)
+    except ValueError:
+        return VENTANA_NUEVO_DEFECTO
+    return min(max(dias, 1), 365)
+
+
+def normalizar_telefono(telefono: str | None) -> str | None:
+    """Aproximación a E.164 para comparar: solo dígitos con +; un móvil
+    chileno de 9 dígitos (9XXXXXXXX) recibe el prefijo 56."""
+    digitos = re.sub(r"\D", "", telefono or "")
+    if not digitos:
+        return None
+    if len(digitos) == 9 and digitos.startswith("9"):
+        digitos = "56" + digitos
+    return "+" + digitos
+
+
+def _contacto_para(conexion: psycopg.Connection, empresa_id: str, nombre: str, correo: str, telefono: str) -> str:
+    """#354: ficha única por correo (o, si no, por teléfono normalizado)."""
+    tel = normalizar_telefono(telefono)
+    fila = conexion.execute(
+        "SELECT id FROM contactos WHERE empresa_id = %s AND (correo = %s OR (%s::text IS NOT NULL AND telefono_normalizado = %s)) "
+        "ORDER BY (correo = %s) DESC, creado_en LIMIT 1 FOR UPDATE",
+        (empresa_id, correo, tel, tel, correo),
+    ).fetchone()
+    if fila:
+        conexion.execute(
+            "UPDATE contactos SET nombre = %s, telefono_normalizado = COALESCE(telefono_normalizado, %s), "
+            "correo = COALESCE(correo, %s), actualizado_en = now() WHERE id = %s",
+            (nombre, tel, correo, fila[0]),
+        )
+        return fila[0]
+    contacto_id = f"CTO-{uuid.uuid4().hex[:12]}"
+    conexion.execute(
+        "INSERT INTO contactos (id, empresa_id, nombre, correo, telefono_normalizado) VALUES (%s, %s, %s, %s, %s) "
+        "ON CONFLICT (empresa_id, correo) WHERE correo IS NOT NULL DO NOTHING",
+        (contacto_id, empresa_id, nombre, correo, tel),
+    )
+    (contacto_id,) = conexion.execute(
+        "SELECT id FROM contactos WHERE empresa_id = %s AND correo = %s", (empresa_id, correo)
+    ).fetchone()
+    return contacto_id
 
 
 def horas_referencia() -> int:
@@ -144,14 +194,15 @@ def crear_lead(
 
     lead_id = f"LEAD-{uuid.uuid4().hex[:12]}"
     token = secrets.token_urlsafe(32)
+    contacto_id = _contacto_para(conexion, empresa_id, nombre, correo, telefono)
     conexion.execute(
         "INSERT INTO leads (id, empresa_id, nombre, correo, telefono, huespedes, check_in, "
         "check_out, mensaje, estado, origen, idempotency_key, cuerpo_hash, token_consulta, "
-        "token_expira) "
+        "token_expira, contacto_id) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'nuevo', 'landing', %s, %s, %s, "
-        "now() + make_interval(hours => %s))",
+        "now() + make_interval(hours => %s), %s)",
         (lead_id, empresa_id, nombre, correo, telefono, huespedes, check_in, check_out,
-         mensaje, clave, cuerpo_hash, token, horas_referencia()),
+         mensaje, clave, cuerpo_hash, token, horas_referencia(), contacto_id),
     )
     seguridad.auditar(conexion, f"publico:{lead_id}", "lead_recibido", lead_id, "nuevo")
     return {"lead": _resumen(conexion, lead_id), "referencia": token, "reintento": False}
@@ -204,14 +255,23 @@ def _resumen(conexion: psycopg.Connection, lead_id: str) -> dict:
 def _fila_bandeja(conexion: psycopg.Connection, lead_id: str) -> dict:
     fila = conexion.execute(
         "SELECT id, nombre, correo, telefono, huespedes, check_in, check_out, mensaje, "
-        "estado, origen, nota, gestion_por, gestion_en, creado_en "
+        "estado, origen, nota, gestion_por, gestion_en, creado_en, contacto_id, "
+        "(SELECT count(*) FROM leads x WHERE x.contacto_id = leads.contacto_id), "
+        "creado_en >= now() - make_interval(days => %s) "
         "FROM leads WHERE id = %s",
-        (lead_id,),
+        (ventana_nuevo_dias(), lead_id),
     ).fetchone()
     if fila is None:
         raise LeadAjenoOInexistente("acceso denegado")
+    if fila[8] != "nuevo":
+        situacion = fila[8]
+    else:
+        situacion = "nuevo" if fila[16] else "sin_gestionar_antiguo"
     return {
         "id": fila[0],
+        "contacto_id": fila[14],
+        "leads_del_contacto": fila[15] if fila[14] else 1,
+        "situacion": situacion,
         "nombre": fila[1],
         "correo": fila[2],
         "telefono": fila[3],
@@ -228,21 +288,60 @@ def _fila_bandeja(conexion: psycopg.Connection, lead_id: str) -> dict:
     }
 
 
-def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None) -> dict:
+def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None,
+            desde: date | None = None, hasta: date | None = None, contacto_id: str | None = None,
+            todos: bool = False, hoy: date | None = None) -> dict:
+    """#354: por defecto solo la ventana vigente (últimos N días), con el
+    corte visible; `todos` quita el corte; `desde`/`hasta` lo fijan."""
     if estado is not None and estado not in ESTADOS:
         raise LeadInvalido(f"estado debe ser uno de: {', '.join(ESTADOS)}")
-    if estado is None:
-        filas = conexion.execute(
-            "SELECT id FROM leads WHERE empresa_id = %s ORDER BY creado_en DESC, id DESC",
-            (empresa_id,),
-        ).fetchall()
-    else:
-        filas = conexion.execute(
-            "SELECT id FROM leads WHERE empresa_id = %s AND estado = %s "
-            "ORDER BY creado_en DESC, id DESC",
-            (empresa_id, estado),
-        ).fetchall()
-    return {"leads": [_fila_bandeja(conexion, fila[0]) for fila in filas]}
+    hoy = hoy or date.today()
+    ventana = ventana_nuevo_dias()
+    if desde is None and not todos and contacto_id is None:
+        desde = hoy - timedelta(days=ventana)
+    filtros, parametros = ["empresa_id = %s"], [empresa_id]
+    if estado is not None:
+        filtros.append("estado = %s")
+        parametros.append(estado)
+    if desde is not None:
+        filtros.append("creado_en >= %s::date")
+        parametros.append(desde)
+    if hasta is not None:
+        filtros.append("creado_en < %s::date + 1")
+        parametros.append(hasta)
+    if contacto_id is not None:
+        filtros.append("contacto_id = %s")
+        parametros.append(contacto_id)
+    filas = conexion.execute(
+        f"SELECT id FROM leads WHERE {' AND '.join(filtros)} ORDER BY creado_en DESC, id DESC", parametros
+    ).fetchall()
+    (antiguos,) = conexion.execute(
+        "SELECT count(*) FROM leads WHERE empresa_id = %s AND estado = 'nuevo' "
+        "AND creado_en < now() - make_interval(days => %s)",
+        (empresa_id, ventana),
+    ).fetchone()
+    return {
+        "leads": [_fila_bandeja(conexion, fila[0]) for fila in filas],
+        "corte": {"desde": desde.isoformat() if desde else None, "hasta": hasta.isoformat() if hasta else None,
+                  "ventana_nuevo_dias": ventana},
+        "sin_gestionar_antiguos": antiguos,
+    }
+
+
+def contactos(conexion: psycopg.Connection, empresa_id: str) -> dict:
+    """#354: lista para fidelización, deduplicada por contacto (un envío por
+    persona, nunca por lead)."""
+    filas = conexion.execute(
+        "SELECT c.id, c.nombre, c.correo, c.telefono_normalizado, count(l.id), max(l.creado_en), "
+        "bool_or(l.estado = 'cerrado') FROM contactos c JOIN leads l ON l.contacto_id = c.id "
+        "WHERE c.empresa_id = %s GROUP BY c.id ORDER BY max(l.creado_en) DESC",
+        (empresa_id,),
+    ).fetchall()
+    return {"contactos": [
+        {"contacto_id": f[0], "nombre": f[1], "correo": f[2], "telefono": f[3], "leads": f[4],
+         "ultimo_lead_en": f[5].isoformat(), "algun_cerrado": f[6]}
+        for f in filas
+    ]}
 
 
 def gestionar(

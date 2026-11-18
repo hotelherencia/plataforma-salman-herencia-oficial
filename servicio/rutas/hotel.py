@@ -10,10 +10,11 @@ import logging
 import os
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from .. import roles
+from .. import avisos
 from .. import canal_publico
 from .. import cobro
 from .. import documental
@@ -925,6 +926,7 @@ def metricas_publicas(
 def crear_solicitud_publica(
     request: Request,
     solicitud: SolicitudPublicaIn,
+    tareas: BackgroundTasks,
     idempotency_key: str | None = Header(default=None),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
@@ -958,7 +960,27 @@ def crear_solicitud_publica(
     )
     codigo = 200 if resultado.get("reintento") else 201
     conexion.commit()
+    # #353: el aviso sale después de guardar; un fallo de envío no afecta la respuesta.
+    despachador = getattr(request.app.state, "avisos", None)
+    if codigo == 201 and despachador is not None and despachador.activo:
+        tareas.add_task(despachador.despachar_seguro)
     return JSONResponse(status_code=codigo, content=resultado)
+
+
+@router.get("/hotel/avisos")
+def contador_avisos(
+    request: Request,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """#353: contador de solicitudes `recibida` para la insignia del menú y
+    del panel (el front sondea cada 60 s) y canales de aviso encendidos."""
+    comun.exigir_rol(sesion, canal_publico.ROLES_GESTION)
+    despachador = getattr(request.app.state, "avisos", None)
+    return {
+        "solicitudes_recibidas": avisos.solicitudes_recibidas(conexion, sesion.empresa_id),
+        "canales_activos": [c.nombre for c in despachador.canales] if despachador else [],
+    }
 
 @router.get("/hotel/solicitudes")
 def bandeja_solicitudes(
@@ -1069,14 +1091,28 @@ def crear_lead_publico(
 @router.get("/hotel/leads")
 def bandeja_leads(
     estado: str | None = None,
+    desde: date | None = None,
+    hasta: date | None = None,
+    contacto_id: str | None = Query(default=None, max_length=40),
+    todos: bool = False,
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
     comun.exigir_rol(sesion, leads_mod.ROLES_GESTION)
     try:
-        return leads_mod.bandeja(conexion, sesion.empresa_id, estado)
+        return leads_mod.bandeja(conexion, sesion.empresa_id, estado, desde, hasta, contacto_id, todos)
     except leads_mod.LeadInvalido as error:
         raise HTTPException(status_code=422, detail=error.detalle)
+
+
+@router.get("/hotel/leads/contactos")
+def contactos_leads(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """#354: contactos deduplicados para fidelización (un envío por persona)."""
+    comun.exigir_rol(sesion, leads_mod.ROLES_GESTION)
+    return leads_mod.contactos(conexion, sesion.empresa_id)
 
 @router.post("/hotel/leads/{lead_id}/estado")
 def gestionar_lead(
