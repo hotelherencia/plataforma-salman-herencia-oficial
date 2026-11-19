@@ -12,6 +12,11 @@ Propósitos
   el cuerpo.
 - `envio_avisos`: desde dónde salen los avisos de solicitudes (#353). Si hay
   uno activo, reemplaza al SMTP de variables de entorno.
+- `recepcion_dte` (2026-11-19): casilla de intercambio del SII. Se leen los
+  adjuntos XML (EnvioDTE) de los correos que llegan y cada factura queda
+  pendiente de revisión en Productos (ver `facturas_proveedor`). Solo se
+  descargan adjuntos .xml de hasta 2 MB; lo demás se ignora. Gmail necesita
+  el alcance `gmail.readonly` y Microsoft 365 `Mail.Read`.
 
 Proveedores (cubren Gmail, Google Workspace, Microsoft 365/Outlook, Yahoo,
 Zoho, iCloud, hosting cPanel/Plesk y cualquier servidor estándar)
@@ -58,9 +63,10 @@ from . import ajustes, leads, seguridad
 
 _log = logging.getLogger("servicio.correo")
 
-PROPOSITOS = ("lectura_enviados", "envio_avisos")
+PROPOSITOS = ("lectura_enviados", "envio_avisos", "recepcion_dte")
 PROVEEDORES = {
     "lectura_enviados": ("imap", "gmail_api", "microsoft_graph"),
+    "recepcion_dte": ("imap", "gmail_api", "microsoft_graph"),
     "envio_avisos": ("smtp", "gmail_api", "microsoft_graph"),
 }
 SEGURIDADES = ("ssl", "starttls", "ninguna")
@@ -72,7 +78,8 @@ AUTENTICACIONES = {
 }
 # Parámetros (no secretos) y secretos aceptados por proveedor.
 PARAMETROS = {
-    "imap": ("host", "puerto", "seguridad", "usuario", "autenticacion", "carpeta_enviados", "token_url", "client_id"),
+    "imap": ("host", "puerto", "seguridad", "usuario", "autenticacion", "carpeta_enviados", "carpeta_entrada",
+             "token_url", "client_id"),
     "smtp": ("host", "puerto", "seguridad", "usuario", "autenticacion", "remitente", "destino", "token_url", "client_id"),
     "gmail_api": ("usuario", "autenticacion", "client_id", "remitente", "destino"),
     "microsoft_graph": ("tenant_id", "client_id", "usuario", "remitente", "destino"),
@@ -189,7 +196,9 @@ def validar(proposito: str, proveedor: str, parametros: dict, secretos: dict, se
             raise CorreoInvalido("puerto debe estar entre 1 y 65535")
         limpio["puerto"] = puerto
         limpio["usuario"] = _texto(p.get("usuario"), "usuario", requerido=auth != "ninguna")
-        if proveedor == "imap":
+        if proveedor == "imap" and proposito == "recepcion_dte":
+            limpio["carpeta_entrada"] = _texto(p.get("carpeta_entrada"), "carpeta_entrada", 200) or "INBOX"
+        elif proveedor == "imap":
             limpio["carpeta_enviados"] = _texto(p.get("carpeta_enviados"), "carpeta_enviados", 200)
     if proveedor == "gmail_api":
         limpio["usuario"] = _correo(p.get("usuario"), "usuario (correo del buzón)", requerido=True)
@@ -390,6 +399,56 @@ def _direcciones(*valores: str | None) -> list[str]:
     return sorted({d.lower() for _, d in email.utils.getaddresses([v for v in valores if v]) if "@" in d})
 
 
+MAX_MENSAJES_DTE = 100          # por revisión
+MAX_MENSAJE_DTE = 15 * 1024 * 1024
+MAX_ADJUNTO_DTE = 2 * 1024 * 1024
+
+
+@dataclass
+class AdjuntoXml:
+    mensaje_id: str
+    fecha: datetime
+    remitente: str | None
+    nombre: str
+    contenido: bytes
+
+
+def _es_xml(nombre: str, tipo: str | None) -> bool:
+    return (nombre or "").lower().endswith(".xml") or (tipo or "").lower() in ("text/xml", "application/xml")
+
+
+def _remitente(valor: str | None) -> str | None:
+    direcciones = _direcciones(valor)
+    return direcciones[0][:200] if direcciones else None
+
+
+def adjuntos_xml_de_mensaje(crudo: bytes, mensaje_id: str, desde: datetime | None = None) -> list[AdjuntoXml]:
+    """Correo completo (RFC 822) → sus adjuntos XML de tamaño razonable."""
+    import email
+    from email import policy
+
+    mensaje = email.message_from_bytes(crudo, policy=policy.default)
+    try:
+        fecha = email.utils.parsedate_to_datetime(mensaje.get("Date"))
+        if fecha.tzinfo is None:
+            fecha = fecha.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        fecha = datetime.now(timezone.utc)
+    if desde and fecha < desde:
+        return []
+    salida = []
+    for parte in mensaje.walk():
+        if parte.is_multipart():
+            continue
+        nombre = parte.get_filename() or ""
+        if not _es_xml(nombre, parte.get_content_type()) or not (nombre or parte.get_content_disposition() == "attachment"):
+            continue
+        contenido = parte.get_payload(decode=True) or b""
+        if 0 < len(contenido) <= MAX_ADJUNTO_DTE:
+            salida.append(AdjuntoXml(mensaje_id, fecha, _remitente(mensaje.get("From")), nombre[:120], contenido))
+    return salida
+
+
 @dataclass
 class Buzon:
     """Un buzón ya descifrado, listo para leer enviados o enviar."""
@@ -538,6 +597,97 @@ class Buzon:
             url = r.get("@odata.nextLink")
         return resultado
 
+    # -- recepción de DTE (adjuntos XML de los correos que llegan)
+    def adjuntos_xml_desde(self, desde: datetime) -> list["AdjuntoXml"]:
+        return {"imap": self._adjuntos_imap, "gmail_api": self._adjuntos_gmail,
+                "microsoft_graph": self._adjuntos_graph}[self.proveedor](desde)
+
+    def _adjuntos_imap(self, desde: datetime) -> list["AdjuntoXml"]:
+        imap = self._imap()
+        try:
+            p = self.parametros
+            if p["autenticacion"] == "oauth2":
+                token = self._token_oauth_servidor()
+                imap.authenticate("XOAUTH2", lambda _: _xoauth2(p["usuario"], token))
+            else:
+                imap.login(p["usuario"], self.secretos["clave"])
+            carpeta = p.get("carpeta_entrada") or "INBOX"
+            estado, _ = imap.select(f'"{carpeta}"', readonly=True)
+            if estado != "OK":
+                raise CorreoInvalido(f"no pude abrir la carpeta «{carpeta}»")
+            estado, datos = imap.uid("SEARCH", None, "SINCE", desde.strftime("%d-%b-%Y"))
+            uids = (datos[0] or b"").split()[-MAX_MENSAJES_DTE:]
+            resultado: list[AdjuntoXml] = []
+            for uid in uids:
+                # Primero el tamaño: un correo enorme no se descarga.
+                estado, tam = imap.uid("FETCH", uid.decode(), "(RFC822.SIZE)")
+                m = re.search(rb"RFC822\.SIZE (\d+)", b" ".join(t if isinstance(t, bytes) else b" ".join(t) for t in (tam or []) if t))
+                if not m or int(m.group(1)) > MAX_MENSAJE_DTE:
+                    continue
+                estado, partes = imap.uid("FETCH", uid.decode(), "(BODY.PEEK[])")
+                crudo = next((pt[1] for pt in partes or [] if isinstance(pt, tuple)), None)
+                if crudo:
+                    resultado += adjuntos_xml_de_mensaje(crudo, f"imap:{uid.decode()}", desde)
+            return resultado
+        finally:
+            try:
+                imap.logout()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _adjuntos_gmail(self, desde: datetime) -> list["AdjuntoXml"]:
+        token = self._token_google("https://www.googleapis.com/auth/gmail.readonly")
+        cab = {"Authorization": f"Bearer {token}"}
+        base = f"https://gmail.googleapis.com/gmail/v1/users/{urllib.parse.quote(self.parametros['usuario'])}/messages"
+        q = {"q": f"has:attachment filename:xml after:{int(desde.timestamp())} -in:sent", "maxResults": MAX_MENSAJES_DTE}
+        ids = [m["id"] for m in self.http("GET", f"{base}?{urllib.parse.urlencode(q)}", cab, None).get("messages", [])]
+        resultado: list[AdjuntoXml] = []
+        for mid in ids[:MAX_MENSAJES_DTE]:
+            m = self.http("GET", f"{base}/{mid}?format=full", cab, None)
+            cabeceras = {h["name"].lower(): h["value"] for h in m.get("payload", {}).get("headers", [])}
+            fecha = datetime.fromtimestamp(int(m.get("internalDate", 0)) / 1000, tz=timezone.utc)
+            pendientes = [m.get("payload", {})]
+            while pendientes:
+                parte = pendientes.pop()
+                pendientes += parte.get("parts", []) or []
+                nombre = parte.get("filename") or ""
+                cuerpo = parte.get("body", {}) or {}
+                if not _es_xml(nombre, parte.get("mimeType")) or int(cuerpo.get("size") or 0) > MAX_ADJUNTO_DTE:
+                    continue
+                datos = cuerpo.get("data")
+                if not datos and cuerpo.get("attachmentId"):
+                    datos = self.http("GET", f"{base}/{mid}/attachments/{cuerpo['attachmentId']}", cab, None).get("data")
+                if not datos:
+                    continue
+                contenido = base64.urlsafe_b64decode(datos + "=" * (-len(datos) % 4))
+                if len(contenido) <= MAX_ADJUNTO_DTE:
+                    resultado.append(AdjuntoXml(f"gmail:{mid}", fecha, _remitente(cabeceras.get("from")), nombre[:120], contenido))
+        return resultado
+
+    def _adjuntos_graph(self, desde: datetime) -> list["AdjuntoXml"]:
+        token = self._token_graph()
+        cab = {"Authorization": f"Bearer {token}"}
+        usuario = urllib.parse.quote(self.parametros["usuario"])
+        filtro = f"receivedDateTime ge {desde.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')} and hasAttachments eq true"
+        url = (f"https://graph.microsoft.com/v1.0/users/{usuario}/mailFolders/inbox/messages?"
+               + urllib.parse.urlencode({"$select": "id,receivedDateTime,from", "$filter": filtro, "$top": str(MAX_MENSAJES_DTE)}))
+        resultado: list[AdjuntoXml] = []
+        for m in self.http("GET", url, cab, None).get("value", [])[:MAX_MENSAJES_DTE]:
+            fecha = datetime.fromisoformat(m["receivedDateTime"].replace("Z", "+00:00"))
+            remitente = ((m.get("from") or {}).get("emailAddress") or {}).get("address")
+            adjuntos = self.http("GET", f"https://graph.microsoft.com/v1.0/users/{usuario}/messages/{m['id']}/attachments?"
+                                 + urllib.parse.urlencode({"$select": "id,name,contentType,size"}), cab, None)
+            for a in adjuntos.get("value", []):
+                if not _es_xml(a.get("name") or "", a.get("contentType")) or int(a.get("size") or 0) > MAX_ADJUNTO_DTE:
+                    continue
+                completo = self.http("GET", f"https://graph.microsoft.com/v1.0/users/{usuario}/messages/{m['id']}/attachments/{a['id']}", cab, None)
+                if completo.get("contentBytes"):
+                    contenido = base64.b64decode(completo["contentBytes"])
+                    if len(contenido) <= MAX_ADJUNTO_DTE:
+                        resultado.append(AdjuntoXml(f"graph:{m['id']}", fecha, (remitente or "")[:200] or None,
+                                                    (a.get("name") or "")[:120], contenido))
+        return resultado
+
     # -- envío
     def enviar(self, asunto: str, cuerpo: str, destinos: list[str] | None = None, html: str | None = None) -> None:
         """Texto plano y, si viene, versión HTML. Sin `destinos` va al destino
@@ -593,6 +743,9 @@ class Buzon:
 
     # -- prueba de conexión
     def probar(self) -> dict:
+        if self.proposito == "recepcion_dte":
+            adjuntos = self.adjuntos_xml_desde(datetime.now(timezone.utc) - timedelta(days=7))
+            return {"ok": True, "detalle": f"conexión correcta: {len(adjuntos)} XML recibido(s) en los últimos 7 días"}
         if self.proposito == "lectura_enviados":
             enviados = self.enviados_desde(datetime.now(timezone.utc) - timedelta(days=7))
             return {"ok": True, "detalle": f"conexión correcta: {len(enviados)} correo(s) enviado(s) en los últimos 7 días"}
@@ -697,6 +850,57 @@ def revisar(conexion: psycopg.Connection, empresa_id: str, fabrica: Callable | N
     return total
 
 
+def revisar_recepcion_dte(conexion: psycopg.Connection, empresa_id: str, fabrica: Callable | None = None) -> dict:
+    """Lee los XML que llegaron a los buzones `recepcion_dte` y deja cada
+    factura pendiente de revisión (idempotente por emisor + tipo + folio).
+    Un adjunto que no es DTE (acuse, respuesta, otro XML) se ignora."""
+    from . import facturas_proveedor
+    from .importacion_productos import FacturaInvalida
+
+    filas = conexion.execute(
+        f"SELECT {_COLUMNAS} FROM buzones_correo WHERE empresa_id = %s AND proposito = 'recepcion_dte' AND activo "
+        "ORDER BY etiqueta", (empresa_id,),
+    ).fetchall()
+    total = {"buzones": 0, "adjuntos": 0, "documentos": 0, "repetidos": 0, "ignorados": 0, "errores": 0}
+    ahora = datetime.now(timezone.utc)
+    piso = ahora - timedelta(days=30)
+    for fila in filas:
+        total["buzones"] += 1
+        desde = max(fila[7] - timedelta(minutes=10), piso) if fila[7] else piso
+        try:
+            buzon = (fabrica or buzon_desde_fila)(fila)
+            adjuntos = buzon.adjuntos_xml_desde(desde)
+            nuevos = repetidos = ignorados = 0
+            for adjunto in adjuntos:
+                try:
+                    with conexion.transaction():
+                        r = facturas_proveedor.crear_desde_xml(
+                            conexion, adjunto.contenido, "correo", f"correo:{fila[1]}"[:80], buzon_id=fila[0],
+                            mensaje_id=adjunto.mensaje_id, remitente=adjunto.remitente)
+                except (FacturaInvalida, psycopg.errors.UniqueViolation):
+                    ignorados += 1
+                    continue
+                nuevos += len(r["creados"])
+                repetidos += len(r["repetidos"])
+                ignorados += len(r["ignorados"])
+            total["adjuntos"] += len(adjuntos)
+            total["documentos"] += nuevos
+            total["repetidos"] += repetidos
+            total["ignorados"] += ignorados
+            conexion.execute(
+                "UPDATE buzones_correo SET revisado_hasta = %s, ultima_revision_en = now(), ultimo_error = NULL, "
+                "ultimo_resultado = %s WHERE id = %s",
+                (ahora, f"{len(adjuntos)} XML revisado(s), {nuevos} documento(s) nuevo(s) por revisar", fila[0]),
+            )
+        except Exception as error:  # noqa: BLE001 (red, credenciales, proveedor)
+            total["errores"] += 1
+            detalle = error.detalle if isinstance(error, CorreoInvalido) else f"{type(error).__name__}: {error}"
+            conexion.execute("UPDATE buzones_correo SET ultima_revision_en = now(), ultimo_error = %s WHERE id = %s",
+                             (detalle[:300], fila[0]))
+            _log.warning("recepcion_dte_fallida buzon=%s error=%s", fila[0], detalle[:200])
+    return total
+
+
 class Revisor:
     """Hilo que revisa los enviados cada `intervalo_minutos` (ajuste
     `revision_correo`, inicial 15). Con varios procesos, un bloqueo
@@ -716,7 +920,8 @@ class Revisor:
             if not conexion.execute("SELECT pg_try_advisory_xact_lock(%s)", (LLAVE_BLOQUEO,)).fetchone()[0]:
                 return resultado
             empresas = [f[0] for f in conexion.execute(
-                "SELECT DISTINCT empresa_id FROM buzones_correo WHERE proposito = 'lectura_enviados' AND activo").fetchall()]
+                "SELECT DISTINCT empresa_id FROM buzones_correo "
+                "WHERE proposito IN ('lectura_enviados', 'recepcion_dte') AND activo").fetchall()]
             for empresa_id in empresas:
                 config = ajustes.leer(conexion, empresa_id, "revision_correo")
                 vence = self._ultima.get(empresa_id, 0) + config["intervalo_minutos"] * 60
@@ -724,6 +929,7 @@ class Revisor:
                     continue
                 self._ultima[empresa_id] = time.monotonic()
                 resultado[empresa_id] = revisar(conexion, empresa_id, self.fabrica)
+                resultado[empresa_id]["dte"] = revisar_recepcion_dte(conexion, empresa_id, self.fabrica)
             conexion.commit()
         return resultado
 

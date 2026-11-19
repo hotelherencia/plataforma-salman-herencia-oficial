@@ -454,3 +454,67 @@ class ImportacionIn(BaseModel):
     origen: Literal["factura_xml", "planilla", "lector"]
     xml: str | None = Field(default=None, max_length=1_500_000)
     lineas: list[LineaImportacionIn] = Field(min_length=1, max_length=300)
+
+
+# --- Facturas de proveedores: bandeja de documentos (2026-11-19) ---
+
+class DocumentoXmlIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    xml: str = Field(min_length=1, max_length=1_500_000)
+
+
+class LineaDocumentoIn(BaseModel):
+    """Línea escrita o corregida a mano en un documento (sin IA o con errores)."""
+    model_config = ConfigDict(extra="forbid")
+    codigo: str | None = Field(default=None, max_length=60)
+    nombre: str = Field(min_length=1, max_length=120)
+    cantidad: float | None = Field(default=None, ge=0, le=100_000)
+    unidad: str | None = Field(default=None, max_length=20)
+    costo_unitario_clp: int | None = Field(default=None, ge=0, le=100_000_000)
+    monto_neto_clp: int | None = Field(default=None, ge=-1_000_000_000, le=1_000_000_000)
+    descuento_clp: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    nota: str | None = Field(default=None, max_length=120)
+
+
+class DocumentoCambioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    clase: Literal["factura", "nota_credito", "pedido", "desconocido"] | None = None
+    emisor_rut: str | None = Field(default=None, max_length=15)
+    emisor_razon_social: str | None = Field(default=None, max_length=150)
+    folio: str | None = Field(default=None, pattern=r"^\d{1,12}$")
+    fecha_emision: date | None = None
+    monto_neto_clp: int | None = Field(default=None, ge=0, le=10_000_000_000)
+    monto_exento_clp: int | None = Field(default=None, ge=0, le=10_000_000_000)
+    iva_clp: int | None = Field(default=None, ge=0, le=10_000_000_000)
+    monto_total_clp: int | None = Field(default=None, ge=0, le=10_000_000_000)
+    lineas: list[LineaDocumentoIn] | None = Field(default=None, max_length=300)
+
+
+class LineaConfirmacionDocumentoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    accion: Literal["sumar", "crear", "omitir"]
+    producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
+    nombre: str = Field(min_length=2, max_length=120)
+    nombre_proveedor: str | None = Field(default=None, max_length=120)
+    codigo_proveedor: str | None = Field(default=None, max_length=60)
+    categoria: Literal["minibar", "cafeteria", "servicio", "extra"] = "minibar"
+    codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
+    cantidad: float = Field(default=0, ge=0, le=100_000)
+    unidades_por_paquete: int = Field(default=1, ge=1, le=10_000)
+    costo_unitario_clp: int | None = Field(default=None, ge=0, le=100_000_000)
+    precio_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    controla_stock: bool = True
+    recordar: bool = True
+
+
+class ConfirmacionDocumentoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    lineas: list[LineaConfirmacionDocumentoIn] = Field(min_length=1, max_length=300)
+    pedido_id: str | None = Field(default=None, pattern=r"^DOC-[a-f0-9]{12}$")
+
+
+class EquivalenciaCambioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
+    unidades_por_paquete: int | None = Field(default=None, ge=1, le=10_000)
+    nota: str | None = Field(default=None, max_length=120)

@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (104)
+## Operaciones de esta versión (116)
 
 | Operación | Efecto |
 |---|---|
@@ -576,6 +576,18 @@ los compone el servidor.
 | `POST /hotel/productos/importacion/vista-previa` | (2026-11-19) Revisa sin escribir las líneas de una factura electrónica XML (DTE 33/34, sin DOCTYPE/ENTITY, máx. 1,5 MB), de una planilla pegada o del lector de códigos: devuelve cada línea con su producto coincidente (`codigo`, `nombre` o `parecido`) o nueva, y si la factura ya fue cargada. Solo administración del hotel. |
 | `POST /hotel/productos/importacion` | (2026-11-19) Confirma la carga en una sola transacción con `Idempotency-Key`: suma stock a los existentes (movimiento con `importacion_id`), crea los nuevos (precio de venta obligatorio, lo fija la administración) y registra costo neto. Una factura (emisor, tipo, folio) solo se carga una vez → 409. Solo administración del hotel. |
 | `GET /hotel/productos/importaciones` | (2026-11-19) Últimas cargas (origen, documento, líneas, unidades, quién y cuándo). Solo administración del hotel. |
+| `GET /hotel/productos/documentos?estado` | (2026-11-19) Bandeja de facturas de proveedores: `abiertos` (pendientes y pedidos en borrador), `cargada` o `todos`; informa si la lectura automática (IA) está activa y si hay buzón de recepción. Solo administración del hotel. |
+| `POST /hotel/productos/documentos/archivo` | (2026-11-19) Cuerpo binario: foto (JPG/PNG/WebP) o PDF de una factura o pedido, máx. 10 MB, tipo verificado por contenido. Lee el timbre del SII (PDF417) y, con `GEMINI_API_KEY`, transcribe las líneas; queda **pendiente** (pedido: borrador), sin tocar stock. Misma foto o mismo proveedor+tipo+folio → 200 con el existente. Solo administración del hotel. |
+| `POST /hotel/productos/documentos/xml` | (2026-11-19) XML del SII (DTE o EnvioDTE con facturas 33/34 y notas de crédito 61) → documentos pendientes; repetidos no se duplican; acuses/respuestas se ignoran. Solo administración del hotel. |
+| `GET /hotel/productos/documentos/{id}` | (2026-11-19) Documento con líneas emparejadas al catálogo, equivalencias recordadas del proveedor, unidades por envase sugeridas, diferencias para revisar, pedido sugerido y si ya se cargó. Solo administración del hotel. |
+| `GET /hotel/productos/documentos/{id}/archivo` | (2026-11-19) Foto/PDF/XML original (`nosniff`, CSP `sandbox`, sin caché). Solo administración del hotel. |
+| `PUT /hotel/productos/documentos/{id}` | (2026-11-19) Corrige clase, encabezado o líneas (p. ej. escritas a mano sin IA) de un documento abierto; RUT/tipo/folio del timbre o del XML no se cambian. Recalcula diferencias. Solo administración del hotel. |
+| `POST /hotel/productos/documentos/{id}/confirmacion` | (2026-11-19) `Idempotency-Key`. Carga la factura al inventario una sola vez: cantidad × `unidades_por_paquete`, costo por unidad; recuerda proveedor+ítem → producto y envase; marca el pedido como facturado. Nota de crédito o pedido → 409. Solo administración del hotel. |
+| `POST /hotel/productos/documentos/{id}/descarte` | (2026-11-19) Saca el documento de la bandeja (nota de crédito: queda archivada). Solo administración del hotel. |
+| `POST /hotel/productos/recepcion-correo` | (2026-11-19) Revisa ahora los buzones `recepcion_dte` (casilla de intercambio del SII) sin esperar la revisión periódica. Solo administración del hotel. |
+| `GET /hotel/productos/equivalencias` | (2026-11-19) Equivalencias recordadas por proveedor: ítem del proveedor → producto y unidades por envase. Solo administración del hotel. |
+| `PUT /hotel/productos/equivalencias/{id}` | (2026-11-19) Cambia producto, unidades por envase o nota de una equivalencia. Solo administración del hotel. |
+| `DELETE /hotel/productos/equivalencias/{id}` | (2026-11-19) Olvida una equivalencia. Solo administración del hotel. |
 | `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con reversos y regla de 48 h (ver «Cancelación»). Roles recepción o administrador. |
 | `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **la reserva ya comenzó** (`inicio ≤ hoy` del servidor; si no → 409 «aún no llega su día de entrada»). Exige el documento del huésped (D-ENT-01, DECISIÓN 2026-11-06): si la reserva no lo trae, el cuerpo `{"documento"}` lo registra; sin documento en ninguno → 409. Roles recepción o administrador (D-ROL-ENT, #304). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
 | `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. Roles recepción o administrador (D-ROL-ENT, DECISIÓN 2026-11-06, #304). Si no queda otra estadía en curso en la unidad, la habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente; si otra estadía sigue en curso (turnover no solapado), la unidad permanece `ocupada` y limpia, sin tarea nueva (V1-ISSUE-15, 2026-11-03). |

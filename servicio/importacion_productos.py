@@ -15,7 +15,7 @@ el emparejamiento con el catálogo y la confirmación:
 
 Seguridad del XML: tope de tamaño, se rechaza cualquier DOCTYPE/ENTITY
 (sin entidades externas ni expansión tipo «billion laughs») y se parsea con
-expat sin resolución de recursos externos. La confirmación de una factura
+defusedxml (forbid_dtd/entities/external). La confirmación de una factura
 vuelve a leer el XML en el servidor: emisor y folio no se aceptan del
 cliente, y el índice único (emisor, tipo, folio) impide importarla dos veces.
 """
@@ -29,12 +29,16 @@ import xml.etree.ElementTree as ET
 from datetime import date
 
 import psycopg
+from defusedxml import DefusedXmlException
+from defusedxml import ElementTree as DET
 
 from . import productos as productos_db
 
 MAX_XML_CARACTERES = 1_500_000
 MAX_LINEAS = 300
 TIPOS_DTE = {33: "Factura electrónica", 34: "Factura exenta electrónica"}
+# Notas de crédito: llegan por el correo de intercambio; restan (o se marcan) al revisar.
+TIPOS_NOTA_CREDITO = {61: "Nota de crédito electrónica"}
 FUENTES = ("factura_xml", "planilla", "lector", "foto")
 UMBRAL_PARECIDO = 0.72
 _PROHIBIDO = re.compile(r"<!\s*(DOCTYPE|ENTITY)", re.IGNORECASE)
@@ -102,36 +106,66 @@ def normalizar_rut_emisor(rut: str | None) -> str | None:
     return limpio if re.fullmatch(r"\d{1,8}-[0-9K]", limpio) else None
 
 
-def leer_factura_xml(texto: str) -> dict:
-    """Devuelve {documento, lineas} de un DTE 33/34. Lanza FacturaInvalida
-    con un mensaje en castellano para la recepción."""
-    if not isinstance(texto, str) or not texto.strip():
+def _raiz_xml(contenido: str | bytes):
+    """Parseo seguro: tope de tamaño, sin DOCTYPE/ENTITY (defusedxml + filtro
+    previo) y sin recursos externos. Bytes respetan la codificación declarada
+    (los DTE suelen venir en ISO-8859-1)."""
+    if isinstance(contenido, bytes):
+        if len(contenido) > MAX_XML_CARACTERES:
+            raise FacturaInvalida("El archivo es demasiado grande para una factura (máximo 1,5 MB).")
+        if _PROHIBIDO.search(contenido.decode("latin-1")):
+            raise FacturaInvalida("El archivo trae definiciones no permitidas y no se puede leer por seguridad.")
+        datos = contenido.lstrip(b"\xef\xbb\xbf")
+    else:
+        if not isinstance(contenido, str) or not contenido.strip():
+            raise FacturaInvalida("El archivo está vacío.")
+        if len(contenido) > MAX_XML_CARACTERES:
+            raise FacturaInvalida("El archivo es demasiado grande para una factura (máximo 1,5 MB).")
+        if _PROHIBIDO.search(contenido):
+            raise FacturaInvalida("El archivo trae definiciones no permitidas y no se puede leer por seguridad.")
+        datos = _DECLARACION.sub("", contenido.lstrip("\ufeff"), count=1)
+    if not datos.strip():
         raise FacturaInvalida("El archivo está vacío.")
-    if len(texto) > MAX_XML_CARACTERES:
-        raise FacturaInvalida("El archivo es demasiado grande para una factura (máximo 1,5 MB).")
-    if _PROHIBIDO.search(texto):
-        raise FacturaInvalida("El archivo trae definiciones no permitidas y no se puede leer por seguridad.")
-    limpio = _DECLARACION.sub("", texto.lstrip("\ufeff"), count=1)
     try:
-        raiz = ET.fromstring(limpio)
-    except ET.ParseError as error:
+        return DET.fromstring(datos, forbid_dtd=True, forbid_entities=True, forbid_external=True)
+    except DefusedXmlException as error:
+        raise FacturaInvalida("El archivo trae definiciones no permitidas y no se puede leer por seguridad.") from error
+    except (ET.ParseError, ValueError) as error:
         raise FacturaInvalida("El archivo no es un XML válido. Descarga nuevamente el XML de la factura desde el SII o tu proveedor.") from error
-    documentos = [e for e in raiz.iter() if _local(e.tag) == "Documento"]
-    if not documentos:
-        raise FacturaInvalida("El archivo no parece una factura electrónica del SII (no trae el documento).")
-    if len(documentos) > 1:
-        raise FacturaInvalida(f"El archivo trae {len(documentos)} documentos. Sube una factura por vez.")
-    doc = documentos[0]
+
+
+def documentos_xml(raiz) -> list:
+    return [e for e in raiz.iter() if _local(e.tag) == "Documento"]
+
+
+def _ted_de(doc) -> dict | None:
+    from . import ted as ted_mod
+
+    nodo = next((e for e in doc.iter() if _local(e.tag) == "TED"), None)
+    if nodo is None:
+        return None
+    try:
+        return ted_mod.parsear_ted(ET.tostring(nodo, encoding="unicode"))
+    except ted_mod.TimbreIlegible:
+        return None
+
+
+def leer_documento_dte(doc, tipos: dict | None = None) -> dict:
+    """Un nodo <Documento> → {documento, lineas, ted}. `tipos`: los TipoDTE
+    aceptados (por defecto facturas 33/34)."""
+    tipos = tipos or TIPOS_DTE
     encabezado = _hijo(doc, "Encabezado")
     if encabezado is None:
         raise FacturaInvalida("La factura no trae encabezado (emisor, folio y fecha).")
     tipo = _numero(_texto(encabezado, "IdDoc", "TipoDTE"))
     tipo = int(tipo) if tipo is not None else None
-    if tipo not in TIPOS_DTE:
+    if tipo not in tipos:
         raise FacturaInvalida("Solo se pueden cargar facturas electrónicas (tipo 33 o 34). Este documento es de otro tipo.")
+    es_nota = tipo in TIPOS_NOTA_CREDITO
     folio = _texto(encabezado, "IdDoc", "Folio")
     if not folio or not re.fullmatch(r"\d{1,12}", folio):
         raise FacturaInvalida("La factura no trae un folio válido.")
+    folio = str(int(folio))
     rut = normalizar_rut_emisor(_texto(encabezado, "Emisor", "RUTEmisor"))
     if not rut:
         raise FacturaInvalida("La factura no trae un RUT de emisor válido.")
@@ -155,6 +189,7 @@ def leer_factura_xml(texto: str) -> dict:
         cantidad = _numero(_texto(detalle, "QtyItem"))
         precio = _numero(_texto(detalle, "PrcItem"))
         monto = _numero(_texto(detalle, "MontoItem"))
+        descuento = _numero(_texto(detalle, "DescuentoMonto"))
         if cantidad is not None and cantidad > 0 and monto is not None:
             costo = round(monto / cantidad)
         else:
@@ -163,29 +198,57 @@ def leer_factura_xml(texto: str) -> dict:
             "linea": len(lineas) + 1,
             "codigo": (codigo or "")[:60] or None,
             "nombre": nombre[:120],
+            "descripcion": ((_texto(detalle, "DscItem") or "")[:200] or None),
             "cantidad": cantidad if cantidad is not None else 1,
             "unidad": (_texto(detalle, "UnmdItem") or "")[:20] or None,
             "costo_unitario_clp": costo if costo is None or costo >= 0 else None,
+            "precio_unitario_clp": round(precio) if precio is not None else None,
+            "descuento_clp": round(descuento) if descuento is not None else None,
             "monto_neto_clp": round(monto) if monto is not None else None,
         })
         if len(lineas) > MAX_LINEAS:
             raise FacturaInvalida(f"La factura trae más de {MAX_LINEAS} líneas; divídela en cargas más pequeñas.")
-    if not lineas:
+    if not lineas and not es_nota:
         raise FacturaInvalida("La factura no trae líneas de detalle con productos.")
+    referencias = []
+    for ref in (r for r in doc if _local(r.tag) == "Referencia"):
+        referencias.append({
+            "tipo": (_texto(ref, "TpoDocRef") or "")[:10] or None,
+            "folio": (_texto(ref, "FolioRef") or "")[:20] or None,
+            "fecha": (_texto(ref, "FchRef") or "")[:10] or None,
+            "codigo": (_texto(ref, "CodRef") or "")[:2] or None,
+            "razon": (_texto(ref, "RazonRef") or "")[:120] or None,
+        })
+    nombres = {**TIPOS_DTE, **TIPOS_NOTA_CREDITO}
     documento = {
         "tipo_dte": tipo,
-        "tipo_nombre": TIPOS_DTE[tipo],
+        "tipo_nombre": nombres.get(tipo, f"Documento tipo {tipo}"),
         "folio": folio,
         "fecha_emision": fecha.isoformat() if fecha else None,
         "emisor_rut": rut,
         "emisor_razon_social": razon[:150],
+        "receptor_rut": normalizar_rut_emisor(_texto(encabezado, "Receptor", "RUTRecep")),
         "receptor_razon_social": (_texto(encabezado, "Receptor", "RznSocRecep") or "")[:150] or None,
         "monto_neto_clp": _entero(_texto(totales, "MntNeto")) if totales is not None else None,
         "monto_exento_clp": _entero(_texto(totales, "MntExe")) if totales is not None else None,
         "iva_clp": _entero(_texto(totales, "IVA")) if totales is not None else None,
         "monto_total_clp": _entero(_texto(totales, "MntTotal")) if totales is not None else None,
+        "referencias": referencias,
     }
-    return {"documento": documento, "lineas": lineas}
+    return {"documento": documento, "lineas": lineas, "ted": _ted_de(doc)}
+
+
+def leer_factura_xml(texto: str) -> dict:
+    """Devuelve {documento, lineas} de un DTE 33/34. Lanza FacturaInvalida
+    con un mensaje en castellano para la recepción."""
+    raiz = _raiz_xml(texto)
+    documentos = documentos_xml(raiz)
+    if not documentos:
+        raise FacturaInvalida("El archivo no parece una factura electrónica del SII (no trae el documento).")
+    if len(documentos) > 1:
+        raise FacturaInvalida(f"El archivo trae {len(documentos)} documentos. Sube una factura por vez.")
+    leido = leer_documento_dte(documentos[0])
+    return {"documento": leido["documento"], "lineas": leido["lineas"]}
 
 
 def _entero(valor: str | None) -> int | None:

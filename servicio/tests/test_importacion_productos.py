@@ -98,7 +98,9 @@ class LecturaFacturaTest(unittest.TestCase):
         self.assertEqual(imp._parecido("cafe molido 250g", "cafe molido"), 0.0)
 
 
-class ImportacionHttpTest(unittest.TestCase):
+class ImportacionHttpBase(unittest.TestCase):
+    """Base HTTP (sin pruebas propias): la reutilizan las facturas de proveedores."""
+
     @classmethod
     def setUpClass(cls):
         cls.config = Configuracion(
@@ -157,6 +159,8 @@ class ImportacionHttpTest(unittest.TestCase):
     def catalogo(self):
         return {p["nombre"]: p for p in self.admin.get("/hotel/productos?inactivos=true").json()["productos"]}
 
+
+class ImportacionHttpTest(ImportacionHttpBase):
     def test_vista_previa_empareja_por_codigo_nombre_y_parecido(self):
         self.producto("Agua sin gas", codigo="7801620001234", stock=2)
         self.producto("Bebida Cola Lata 350 ml", stock=0)

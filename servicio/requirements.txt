@@ -9,3 +9,9 @@ argon2-cffi==25.1.0
 httpx==0.28.1
 qrcode==8.2
 cryptography==50.0.2
+# Facturas de proveedores (2026-11-19): XML seguro, timbre PDF417 del SII en
+# fotos (ruedas manylinux, sin paquetes del sistema) y PDF → imagen.
+defusedxml==0.7.1
+zxing-cpp==3.1.1
+pillow==13.0.0
+pypdfium2==5.15.2
