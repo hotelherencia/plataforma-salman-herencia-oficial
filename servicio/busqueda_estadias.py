@@ -111,7 +111,8 @@ def buscar(conexion: psycopg.Connection, empresa_id: str, texto: str | None, alc
         "r.estado, r.personas, "
         "COALESCE((SELECT SUM(CASE WHEN c.tipo = 'reverso' THEN -c.monto_clp ELSE c.monto_clp END) "
         "FROM cargos c WHERE c.reserva_id = r.id), 0) AS neto, "
-        "COALESCE((SELECT SUM(p.monto_clp) FROM pagos p WHERE p.reserva_id = r.id AND p.estado = 'confirmado'), 0) AS pagado "
+        "COALESCE((SELECT SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END) FROM pagos p "
+        "WHERE p.reserva_id = r.id AND p.estado = 'confirmado'), 0) AS pagado "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id WHERE "
         + " AND ".join(condiciones)
         + f") s {externa} ORDER BY {orden} LIMIT %s"

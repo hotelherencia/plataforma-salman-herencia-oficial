@@ -18,6 +18,7 @@ from .. import avisos
 from .. import busqueda_estadias
 from .. import canal_publico
 from .. import cobro
+from .. import contabilidad
 from .. import documental
 from .. import hotel_sql
 from .. import idempotencia
@@ -388,8 +389,12 @@ def registrar_pago(
         try:
             registrado = cobro.registrar_pago_manual(
                 conexion, request.app.state.aplicacion.nucleo, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave,
-                confirmar_exceso=pago.confirmar_exceso,
+                confirmar_exceso=pago.confirmar_exceso, datos=pago.datos_contables(), actor=sesion.nombre,
             )
+        except contabilidad.DatosCajaInvalidos as error:
+            return 422, {"detail": str(error)}
+        except contabilidad.OperacionCajaInvalida as error:
+            return 409, {"detail": str(error)}
         except cobro.PagoEnExceso as error:
             return 409, {"detail": str(error), "saldo_clp": error.saldo_clp, "exceso_clp": error.exceso_clp}
         except cobro.PagoRechazadoPorNucleo as error:
@@ -1089,12 +1094,18 @@ def bandeja_leads(
 
 @router.get("/hotel/leads/contactos")
 def contactos_leads(
+    desde: date | None = None,
+    hasta: date | None = None,
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    """#354: contactos deduplicados para fidelización (un envío por persona)."""
+    """#354: contactos deduplicados para fidelización (un envío por persona);
+    `desde`/`hasta` acotan la exportación por fecha del lead."""
     comun.exigir_rol(sesion, leads_mod.ROLES_GESTION)
-    return leads_mod.contactos(conexion, sesion.empresa_id)
+    try:
+        return leads_mod.contactos(conexion, sesion.empresa_id, desde, hasta)
+    except leads_mod.LeadInvalido as error:
+        raise HTTPException(status_code=422, detail=error.detalle)
 
 @router.post("/hotel/leads/{lead_id}/estado")
 def gestionar_lead(

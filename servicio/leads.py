@@ -341,14 +341,26 @@ def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None,
     }
 
 
-def contactos(conexion: psycopg.Connection, empresa_id: str) -> dict:
+def contactos(conexion: psycopg.Connection, empresa_id: str, desde: date | None = None,
+              hasta: date | None = None) -> dict:
     """#354: lista para fidelización, deduplicada por contacto (un envío por
-    persona, nunca por lead)."""
+    persona, nunca por lead). Fase 1 contable (2026-11-19): `desde`/`hasta`
+    acotan la exportación a los contactos con algún lead en ese rango (fecha
+    de Chile, ambos extremos incluidos)."""
+    if desde is not None and hasta is not None and desde > hasta:
+        raise LeadInvalido("la fecha «desde» debe ser anterior o igual a «hasta»")
+    filtros, parametros = ["c.empresa_id = %s"], [empresa_id]
+    if desde is not None:
+        filtros.append("(l.creado_en AT TIME ZONE 'America/Santiago')::date >= %s")
+        parametros.append(desde)
+    if hasta is not None:
+        filtros.append("(l.creado_en AT TIME ZONE 'America/Santiago')::date <= %s")
+        parametros.append(hasta)
     filas = conexion.execute(
         "SELECT c.id, c.nombre, c.correo, c.telefono_normalizado, count(l.id), max(l.creado_en), "
         "bool_or(l.estado = 'cerrado') FROM contactos c JOIN leads l ON l.contacto_id = c.id "
-        "WHERE c.empresa_id = %s GROUP BY c.id ORDER BY max(l.creado_en) DESC",
-        (empresa_id,),
+        f"WHERE {' AND '.join(filtros)} GROUP BY c.id ORDER BY max(l.creado_en) DESC",
+        parametros,
     ).fetchall()
     return {"contactos": [
         {"contacto_id": f[0], "nombre": f[1], "correo": f[2], "telefono": f[3], "leads": f[4],

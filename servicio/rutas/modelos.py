@@ -89,12 +89,84 @@ class ReservaIn(BaseModel):
     mascotas: bool | None = None
 
 
+class ReceptorFacturaIn(BaseModel):
+    """Datos del receptor de una factura (fase 1 contable)."""
+    model_config = ConfigDict(extra="forbid")
+    rut: str = Field(max_length=20)
+    razon_social: str = Field(max_length=120)
+    giro: str = Field(max_length=120)
+    direccion: str = Field(max_length=160)
+    comuna: str = Field(max_length=60)
+    correo: str | None = Field(default=None, max_length=120)
+
+
 class PagoIn(BaseModel):
+    # Campos desconocidos (p. ej. «numero_tarjeta» o «cvv») se rechazan: PCI.
+    model_config = ConfigDict(extra="forbid")
     monto_clp: int = Field(gt=0, le=1_000_000_000)
     clave: str = Field(min_length=1, max_length=100)
     modo: str = Field(pattern="^(manual|pasarela)$")
     # #365: un monto mayor que el saldo exige confirmación explícita.
     confirmar_exceso: bool = False
+    # Fase 1 contable (2026-11-19): medio, documento tributario y voucher.
+    medio: str | None = Field(default=None, pattern="^(efectivo|debito|credito|transferencia)$")
+    documento_tipo: str | None = Field(default=None, pattern="^(boleta|factura|sin_documento)$")
+    documento_folio: str | None = Field(default=None, max_length=20)
+    receptor: ReceptorFacturaIn | None = None
+    tarjeta_marca: str | None = Field(default=None, max_length=30)
+    tarjeta_ultimos4: str | None = Field(default=None, max_length=4)
+    codigo_autorizacion: str | None = Field(default=None, max_length=20)
+    comprobante: str | None = Field(default=None, max_length=60)
+
+    def datos_contables(self) -> dict:
+        datos = self.model_dump(exclude={"monto_clp", "clave", "modo", "confirmar_exceso"}, exclude_none=True)
+        return datos
+
+
+class AperturaTurnoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    fondo_inicial_clp: int = Field(ge=0, le=100_000_000)
+    nota: str | None = Field(default=None, max_length=500)
+
+
+class RetiroCajaIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    monto_clp: int = Field(gt=0, le=1_000_000_000)
+    comprobante: str = Field(min_length=1, max_length=60)
+    banco: str | None = Field(default=None, max_length=120)
+    nota: str | None = Field(default=None, max_length=500)
+
+
+class DepositoCierreIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    monto_clp: int = Field(ge=0, le=1_000_000_000)
+    comprobante: str | None = Field(default=None, max_length=60)
+    banco: str | None = Field(default=None, max_length=120)
+
+
+class CierreTurnoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    arqueo: dict[str, int]
+    declarado: dict[str, int] | None = None
+    justificacion: str | None = Field(default=None, max_length=1000)
+    deposito: DepositoCierreIn | None = None
+
+
+class ReversoPagoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    motivo: str = Field(min_length=1, max_length=300)
+
+
+class CierreDiarioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    fecha: date
+    nota: str | None = Field(default=None, max_length=1000)
+    confirmar_alertas: bool = False
+
+
+class ReaperturaDiaIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    motivo: str = Field(min_length=1, max_length=500)
 
 
 _PATRON_CORREO = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"

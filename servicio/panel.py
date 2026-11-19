@@ -363,7 +363,8 @@ def indicadores(
         # D-IND-01/#297 (DECISIÓN 2026-11-06): ingresos del periodo = pagos
         # confirmados por fecha de pago (lo cobrado, no lo reservado).
         (ingresos,) = conexion.execute(
-            "SELECT COALESCE(SUM(p.monto_clp), 0) FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+            "SELECT COALESCE(SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END), 0) "
+            "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
             "WHERE r.empresa_id = %s AND p.estado = 'confirmado' "
             "AND p.creado_en::date >= %s AND p.creado_en::date < %s",
             (empresa_id, desde, hasta),

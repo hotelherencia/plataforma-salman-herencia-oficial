@@ -186,7 +186,10 @@ def recargar(conexion: psycopg.Connection, hotel, empresa_id: str, rango: tuple[
         for pid, rid, monto, clave in conexion.execute(
             "SELECT p.id, p.reserva_id, p.monto_clp, p.clave FROM pagos p "
             "JOIN reservas r ON r.id = p.reserva_id "
-            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' ORDER BY p.creado_en, p.id",
+            # Fase 1 contable: un pago anulado (fila «reverso» que lo referencia) no existe para el dominio.
+            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' AND p.tipo = 'pago' "
+            "AND NOT EXISTS (SELECT 1 FROM pagos v WHERE v.referencia_pago_id = p.id AND v.tipo = 'reverso') "
+            "ORDER BY p.creado_en, p.id",
             (empresa_id,),
         ).fetchall()
     )

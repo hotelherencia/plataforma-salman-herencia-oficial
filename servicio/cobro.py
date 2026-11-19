@@ -90,11 +90,15 @@ def registrar_pago_manual(
     monto_clp: int,
     clave: str,
     confirmar_exceso: bool = False,
+    datos: dict | None = None,
+    actor: str | None = None,
 ) -> dict:
     """Pago manual. #365: compara con el saldo de la cuenta bajo el cerrojo de
     la reserva; un monto menor queda como pago parcial (con saldo pendiente) y
     uno mayor exige `confirmar_exceso`. #364: la respuesta trae el huésped."""
-    _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
+    from . import contabilidad
+
+    reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     huesped, habitacion = conexion.execute(
         "SELECT huesped_nombre, habitacion_id FROM reservas WHERE id = %s", (reserva_id,)
     ).fetchone()
@@ -113,6 +117,10 @@ def registrar_pago_manual(
                 "huesped_nombre": huesped, "habitacion_id": habitacion, "saldo_despues_clp": neto - pagado}
     neto, pagado = hotel_sql.cuenta(conexion, hotel, empresa_id, reserva_id)
     saldo_antes = neto - pagado
+    # Fase 1 contable: medio, documento y voucher se validan antes de tocar
+    # el núcleo o la base (un 4xx no deja nada a medias).
+    columnas = contabilidad.validar_datos_pago(conexion, empresa_id, datos)
+    preparado = contabilidad.preparar_pago(conexion, empresa_id, reserva[2], columnas)
     if monto_clp > saldo_antes and not confirmar_exceso:
         raise PagoEnExceso(saldo_antes, monto_clp - max(saldo_antes, 0))
     clave_efecto = f"{reserva_id}:{clave}"
@@ -127,6 +135,11 @@ def registrar_pago_manual(
         (efecto_id, clave_efecto, "confirmado", monto_clp),
     )
     pago_id = hotel_sql.registrar_pago(conexion, hotel, empresa_id, reserva_id, monto_clp, clave, efecto_id)
+    # Fase 1 contable: la fila `pagos` la proyecta el dominio; aquí se le añaden medio, fecha
+    # contable, turno, documento y voucher (una sola vez, en esta misma transacción).
+    contabilidad.completar_pago(conexion, pago_id, columnas, preparado, actor)
+    contabilidad.asentar_movimiento_pago(conexion, empresa_id, pago_id, preparado, columnas["medio"], monto_clp,
+                                         actor or "sistema")
     saldo_despues = saldo_antes - monto_clp
     tipo = "total" if saldo_despues == 0 else ("parcial" if saldo_despues > 0 else "exceso")
     # Aviso «pago registrado» en la misma transacción (sin datos del huésped).
@@ -138,23 +151,35 @@ def registrar_pago_manual(
     return {"pago_id": pago_id, "reserva_id": reserva_id, "monto_clp": monto_clp,
             "clave": clave, "modo": "manual", "estado": "confirmado", "efecto_nucleo_id": efecto_id,
             "huesped_nombre": huesped, "habitacion_id": habitacion,
-            "saldo_antes_clp": saldo_antes, "saldo_despues_clp": saldo_despues, "tipo": tipo}
+            "saldo_antes_clp": saldo_antes, "saldo_despues_clp": saldo_despues, "tipo": tipo,
+            "medio": columnas["medio"], "documento_tipo": columnas["documento_tipo"],
+            "fecha_contable": preparado["fecha_contable"].isoformat(), "turno_id": preparado["turno_id"],
+            "es_anticipo": preparado["es_anticipo"]}
 
 
 def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> dict:
+    """Pagos del día contable en hora de Chile (antes filtraba por la fecha
+    UTC: un pago de noche aparecía al día siguiente). Los reversos restan."""
     filas = conexion.execute(
-        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado, r.huesped_nombre, p.creado_en "
+        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado, r.huesped_nombre, p.creado_en, "
+        "p.medio, p.tipo, p.documento_tipo, p.referencia_pago_id, p.es_anticipo, p.turno_id "
         "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
-        "WHERE r.empresa_id = %s AND p.creado_en::date = %s AND p.estado = 'confirmado' "
+        "WHERE r.empresa_id = %s AND p.fecha_contable = %s AND p.estado = 'confirmado' "
         "ORDER BY p.creado_en",
         (empresa_id, fecha),
     ).fetchall()
     pagos = [
-        {"pago_id": f[0], "reserva_id": f[1], "habitacion_id": f[2], "monto_clp": f[3], "modo": f[4], "estado": f[5],
-         "huesped_nombre": f[6], "registrado_en": f[7].isoformat()}
+        {"pago_id": f[0], "reserva_id": f[1], "habitacion_id": f[2],
+         "monto_clp": -f[3] if f[9] == "reverso" else f[3], "modo": f[4], "estado": f[5],
+         "huesped_nombre": f[6], "registrado_en": f[7].isoformat(), "medio": f[8], "tipo": f[9],
+         "documento_tipo": f[10], "referencia_pago_id": f[11], "es_anticipo": f[12], "turno_id": f[13]}
         for f in filas
     ]
-    return {"fecha": fecha.isoformat(), "pagos": pagos, "total_clp": sum(p["monto_clp"] for p in pagos)}
+    por_medio: dict[str, int] = {}
+    for p in pagos:
+        por_medio[p["medio"]] = por_medio.get(p["medio"], 0) + p["monto_clp"]
+    return {"fecha": fecha.isoformat(), "pagos": pagos, "total_clp": sum(p["monto_clp"] for p in pagos),
+            "por_medio": por_medio}
 
 
 class ReasignacionInvalida(Exception):
@@ -175,6 +200,11 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
         (reserva_id,),
     ).fetchone()
     neto, pagado = hotel_sql.cuenta(conexion, hotel, empresa_id, reserva_id)
+    reversados_pago = {
+        f[0] for f in conexion.execute(
+            "SELECT referencia_pago_id FROM pagos WHERE reserva_id = %s AND tipo = 'reverso'", (reserva_id,)
+        ).fetchall()
+    }
     detalle = {
         "reserva_id": r[0],
         "habitacion_id": r[1],
@@ -204,9 +234,13 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
             ).fetchall()
         ],
         "pagos": [
-            {"pago_id": g[0], "monto_clp": g[1], "modo": g[2], "estado": g[3], "registrado_en": g[4].isoformat()}
+            {"pago_id": g[0], "monto_clp": g[1], "modo": g[2], "estado": g[3], "registrado_en": g[4].isoformat(),
+             "tipo": g[5], "medio": g[6], "documento_tipo": g[7], "referencia_pago_id": g[8],
+             "fecha_contable": g[9].isoformat(), "es_anticipo": g[10],
+             "reversado": g[0] in reversados_pago}
             for g in conexion.execute(
-                "SELECT id, monto_clp, modo, estado, creado_en FROM pagos WHERE reserva_id = %s ORDER BY creado_en, id",
+                "SELECT id, monto_clp, modo, estado, creado_en, tipo, medio, documento_tipo, referencia_pago_id, "
+                "fecha_contable, es_anticipo FROM pagos WHERE reserva_id = %s ORDER BY creado_en, id",
                 (reserva_id,),
             ).fetchall()
         ],
