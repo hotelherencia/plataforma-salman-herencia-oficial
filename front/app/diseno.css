@@ -1415,13 +1415,12 @@ input[type="radio"] {
   margin: 0;
 }
 
+/* Rótulos sin mayúsculas forzadas: se leen (y se copian) tal cual. */
 .explicacion-panel dt {
   margin-top: var(--e-2);
   font-size: var(--t-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--c-tinta-2);
+  color: var(--c-verde);
 }
 
 .explicacion-panel dd {
