@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { traducirDetalle, traducirFormula } from './mensajes.js'
+import { fechaATexto, fechaDesdeTexto, mascaraFecha, plural } from './formato.js'
 import { etiquetaRol } from './roles.js'
 
 // Contención: si el build no inyecta API_BASE_URL, el proxy same-origin /api
@@ -220,7 +221,7 @@ export function resumenConfirmacion(datos) {
     const ids = datos.habitaciones
     const rango = ids.length > 1 ? `${ids[0]} a ${ids[ids.length - 1]}` : ids[0]
     const precio = datos.precio_base_clp ? ` · cotizan ${clp(datos.precio_base_clp)}/noche (base del tipo)` : ' · sin precio base: aún no se ofrecen'
-    return `${datos.creadas} habitación(es) creada(s): ${rango}${precio}`
+    return `${plural(datos.creadas, 'habitación creada', 'habitaciones creadas')}: ${rango}${precio}`
   }
   if (datos.tipo && datos.cambios && datos.tipo.tipo_id) {
     const cambios = Object.entries(datos.cambios).map(([campo, [antes, despues]]) => {
@@ -273,7 +274,7 @@ export function resumenConfirmacion(datos) {
     return `Habitación ${datos.habitacion_id}: ${cambios.length ? cambios.join(' · ') : 'sin cambios'}`
   }
   if (datos.habitacion_id && datos.estado_preparacion) {
-    const tareas = typeof datos.tareas_completadas === 'number' ? ` · ${datos.tareas_completadas} tarea(s) de limpieza cerrada(s)` : ''
+    const tareas = typeof datos.tareas_completadas === 'number' ? ` · ${plural(datos.tareas_completadas, 'tarea de limpieza cerrada', 'tareas de limpieza cerradas')}` : ''
     return `Habitación ${datos.habitacion_id}: preparación «${datos.estado_preparacion}»${tareas}`
   }
   if (datos.habitacion_id && datos.tipo) {
@@ -297,7 +298,7 @@ export function resumenConfirmacion(datos) {
   if (datos.reserva_id && datos.estado === 'cancelada' && Array.isArray(datos.reversos)) {
     const totalReversado = datos.reversos.reduce((s, r) => s + (r.monto_clp || 0), 0)
     const txtReversos = datos.reversos.length
-      ? `${datos.reversos.length} reverso(s) aplicado(s) (${clp(totalReversado)})`
+      ? `${plural(datos.reversos.length, 'reverso aplicado', 'reversos aplicados')} (${clp(totalReversado)})`
       : 'sin cargos previos por reversar'
     const txtPenalidad =
       typeof datos.penalidad_clp === 'number' && datos.penalidad_clp > 0
@@ -313,7 +314,7 @@ export function resumenConfirmacion(datos) {
   if (datos.reserva_id && datos.estado === 'terminada') return `Salida registrada para la reserva ${datos.reserva_id}: habitación liberada`
   if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
   if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`
-  if (typeof datos.sesiones_revocadas === 'number') return `Usuario ${datos.id}: ${datos.sesiones_revocadas} sesión(es) revocada(s)`
+  if (typeof datos.sesiones_revocadas === 'number') return `Usuario ${datos.id}: ${plural(datos.sesiones_revocadas, 'sesión revocada', 'sesiones revocadas')}`
   if (datos.id && datos.estado) return `Usuario ${datos.id}: ${datos.estado}`
   if (datos.id && datos.nombre) return `Usuario ${datos.nombre} (${datos.id}): rol ${datos.rol}, ${datos.activo ? 'activo' : 'inactivo'}`
   if (datos.usuario) return `Usuario ${datos.usuario}: operación registrada`
@@ -334,10 +335,80 @@ export function SalidaJson({ datos }) {
 }
 
 export function Campo({ etiqueta, ...props }) {
+  if (props.type === 'date') return <CampoFecha etiqueta={etiqueta} {...props} />
   return (
     <label className="campo">
       <span className="campo-etiqueta">{etiqueta}</span>
       <input className="entrada" {...props} />
+    </label>
+  )
+}
+
+/** Fecha en formato chileno dd/mm/aaaa (UI/UX 2026-11-19): el campo nativo
+ *  muestra mm/dd/aaaa si el navegador está en inglés. Se escribe a mano
+ *  (con barras automáticas) o se elige en el calendario; hacia la página
+ *  sale siempre aaaa-mm-dd, igual que un <input type="date">. */
+function CampoFecha({ etiqueta, value, onChange, min, max, required, disabled, id, readOnly, className, ...resto }) {
+  const [texto, setTexto] = useState(fechaATexto(value))
+  const nativo = useRef(null)
+  useEffect(() => {
+    if (fechaDesdeTexto(texto) !== (value || null)) setTexto(fechaATexto(value))
+  }, [value])
+  const emitir = (iso) => onChange?.({ target: { value: iso, name: resto.name }, currentTarget: { value: iso } })
+  function escribir(e) {
+    const t = mascaraFecha(e.target.value)
+    setTexto(t)
+    if (t.trim() === '') return emitir('')
+    const iso = fechaDesdeTexto(t)
+    if (iso) emitir(iso)
+  }
+  const fueraDeRango = (iso) => (min && iso < min) || (max && iso > max)
+  const iso = fechaDesdeTexto(texto)
+  const invalida = texto.trim() !== '' && (!iso || fueraDeRango(iso))
+  return (
+    <label className="campo">
+      <span className="campo-etiqueta">{etiqueta}</span>
+      <span className="campo-fecha">
+        <input
+          {...resto}
+          id={id}
+          className={className || 'entrada'}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="dd/mm/aaaa"
+          maxLength={10}
+          value={texto}
+          onChange={escribir}
+          onBlur={() => { if (iso) setTexto(fechaATexto(iso)) }}
+          required={required}
+          disabled={disabled}
+          readOnly={readOnly}
+          aria-invalid={invalida || undefined}
+        />
+        <button
+          type="button"
+          className="boton-calendario"
+          aria-label={`Elegir ${String(etiqueta || 'fecha').toLowerCase()} en el calendario`}
+          disabled={disabled || readOnly}
+          onClick={() => { try { nativo.current?.showPicker() } catch { nativo.current?.focus() } }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path d="M3 9.5h18M8 3v3M16 3v3" />
+          </svg>
+        </button>
+        <input
+          ref={nativo}
+          className="fecha-nativa"
+          type="date"
+          tabIndex={-1}
+          aria-hidden="true"
+          value={iso || ''}
+          min={min}
+          max={max}
+          onChange={(e) => { setTexto(fechaATexto(e.target.value)); emitir(e.target.value) }}
+        />
+      </span>
     </label>
   )
 }

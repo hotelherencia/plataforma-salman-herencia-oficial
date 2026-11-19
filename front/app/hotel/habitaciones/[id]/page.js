@@ -16,6 +16,7 @@ import {
 } from '../../../../lib/api'
 import { esAdminHotel } from '../../../../lib/roles'
 import { etiquetaOrigen, rangoNoches } from '../../../../lib/tipos'
+import { plural } from '../../../../lib/formato'
 
 /**
  * Ficha de la habitación (spec-hotel-operacion-v1 §2.3–2.6). Muestra lo que
@@ -120,7 +121,7 @@ export default function FichaHabitacion() {
               <dt>Tipo</dt>
               <dd>{ficha.tipo}</dd>
               <dt>Capacidad</dt>
-              <dd>{ficha.capacidad} persona(s)</dd>
+              <dd>{plural(ficha.capacidad, 'persona')}</dd>
               <dt>Operación</dt>
               <dd>
                 <span className={`reserva-estado estado-${ficha.estado_operativo}`}>{ficha.estado_operativo.replaceAll('_', ' ')}</span>

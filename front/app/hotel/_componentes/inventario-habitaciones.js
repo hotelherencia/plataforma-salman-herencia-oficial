@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { clp } from '../../../lib/api'
 import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
+import { plural } from '../../../lib/formato'
 
 /**
  * Capa del módulo Hotel — inventario operativo de habitaciones (pura, sin
@@ -30,7 +31,7 @@ export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiar
   const puedeMantenimiento = esAdminHotel(rol)
   return (
     <>
-      <p className="reservas-total">{habitaciones.length} habitación(es)</p>
+      <p className="reservas-total">{plural(habitaciones.length, 'habitación', 'habitaciones')}</p>
       <ul className="reservas-lista" role="table">
         <li className="inventario-encabezado" role="row">
           <span role="columnheader">Habitación</span>

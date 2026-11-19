@@ -12,6 +12,9 @@ export const LOGO = {
   h64: '/logo-herencia-h64.png',
   h96: '/logo-herencia-h96.png',
   h128: '/logo-herencia-h128.png',
+  h256: '/logo-herencia-h256.png',
   hoja40: '/logo-herencia-hoja-40.png',
   hoja80: '/logo-herencia-hoja-80.png',
+  /** La misma hoja en vector (la de la landing): nítida a cualquier densidad. */
+  hojaSvg: '/logo-herencia-hoja.svg',
 }

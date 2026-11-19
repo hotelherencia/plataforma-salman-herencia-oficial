@@ -1,6 +1,7 @@
 'use client'
 
 import { etiquetaRol } from '../../../lib/roles'
+import { plural } from '../../../lib/formato'
 /**
  * Capa del módulo Hotel — gestión de usuarios (pura, sin fetch): recibe solo
  * props y dibuja la respuesta de GET /usuarios tal cual la envía la API. La
@@ -12,7 +13,7 @@ import { etiquetaRol } from '../../../lib/roles'
 export function ListaUsuarios({ usuarios, total, alElegir }) {
   return (
     <>
-      <p className="reservas-total">{total} usuario(s)</p>
+      <p className="reservas-total">{plural(total, 'usuario')}</p>
       <ul className="reservas-lista" role="table">
         <li className="usuario-encabezado" role="row">
           <span role="columnheader">Usuario</span>

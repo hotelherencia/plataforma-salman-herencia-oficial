@@ -18,8 +18,8 @@ import { Insignia, useContadorSolicitudes } from './hotel/_componentes/contador-
  * id 14941): navegación por grupos con rótulo, estado activo por borde y
  * sesión/cierre abajo. Vocabulario de esta capa: plataforma, módulo, sesión.
  *
- * Navegación responsive (UX-01/UX-02, 2026-11-03): >860px barra lateral
- * actual; ≤860px cabecera compacta con botón «Menú» que abre un panel con
+ * Navegación responsive (UX-01/UX-02, 2026-11-03): >1024px barra lateral
+ * actual; ≤1024px cabecera compacta con botón «Menú» que abre un panel con
  * todas las opciones agrupadas — sin arrastre de descubrimiento, activo
  * único y visible, y «Cerrar sesión» siempre accesible.
  */
@@ -83,10 +83,12 @@ export default function BarraNav() {
 
   return (
     <>
-      {/* Escritorio (>860px): barra lateral */}
+      {/* Escritorio (>1024px): barra lateral */}
       <aside className="barra">
+        {/* El fondo verde ocupa todo el alto de la página; el contenido queda fijo a la vista. */}
+        <div className="barra-fija">
         <div className="marca">
-          <img className="marca-logo" src={LOGO.hoja40} srcSet={`${LOGO.hoja40} 1x, ${LOGO.hoja80} 2x`} alt={NOMBRE_COMERCIAL} width="50" height="40" />
+          <img className="marca-logo" src={LOGO.hojaSvg} alt="" width="51" height="45" />
           <span>
             {NOMBRE_COMERCIAL}
             <span className="marca-sub">Plataforma</span>
@@ -130,12 +132,13 @@ export default function BarraNav() {
         <div className="barra-pie">
           <button onClick={salir} className="boton-salir">Cerrar sesión</button>
         </div>
+        </div>
       </aside>
 
-      {/* Móvil/tablet (≤860px): cabecera compacta + panel de menú */}
+      {/* Móvil/tablet (≤1024px): cabecera compacta + panel de menú */}
       <header className="barra-movil">
         <div className="marca">
-          <img className="marca-logo" src={LOGO.hoja40} srcSet={`${LOGO.hoja40} 1x, ${LOGO.hoja80} 2x`} alt={NOMBRE_COMERCIAL} width="50" height="40" />
+          <img className="marca-logo" src={LOGO.hojaSvg} alt="" width="51" height="45" />
           <span>
             {NOMBRE_COMERCIAL}
             <span className="marca-sub">Plataforma</span>
@@ -149,6 +152,9 @@ export default function BarraNav() {
           aria-controls="menu-movil"
           onClick={() => setAbierto((v) => !v)}
         >
+          <svg className="boton-menu-icono" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            {abierto ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+          </svg>
           Menú
         </button>
         {abierto && (

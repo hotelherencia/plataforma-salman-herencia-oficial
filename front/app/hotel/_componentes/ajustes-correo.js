@@ -6,6 +6,7 @@ import {
   AUTENTICACIONES, ETIQUETAS_CAMPO, PRESETS, PROPOSITOS, PROVEEDORES, SEGURIDADES,
   aplicarPreset, camposVisibles, cuerpoBuzon, formularioVacio,
 } from '../../../lib/correo'
+import { plural } from '../../../lib/formato'
 
 const NOMBRE_PROPOSITO = Object.fromEntries(PROPOSITOS)
 const NOMBRE_PROVEEDOR = Object.fromEntries([...PROVEEDORES.lectura_enviados, ...PROVEEDORES.envio_avisos])
@@ -109,7 +110,7 @@ export default function AjustesCorreo() {
     }
   }
   const revisarAhora = () => llamar('/hotel/correo/revision', 'POST', {},
-    (d) => `Revisión: ${d.buzones} buzón(es), ${d.mensajes} enviado(s), ${d.leads_contactados} lead(s) marcado(s) contactado(s)${d.errores ? `, ${d.errores} con error` : ''}.`, false)
+    (d) => `Revisión: ${plural(d.buzones, 'buzón', 'buzones')}, ${plural(d.mensajes, 'mensaje enviado', 'mensajes enviados')}, ${plural(d.leads_contactados, 'lead marcado como contactado', 'leads marcados como contactados')}${d.errores ? `, ${d.errores} con error` : ''}.`, false)
 
   if (!datos) return error ? <p role="alert" className="alerta">{error}</p> : <p className="estado" role="status" aria-busy="true">Cargando…</p>
 

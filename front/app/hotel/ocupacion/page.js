@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
+import { plural } from '../../../lib/formato'
 
 /**
  * Ocupación y disponibilidad (spec-hotel-operacion-v1 §5): rejilla habitación
@@ -127,7 +128,7 @@ export default function Ocupacion() {
       {datos && (
         <section className="tarjeta">
           <p className="nota-clave">
-            Datos al <strong>{fechaLarga(datos.fecha_corte)}</strong> · {datos.periodo.noches} noche(s). La noche de una
+            Datos al <strong>{fechaLarga(datos.fecha_corte)}</strong> · {plural(datos.periodo.noches, 'noche')}. La noche de una
             fecha va de ese día al siguiente.
           </p>
           <div className="rejilla-ocupacion" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">

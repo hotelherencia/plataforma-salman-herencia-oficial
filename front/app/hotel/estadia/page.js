@@ -9,6 +9,7 @@ import { SelectorProducto } from '../_componentes/selector-producto'
 import { esAdminHotel } from '../../../lib/roles'
 import { validarDocumento } from '../../../lib/documento'
 import { gestionaRecepcion } from '../../../lib/roles'
+import { plural } from '../../../lib/formato'
 
 const ETIQUETA_ESTADO = {
   confirmada: 'confirmada',
@@ -223,7 +224,7 @@ export default function Estadia() {
           </h2>
           <p className="nota-clave">
             Habitación <strong>{detalleActivo.habitacion_id}</strong> ({detalleActivo.tipo_habitacion}) ·{' '}
-            {detalleActivo.inicio} → {detalleActivo.fin} ({detalleActivo.noches} noche(s)) · Cargos netos:{' '}
+            {detalleActivo.inicio} → {detalleActivo.fin} ({plural(detalleActivo.noches, 'noche')}) · Cargos netos:{' '}
             <strong>{clp(detalleActivo.cuenta.cargos_netos_clp)}</strong> · Pagado:{' '}
             <strong>{clp(detalleActivo.cuenta.pagado_clp)}</strong> · Saldo:{' '}
             <strong>{clp(detalleActivo.cuenta.saldo_clp)}</strong> ·{' '}

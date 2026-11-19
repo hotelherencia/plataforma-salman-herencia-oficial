@@ -1622,12 +1622,12 @@ a.boton-primario {
 /* Pantallas estrechas: la sidebar pasa arriba */
 
 /* Cabecera móvil oculta en escritorio (el aside gobierna); debe preceder al
-   @media (max-width:860px) para que el display:flex de la media prevalezca. */
+   @media (max-width:1024px) para que el display:flex de la media prevalezca. */
 .barra-movil {
   display: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
   .aplicacion {
     flex-direction: column;
   }
@@ -2004,7 +2004,7 @@ a.boton-primario {
   min-height: 44px;
 }
 
-@media (min-width: 861px) {
+@media (min-width: 1025px) {
   .nav-enlace {
     min-height: 44px;
     display: flex;

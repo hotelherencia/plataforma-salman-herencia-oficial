@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { clp } from '../../../lib/api'
+import { plural } from '../../../lib/formato'
 
 /**
  * Capa del módulo Hotel — búsqueda de reservas (pura, sin fetch): recibe
@@ -30,7 +31,7 @@ export function fechaChile(iso) {
 export function ListaReservas({ reservas, total }) {
   return (
     <>
-      <p className="reservas-total">{total} reserva(s) encontrada(s)</p>
+      <p className="reservas-total">{plural(total, 'reserva encontrada', 'reservas encontradas')}</p>
       <ul className="reservas-lista" role="table">
         <EncabezadoReservas />
         {reservas.map((r) => (

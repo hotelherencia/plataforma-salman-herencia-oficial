@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import { gestionaRecepcion } from '../../../lib/roles'
+import { plural, porcentaje } from '../../../lib/formato'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -19,10 +20,6 @@ function sumarDias(isoFecha, dias) {
   const d = new Date(`${isoFecha}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + dias)
   return d.toISOString().slice(0, 10)
-}
-
-function porcentaje(valor) {
-  return valor === null || valor === undefined ? 'sin muestra' : `${(valor * 100).toFixed(1)} %`
 }
 
 const SITUACION = [
@@ -71,13 +68,14 @@ const ETIQUETAS_ESTADO = {
   cancelada: { label: 'Canceladas', color: '#b91c1c', bg: '#fef2f2' },
 }
 
-function Tarjeta({ titulo, indicador, alerta, valor }) {
+function Tarjeta({ titulo, indicador, alerta, valor, detalle }) {
   if (!indicador) return null
   const mostrar = valor !== undefined ? valor : indicador.valor
   return (
     <div className={`kpi${alerta && indicador.valor > 0 ? ' kpi-alerta' : ''}`}>
       <span className="kpi-titulo">{titulo}</span>
       <span className="kpi-valor">{mostrar}</span>
+      {detalle && <span className="kpi-detalle">{detalle}</span>}
       {Array.isArray(indicador.reservas) && indicador.reservas.length > 0 && (
         <span className="kpi-reservas">
           {indicador.reservas.map((id) => (
@@ -151,7 +149,7 @@ export default function Panel() {
 
           {solicitudesPendientes > 0 && (
             <p className="estado" role="status" data-solicitudes-pendientes>
-              <a href="/hotel/solicitudes">{solicitudesPendientes} solicitud(es) de reserva por responder</a>
+              <a href="/hotel/solicitudes">{plural(solicitudesPendientes, 'solicitud', 'solicitudes')} de reserva por responder</a>
               <Insignia valor={solicitudesPendientes} />
             </p>
           )}
@@ -177,7 +175,7 @@ export default function Panel() {
           <h2>Indicadores del periodo</h2>
           {datos && (
             <p className="nota-clave" data-periodo>
-              Del {formatearFecha(datos.periodo.desde)} al {formatearFecha(datos.periodo.hasta)} ({datos.periodo.noches} noche(s))
+              Del {formatearFecha(datos.periodo.desde)} al {formatearFecha(datos.periodo.hasta)} ({plural(datos.periodo.noches, 'noche')})
               {datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}
             </p>
           )}
@@ -225,7 +223,7 @@ export default function Panel() {
               <Tarjeta
                 titulo="Reservas canceladas"
                 indicador={p.reservas_canceladas}
-                valor={`${p.reservas_canceladas.valor} (${p.reservas_canceladas.noches} noches)`}
+                detalle={plural(p.reservas_canceladas.noches, 'noche')}
               />
               <Tarjeta titulo="Reservas registradas" indicador={p.reservas_registradas} />
             </div>
@@ -242,7 +240,7 @@ export default function Panel() {
                         key={estado}
                         className="segmento-proporcion"
                         style={{ width: `${pct}%`, backgroundColor: cfg.color }}
-                        title={`${cfg.label}: ${n} (${pct}%)`}
+                        title={`${cfg.label}: ${n} (${pct} %)`}
                       />
                     )
                   })}
@@ -257,7 +255,7 @@ export default function Panel() {
                         <span className="estado-nombre">{cfg.label}</span>
                         <div className="estado-conteo">
                           <span className="estado-cantidad">{n}</span>
-                          <span className="estado-pct">{pct}%</span>
+                          <span className="estado-pct">{pct} %</span>
                         </div>
                       </div>
                     )

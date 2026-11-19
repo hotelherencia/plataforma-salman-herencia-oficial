@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
+import { plural } from '../../../lib/formato'
 
 export const INTERVALO_CONTADOR_MS = 60_000
 
@@ -42,7 +43,7 @@ export function useContadorSolicitudes(activo) {
 export function Insignia({ valor }) {
   if (!valor) return null
   return (
-    <span className="insignia" aria-label={`${valor} solicitud(es) por responder`}>
+    <span className="insignia" aria-label={`${plural(valor, 'solicitud', 'solicitudes')} por responder`}>
       {valor > 99 ? '99+' : valor}
     </span>
   )

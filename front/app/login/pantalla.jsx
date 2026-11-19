@@ -104,7 +104,7 @@ export default function PantallaAcceso({ despues } = {}) {
   return (
     <main className="login-pagina">
       <form className="tarjeta login-tarjeta formulario" onSubmit={entrar}>
-        <img className="login-logo" src={LOGO.h128} alt={NOMBRE_COMERCIAL} width="160" height="128" />
+        <img className="login-logo" src={LOGO.h128} srcSet={`${LOGO.h128} 1x, ${LOGO.h256} 2x`} alt={NOMBRE_COMERCIAL} width="160" height="128" />
         <h1 className="login-marca">{NOMBRE_COMERCIAL}</h1>
         <p className="login-subtitulo">
           {fase !== 'clave' ? 'Doble factor · código del autenticador' : 'Acceso a la plataforma'}

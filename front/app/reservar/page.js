@@ -392,6 +392,12 @@ function Reservar() {
                 <button type="submit" className="boton-primario boton-enviar" disabled={enviando || grupos.length === 0}>
                   {enviando ? 'Enviando…' : 'Enviar solicitud'}
                 </button>
+                {/* El sello flotante de reCAPTCHA se oculta (tapaba la página); Google lo permite con este aviso visible junto al envío. */}
+                <p className="recaptcha-aviso">
+                  Este sitio está protegido por reCAPTCHA y se aplican la{' '}
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad</a> y las{' '}
+                  <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Condiciones del servicio</a> de Google.
+                </p>
               </form>
             </>
           )}
