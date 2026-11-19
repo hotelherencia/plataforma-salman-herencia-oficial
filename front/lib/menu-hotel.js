@@ -15,6 +15,7 @@ export const PESTANAS_CONFIGURACION = [
   ['faq', 'Preguntas frecuentes'],
   ['reservas_web', 'Reservas web'],
   ['correo', 'Correo'],
+  ['avisos', 'Avisos'],
 ]
 
 export const SUBNAV_RESERVAS = [

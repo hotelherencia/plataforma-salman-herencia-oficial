@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
@@ -24,6 +25,8 @@ export default function Solicitudes() {
   const [claveConversion, renovarConversion] = useClaveOperacion()
   const [claveRechazo, renovarRechazo] = useClaveOperacion()
 
+  // Enlace directo desde un aviso por correo (?id=…): la fila queda marcada.
+  const destacada = useDestacada(lista)
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
   const puedeGestionar = gestionaRecepcion(rol)
 
@@ -147,7 +150,7 @@ export default function Solicitudes() {
               </thead>
               <tbody>
                 {lista.map((s) => (
-                  <tr key={s.solicitud_id}>
+                  <tr key={s.solicitud_id} {...destacada.props(s.solicitud_id)}>
                     <td>{s.solicitud_id}</td>
                     <td>{nombreTipo(s.tipo)}</td>
                     <td>{s.habitacion_id || 'al convertir'}</td>

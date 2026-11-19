@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import Subnav from '../_componentes/subnav'
@@ -24,6 +25,8 @@ export default function Leads() {
   const [notas, setNotas] = useState({})
   const [claveGestion, renovarGestion] = useClaveOperacion()
 
+  // Enlace directo desde un aviso por correo (?id=…): la fila queda marcada.
+  const destacada = useDestacada(lista)
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
   const puedeGestionar = gestionaRecepcion(rol)
 
@@ -163,7 +166,7 @@ export default function Leads() {
               </thead>
               <tbody>
                 {lista.map((l) => (
-                  <tr key={l.id}>
+                  <tr key={l.id} {...destacada.props(l.id)}>
                     <td>{l.nombre}</td>
                     <td>{l.correo}</td>
                     <td>{l.telefono}</td>
