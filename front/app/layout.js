@@ -1,4 +1,5 @@
 import './globals.css'
+import './diseno.css'
 import Lienzo from './lienzo.jsx'
 import { NOMBRE_COMERCIAL } from '../lib/marca'
 
