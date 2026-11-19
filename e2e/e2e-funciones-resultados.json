@@ -1,0 +1,119 @@
+[
+  {
+    "id": "FN-SAL-01",
+    "ruta": "/hotel/salida",
+    "flujo": "al entrar se ven las Salidas de hoy como tarjetas",
+    "rol": "recepcion",
+    "esperado": "tarjeta de R1 con «Sale hoy» sin escribir nada",
+    "observado": "R1 en la lista con «Sale hoy» · Salidas de hoy y atrasadas",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-SAL-02",
+    "ruta": "/hotel/salida",
+    "flujo": "buscar por nombre, habitación y documento",
+    "rol": "recepcion",
+    "esperado": "cada búsqueda deja la tarjeta correcta",
+    "observado": "nombre→RSV-3ff5665933bc · habitación→RSV-d2800fb93f68 · documento→1 · corto→aviso (0)",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-SAL-03",
+    "ruta": "/hotel/salida",
+    "flujo": "con saldo: Salida bloqueada, pago y vuelta a la Salida",
+    "rol": "recepcion",
+    "esperado": "aviso de saldo, pago total, «Continuar con la Salida» y Salida registrada",
+    "observado": "Salida registrada de Tomás Fnmwntjxsx: cuenta liquidada por $45.000 (pagado $45.000). La habitación HAB-mwntjxsx-2 queda para aseo.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PAG-01",
+    "ruta": "/hotel/pago",
+    "flujo": "caja encuentra al huésped sin ver ni enumerar documentos",
+    "rol": "caja",
+    "esperado": "por nombre y documento completo sí; por prefijo no; sin documento en la tarjeta",
+    "observado": "prefijo→0 · documento completo→R1 · nombre→R1 con «Saldo $7.000»",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PAG-02",
+    "ruta": "/hotel/pago",
+    "flujo": "registrar un pago parcial desde la tarjeta",
+    "rol": "caja",
+    "esperado": "ficha con saldo, resumen en castellano, sin datos técnicos; la caja lo lista con hora",
+    "observado": "Pago de $5.000 registrado para Josefina Fnmwntjxsx (habitación HAB-mwntjxsx-1). Saldo pendiente: $2.000.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PAG-03",
+    "ruta": "/hotel/estadias/busqueda",
+    "flujo": "permisos de la búsqueda por pantalla",
+    "rol": "caja",
+    "esperado": "caja: Salida 403, pago 200",
+    "observado": "403/200",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-LLE-01",
+    "ruta": "/hotel/estadia",
+    "flujo": "Llegada: elegir de las Llegadas de hoy y registrar",
+    "rol": "recepcion",
+    "esperado": "tarjeta de R3, Llegada registrada",
+    "observado": "Llegada registrada para la reserva RSV-ab3667e2f612: huésped en casa en la habitación HAB-mwntjxsx-3",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PRD-01",
+    "ruta": "/hotel/productos",
+    "flujo": "cargar la factura XML: revisión y carga al inventario",
+    "rol": "administrador",
+    "esperado": "2 productos nuevos con stock y costo; factura en «Últimas cargas»",
+    "observado": "Factura N° 461185 de DISTRIBUIDORA PRUEBA G SPA cargada: 2 productos nuevos · 34 unidades sumadas al stock.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PRD-02",
+    "ruta": "/hotel/productos",
+    "flujo": "la misma factura no se carga dos veces",
+    "rol": "administrador",
+    "esperado": "aviso «ya se cargó» y botón deshabilitado; stock intacto",
+    "observado": "Esta factura ya se cargó el 19/11 (34 unidades, por admin_e2e). No se puede cargar dos veces.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PRD-03",
+    "ruta": "/hotel/productos",
+    "flujo": "pegar planilla de Excel con mapeo de columnas",
+    "rol": "administrador",
+    "esperado": "columnas adivinadas, coincidencia por nombre y stock sumado",
+    "observado": "Carga lista: 1 producto nuevo, 1 producto actualizado · 10 unidades sumadas al stock.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PRD-04",
+    "ruta": "/hotel/productos",
+    "flujo": "lector de códigos: cada lectura suma una unidad",
+    "rol": "administrador",
+    "esperado": "dos lecturas del mismo código → +2 al stock",
+    "observado": "Carga lista: 1 producto actualizado · 2 unidades sumadas al stock.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-PRD-05",
+    "ruta": "/hotel/productos",
+    "flujo": "recepción y caja no ven la carga de productos",
+    "rol": "recepcion/caja",
+    "esperado": "API 403 en vista previa",
+    "observado": "403/403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-MOV-01",
+    "ruta": "/hotel/salida",
+    "flujo": "Salida en celular (390 px): tarjetas sin desborde",
+    "rol": "recepcion",
+    "esperado": "scrollWidth ≤ ancho",
+    "observado": "scrollWidth 390/390 ≤ 390",
+    "estado": "APROBADO"
+  }
+]
