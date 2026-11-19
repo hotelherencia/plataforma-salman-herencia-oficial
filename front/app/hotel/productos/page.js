@@ -4,6 +4,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, CampoSelect, useSesion } from '../../../lib/api'
 import { esAdminHotel } from '../../../lib/roles'
 import { CATEGORIAS_PRODUCTO } from '../_componentes/selector-producto'
+import { ImportarProductos } from '../_componentes/importar-productos'
+import css from '../_componentes/operacion.module.css'
+
+// Pestañas internas (no agregan entradas al menú): catálogo y tres formas de cargar.
+const PESTANAS = [
+  ['catalogo', 'Catálogo'],
+  ['factura', 'Cargar desde factura'],
+  ['planilla', 'Pegar planilla'],
+  ['lector', 'Lector de códigos'],
+]
 
 const NOMBRE_CATEGORIA = Object.fromEntries(CATEGORIAS_PRODUCTO)
 
@@ -19,7 +29,8 @@ export default function Productos() {
   const sesion = useSesion()
   const esAdmin = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
   const [lista, setLista] = useState(null)
-  const [alta, setAlta] = useState({ nombre: '', categoria: 'minibar', precio_clp: '', controla_stock: false, stock: '0' })
+  const [pestana, setPestana] = useState('catalogo')
+  const [alta, setAlta] = useState({ nombre: '', categoria: 'minibar', precio_clp: '', controla_stock: false, stock: '0', codigo: '' })
   const [ajustes, setAjustes] = useState({})
   const [precios, setPrecios] = useState({})
   const [error, setError] = useState('')
@@ -66,8 +77,9 @@ export default function Productos() {
     const ok = await enviar('/hotel/productos', 'POST', {
       nombre: alta.nombre.trim(), categoria: alta.categoria, precio_clp: Number(alta.precio_clp),
       controla_stock: alta.controla_stock, stock: alta.controla_stock ? Number(alta.stock) || 0 : 0,
+      ...(alta.codigo.trim() ? { codigo: alta.codigo.trim() } : {}),
     }, `Producto «${alta.nombre.trim()}» creado.`)
-    if (ok) setAlta({ nombre: '', categoria: alta.categoria, precio_clp: '', controla_stock: false, stock: '0' })
+    if (ok) setAlta({ nombre: '', categoria: alta.categoria, precio_clp: '', controla_stock: false, stock: '0', codigo: '' })
   }
 
   function ajustar(p) {
@@ -96,6 +108,21 @@ export default function Productos() {
 
   return (
     <MarcoHotel titulo="Productos y stock">
+      <div className={css.pestanas} role="tablist" aria-label="Secciones de productos">
+        {PESTANAS.map(([id, nombre]) => (
+          <button key={id} type="button" role="tab" id={`pestana-${id}`} aria-controls={`panel-${id}`}
+            aria-selected={pestana === id} className={css.pestana} onClick={() => setPestana(id)}>
+            {nombre}
+          </button>
+        ))}
+      </div>
+      {pestana !== 'catalogo' && (
+        <div role="tabpanel" id={`panel-${pestana}`} aria-labelledby={`pestana-${pestana}`}>
+          <ImportarProductos fuente={pestana} alCargar={cargar} />
+        </div>
+      )}
+      {pestana === 'catalogo' && (
+      <div role="tabpanel" id="panel-catalogo" aria-labelledby="pestana-catalogo">
       <section className="tarjeta">
         <h2>Nuevo producto</h2>
         <form className="formulario" onSubmit={crear}>
@@ -104,6 +131,8 @@ export default function Productos() {
             {CATEGORIAS_PRODUCTO.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
           </CampoSelect>
           <Campo etiqueta="Precio con IVA (CLP)" type="number" min="1" value={alta.precio_clp} onChange={(e) => setAlta({ ...alta, precio_clp: e.target.value })} />
+          <Campo etiqueta="Código (opcional)" value={alta.codigo} placeholder="Escanea o escribe" autoComplete="off"
+            onChange={(e) => setAlta({ ...alta, codigo: e.target.value.replace(/\s+/g, '') })} />
           <label className="campo-check">
             <input type="checkbox" checked={alta.controla_stock} onChange={(e) => setAlta({ ...alta, controla_stock: e.target.checked })} />
             Controla stock (minibar)
@@ -127,6 +156,8 @@ export default function Productos() {
                 <strong>{p.nombre}</strong>
                 <span>{NOMBRE_CATEGORIA[p.categoria] || p.categoria}</span>
                 <span>{clp(p.precio_clp)}</span>
+                {p.codigo && <span className="nota-clave">Cód. {p.codigo}</span>}
+                {p.costo_clp !== null && p.costo_clp !== undefined && <span className="nota-clave">Costo neto {clp(p.costo_clp)}</span>}
                 {p.controla_stock && (
                   <span className={`reserva-estado ${p.stock > 0 ? 'estado-finalizada' : 'estado-cancelada'}`}>stock {p.stock}</span>
                 )}
@@ -153,8 +184,12 @@ export default function Productos() {
             </li>
           ))}
         </ul>
-        <p className="nota-chica">La carga automática de inventario a partir de facturas se habilitará en la siguiente actualización.</p>
+        <p className="nota-chica">
+          ¿Llegó mercadería? Usa «Cargar desde factura», «Pegar planilla» o «Lector de códigos» para sumar todo el stock de una vez.
+        </p>
       </section>
+      </div>
+      )}
     </MarcoHotel>
   )
 }
