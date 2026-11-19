@@ -101,8 +101,8 @@ function base32Decodificar(b32) {
   for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2))
   return Buffer.from(bytes)
 }
-function totp(secreto) {
-  const contador = Math.floor(Date.now() / 1000 / 30)
+function totp(secreto, pasosAtras = 0) {
+  const contador = Math.floor(Date.now() / 1000 / 30) - pasosAtras
   const buf = Buffer.alloc(8)
   buf.writeBigUInt64BE(BigInt(contador))
   const h = createHmac('sha1', base32Decodificar(secreto)).update(buf).digest()
@@ -189,7 +189,9 @@ try {
       return m ? m[1] : null
     })
     if (!secreto) throw new Error('no se mostró el secreto')
-    await page.getByRole('textbox', { name: /Código de confirmación/i }).fill(totp(secreto))
+    // SA-TOTP-01: el código de activación queda consumido; se usa el del paso
+    // anterior para que el login siguiente use el vigente sin esperar 30 s.
+    await page.getByRole('textbox', { name: /Código de confirmación/i }).fill(totp(secreto, 1))
     await page.getByRole('button', { name: 'Confirmar y activar' }).click()
     await page.waitForTimeout(1600)
     await page.getByRole('button', { name: 'Cerrar sesión' }).click()

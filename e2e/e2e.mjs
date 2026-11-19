@@ -147,8 +147,8 @@ function base32Decodificar(b32) {
   return Buffer.from(bytes)
 }
 
-function totp(secreto, pasoSegundos = 30, digitos = 6) {
-  const contador = Math.floor(Date.now() / 1000 / pasoSegundos)
+function totp(secreto, pasoSegundos = 30, digitos = 6, pasosAtras = 0) {
+  const contador = Math.floor(Date.now() / 1000 / pasoSegundos) - pasosAtras
   const buf = Buffer.alloc(8)
   buf.writeBigUInt64BE(BigInt(contador))
   const h = createHmac('sha1', base32Decodificar(secreto)).update(buf).digest()
@@ -651,7 +651,10 @@ try {
         return m ? m[1] : null
       })
       if (!secreto) throw new Error('no se mostró el secreto base32')
-      await page.getByRole('textbox', { name: /Código de confirmación/i }).fill(totp(secreto))
+      // SA-TOTP-01: un código aceptado queda consumido. Se activa con el del
+      // paso anterior (aceptado por la ventana) para que el login de abajo
+      // use el vigente sin esperar 30 s.
+      await page.getByRole('textbox', { name: /Código de confirmación/i }).fill(totp(secreto, 30, 6, 1))
       await page.getByRole('button', { name: 'Confirmar y activar' }).click()
       await page.waitForTimeout(2000)
       const texto = await textoPrincipal(page)
@@ -989,7 +992,10 @@ try {
     await page.getByRole('textbox', { name: 'Clave actual' }).fill(claveVieja)
     await page.getByRole('textbox', { name: 'Clave nueva' }).fill(claveNueva)
     await page.getByRole('button', { name: 'Cambiar clave' }).click()
-    await page.waitForSelector('[role=status]', { timeout: 8000 })
+    // El aviso persistente de MFA pendiente (lienzo.jsx) también es
+    // role=status: esperar el aviso propio del cambio, no cualquier status
+    // (falso CLV-01 del 2026-11-17: se leía la otra sesión antes del POST).
+    await page.getByText('Clave actualizada', { exact: false }).waitFor({ timeout: 8000 })
     const otraAhora = await api('GET', '/sesion', { cookie: otra.cookie })
     await page.goto(`${FRONT}/hotel/usuarios`)
     await page.waitForTimeout(1500)

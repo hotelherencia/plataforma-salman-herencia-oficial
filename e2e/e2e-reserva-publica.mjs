@@ -92,13 +92,18 @@ const EN_3 = sumarDias(HOY, 3)
 const EN_5 = sumarDias(HOY, 5)
 const EN_7 = sumarDias(HOY, 7)
 const HAB = `HAB-PUB-${RUN}`
+// /reservar agrupa la oferta por TIPO (no muestra el id de la habitación):
+// la corrida usa un tipo propio para ubicar su opción sin ambigüedad.
+const TIPO_PUB = `pub_${RUN}`
+const ETIQUETA_TIPO = `Pub ${RUN}`
+const OPCION = `.opcion:has(.opcion-titulo:text-is("${ETIQUETA_TIPO}"))`
 
 const navegador = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
 try {
   const cookieAdmin = await loginApi(ADMIN[0], ADMIN[1])
   // Aislamiento: habitación y tarifa propias de esta corrida.
   const alta = await api('PUT', `/hotel/habitaciones/${HAB}`, {
-    cuerpo: { tipo: 'doble', capacidad: 2 }, cabeceras: { 'If-None-Match': '*' }, clave: K('alta-hab'), cookie: cookieAdmin,
+    cuerpo: { tipo: TIPO_PUB, capacidad: 2 }, cabeceras: { 'If-None-Match': '*' }, clave: K('alta-hab'), cookie: cookieAdmin,
   })
   esperar(alta.estado === 201 || alta.estado === 200, `alta habitación: ${alta.estado} ${JSON.stringify(alta.datos)}`)
   const tarifa = await api('POST', '/hotel/precios/excepciones', {
@@ -120,8 +125,9 @@ try {
     const page = await ctx.newPage()
     await page.goto(`${FRONT}/reservar?inicio=${MANANA}&fin=${EN_3}&personas=2`)
     await page.waitForSelector('.lista-opciones', { timeout: 8000 })
-    const opcion = await page.locator(`.opcion:has-text("${HAB}")`).count()
-    esperar(opcion > 0, `la oferta no incluye ${HAB}`)
+    const opcion = await page.locator(OPCION).count()
+    esperar(opcion > 0, `la oferta no incluye el tipo ${ETIQUETA_TIPO} (${HAB})`)
+    await page.locator(`${OPCION} input`).check()
     await page.getByRole('textbox', { name: 'Nombre' }).fill('Visitante E2E Público')
     await page.getByRole('textbox', { name: 'Correo o teléfono' }).fill('visitante.pub@example.test')
     await page.getByRole('button', { name: 'Enviar solicitud' }).click()
@@ -174,7 +180,7 @@ try {
     const page = await ctx.newPage()
     await page.goto(`${FRONT}/reservar?inicio=${EN_5}&fin=${EN_7}&personas=2`)
     await page.waitForSelector('.lista-opciones', { timeout: 8000 })
-    const ofreceHab = await page.locator(`.opcion:has-text("${HAB}")`).count()
+    const ofreceHab = await page.locator(OPCION).count()
     esperar(ofreceHab === 0, `${HAB} aparece pese a estar sin cupo`)
     await evidencia(page, 'pub-02-sin-cupo')
     await ctx.close()
@@ -199,7 +205,7 @@ try {
     const fin = sumarDias(HOY, 22)
     await page.goto(`${FRONT}/reservar?inicio=${ini}&fin=${fin}&personas=2`)
     await page.waitForSelector('.lista-opciones', { timeout: 8000 })
-    await page.locator(`.opcion:has-text("${HAB}") input`).check()
+    await page.locator(`${OPCION} input`).check()
     await page.getByRole('textbox', { name: 'Nombre' }).fill(nombreUnico)
     await page.getByRole('textbox', { name: 'Correo o teléfono' }).fill('doble@example.test')
     // Doble envío en la misma ráfaga (antes de que el 2xx renueve la clave):
