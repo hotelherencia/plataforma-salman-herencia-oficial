@@ -9,6 +9,7 @@ import {
   agruparOferta, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
   leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
 } from './continuidad'
+import { enviarSolicitud, mensajeSolicitud, obtenerToken } from './envio'
 
 /** Fecha local de hoy (AAAA-MM-DD): toISOString es UTC y adelanta un día tras
  *  las 21:00 en Chile, vetando llegadas válidas. */
@@ -19,38 +20,29 @@ function hoyLocal() {
 const CLAVE_SITIO_RECAPTCHA = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LcKehguAAAAAG07HWp0QQOHJyMxQeWfQl3epp7n'
 const SITIO = 'https://www.hotelherencia.cl'
 
+// Si el script de Google no carga (bloqueador, Firefox estricto, red) se sabe al
+// instante por su evento error y se avisa eso, no un error genérico.
+let recaptchaBloqueado = false
+
 function prepararRecaptcha() {
   if (document.querySelector('script[data-recaptcha]')) return
+  recaptchaBloqueado = false
   const script = document.createElement('script')
   script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(CLAVE_SITIO_RECAPTCHA)}&hl=es-419`
   script.async = true
   script.referrerPolicy = 'origin'
   script.dataset.recaptcha = 'v3'
+  script.onerror = () => {
+    recaptchaBloqueado = true
+    script.remove() // un intento posterior lo vuelve a pedir (p. ej. tras desactivar el bloqueador)
+  }
   document.head.append(script)
 }
 
+/** Token nuevo al momento de enviar; nunca se reutiliza (cada uno sirve una vez). */
 function tokenRecaptcha(accion) {
-  return new Promise((resolve) => {
-    const inicio = Date.now()
-    const ejecutar = () => {
-      window.grecaptcha.ready(() => {
-        window.grecaptcha.execute(CLAVE_SITIO_RECAPTCHA, { action: accion }).then(resolve).catch(() => resolve(''))
-      })
-    }
-    if (window.grecaptcha) {
-      ejecutar()
-      return
-    }
-    const reloj = window.setInterval(() => {
-      if (window.grecaptcha) {
-        window.clearInterval(reloj)
-        ejecutar()
-      } else if (Date.now() - inicio > 8000) {
-        window.clearInterval(reloj)
-        resolve('')
-      }
-    }, 50)
-  })
+  prepararRecaptcha()
+  return obtenerToken(window, CLAVE_SITIO_RECAPTCHA, accion, { bloqueado: () => recaptchaBloqueado })
 }
 
 function almacenLocal() {
@@ -196,29 +188,32 @@ function Reservar() {
     }
     setEnviando(true)
     try {
-      const cabeceras = {}
-      const token = await tokenRecaptcha('reserva')
-      if (token) cabeceras['X-Recaptcha-Token'] = token
-      const r = await api('/publico/solicitudes', {
-        metodo: 'POST',
-        cuerpo: {
-          tipo: elegida, inicio, fin, personas: Number(personas),
-          huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
-        },
-        claveIdempotencia: clave,
-        cabeceras,
+      const resultado = await enviarSolicitud({
+        token: () => tokenRecaptcha('reserva'),
+        pedir: (cabeceras) => api('/publico/solicitudes', {
+          metodo: 'POST',
+          cuerpo: {
+            tipo: elegida, inicio, fin, personas: Number(personas),
+            huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
+          },
+          claveIdempotencia: clave,
+          cabeceras,
+          timeoutMs: 30000,
+        }),
       })
-      if (r.estado >= 400) {
-        setErrorSolicitud(mensajeDeError(r.datos, r.estado))
-        alRechazar(r.estado, renovarClave)
-        requestAnimationFrame(() => enfocar(refErrorSolicitud))
-      } else {
-        setConfirmada(r.datos)
+      if (resultado.tipo === 'respuesta' && resultado.estado < 400) {
+        setConfirmada(resultado.datos)
         renovarClave() // 2xx: la clave se repone para una operación nueva
         requestAnimationFrame(() => enfocar(refConfirmada))
+      } else {
+        setErrorSolicitud(mensajeSolicitud(resultado, mensajeDeError))
+        // 4xx definitivo: clave nueva. Red caída o 5xx: se conserva para que
+        // reintentar no duplique la solicitud.
+        if (resultado.tipo === 'respuesta') alRechazar(resultado.estado, renovarClave)
+        requestAnimationFrame(() => enfocar(refErrorSolicitud))
       }
     } catch {
-      setErrorSolicitud('No se pudo conectar con el servidor. Tu solicitud no se envió. Intenta de nuevo en unos minutos.')
+      setErrorSolicitud('No pudimos enviar tu solicitud. Inténtalo de nuevo o escríbenos por WhatsApp al +56 9 5649 1501. (código JS)')
       requestAnimationFrame(() => enfocar(refErrorSolicitud))
     } finally {
       setEnviando(false)
