@@ -228,11 +228,14 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         # un endpoint OpenAI-compatible. La ausencia de ambas deja el puerto
         # en SinAdaptador (503 «modelo no configurado», D-AGT-02 pendiente).
         from .modelo_http import ModeloHttp
-        app.state.modelo_agente = ModeloHttp(
-            base_url=configuracion.modelo_base_url,
-            api_key=configuracion.modelo_api_key,
-            modelo=configuracion.modelo_nombre or "modelo",
-        )
+        try:
+            app.state.modelo_agente = ModeloHttp(
+                base_url=configuracion.modelo_base_url,
+                api_key=configuracion.modelo_api_key,
+                modelo=configuracion.modelo_nombre or "modelo",
+            )
+        except ValueError as error:  # SA-MH-01: URL del modelo no https
+            raise ErrorArranque(str(error))
     else:
         app.state.modelo_agente = SinAdaptador()
     from .canal_salida import SinCanal

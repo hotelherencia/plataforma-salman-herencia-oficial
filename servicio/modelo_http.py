@@ -11,6 +11,7 @@ mide a este adaptador igual que al grabado cuando el proveedor se nombre.
 """
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from .modelo_lenguaje import ModeloFallo
@@ -34,6 +35,31 @@ _INSTRUCCION = (
 )
 
 
+# SA-MH-01 (auditoría 2026-11-17): la API key viaja en Authorization. urllib
+# sigue redirecciones 301/302/303 y reenvía esa cabecera al nuevo host; por
+# eso este adaptador no sigue ninguna, exige https salvo loopback y acota la
+# respuesta (un endpoint caído o hostil no llena la memoria del proceso).
+TOPE_RESPUESTA_BYTES = 1024 * 1024
+_LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+class _SinRedirecciones(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_ABRIDOR = urllib.request.build_opener(_SinRedirecciones)
+
+
+def _validar_base_url(base_url: str) -> None:
+    partes = urllib.parse.urlsplit(base_url)
+    if partes.scheme == "https" and partes.hostname:
+        return
+    if partes.scheme == "http" and partes.hostname in _LOOPBACK:
+        return
+    raise ValueError("MODELO_BASE_URL debe ser https (http solo en loopback de pruebas)")
+
+
 class ModeloHttp:
     """Puerto ModeloLenguaje sobre un endpoint /chat/completions.
 
@@ -48,6 +74,7 @@ class ModeloHttp:
     nombre = "http"
 
     def __init__(self, base_url: str, api_key: str, modelo: str = "modelo", timeout_seg: int = 30) -> None:
+        _validar_base_url(base_url)
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._api_key = api_key
         self._modelo = modelo
@@ -70,8 +97,11 @@ class ModeloHttp:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(peticion, timeout=self._timeout) as respuesta:
-                payload = json.loads(respuesta.read().decode("utf-8"))
+            with _ABRIDOR.open(peticion, timeout=self._timeout) as respuesta:
+                crudo = respuesta.read(TOPE_RESPUESTA_BYTES + 1)
+                if len(crudo) > TOPE_RESPUESTA_BYTES:
+                    raise ValueError("respuesta del modelo demasiado grande")
+                payload = json.loads(crudo.decode("utf-8"))
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
             cerrar = getattr(error, "close", None)
             if cerrar is not None:
