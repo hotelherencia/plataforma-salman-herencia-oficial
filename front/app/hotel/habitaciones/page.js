@@ -144,8 +144,10 @@ export default function Habitaciones() {
         )}
         {gestionaRecepcion(rol) && (
           <p className="nota-clave nota-tecnica">
-            Claves de operación (reintenta con la misma para no duplicar) — limpieza: <code>{claveLimpieza}</code>
-            {esAdmin && <> · mantenimiento: <code>{claveMantenimiento}</code></>}
+            Si una operación falla por la conexión, vuelve a intentarla: no se registra dos veces.
+            <span className="nota-idempotencia" aria-hidden="true">
+              <code>{claveLimpieza}</code>{esAdmin && <code>{claveMantenimiento}</code>}
+            </span>
           </p>
         )}
       </section>

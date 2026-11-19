@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 
-import { traducirDetalle, traducirFormula } from './mensajes.js'
+import { traducirDetalle, traducirFormula, traducirValidacion } from './mensajes.js'
 import { fechaATexto, fechaDesdeTexto, mascaraFecha, plural } from './formato.js'
 import { etiquetaRol } from './roles.js'
 
@@ -196,14 +196,7 @@ export function mensajeDeError(datos, estado) {
     return traducirDetalle(detalle)
   }
   if (typeof datos?.error === 'string') return datos.error
-  if (Array.isArray(detalle))
-    return detalle
-      .map((d) => {
-        if (!d || typeof d !== 'object') return String(d)
-        const campo = Array.isArray(d.loc) && d.loc.length > 1 ? `${d.loc[d.loc.length - 1]}: ` : ''
-        return `${campo}${d.msg || JSON.stringify(d)}`
-      })
-      .join(' · ')
+  if (Array.isArray(detalle)) return traducirValidacion(detalle)
   if (estado === 401) return 'Sesión expirada. Inicia sesión de nuevo.'
   if (estado === 403) return 'Sin permisos para esta operación.'
   if (estado === 429) return 'Demasiados intentos. Espera unos minutos.'

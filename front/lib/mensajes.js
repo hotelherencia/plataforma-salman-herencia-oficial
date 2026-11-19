@@ -13,8 +13,83 @@ const TRADUCCIONES = {
     'No pudimos verificar el envío. Recarga la página e inténtalo de nuevo; si persiste, escríbenos por WhatsApp al +56 9 5649 1501.',
 }
 
+// Detalles técnicos del servicio que antes llegaban tal cual a la pantalla
+// (2026-11-19): se reescriben en castellano de recepción.
+const PATRONES = [
+  [/^check-out requiere una estadía en curso$/i, () => 'La Salida solo se registra para un huésped en casa (con Llegada registrada).'],
+  [/^la cuenta tiene saldo pendiente de (-?\d+) CLP$/i, (m) => {
+    const n = Number(m[1])
+    const monto = `$${Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
+    return n > 0
+      ? `No se puede registrar la Salida: la cuenta tiene saldo pendiente de ${monto}. Registra el pago primero.`
+      : `No se puede registrar la Salida: la cuenta tiene ${monto} a favor del huésped. Ajusta la cuenta primero.`
+  }],
+  [/^falta la cabecera Idempotency-Key$/i, () => 'No se pudo enviar la operación. Recarga la página e inténtalo de nuevo.'],
+  [/^la clave ya fue usada con otro cuerpo$/i, () => 'Esta operación ya se envió con otros datos. Empieza una nueva e inténtalo otra vez.'],
+  [/^rol no autorizado$/i, () => 'Tu usuario no tiene permiso para esta operación.'],
+  [/^solo administración del hotel$/i, () => 'Solo la administración del hotel puede hacer esta operación.'],
+  [/^solo administración de plataforma$/i, () => 'Solo la administración de la plataforma puede hacer esta operación.'],
+  [/^pasarela no configurada$/i, () => 'El pago en línea aún no está habilitado: no quedó nada cobrado.'],
+  [/^estado inválido$/i, () => 'El estado elegido no es válido.'],
+  [/^hasta debe ser mayor que desde$/i, () => 'La fecha «hasta» debe ser posterior a la fecha «desde».'],
+]
+
 export function traducirDetalle(detalle) {
-  return Object.prototype.hasOwnProperty.call(TRADUCCIONES, detalle) ? TRADUCCIONES[detalle] : detalle
+  if (Object.prototype.hasOwnProperty.call(TRADUCCIONES, detalle)) return TRADUCCIONES[detalle]
+  for (const [re, f] of PATRONES) {
+    const m = re.exec(String(detalle || ''))
+    if (m) return f(m)
+  }
+  return detalle
+}
+
+// Validaciones 422 (FastAPI/pydantic): nunca se muestran tipos, rutas ni
+// mensajes en inglés; se nombra el campo y lo que hay que corregir.
+const NOMBRES_CAMPO = {
+  monto_clp: 'el monto', precio_clp: 'el precio', precio_base_clp: 'el precio base', nombre: 'el nombre',
+  cantidad: 'la cantidad', concepto: 'el concepto', motivo: 'el motivo', documento: 'el documento',
+  documento_tipo: 'el tipo de documento', inicio: 'la fecha de Llegada', fin: 'la fecha de Salida',
+  habitacion_id: 'la habitación', personas: 'las personas', clave: 'la clave', email: 'el correo',
+  telefono: 'el teléfono', rol: 'el rol', usuario: 'el usuario', fecha: 'la fecha', delta: 'el ajuste',
+  categoria: 'la categoría', codigo: 'el código', capacidad: 'la capacidad', stock: 'el stock',
+  costo_unitario_clp: 'el costo', xml: 'el archivo', lineas: 'las líneas', q: 'la búsqueda',
+}
+
+function campoLegible(loc) {
+  const partes = Array.isArray(loc) ? loc.filter((x) => typeof x === 'string' && !['body', 'query', 'path', 'header'].includes(x)) : []
+  const ultimo = partes[partes.length - 1]
+  if (!ultimo) return 'un dato'
+  return NOMBRES_CAMPO[ultimo] || `el campo «${ultimo.replace(/_/g, ' ')}»`
+}
+
+function problema(d) {
+  const tipo = String(d.type || '')
+  const msg = String(d.msg || '')
+  const numero = (/(-?[\d.]+)\s*$/.exec(msg) || [])[1]
+  if (tipo === 'missing') return 'es obligatorio'
+  if (tipo.startsWith('greater_than_equal')) return `debe ser ${numero ?? 'mayor'} o más`
+  if (tipo.startsWith('greater_than')) return `debe ser mayor que ${numero ?? '0'}`
+  if (tipo.startsWith('less_than')) return 'es demasiado grande'
+  if (tipo === 'string_too_short') return 'es demasiado corto'
+  if (tipo === 'string_too_long' || tipo === 'too_long') return 'es demasiado largo'
+  if (tipo === 'string_pattern_mismatch') return 'tiene un formato no válido'
+  if (tipo.startsWith('int_') || tipo.startsWith('float_') || tipo === 'decimal_parsing') return 'debe ser un número'
+  if (tipo.startsWith('date')) return 'debe ser una fecha válida'
+  if (tipo === 'literal_error' || tipo === 'enum') return 'no es una opción válida'
+  if (tipo === 'extra_forbidden') return 'no corresponde a esta operación'
+  if (tipo === 'value_error') return msg.replace(/^Value error,\s*/i, '')
+  return 'no es válido'
+}
+
+/** Lista de errores 422 → una frase legible. */
+export function traducirValidacion(detalle) {
+  if (!Array.isArray(detalle) || !detalle.length) return 'Revisa los datos ingresados.'
+  const frases = [...new Set(detalle.map((d) => {
+    if (!d || typeof d !== 'object') return 'Revisa los datos ingresados.'
+    const texto = `${campoLegible(d.loc)} ${problema(d)}`
+    return texto.charAt(0).toUpperCase() + texto.slice(1)
+  }))]
+  return `Revisa los datos: ${frases.slice(0, 3).join('; ')}.`
 }
 
 // Errores que el callback de Google devuelve en /login?error=… .
