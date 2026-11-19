@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from .. import idempotencia
+from .. import importacion_productos as importacion
 from .. import productos as productos_db
 from .. import roles
 from .. import seguridad
 from . import comun
-from .modelos import AjusteStockIn, ProductoCambioIn, ProductoIn
+from .modelos import AjusteStockIn, ImportacionIn, ProductoCambioIn, ProductoIn, VistaPreviaImportacionIn
 
 router = APIRouter()
 
@@ -44,13 +45,14 @@ def listar_productos(
     texto: str | None = Query(default=None, max_length=80),
     categoria: str | None = Query(default=None, pattern="^(minibar|cafeteria|servicio|extra)$"),
     inactivos: bool = False,
+    codigo: str | None = Query(default=None, max_length=60),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
     """Búsqueda incremental por palabra y filtro por categoría (#357)."""
     comun.exigir_rol(sesion, ROLES_LECTURA)
     ver_inactivos = inactivos and roles.es_admin_hotel(sesion.rol)
-    return {"productos": productos_db.listar(conexion, texto, categoria, ver_inactivos)}
+    return {"productos": productos_db.listar(conexion, texto, categoria, ver_inactivos, codigo=codigo)}
 
 
 @router.post("/hotel/productos")
@@ -65,7 +67,7 @@ def crear_producto(
     return _mutar(
         conexion, sesion, idempotency_key, cuerpo,
         lambda: productos_db.crear(conexion, producto.nombre, producto.categoria, producto.precio_clp,
-                                   producto.controla_stock, producto.stock, sesion.nombre),
+                                   producto.controla_stock, producto.stock, sesion.nombre, codigo=producto.codigo),
         201, "producto_alta", producto.nombre,
     )
 
@@ -119,3 +121,71 @@ def movimientos_stock(
         return {"producto_id": producto_id, "movimientos": productos_db.movimientos(conexion, producto_id)}
     except productos_db.ProductoInvalido as error:
         raise HTTPException(status_code=404, detail=str(error))
+
+
+# --- Carga amigable: factura XML del SII, planilla o lector (2026-11-19) ---
+
+@router.post("/hotel/productos/importacion/vista-previa")
+def vista_previa_importacion(
+    entrada: VistaPreviaImportacionIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Lee la fuente y empareja cada línea con el catálogo. No escribe nada."""
+    comun.exigir_rol(sesion, ROLES_MANTENEDOR)
+    lineas = [l.model_dump() for l in entrada.lineas] if entrada.lineas else None
+    try:
+        return importacion.vista_previa(conexion, entrada.origen, entrada.xml, lineas)
+    except importacion.FacturaInvalida as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    except importacion.FuenteNoDisponible as error:
+        raise HTTPException(status_code=503, detail=str(error))
+
+
+@router.post("/hotel/productos/importacion")
+def confirmar_importacion(
+    entrada: ImportacionIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Crea productos y suma stock en una sola transacción. Una factura
+    (emisor + tipo + folio, leídos del XML en el servidor) se carga una vez."""
+    comun.exigir_rol(sesion, ROLES_MANTENEDOR)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    documento = None
+    if entrada.origen == "factura_xml":
+        try:
+            documento = importacion.leer_factura_xml(entrada.xml or "")["documento"]
+        except importacion.FacturaInvalida as error:
+            raise HTTPException(status_code=422, detail=str(error))
+    lineas = [l.model_dump() for l in entrada.lineas]
+    cuerpo = {"operacion": "productos_importacion", "origen": entrada.origen, "documento": documento, "lineas": lineas}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = importacion.confirmar(conexion, entrada.origen, documento, lineas, sesion.nombre)
+        except importacion.ImportacionDuplicada as error:
+            seguridad.auditar(conexion, sesion.nombre, "productos_importacion",
+                              f"{documento['emisor_rut']}:{documento['tipo_dte']}:{documento['folio']}", "duplicada")
+            return 409, {"detail": str(error), "ya_importada": error.previa}
+        except importacion.ImportacionInvalida as error:
+            return 409, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, "productos_importacion", resultado["importacion_id"], "ok")
+        return 201, resultado
+
+    try:
+        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+
+@router.get("/hotel/productos/importaciones")
+def historial_importaciones(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_MANTENEDOR)
+    return {"importaciones": importacion.historial(conexion)}

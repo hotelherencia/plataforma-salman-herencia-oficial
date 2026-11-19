@@ -14,7 +14,7 @@ import uuid
 import psycopg
 
 CATEGORIAS = ("minibar", "cafeteria", "servicio", "extra")
-_COLUMNAS = "id, nombre, categoria, precio_clp, activo, controla_stock, stock"
+_COLUMNAS = "id, nombre, categoria, precio_clp, activo, controla_stock, stock, codigo, costo_clp"
 
 
 class ProductoInvalido(Exception):
@@ -23,20 +23,24 @@ class ProductoInvalido(Exception):
 
 def _a_dict(f) -> dict:
     return {"producto_id": f[0], "nombre": f[1], "categoria": f[2], "precio_clp": f[3],
-            "activo": f[4], "controla_stock": f[5], "stock": f[6] if f[5] else None}
+            "activo": f[4], "controla_stock": f[5], "stock": f[6] if f[5] else None,
+            "codigo": f[7], "costo_clp": f[8]}
 
 
 def listar(conexion: psycopg.Connection, texto: str | None = None, categoria: str | None = None,
-           incluir_inactivos: bool = False) -> list[dict]:
+           incluir_inactivos: bool = False, codigo: str | None = None) -> list[dict]:
     filtros, parametros = [], []
+    if codigo:
+        filtros.append("lower(codigo) = lower(%s)")
+        parametros.append(codigo.strip())
     if not incluir_inactivos:
         filtros.append("activo")
     if categoria:
         filtros.append("categoria = %s")
         parametros.append(categoria)
     for palabra in (texto or "").split():
-        filtros.append("(nombre ILIKE %s OR categoria ILIKE %s)")
-        parametros += [f"%{palabra}%", f"%{palabra}%"]
+        filtros.append("(nombre ILIKE %s OR categoria ILIKE %s OR codigo ILIKE %s)")
+        parametros += [f"%{palabra}%", f"%{palabra}%", f"%{palabra}%"]
     consulta = f"SELECT {_COLUMNAS} FROM productos"
     if filtros:
         consulta += " WHERE " + " AND ".join(filtros)
@@ -44,16 +48,19 @@ def listar(conexion: psycopg.Connection, texto: str | None = None, categoria: st
 
 
 def crear(conexion: psycopg.Connection, nombre: str, categoria: str, precio_clp: int,
-          controla_stock: bool, stock: int, actor: str) -> dict:
+          controla_stock: bool, stock: int, actor: str, codigo: str | None = None) -> dict:
     producto_id = f"PRD-{uuid.uuid4().hex[:10]}"
     try:
         with conexion.transaction():
             conexion.execute(
-                "INSERT INTO productos (id, nombre, categoria, precio_clp, controla_stock, stock) "
-                "VALUES (%s, %s, %s, %s, %s, %s)",
-                (producto_id, nombre.strip(), categoria, precio_clp, controla_stock, stock if controla_stock else 0),
+                "INSERT INTO productos (id, nombre, categoria, precio_clp, controla_stock, stock, codigo) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (producto_id, nombre.strip(), categoria, precio_clp, controla_stock, stock if controla_stock else 0,
+                 (codigo or "").strip() or None),
             )
     except psycopg.errors.UniqueViolation as error:
+        if "codigo" in str(error):
+            raise ProductoInvalido(f"el código {codigo} ya pertenece a otro producto") from error
         raise ProductoInvalido(f"ya existe un producto llamado «{nombre.strip()}»") from error
     if controla_stock and stock:
         _movimiento(conexion, producto_id, stock, "stock inicial", actor)
@@ -71,7 +78,7 @@ def obtener(conexion: psycopg.Connection, producto_id: str, bloqueo: bool = Fals
 
 def actualizar(conexion: psycopg.Connection, producto_id: str, cambios: dict) -> dict:
     obtener(conexion, producto_id, bloqueo=True)
-    permitidos = {k: v for k, v in cambios.items() if k in ("nombre", "categoria", "precio_clp", "activo", "controla_stock")
+    permitidos = {k: v for k, v in cambios.items() if k in ("nombre", "categoria", "precio_clp", "activo", "controla_stock", "codigo")
                   and v is not None}
     if permitidos:
         asignaciones = ", ".join(f"{k} = %s" for k in permitidos)
@@ -82,6 +89,8 @@ def actualizar(conexion: psycopg.Connection, producto_id: str, cambios: dict) ->
                     (*permitidos.values(), producto_id),
                 )
         except psycopg.errors.UniqueViolation as error:
+            if "codigo" in str(error):
+                raise ProductoInvalido("ese código ya pertenece a otro producto") from error
             raise ProductoInvalido("ya existe un producto con ese nombre") from error
     return obtener(conexion, producto_id)
 
@@ -129,8 +138,9 @@ def movimientos(conexion: psycopg.Connection, producto_id: str, limite: int = 50
     ]
 
 
-def _movimiento(conexion, producto_id, delta, motivo, actor, cargo_id=None) -> None:
+def _movimiento(conexion, producto_id, delta, motivo, actor, cargo_id=None, importacion_id=None) -> None:
     conexion.execute(
-        "INSERT INTO movimientos_stock (id, producto_id, delta, motivo, actor, cargo_id) VALUES (%s, %s, %s, %s, %s, %s)",
-        (f"MOV-{uuid.uuid4().hex[:12]}", producto_id, delta, motivo[:200], actor, cargo_id),
+        "INSERT INTO movimientos_stock (id, producto_id, delta, motivo, actor, cargo_id, importacion_id) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (f"MOV-{uuid.uuid4().hex[:12]}", producto_id, delta, motivo[:200], actor, cargo_id, importacion_id),
     )

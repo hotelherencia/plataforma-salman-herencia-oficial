@@ -164,12 +164,16 @@ class CargoIn(BaseModel):
         return self
 
 
+PATRON_CODIGO_PRODUCTO = r"^[A-Za-z0-9._/-]{1,60}$"
+
+
 class ProductoIn(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
     categoria: Literal["minibar", "cafeteria", "servicio", "extra"]
     precio_clp: int = Field(gt=0, le=100_000_000)
     controla_stock: bool = False
     stock: int = Field(default=0, ge=0, le=1_000_000)
+    codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
 
 
 class ProductoCambioIn(BaseModel):
@@ -178,6 +182,7 @@ class ProductoCambioIn(BaseModel):
     precio_clp: int | None = Field(default=None, gt=0, le=100_000_000)
     activo: bool | None = None
     controla_stock: bool | None = None
+    codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
 
 
 class AjusteStockIn(BaseModel):
@@ -410,3 +415,42 @@ class SimulacionPoliticaIn(BaseModel):
             }.items()
             if valor not in (None, False)
         }
+
+
+# --- Carga amigable de productos (2026-11-19) ---
+
+class LineaLeidaIn(BaseModel):
+    """Fila de planilla o lectura del lector ya normalizada por el front."""
+    model_config = ConfigDict(extra="forbid")
+    codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
+    nombre: str = Field(min_length=1, max_length=120)
+    cantidad: float = Field(default=1, ge=0, le=100_000)
+    unidad: str | None = Field(default=None, max_length=20)
+    costo_unitario_clp: int | None = Field(default=None, ge=0, le=100_000_000)
+
+
+class VistaPreviaImportacionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    origen: Literal["factura_xml", "planilla", "lector", "foto"]
+    xml: str | None = Field(default=None, max_length=1_500_000)
+    lineas: list[LineaLeidaIn] | None = Field(default=None, max_length=300)
+
+
+class LineaImportacionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    accion: Literal["sumar", "crear", "omitir"]
+    producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
+    nombre: str = Field(min_length=2, max_length=120)
+    categoria: Literal["minibar", "cafeteria", "servicio", "extra"] = "minibar"
+    codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
+    cantidad: int = Field(default=0, ge=0, le=100_000)
+    costo_unitario_clp: int | None = Field(default=None, ge=0, le=100_000_000)
+    precio_clp: int | None = Field(default=None, gt=0, le=100_000_000)
+    controla_stock: bool = True
+
+
+class ImportacionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    origen: Literal["factura_xml", "planilla", "lector"]
+    xml: str | None = Field(default=None, max_length=1_500_000)
+    lineas: list[LineaImportacionIn] = Field(min_length=1, max_length=300)
