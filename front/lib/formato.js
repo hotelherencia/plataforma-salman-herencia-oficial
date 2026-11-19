@@ -59,3 +59,9 @@ export function mascaraFecha(texto) {
   if ((r = t.match(/^(\d{1,2})\/(\d{3,6})$/))) return `${r[1]}/${r[2].slice(0, 2)}/${r[2].slice(2)}`
   return t
 }
+
+/** «aaaa-mm-dd» → «dd/mm» para cabeceras de columnas (nunca mm-dd). */
+export function fechaCorta(iso) {
+  const r = String(iso || '').match(/^\d{4}-(\d{2})-(\d{2})$/)
+  return r ? `${r[2]}/${r[1]}` : String(iso || '')
+}

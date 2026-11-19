@@ -101,12 +101,12 @@ export default function Inicio() {
   return (
     <main className="pagina">
       <section className="plataforma-hero">
-        <img className="plataforma-hero-logo" src={LOGO.h64} srcSet={`${LOGO.h64} 1x, ${LOGO.h128} 2x`} alt={NOMBRE_COMERCIAL} width="80" height="64" />
+        <img className="plataforma-hero-logo" src={LOGO.hojaSvg} alt="" width="68" height="60" />
         <p className="plataforma-hero-rotulo">Plataforma</p>
         <h1 className="plataforma-hero-titulo">{NOMBRE_COMERCIAL}</h1>
         <p className="plataforma-hero-texto">
-          Un núcleo con identidad, autorización, efecto del pago y auditoría.
-          Cada módulo cubre solo su operación.
+          Reservas, Llegadas y Salidas, habitaciones, aseo y caja del hotel en un
+          solo lugar, cada persona con lo que le toca hacer.
         </p>
         <p className="plataforma-hero-sesion">
           <span className="plataforma-chip">{sesion.usuario.empresa_id}</span>

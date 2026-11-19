@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api, clp } from '../../../lib/api'
+import { fechaATexto } from '../../../lib/formato'
 
 /**
  * Selector de reserva (#356, #364): nunca un ID escrito a mano.
@@ -69,7 +70,7 @@ export function SelectorReserva({ etiqueta = 'Reserva', valor, alCambiar, fijo =
           <option value="">{buscando ? 'Buscando…' : opciones.length ? 'Elige una reserva' : 'Sin coincidencias'}</option>
           {opciones.map((o) => (
             <option key={o.reserva_id} value={o.reserva_id}>
-              {o.huesped_nombre} · hab. {o.habitacion_id} · {o.inicio} → {o.fin} · {o.reserva_id}
+              {o.huesped_nombre} · hab. {o.habitacion_id} · {fechaATexto(o.inicio)} → {fechaATexto(o.fin)} · {o.reserva_id}
             </option>
           ))}
         </select>
@@ -86,7 +87,7 @@ export function FichaReserva({ detalle }) {
     <div className="ficha-reserva" aria-label="Reserva elegida">
       <p>
         <strong>{detalle.huesped_nombre}</strong> · habitación {detalle.habitacion_id} ({detalle.tipo_habitacion}) ·{' '}
-        {detalle.inicio} → {detalle.fin}
+        {fechaATexto(detalle.inicio)} → {fechaATexto(detalle.fin)}
       </p>
       <p className="nota-clave">
         Cargos netos {clp(cuenta.cargos_netos_clp)} · Pagado {clp(cuenta.pagado_clp)} · Saldo{' '}

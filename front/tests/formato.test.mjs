@@ -91,3 +91,9 @@ test('reCAPTCHA: sello oculto solo con el aviso de Google junto al envío', () =
 test('logo del acceso nítido en pantallas de alta densidad', () => {
   assert.match(leer('app/login/pantalla.jsx'), /srcSet={`\${LOGO\.h128} 1x, \${LOGO\.h256} 2x`}/)
 })
+
+test('cabeceras de noches en dd/mm (nunca mm-dd)', async () => {
+  const { fechaCorta } = await import('../lib/formato.js')
+  assert.equal(fechaCorta('2026-11-19'), '19/11')
+  for (const f of ['app/hotel/ocupacion/page.js', 'app/hotel/panel/page.js']) assert.doesNotMatch(leer(f), /\.slice\(5\)/, f)
+})

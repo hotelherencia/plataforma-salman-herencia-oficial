@@ -5,6 +5,7 @@ import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechaz
 import { gestionaRecepcion } from '../../../lib/roles'
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
+import { fechaATexto } from '../../../lib/formato'
 
 /** Bandeja de leads (V1-ISSUE-20 punto 8, spec-api-v1 «Contacto y leads de la
  *  landing»): las consultas generales del formulario propio de la landing
@@ -127,7 +128,7 @@ export default function Leads() {
         {corte && (
           <p className="nota-clave" data-corte-leads>
             {corte.desde
-              ? <>Mostrando desde el <strong>{corte.desde}</strong> (últimos {corte.ventana_nuevo_dias} días).</>
+              ? <>Mostrando desde el <strong>{fechaATexto(corte.desde) || corte.desde}</strong> (últimos {corte.ventana_nuevo_dias} días).</>
               : <>Mostrando todos los leads.</>}{' '}
             «Nuevo» = sin gestión y dentro de {corte.ventana_nuevo_dias} días.
             {corte.antiguos > 0 && <> Hay <strong>{corte.antiguos}</strong> sin gestionar más antiguos (marca «Ver todos»).</>}

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
-import { plural } from '../../../lib/formato'
+import { fechaATexto, fechaCorta, plural } from '../../../lib/formato'
 
 /**
  * Ocupación y disponibilidad (spec-hotel-operacion-v1 §5): rejilla habitación
@@ -138,7 +138,7 @@ export default function Ocupacion() {
                   <th scope="col">Habitación</th>
                   {datos.noches.map((n) => (
                     <th key={n} scope="col" className={n === datos.fecha_corte ? 'hoy' : ''}>
-                      {n.slice(5)}
+                      {fechaCorta(n)}
                     </th>
                   ))}
                 </tr>
@@ -180,7 +180,7 @@ export default function Ocupacion() {
             <ul className="lista-simple">
               {canceladas.map((r) => (
                 <li key={r.reserva_id}>
-                  <Link href={`/hotel/reservas/${r.reserva_id}`}>{r.reserva_id}</Link> · {r.habitacion_id} · {r.inicio} → {r.fin} · {r.huesped_nombre}
+                  <Link href={`/hotel/reservas/${r.reserva_id}`}>{r.reserva_id}</Link> · {r.habitacion_id} · {fechaATexto(r.inicio)} → {fechaATexto(r.fin)} · {r.huesped_nombre}
                 </li>
               ))}
             </ul>

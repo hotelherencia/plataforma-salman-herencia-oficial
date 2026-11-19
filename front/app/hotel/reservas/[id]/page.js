@@ -8,7 +8,7 @@ import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
 import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
-import { plural } from '../../../../lib/formato'
+import { fechaATexto, plural } from '../../../../lib/formato'
 
 /**
  * Detalle de la reserva con su cuenta (spec-hotel-operacion-v1 §3.2). El saldo
@@ -128,7 +128,7 @@ export default function DetalleReserva() {
               </dd>
               <dt>Fechas</dt>
               <dd>
-                {reserva.inicio} → {reserva.fin} · {plural(reserva.noches, 'noche')}
+                {fechaATexto(reserva.inicio)} → {fechaATexto(reserva.fin)} · {plural(reserva.noches, 'noche')}
               </dd>
               <dt>Tarifa aceptada</dt>
               <dd>{clp(reserva.tarifa_noche_aceptada_clp)}/noche (congelada al confirmar)</dd>

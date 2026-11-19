@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import { gestionaRecepcion } from '../../../lib/roles'
-import { plural, porcentaje } from '../../../lib/formato'
+import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -284,7 +284,7 @@ export default function Panel() {
                       const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
                       const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
                       const dia = diaSemana(s.fecha)
-                      const fechaCorta = s.fecha.slice(5).replace('-', '/')
+                      const fechaCortaNoche = fechaCorta(s.fecha)
                       return (
                         <div key={s.fecha} className="columna-noche">
                           <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} ocupadas, ${reservadas} reservadas de ${max} unidades`}>
@@ -294,7 +294,7 @@ export default function Panel() {
                           </div>
                           <div className="columna-fecha">
                             <span className="columna-dia">{dia}</span>
-                            <span className="columna-dia-num">{fechaCorta}</span>
+                            <span className="columna-dia-num">{fechaCortaNoche}</span>
                           </div>
                         </div>
                       )

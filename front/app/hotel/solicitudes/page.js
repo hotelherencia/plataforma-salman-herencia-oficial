@@ -6,6 +6,9 @@ import { gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
+import { fechaATexto } from '../../../lib/formato'
+
+const ESTADO_SOLICITUD = { recibida: 'Recibida', convertida: 'Convertida', rechazada: 'Rechazada' }
 
 /** Bandeja de solicitudes públicas (V1-ISSUE-24): recepción o administrador
  *  ven las solicitudes de la landing, las convierten en reserva por la misma
@@ -148,13 +151,13 @@ export default function Solicitudes() {
                     <td>{s.solicitud_id}</td>
                     <td>{nombreTipo(s.tipo)}</td>
                     <td>{s.habitacion_id || 'al convertir'}</td>
-                    <td>{s.inicio}</td>
-                    <td>{s.fin}</td>
+                    <td className="celda-fecha">{fechaATexto(s.inicio) || s.inicio}</td>
+                    <td className="celda-fecha">{fechaATexto(s.fin) || s.fin}</td>
                     <td>{s.personas}</td>
                     <td>{s.huesped_nombre}</td>
                     <td>{s.huesped_contacto}</td>
                     <td>{s.origen || '—'}</td>
-                    <td>{s.estado}</td>
+                    <td><span className={`reserva-estado solicitud-${s.estado}`}>{ESTADO_SOLICITUD[s.estado] || s.estado}</span></td>
                     <td>{s.reserva_id || '—'}</td>
                     <td>
                       {s.estado === 'recibida' ? (
@@ -173,7 +176,7 @@ export default function Solicitudes() {
                           </button>
                         </div>
                       ) : (
-                        <span className="estado">{s.estado}</span>
+                        <span className="nota-clave">Sin acciones pendientes</span>
                       )}
                     </td>
                   </tr>

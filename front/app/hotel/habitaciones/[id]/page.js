@@ -16,7 +16,7 @@ import {
 } from '../../../../lib/api'
 import { esAdminHotel } from '../../../../lib/roles'
 import { etiquetaOrigen, rangoNoches } from '../../../../lib/tipos'
-import { plural } from '../../../../lib/formato'
+import { fechaATexto, plural } from '../../../../lib/formato'
 
 /**
  * Ficha de la habitación (spec-hotel-operacion-v1 §2.3–2.6). Muestra lo que
@@ -258,8 +258,8 @@ export default function FichaHabitacion() {
                   <tbody>
                     {ficha.tarifas_archivadas.map((t) => (
                       <tr key={t.tarifa_id}>
-                        <td>{t.fecha_desde}</td>
-                        <td>{t.fecha_hasta}</td>
+                        <td className="celda-fecha">{fechaATexto(t.fecha_desde) || t.fecha_desde}</td>
+                        <td className="celda-fecha">{fechaATexto(t.fecha_hasta) || t.fecha_hasta}</td>
                         <td>{clp(t.tarifa_noche_clp)}</td>
                         <td>{t.registrada_en.slice(0, 10)}</td>
                         <td>{t.archivada_en ? t.archivada_en.slice(0, 10) : '—'}</td>
@@ -294,7 +294,7 @@ export default function FichaHabitacion() {
                         <Link href={`/hotel/reservas/${r.reserva_id}`}>{r.reserva_id}</Link>
                       </td>
                       <td>{r.huesped_nombre}</td>
-                      <td>{r.inicio} → {r.fin}</td>
+                      <td className="celda-fecha">{fechaATexto(r.inicio)} → {fechaATexto(r.fin)}</td>
                       <td>{r.noches}</td>
                       <td>
                         <span className={`reserva-estado estado-${r.estado}`}>{ETIQUETA_ESTADO[r.estado] || r.estado}</span>

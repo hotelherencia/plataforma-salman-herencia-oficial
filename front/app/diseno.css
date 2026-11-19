@@ -1236,3 +1236,53 @@ input[type="radio"] {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Leyenda de ocupación: «Sin ocupar» también tiene muestra visible. */
+.muestra.noche-sin_ocupar {
+  border: 1px dashed var(--c-linea-fuerte);
+}
+
+/* Inicio: la hoja dorada se lee sola sobre el verde (sin placa blanca). */
+.plataforma-hero .plataforma-hero-logo {
+  width: auto;
+  height: 3.5rem;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+/* Tablas de bandeja: fechas en una línea y acciones en fila (sin filas altísimas). */
+.tabla .celda-fecha {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla .acciones-fila {
+  flex-wrap: nowrap;
+}
+
+.tabla .acciones-fila .boton-primario,
+.tabla .acciones-fila .boton-secundario {
+  white-space: nowrap;
+}
+
+.solicitud-recibida {
+  background: var(--c-aviso-fondo);
+  color: var(--c-aviso);
+}
+
+.solicitud-convertida {
+  background: var(--c-exito-fondo);
+  color: var(--c-exito);
+}
+
+.solicitud-rechazada {
+  background: var(--c-superficie-2);
+  color: var(--c-tinta-2);
+}
+
+.tabla .reserva-estado {
+  display: inline-block;
+  padding: 0.12rem 0.65rem;
+  white-space: nowrap;
+}
