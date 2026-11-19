@@ -347,7 +347,8 @@ def crear_solicitud(
                       solicitud_id, "recibida")
     # #353: aviso al administrador en la misma transacción (bandeja de salida).
     avisos.registrar_evento(conexion, "solicitud_recibida", solicitud_id, {
-        "tipo": tipo, "inicio": inicio.isoformat(), "fin": fin.isoformat(), "personas": personas, "origen": origen})
+        "tipo": tipo, "inicio": inicio.isoformat(), "fin": fin.isoformat(), "personas": personas, "origen": origen},
+        empresa_id)
     return vista_publica(_fila_publica(conexion, solicitud_id))
 
 

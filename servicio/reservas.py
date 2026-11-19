@@ -526,6 +526,12 @@ def crear_reserva(
                 )
     except ExclusionViolation as error:
         raise SinCupo(f"sin cupo para {habitacion_id} en [{inicio}, {fin})") from error
+    # Aviso «reserva confirmada» en la misma transacción (sin datos del huésped).
+    from . import avisos
+
+    avisos.registrar_evento(conexion, "reserva_confirmada", reserva_id, {
+        "habitacion_id": habitacion_id, "inicio": inicio.isoformat(), "fin": fin.isoformat(),
+        "personas": personas, "total_clp": total}, empresa_id)
     return {
         "reserva_id": reserva_id,
         "habitacion_id": habitacion_id,

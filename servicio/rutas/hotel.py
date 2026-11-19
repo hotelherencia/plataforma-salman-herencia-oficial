@@ -1070,6 +1070,7 @@ def rechazar_solicitud(
 def crear_lead_publico(
     request: Request,
     lead: LeadPublicoIn,
+    tareas: BackgroundTasks,
     idempotency_key: str | None = Header(default=None),
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
@@ -1104,6 +1105,10 @@ def crear_lead_publico(
         raise HTTPException(status_code=409, detail=str(error))
     codigo = 200 if resultado.get("reintento") else 201
     conexion.commit()
+    # Aviso «consulta recibida»: sale después de guardar, sin afectar la respuesta.
+    despachador = getattr(request.app.state, "avisos", None)
+    if codigo == 201 and despachador is not None and despachador.activo:
+        tareas.add_task(despachador.despachar_seguro)
     return JSONResponse(status_code=codigo, content=resultado)
 
 @router.get("/hotel/leads")

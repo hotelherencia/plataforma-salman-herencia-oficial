@@ -93,8 +93,9 @@ class AvisosHallazgosTest(CanalPublicoBaseTest):
         mensajes = []
         CanalCorreo("smtp.test", 587, None, None, "reservas@hotel.test", "admin@hotel.test", "https://front.test",
                     enviar_smtp=mensajes.append).enviar(evento)
-        self.assertIn("2026-12-01", mensajes[0]["Subject"])
-        self.assertIn("https://front.test/hotel/solicitudes", mensajes[0].get_content())
+        self.assertIn("01/12/2026", mensajes[0]["Subject"])
+        self.assertTrue(mensajes[0]["Subject"].startswith("[Hotel Herencia] "))
+        self.assertIn("https://front.test/hotel/solicitudes?id=SOL-1", mensajes[0].get_body(("plain",)).get_content())
         publicados = []
         CanalWhatsapp("123", "token", "56900000000", "solicitud_reserva", "es", "https://front.test",
                       publicar=lambda url, cuerpo, cab: publicados.append((url, cuerpo, cab))).enviar(evento)

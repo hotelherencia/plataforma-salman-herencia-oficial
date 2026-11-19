@@ -22,7 +22,7 @@ from datetime import date, timedelta
 import psycopg
 
 from . import roles
-from . import entrada_publica, seguridad
+from . import avisos, entrada_publica, seguridad
 
 MAX_NOMBRE = 200
 MAX_CORREO = 320
@@ -214,6 +214,10 @@ def crear_lead(
          mensaje, clave, cuerpo_hash, token, horas_referencia(), contacto_id),
     )
     seguridad.auditar(conexion, f"publico:{lead_id}", "lead_recibido", lead_id, "nuevo")
+    # Aviso a la administración en la misma transacción (sin datos de contacto).
+    avisos.registrar_evento(conexion, "consulta_recibida", lead_id, {
+        "inicio": check_in.isoformat() if check_in else None, "fin": check_out.isoformat() if check_out else None,
+        "personas": huespedes, "con_mensaje": bool(mensaje)}, empresa_id)
     return {"lead": _resumen(conexion, lead_id), "referencia": token, "reintento": False}
 
 

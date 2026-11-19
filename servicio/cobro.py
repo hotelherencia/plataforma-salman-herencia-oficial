@@ -134,6 +134,12 @@ def registrar_pago_manual(
     )
     saldo_despues = saldo_antes - monto_clp
     tipo = "total" if saldo_despues == 0 else ("parcial" if saldo_despues > 0 else "exceso")
+    # Aviso «pago registrado» en la misma transacción (sin datos del huésped).
+    from . import avisos
+
+    avisos.registrar_evento(conexion, "pago_registrado", pago_id, {
+        "reserva_id": reserva_id, "habitacion_id": habitacion, "monto_clp": monto_clp,
+        "tipo_pago": tipo, "saldo_despues_clp": saldo_despues}, empresa_id)
     return {"pago_id": pago_id, "reserva_id": reserva_id, "monto_clp": monto_clp,
             "clave": clave, "modo": "manual", "estado": "confirmado", "efecto_nucleo_id": efecto_id,
             "huesped_nombre": huesped, "habitacion_id": habitacion,

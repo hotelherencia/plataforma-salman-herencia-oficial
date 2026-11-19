@@ -539,13 +539,18 @@ class Buzon:
         return resultado
 
     # -- envío
-    def enviar(self, asunto: str, cuerpo: str) -> None:
+    def enviar(self, asunto: str, cuerpo: str, destinos: list[str] | None = None, html: str | None = None) -> None:
+        """Texto plano y, si viene, versión HTML. Sin `destinos` va al destino
+        guardado en el buzón (los avisos traen los de Configuración → Avisos)."""
         p = self.parametros
+        para = list(destinos or []) or [p["destino"]]
         mensaje = EmailMessage()
         mensaje["Subject"] = asunto
         mensaje["From"] = p["remitente"]
-        mensaje["To"] = p["destino"]
+        mensaje["To"] = ", ".join(para)
         mensaje.set_content(cuerpo)
+        if html:
+            mensaje.add_alternative(html, subtype="html")
         if self.proveedor == "smtp":
             self._enviar_smtp(mensaje)
         elif self.proveedor == "gmail_api":
@@ -555,10 +560,11 @@ class Buzon:
                       json.dumps({"raw": _b64url(mensaje.as_bytes())}).encode())
         else:
             token = self._token_graph()
+            cuerpo_graph = {"contentType": "HTML", "content": html} if html else {"contentType": "Text", "content": cuerpo}
             self.http("POST", f"https://graph.microsoft.com/v1.0/users/{urllib.parse.quote(p['usuario'])}/sendMail",
                       {"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                      json.dumps({"message": {"subject": asunto, "body": {"contentType": "Text", "content": cuerpo},
-                                              "toRecipients": [{"emailAddress": {"address": p["destino"]}}]},
+                      json.dumps({"message": {"subject": asunto, "body": cuerpo_graph,
+                                              "toRecipients": [{"emailAddress": {"address": d}} for d in para]},
                                   "saveToSentItems": False}).encode())
 
     def _enviar_smtp(self, mensaje: EmailMessage) -> None:
@@ -590,8 +596,9 @@ class Buzon:
         if self.proposito == "lectura_enviados":
             enviados = self.enviados_desde(datetime.now(timezone.utc) - timedelta(days=7))
             return {"ok": True, "detalle": f"conexión correcta: {len(enviados)} correo(s) enviado(s) en los últimos 7 días"}
-        self.enviar("Prueba de avisos — Hotel Herencia",
-                    "Correo de prueba de la plataforma: los avisos de solicitudes llegarán a esta dirección.")
+        self.enviar("[Hotel Herencia] Prueba de conexión del buzón de avisos",
+                    "Correo de prueba de la plataforma: el buzón de envío de avisos funciona.\n"
+                    "Qué avisos llegan y a quién se define en Configuración → Avisos.")
         return {"ok": True, "detalle": f"correo de prueba enviado a {self.parametros['destino']}"}
 
 
