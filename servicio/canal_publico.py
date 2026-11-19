@@ -275,6 +275,15 @@ def tipo_de_unidad(conexion: psycopg.Connection, habitacion_id: str) -> str | No
     return fila[0] if fila else None
 
 
+def clave_registrada(conexion: psycopg.Connection, empresa_id: str, clave: str) -> bool:
+    """True si ya hay una solicitud con esa Idempotency-Key en la empresa:
+    el envío es un reintento tras un corte de red o un despliegue."""
+    return conexion.execute(
+        "SELECT 1 FROM solicitudes WHERE empresa_id = %s AND idempotency_key = %s",
+        (empresa_id, clave),
+    ).fetchone() is not None
+
+
 def crear_solicitud(
     conexion: psycopg.Connection,
     empresa_id: str,

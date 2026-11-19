@@ -151,6 +151,15 @@ def _hash_cuerpo(cuerpo: dict) -> str:
     return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
 
 
+def clave_registrada(conexion: psycopg.Connection, empresa_id: str, clave: str) -> bool:
+    """True si ya hay un lead con esa Idempotency-Key en la empresa: el envío
+    es un reintento (del proxy de la landing o del navegador tras un corte)."""
+    return conexion.execute(
+        "SELECT 1 FROM leads WHERE empresa_id = %s AND idempotency_key = %s",
+        (empresa_id, clave),
+    ).fetchone() is not None
+
+
 def crear_lead(
     conexion: psycopg.Connection,
     empresa_id: str,

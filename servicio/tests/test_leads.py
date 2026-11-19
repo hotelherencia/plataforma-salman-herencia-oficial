@@ -242,6 +242,48 @@ class LeadsPublicosTest(LeadsBaseTest):
         )
         self.assertEqual(con_token.status_code, 201, con_token.text)
 
+    def test_ld08b_reintento_con_misma_clave_no_reexige_captcha(self):
+        """fix-forms: el proxy de la landing reintenta con la misma clave y el
+        mismo token. Si el primer intento sí se guardó (respuesta perdida por un
+        despliegue o timeout), Google ya rechaza ese token por duplicado: el
+        reintento debe devolver el original (200) y no un 403."""
+        from servicio.recaptcha import CaptchaRechazado
+
+        config = Configuracion(
+            host="127.0.0.1", puerto=0, database_url=URL_TEST, cookie_segura=False,
+            origen_front=None, origen_landing=LANDING,
+            admin_usuario=ADMIN[0], admin_clave=ADMIN[1],
+            recaptcha_secret_key="secreto-de-prueba",
+        )
+        app = crear_app(configuracion=config)
+        app.state.freno_solicitudes.max_por_minuto = 100
+        usados = set()
+
+        def un_solo_uso(token, secreto, accion, ip):
+            if token in usados or not token or not token.startswith("tok-") or accion != "consulta":
+                raise CaptchaRechazado()
+            usados.add(token)
+
+        app.state.verificar_recaptcha = un_solo_uso
+        anonima = TestClient(app)
+        clave = self.clave()
+        primero = anonima.post("/publico/leads", json=self.cuerpo_lead(),
+                               headers={"Idempotency-Key": clave, "X-Recaptcha-Token": "tok-1"})
+        self.assertEqual(primero.status_code, 201, primero.text)
+        repetido = anonima.post("/publico/leads", json=self.cuerpo_lead(),
+                                headers={"Idempotency-Key": clave, "X-Recaptcha-Token": "tok-1"})
+        self.assertEqual(repetido.status_code, 200, repetido.text)
+        self.assertTrue(repetido.json()["reintento"])
+        self.assertEqual(repetido.json()["lead"]["id"], primero.json()["lead"]["id"])
+        self.assertTrue(repetido.json()["referencia"])
+        otro_cuerpo = anonima.post("/publico/leads", json=self.cuerpo_lead(nombre="Otro"),
+                                   headers={"Idempotency-Key": clave})
+        self.assertEqual(otro_cuerpo.status_code, 409, otro_cuerpo.text)
+        clave_nueva = anonima.post("/publico/leads", json=self.cuerpo_lead(),
+                                   headers={"Idempotency-Key": self.clave(), "X-Recaptcha-Token": "tok-1"})
+        self.assertEqual(clave_nueva.status_code, 403, "una clave nueva siempre exige captcha válido")
+        self.assertEqual(self.select("SELECT count(*) FROM leads")[0][0], 1)
+
     def test_ld09_la_referencia_recupera_contacto_sin_ponerlo_en_la_url(self):
         creada = self.anonima.post(
             "/publico/leads", json=self.cuerpo_lead(), headers={"Idempotency-Key": self.clave()}

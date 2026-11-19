@@ -857,6 +857,19 @@ def _exigir_captcha(request: Request, accion: str, ip: str) -> None:
         raise HTTPException(status_code=403, detail=MENSAJE_CAPTCHA_RECHAZADO)
 
 
+def _es_reintento(conexion, registrada, empresa_id: str, clave: str, accion: str) -> bool:
+    """Reintento idempotente: si la clave ya quedó guardada, el envío no crea
+    nada nuevo (misma clave y cuerpo → el original con 200; otro cuerpo → 409),
+    así que no se vuelve a exigir reCAPTCHA. Sin esto, cuando el primer intento
+    sí se guardó pero la respuesta se perdió (Railway desplegando, timeout del
+    proxy), el reintento llegaba con el token ya gastado ante Google
+    (timeout-or-duplicate) y el huésped veía un 403 aunque su consulta existía."""
+    if not registrada(conexion, empresa_id, clave):
+        return False
+    observabilidad.evento_seguridad("reintento_idempotente", nivel=logging.INFO, accion=accion)
+    return True
+
+
 @router.get("/publico/disponibilidad")
 def disponibilidad_publica(
     request: Request,
@@ -944,11 +957,13 @@ def crear_solicitud_publica(
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
-    _exigir_captcha(request, "reserva", ip)
-    if not freno.permite(f"ip:{ip}", f"contacto:{solicitud.huesped_contacto.strip().lower()}", ambito="solicitudes"):
-        raise HTTPException(
-            status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
-        )
+    empresa_id = request.app.state.aplicacion.nucleo.empresa.id
+    if not _es_reintento(conexion, canal_publico.clave_registrada, empresa_id, clave, "reserva"):
+        _exigir_captcha(request, "reserva", ip)
+        if not freno.permite(f"ip:{ip}", f"contacto:{solicitud.huesped_contacto.strip().lower()}", ambito="solicitudes"):
+            raise HTTPException(
+                status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+            )
     tipo = solicitud.tipo
     if tipo is None:
         tipo = canal_publico.tipo_de_unidad(conexion, solicitud.habitacion_id)
@@ -1070,11 +1085,13 @@ def crear_lead_publico(
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
-    _exigir_captcha(request, "consulta", ip)
-    if not freno.permite(f"ip:{ip}", f"correo:{correo}", f"tel:{telefono}", ambito="leads"):
-        raise HTTPException(
-            status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
-        )
+    empresa_id = request.app.state.aplicacion.nucleo.empresa.id
+    if not _es_reintento(conexion, leads_mod.clave_registrada, empresa_id, clave, "consulta"):
+        _exigir_captcha(request, "consulta", ip)
+        if not freno.permite(f"ip:{ip}", f"correo:{correo}", f"tel:{telefono}", ambito="leads"):
+            raise HTTPException(
+                status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
+            )
     try:
         resultado = leads_mod.crear_lead(
             conexion, request.app.state.aplicacion.nucleo.empresa.id, lead.nombre, lead.correo, lead.telefono,

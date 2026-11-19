@@ -319,6 +319,43 @@ class SolicitudesPublicasTest(CanalPublicoBaseTest):
         self.assertEqual(estados[2], 429)
 
 
+    def test_cp29_reintento_con_misma_clave_no_reexige_captcha(self):
+        """fix-forms: /reservar reintenta con la misma Idempotency-Key tras un
+        corte. Si la solicitud ya quedó guardada, el reintento devuelve la
+        original (200) aunque el token ya esté gastado; una clave nueva sin
+        captcha válido sigue en 403."""
+        from servicio.recaptcha import CaptchaRechazado
+
+        config = Configuracion(
+            host="127.0.0.1", puerto=0, database_url=URL_TEST, cookie_segura=False,
+            origen_front=None, origen_landing=LANDING,
+            admin_usuario=ADMIN[0], admin_clave=ADMIN[1],
+            recaptcha_secret_key="secreto-de-prueba",
+        )
+        app = crear_app(configuracion=config)
+        app.state.freno_solicitudes.max_por_minuto = 100
+        usados = set()
+
+        def un_solo_uso(token, secreto, accion, ip):
+            if token in usados or not token or accion != "reserva":
+                raise CaptchaRechazado()
+            usados.add(token)
+
+        app.state.verificar_recaptcha = un_solo_uso
+        anonima = TestClient(app)
+        clave = self.clave()
+        r1 = anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
+                          headers={"Idempotency-Key": clave, "X-Recaptcha-Token": "tok-r1"})
+        self.assertEqual(r1.status_code, 201, r1.text)
+        r2 = anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
+                          headers={"Idempotency-Key": clave, "X-Recaptcha-Token": "tok-r1"})
+        self.assertEqual(r2.status_code, 200, r2.text)
+        self.assertEqual(r2.json()["solicitud_id"], r1.json()["solicitud_id"])
+        r3 = anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
+                          headers={"Idempotency-Key": self.clave(), "X-Recaptcha-Token": "tok-r1"})
+        self.assertEqual(r3.status_code, 403, r3.text)
+
+
 class BandejaSolicitudesTest(CanalPublicoBaseTest):
     def test_bn30_bandeja_conversion_trazable(self):
         solicitud_id = self.crear_solicitud()
