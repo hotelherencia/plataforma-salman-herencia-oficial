@@ -138,7 +138,7 @@ function EditorPoliticas({ sesion, seccion }) {
     })
   }
 
-  if (!cuerpo) return <p className="estado">Cargando políticas…</p>
+  if (!cuerpo) return <p className="estado" role="status" aria-busy="true">Cargando políticas…</p>
 
   return (
     <>
@@ -641,7 +641,7 @@ function EditorFaq({ cuerpo, setCuerpo, puedeEditar, onGuardar }) {
 
 export default function PaginaConfiguracion() {
   return (
-    <Suspense fallback={<p className="estado">Cargando configuración…</p>}>
+    <Suspense fallback={<p className="estado" role="status" aria-busy="true">Cargando configuración…</p>}>
       <ConfiguracionHotel />
     </Suspense>
   )

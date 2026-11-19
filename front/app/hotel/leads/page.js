@@ -141,9 +141,9 @@ export default function Leads() {
 
       {lista && (
         lista.length === 0 ? (
-          <p className="estado">No hay leads en este estado.</p>
+          <p className="estado estado-vacio">No hay leads en este estado.</p>
         ) : (
-          <div className="tabla-contenedor">
+          <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla">
               <thead>
                 <tr>

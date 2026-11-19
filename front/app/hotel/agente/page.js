@@ -221,9 +221,9 @@ export default function Agente() {
 
       {lista && (
         lista.length === 0 ? (
-          <p className="estado">No hay consultas en este estado.</p>
+          <p className="estado estado-vacio">No hay consultas en este estado.</p>
         ) : (
-          <div className="tabla-contenedor">
+          <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla">
               <thead>
                 <tr>
@@ -324,7 +324,7 @@ export default function Agente() {
           ))}
 
           {(detalle.traza || []).length > 0 && (
-            <div className="tabla-contenedor">
+            <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
               <table className="tabla tabla-traza">
                 <thead>
                   <tr>

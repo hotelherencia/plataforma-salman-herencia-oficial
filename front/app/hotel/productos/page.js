@@ -118,8 +118,8 @@ export default function Productos() {
       {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       <section className="tarjeta">
         <h2>Catálogo {lista ? `(${lista.length})` : ''}</h2>
-        {!lista && <p className="estado">Cargando…</p>}
-        {lista && lista.length === 0 && <p className="estado">Aún no hay productos. Crea el primero arriba.</p>}
+        {!lista && <p className="estado" role="status" aria-busy="true">Cargando…</p>}
+        {lista && lista.length === 0 && <p className="estado estado-vacio">Aún no hay productos. Crea el primero arriba.</p>}
         <ul className="lista-aseo">
           {(lista || []).map((p) => (
             <li key={p.producto_id} className="tarjeta" data-producto={p.producto_id}>

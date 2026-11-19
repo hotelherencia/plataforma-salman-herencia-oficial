@@ -63,7 +63,7 @@ export default function Reservas() {
         </p>
       </section>
       {error && <p role="alert" className="alerta">{error}</p>}
-      {cargando && <p className="estado">Buscando…</p>}
+      {cargando && <p className="estado" role="status" aria-busy="true">Buscando…</p>}
       {resultado &&
         (resultado.reservas.length === 0 ? (
           <ReservasVacias />

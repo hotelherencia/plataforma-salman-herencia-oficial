@@ -114,9 +114,9 @@ export default function TiposHabitacionesPrecios({ seccion = 'todo', sinMarco = 
       <SalidaJson datos={salida} />
 
       {tipos === null ? (
-        <p className="estado">Cargando tipos…</p>
+        <p className="estado" role="status" aria-busy="true">Cargando tipos…</p>
       ) : tipos.length === 0 ? (
-        <p className="estado">Aún no hay tipos de habitación.</p>
+        <p className="estado estado-vacio">Aún no hay tipos de habitación.</p>
       ) : (
         <div className="tipos-grilla">
           {tipos.map((tipo) => (

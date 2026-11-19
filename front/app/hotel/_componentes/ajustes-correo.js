@@ -111,7 +111,7 @@ export default function AjustesCorreo() {
   const revisarAhora = () => llamar('/hotel/correo/revision', 'POST', {},
     (d) => `Revisión: ${d.buzones} buzón(es), ${d.mensajes} enviado(s), ${d.leads_contactados} lead(s) marcado(s) contactado(s)${d.errores ? `, ${d.errores} con error` : ''}.`, false)
 
-  if (!datos) return error ? <p role="alert" className="alerta">{error}</p> : <p className="estado">Cargando…</p>
+  if (!datos) return error ? <p role="alert" className="alerta">{error}</p> : <p className="estado" role="status" aria-busy="true">Cargando…</p>
 
   const visibles = form ? camposVisibles(form.proposito, form.proveedor, form.autenticacion) : null
   const setParam = (c, v) => setForm({ ...form, parametros: { ...form.parametros, [c]: v } })
@@ -121,7 +121,8 @@ export default function AjustesCorreo() {
     <>
       {!datos.cifrado_disponible && (
         <p role="alert" className="alerta">
-          Falta la variable <code>CORREO_CLAVE_CIFRADO</code> en el servicio: sin ella no se pueden guardar claves de correo.
+          Por ahora no se pueden guardar claves de correo: falta completar la protección de claves en el servidor.
+          Pide a soporte técnico que la active (variable <code>CORREO_CLAVE_CIFRADO</code>).
         </p>
       )}
       <section className="tarjeta">
@@ -154,7 +155,7 @@ export default function AjustesCorreo() {
       {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       <section className="tarjeta">
         <h2>Buzones ({datos.buzones.length})</h2>
-        {datos.buzones.length === 0 && <p className="estado">Aún no hay buzones. Agrega el de reservas y el comercial.</p>}
+        {datos.buzones.length === 0 && <p className="estado estado-vacio">Aún no hay buzones. Agrega el de reservas y el comercial.</p>}
         <ul className="lista-aseo">
           {datos.buzones.map((b) => (
             <li key={b.buzon_id} className="tarjeta" data-buzon={b.buzon_id}>

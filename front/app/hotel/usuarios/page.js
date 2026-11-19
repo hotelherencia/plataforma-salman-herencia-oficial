@@ -81,7 +81,7 @@ export default function Usuarios() {
       <section className="tarjeta">
         <h2>Usuarios de la empresa</h2>
         {usuarios === null ? (
-          <p className="estado">Cargando usuarios…</p>
+          <p className="estado" role="status" aria-busy="true">Cargando usuarios…</p>
         ) : usuarios.length === 0 ? (
           <UsuariosVacios />
         ) : (

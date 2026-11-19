@@ -54,7 +54,7 @@ export default function Caja() {
             Total del día: <strong>{clp(caja.total_clp)}</strong>
           </p>
           {caja.pagos.length > 0 ? (
-            <div className="tabla-contenedor">
+            <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla">
               <thead>
                 <tr>
@@ -83,7 +83,7 @@ export default function Caja() {
             </table>
             </div>
           ) : (
-            <p className="estado">Sin pagos registrados en esta fecha.</p>
+            <p className="estado estado-vacio">Sin pagos registrados en esta fecha.</p>
           )}
         </>
       )}

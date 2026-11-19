@@ -413,7 +413,7 @@ function Reservar() {
 
 export default function ReservarEnvuelta() {
   return (
-    <Suspense fallback={<main className="pagina pagina-publica"><p className="estado">Cargando…</p></main>}>
+    <Suspense fallback={<main className="pagina pagina-publica"><p className="estado" role="status" aria-busy="true">Cargando…</p></main>}>
       <Reservar />
     </Suspense>
   )

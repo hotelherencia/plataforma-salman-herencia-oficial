@@ -82,7 +82,7 @@ export default function Inicio() {
   if (sesion.fase === 'cargando')
     return (
       <main className="pagina">
-        <p className="estado">Cargando…</p>
+        <p className="estado" role="status" aria-busy="true">Cargando…</p>
       </main>
     )
   if (sesion.fase === 'caida')

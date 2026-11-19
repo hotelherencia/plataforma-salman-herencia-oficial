@@ -106,7 +106,7 @@ export default function Aseo() {
       </section>
       {error && <p role="alert" className="alerta">{error}</p>}
       {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
-      {!datos && !error && <p className="estado">Cargando…</p>}
+      {!datos && !error && <p className="estado" role="status" aria-busy="true">Cargando…</p>}
       <ul className="lista-aseo">
         {lista.map((h) => {
           const ultima = h.ultima_limpieza

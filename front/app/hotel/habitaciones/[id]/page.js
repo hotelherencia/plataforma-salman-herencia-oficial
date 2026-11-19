@@ -220,7 +220,7 @@ export default function FichaHabitacion() {
             {ficha.excepciones.length === 0 ? (
               <p className="estado">Sin excepciones vigentes ni futuras: rige {ficha.precio_propio_clp ? 'su precio propio' : 'el precio base del tipo'}.</p>
             ) : (
-              <div className="tabla-contenedor"><table className="tabla">
+              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Noches</th>
@@ -250,7 +250,7 @@ export default function FichaHabitacion() {
                   Registradas con el editor anterior. La migración 0022 las convirtió en precio base, precio propio o
                   excepciones con los mismos montos y ya no se aplican.
                 </p>
-                <div className="tabla-contenedor"><table className="tabla">
+                <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
                   <thead>
                     <tr><th>Desde</th><th>Hasta (sin incluir)</th><th>Por noche</th><th>Registrada</th><th>Archivada</th></tr>
                   </thead>
@@ -273,9 +273,9 @@ export default function FichaHabitacion() {
           <section className="tarjeta" aria-label="Reservas de la habitación">
             <h2>Reservas de la habitación</h2>
             {ficha.reservas.length === 0 ? (
-              <p className="estado">Sin reservas.</p>
+              <p className="estado estado-vacio">Sin reservas.</p>
             ) : (
-              <div className="tabla-contenedor"><table className="tabla">
+              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Reserva</th>
@@ -309,9 +309,9 @@ export default function FichaHabitacion() {
           <section className="tarjeta" aria-label="Tareas">
             <h2>Tareas de limpieza y mantenimiento</h2>
             {ficha.tareas.length === 0 ? (
-              <p className="estado">Sin tareas registradas.</p>
+              <p className="estado estado-vacio">Sin tareas registradas.</p>
             ) : (
-              <div className="tabla-contenedor"><table className="tabla">
+              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Tipo</th>
@@ -338,9 +338,9 @@ export default function FichaHabitacion() {
             <section className="tarjeta" aria-label="Auditoría">
               <h2>Historial de cambios (auditoría)</h2>
               {ficha.auditoria.length === 0 ? (
-                <p className="estado">Sin cambios registrados.</p>
+                <p className="estado estado-vacio">Sin cambios registrados.</p>
               ) : (
-                <div className="tabla-contenedor"><table className="tabla">
+                <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
                   <thead>
                     <tr>
                       <th>Cuándo</th>

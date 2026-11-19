@@ -131,7 +131,7 @@ export default function Habitaciones() {
           <a href="/hotel/tipos">Tipos, habitaciones y precios</a>.
         </p>
         {habitaciones === null ? (
-          <p className="estado">Cargando inventario…</p>
+          <p className="estado" role="status" aria-busy="true">Cargando inventario…</p>
         ) : habitaciones.length === 0 ? (
           <InventarioVacio />
         ) : (

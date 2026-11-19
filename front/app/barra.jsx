@@ -26,6 +26,16 @@ import { Insignia, useContadorSolicitudes } from './hotel/_componentes/contador-
 
 const MODULOS_CERRADOS = ['Cafetería', 'Inmobiliaria', 'Constructora']
 
+// Los módulos que aún no están disponibles se nombran en una sola línea
+// discreta, para no competir con las opciones que sí se usan a diario.
+function ProximosModulos() {
+  return (
+    <p className="nav-proximos">
+      Próximamente: {MODULOS_CERRADOS.join(' · ')}
+    </p>
+  )
+}
+
 export default function BarraNav() {
   const ruta = usePathname()
   const sesion = useSesion()
@@ -83,12 +93,6 @@ export default function BarraNav() {
           </span>
         </div>
 
-        {sesion.fase === 'ok' && (
-          <p className="barra-empresa" title="Empresa de la sesión">
-            {sesion.usuario.empresa_id}
-          </p>
-        )}
-
         <nav className="nav" aria-label="Navegación principal">
           <p className="nav-rotulo">Módulos</p>
           <Link href="/" aria-current={ruta === '/' ? 'page' : undefined} className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
@@ -100,11 +104,6 @@ export default function BarraNav() {
           >
             Hotel
           </Link>
-          {MODULOS_CERRADOS.map((nombre) => (
-            <span key={nombre} className="nav-cerrado" aria-disabled="true" title="Nombrada · no operable en esta versión">
-              {nombre}
-            </span>
-          ))}
 
           {enHotel && secciones.map((seccion) => (
             <div key={seccion.id} className="nav-grupo">
@@ -122,6 +121,7 @@ export default function BarraNav() {
               ))}
             </div>
           ))}
+          <ProximosModulos />
         </nav>
 
         <Link href="/cuenta" className={ruta === '/cuenta' ? 'nav-enlace nav-cuenta activo' : 'nav-enlace nav-cuenta'}>
@@ -163,11 +163,6 @@ export default function BarraNav() {
             <Link href="/hotel/panel" onClick={cerrar} className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
               Hotel
             </Link>
-            {MODULOS_CERRADOS.map((nombre) => (
-              <span key={nombre} className="nav-cerrado" aria-disabled="true">
-                {nombre}
-              </span>
-            ))}
             {enHotel && secciones.map((seccion) => (
               <div key={seccion.id} className="nav-grupo">
                 <p className="nav-rotulo">{seccion.rotulo}</p>
@@ -185,6 +180,7 @@ export default function BarraNav() {
                 ))}
               </div>
             ))}
+            <ProximosModulos />
           </nav>
           <div className="menu-movil-pie">
             <Link href="/cuenta" onClick={cerrar} className={ruta === '/cuenta' ? 'nav-enlace nav-cuenta activo' : 'nav-enlace nav-cuenta'}>

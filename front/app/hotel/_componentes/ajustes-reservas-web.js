@@ -46,7 +46,7 @@ export default function AjustesReservasWeb() {
         Un mismo cliente (mismo correo o teléfono) puede dejar como máximo este número de solicitudes de reserva
         en el período. Las rechazadas no cuentan. Frena el abuso sin bloquear habitaciones.
       </p>
-      {!tope && !error && <p className="estado">Cargando…</p>}
+      {!tope && !error && <p className="estado" role="status" aria-busy="true">Cargando…</p>}
       {tope && (
         <form className="formulario" onSubmit={guardar}>
           <label className="campo-check">
