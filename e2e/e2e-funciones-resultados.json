@@ -14,7 +14,7 @@
     "flujo": "buscar por nombre, habitación y documento",
     "rol": "recepcion",
     "esperado": "cada búsqueda deja la tarjeta correcta",
-    "observado": "nombre→RSV-3ff5665933bc · habitación→RSV-d2800fb93f68 · documento→1 · corto→aviso (0)",
+    "observado": "nombre→RSV-dcd7b50d8f99 · habitación→RSV-67b55354ac9a · documento→1 · corto→aviso (0)",
     "estado": "APROBADO"
   },
   {
@@ -23,7 +23,7 @@
     "flujo": "con saldo: Salida bloqueada, pago y vuelta a la Salida",
     "rol": "recepcion",
     "esperado": "aviso de saldo, pago total, «Continuar con la Salida» y Salida registrada",
-    "observado": "Salida registrada de Tomás Fnmwntjxsx: cuenta liquidada por $45.000 (pagado $45.000). La habitación HAB-mwntjxsx-2 queda para aseo.",
+    "observado": "Salida registrada de Tomás Fnmwnwc8m8: cuenta liquidada por $45.000 (pagado $45.000). La habitación HAB-mwnwc8m8-2 queda para aseo.",
     "estado": "APROBADO"
   },
   {
@@ -41,7 +41,7 @@
     "flujo": "registrar un pago parcial desde la tarjeta",
     "rol": "caja",
     "esperado": "ficha con saldo, resumen en castellano, sin datos técnicos; la caja lo lista con hora",
-    "observado": "Pago de $5.000 registrado para Josefina Fnmwntjxsx (habitación HAB-mwntjxsx-1). Saldo pendiente: $2.000.",
+    "observado": "Pago de $5.000 registrado para Josefina Fnmwnwc8m8 (habitación HAB-mwnwc8m8-1). Saldo pendiente: $2.000.",
     "estado": "APROBADO"
   },
   {
@@ -59,7 +59,7 @@
     "flujo": "Llegada: elegir de las Llegadas de hoy y registrar",
     "rol": "recepcion",
     "esperado": "tarjeta de R3, Llegada registrada",
-    "observado": "Llegada registrada para la reserva RSV-ab3667e2f612: huésped en casa en la habitación HAB-mwntjxsx-3",
+    "observado": "Llegada registrada para la reserva RSV-485279c58f55: huésped en casa en la habitación HAB-mwnwc8m8-3",
     "estado": "APROBADO"
   },
   {
@@ -68,7 +68,7 @@
     "flujo": "cargar la factura XML: revisión y carga al inventario",
     "rol": "administrador",
     "esperado": "2 productos nuevos con stock y costo; factura en «Últimas cargas»",
-    "observado": "Factura N° 461185 de DISTRIBUIDORA PRUEBA G SPA cargada: 2 productos nuevos · 34 unidades sumadas al stock.",
+    "observado": "Factura N° 640800 de DISTRIBUIDORA PRUEBA G SPA cargada: 2 productos nuevos · 34 unidades sumadas al stock.",
     "estado": "APROBADO"
   },
   {
@@ -105,6 +105,69 @@
     "rol": "recepcion/caja",
     "esperado": "API 403 en vista previa",
     "observado": "403/403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-01",
+    "ruta": "/hotel/productos",
+    "flujo": "fotografiar la factura: timbre SII, líneas a mano y unidades por envase",
+    "rol": "administrador",
+    "esperado": "proveedor y folio desde el timbre; 2 cajas x 24 + 3 packs x 6 = 66 unidades; costo por unidad",
+    "observado": "Factura N° 390800 de 38525153-K cargada: 2 productos nuevos · 66 unidades sumadas al stock.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-02",
+    "ruta": "/hotel/productos",
+    "flujo": "la misma foto no se carga dos veces",
+    "rol": "administrador",
+    "esperado": "abre la misma factura con aviso «ya se cargó»",
+    "observado": "Esta factura ya se cargó el 19/11 (66 unidades, por admin_e2e). No se puede cargar dos veces.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-03",
+    "ruta": "/hotel/productos/documentos",
+    "flujo": "pedido en borrador: no suma stock",
+    "rol": "administrador",
+    "esperado": "foto sin timbre marcada como pedido → borrador",
+    "observado": "borrador",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-04",
+    "ruta": "/hotel/productos",
+    "flujo": "segunda factura del proveedor: producto y envase recordados; cierra el pedido",
+    "rol": "administrador",
+    "esperado": "«Recordado del proveedor», 24 por caja sin escribirlo; pedido facturado",
+    "observado": "Factura N° 390801 de DISTRIBUIDORA PRUEBA G SPA cargada: 1 producto actualizado · 24 unidades sumadas al stock.",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-05",
+    "ruta": "/hotel/productos",
+    "flujo": "productos recordados por proveedor: editar unidades por envase",
+    "rol": "administrador",
+    "esperado": "cambio a 12 guardado",
+    "observado": "unidades_por_paquete=12",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-06",
+    "ruta": "/hotel/productos/documentos",
+    "flujo": "recepción y caja no ven la bandeja de facturas",
+    "rol": "recepcion/caja",
+    "esperado": "API 403",
+    "observado": "403/403",
+    "estado": "APROBADO"
+  },
+  {
+    "id": "FN-FAC-07",
+    "ruta": "/hotel/productos",
+    "flujo": "cargar desde factura en celular (390 px)",
+    "rol": "administrador",
+    "esperado": "botón «Fotografiar factura» con cámara; sin desborde",
+    "observado": "scrollWidth 390 ≤ 390",
     "estado": "APROBADO"
   },
   {
