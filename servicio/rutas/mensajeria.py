@@ -1,6 +1,8 @@
 """Webhook del puerto WhatsApp (spec 006, #324). Sin sesión: la firma ocupa
 su lugar. Sin puerto configurado responde 503 y no toca la base."""
+import hmac
 import json
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -9,6 +11,7 @@ from .. import mensajeria
 from . import comun
 
 router = APIRouter()
+_CHALLENGE = re.compile(r"[0-9]{1,64}")
 
 
 def _puerto(request: Request) -> mensajeria.PuertoWhatsapp:
@@ -26,7 +29,10 @@ def verificar_webhook(
     hub_challenge: str = Query(alias="hub.challenge", default=""),
 ) -> Response:
     puerto = _puerto(request)
-    if hub_mode != "subscribe" or hub_verify_token != puerto.verify_token or not hub_challenge:
+    # SA-WA-01: token en tiempo constante y challenge solo numérico (Meta
+    # envía un entero): el endpoint no refleja texto arbitrario.
+    token_ok = hmac.compare_digest(hub_verify_token.encode(), puerto.verify_token.encode())
+    if hub_mode != "subscribe" or not token_ok or not _CHALLENGE.fullmatch(hub_challenge):
         raise HTTPException(status_code=403, detail="acceso denegado")
     return Response(content=hub_challenge, media_type="text/plain")
 

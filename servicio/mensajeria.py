@@ -74,6 +74,23 @@ def consulta_de_mensaje(conexion: psycopg.Connection, id_externo: str) -> str | 
     return fila[0] if fila else None
 
 
+def _con_historial(previo: str | None, nuevo: str) -> str:
+    """Historial + mensaje nuevo dentro del tope de la consulta (SA-WA-02).
+
+    Antes se concatenaba todo el historial: pasado el tope de caracteres la
+    conversación quedaba rechazada (400) para siempre. Se conserva lo más
+    reciente; el mensaje nuevo nunca se recorta salvo que él solo exceda."""
+    # Margen: la redacción (p. ej. «[TELÉFONO]») puede alargar el texto.
+    tope = agente.MAX_TEXTO_CONSULTA - 400
+    nuevo = nuevo[:tope]
+    if not previo:
+        return nuevo
+    espacio = tope - len(nuevo) - 1
+    if espacio <= 0:
+        return nuevo
+    return f"{previo[-espacio:]}\n{nuevo}"
+
+
 def registrar_entrada(
     conexion: psycopg.Connection, empresa_id: str, mensaje: dict, modelo,
 ) -> str:
@@ -86,7 +103,7 @@ def registrar_entrada(
         "ORDER BY m.recibido_en DESC, m.id_externo DESC LIMIT 1",
         (empresa_id, mensaje["conversacion"]),
     ).fetchone()
-    texto = f"{previo[0]}\n{mensaje['texto']}" if previo else mensaje["texto"]
+    texto = _con_historial(previo[0] if previo else None, mensaje["texto"])
     try:
         with conexion.transaction():
             consulta = agente.registrar_consulta(
