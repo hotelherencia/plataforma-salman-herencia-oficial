@@ -70,3 +70,13 @@ test('la pantalla ofrece cámara del celular y no agrega menú', () => {
   const menu = readFileSync(new URL('../lib/menu-hotel.js', import.meta.url), 'utf8')
   assert.doesNotMatch(menu, /factura|fotograf|equivalencia/i)
 })
+
+test('el correo de intercambio SII se configura como un buzón más', async () => {
+  const { PROPOSITOS, PROVEEDORES, camposVisibles, formularioVacio } = await import('../lib/correo.js')
+  assert.ok(PROPOSITOS.some(([id]) => id === 'recepcion_dte'))
+  assert.deepEqual(PROVEEDORES.recepcion_dte.map(([id]) => id), ['imap', 'gmail_api', 'microsoft_graph'])
+  const imap = camposVisibles('recepcion_dte', 'imap', 'clave').parametros
+  assert.ok(imap.includes('carpeta_entrada') && !imap.includes('carpeta_enviados') && !imap.includes('remitente'))
+  assert.ok(!camposVisibles('lectura_enviados', 'imap', 'clave').parametros.includes('carpeta_entrada'))
+  assert.equal(formularioVacio('recepcion_dte').proveedor, 'imap')
+})

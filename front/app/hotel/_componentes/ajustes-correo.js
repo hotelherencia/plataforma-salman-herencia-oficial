@@ -167,7 +167,7 @@ export default function AjustesCorreo() {
                 <span>{b.parametros.usuario || b.parametros.host || ''}</span>
                 <span className={`reserva-estado ${b.activo ? 'estado-confirmada' : 'estado-cancelada'}`}>{b.activo ? 'activo' : 'inactivo'}</span>
               </div>
-              {b.proposito === 'lectura_enviados' && (
+              {b.proposito !== 'envio_avisos' && (
                 <p className="nota-clave">
                   Última revisión: {fecha(b.ultima_revision_en)}{b.ultimo_resultado ? ` · ${b.ultimo_resultado}` : ''}
                 </p>
@@ -185,6 +185,7 @@ export default function AjustesCorreo() {
           <div className="acciones-fila">
             <button type="button" className="boton-primario" onClick={() => setForm(formularioVacio('lectura_enviados'))}>Agregar buzón de lectura</button>
             <button type="button" className="boton-secundario" onClick={() => setForm(formularioVacio('envio_avisos'))}>Configurar envío de avisos</button>
+            <button type="button" className="boton-secundario" onClick={() => setForm(formularioVacio('recepcion_dte'))}>Agregar correo de intercambio SII</button>
           </div>
         )}
       </section>

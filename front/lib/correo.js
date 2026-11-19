@@ -6,10 +6,12 @@
 export const PROPOSITOS = [
   ['lectura_enviados', 'Leer enviados (marca leads contactados)'],
   ['envio_avisos', 'Enviar avisos de solicitudes'],
+  ['recepcion_dte', 'Recibir facturas de proveedores (correo de intercambio SII)'],
 ]
 
 export const PROVEEDORES = {
   lectura_enviados: [['imap', 'IMAP (cualquier servidor)'], ['gmail_api', 'API de Gmail / Google Workspace'], ['microsoft_graph', 'Microsoft 365 (Graph)']],
+  recepcion_dte: [['imap', 'IMAP (cualquier servidor)'], ['gmail_api', 'API de Gmail / Google Workspace'], ['microsoft_graph', 'Microsoft 365 (Graph)']],
   envio_avisos: [['smtp', 'SMTP (cualquier servidor)'], ['gmail_api', 'API de Gmail / Google Workspace'], ['microsoft_graph', 'Microsoft 365 (Graph)']],
 }
 
@@ -36,7 +38,7 @@ export const PRESETS = [
 ]
 
 export const PARAMETROS = {
-  imap: ['host', 'puerto', 'seguridad', 'usuario', 'autenticacion', 'carpeta_enviados', 'token_url', 'client_id'],
+  imap: ['host', 'puerto', 'seguridad', 'usuario', 'autenticacion', 'carpeta_enviados', 'carpeta_entrada', 'token_url', 'client_id'],
   smtp: ['host', 'puerto', 'seguridad', 'usuario', 'autenticacion', 'remitente', 'destino', 'token_url', 'client_id'],
   gmail_api: ['usuario', 'autenticacion', 'client_id', 'remitente', 'destino'],
   microsoft_graph: ['tenant_id', 'client_id', 'usuario', 'remitente', 'destino'],
@@ -57,6 +59,8 @@ export function camposVisibles(proposito, proveedor, autenticacion) {
     if (c === 'token_url') return oauth
     if (c === 'client_id') return oauth || proveedor === 'microsoft_graph'
     if (c === 'remitente' || c === 'destino') return proposito === 'envio_avisos'
+    if (c === 'carpeta_enviados') return proposito === 'lectura_enviados'
+    if (c === 'carpeta_entrada') return proposito === 'recepcion_dte'
     if (c === 'usuario') return autenticacion !== 'ninguna'
     return true
   })
@@ -105,7 +109,7 @@ export function cuerpoBuzon(form) {
 
 export const ETIQUETAS_CAMPO = {
   host: 'Servidor', puerto: 'Puerto', seguridad: 'Seguridad', usuario: 'Usuario (correo del buzón)',
-  carpeta_enviados: 'Carpeta de enviados (vacío = detectar)', remitente: 'Remitente (vacío = usuario)',
+  carpeta_enviados: 'Carpeta de enviados (vacío = detectar)', carpeta_entrada: 'Carpeta donde llegan las facturas (vacío = INBOX)', remitente: 'Remitente (vacío = usuario)',
   destino: 'Quién recibe los avisos', token_url: 'URL de token OAuth2', client_id: 'Client ID',
   tenant_id: 'Tenant ID (directorio)', clave: 'Clave o clave de aplicación', client_secret: 'Client secret',
   refresh_token: 'Refresh token', cuenta_servicio_json: 'JSON de la cuenta de servicio',
