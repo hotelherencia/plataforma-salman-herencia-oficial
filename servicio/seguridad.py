@@ -35,6 +35,16 @@ class SesionActiva:
     nombre: str
 
 
+_SENUELO: list[str] = []
+
+
+def _hash_senuelo() -> str:
+    """Hash argon2id de una clave aleatoria, calculado una vez por proceso."""
+    if not _SENUELO:
+        _SENUELO.append(_HASHER.hash(uuid.uuid4().hex))
+    return _SENUELO[0]
+
+
 def hashear_clave(clave: str) -> str:
     return _HASHER.hash(clave)
 
@@ -85,7 +95,12 @@ def autenticar(conexion: psycopg.Connection, nombre: str, clave: str) -> tuple[s
         "WHERE nombre = %s AND activo = true",
         (nombre,),
     ).fetchone()
-    if fila is None or not verificar_clave(fila[3], clave):
+    if fila is None:
+        # SA-ENUM-01: se paga el mismo argon2 que con un usuario real, así el
+        # tiempo de respuesta no revela qué nombres existen.
+        verificar_clave(_hash_senuelo(), clave)
+        return None
+    if not verificar_clave(fila[3], clave):
         return None
     return fila[0], fila[1], fila[2], fila[4]
 
