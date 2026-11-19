@@ -303,7 +303,7 @@ export function resumenConfirmacion(datos) {
         : ''
     return `Reserva ${datos.reserva_id}: estado «cancelada» · ${txtReversos}${txtPenalidad}${txtReembolso}`
   }
-  if (datos.reserva_id && datos.estado === 'en_casa') return `Llegada registrada para la reserva ${datos.reserva_id}: huésped en casa`
+  if (datos.reserva_id && (datos.estado === 'en_casa' || datos.estado === 'en_estadia')) return `Llegada registrada para la reserva ${datos.reserva_id}: huésped en casa${datos.habitacion_id ? ` en la habitación ${datos.habitacion_id}` : ''}`
   if (datos.reserva_id && datos.estado === 'terminada') return `Salida registrada para la reserva ${datos.reserva_id}: habitación liberada`
   if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
   if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`

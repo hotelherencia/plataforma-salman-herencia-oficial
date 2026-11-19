@@ -489,7 +489,7 @@ try {
     await page.getByRole('button', { name: 'Ver periodo' }).click()
     await page.waitForTimeout(1500)
     const mensaje = await alerta(page)
-    esperar(mensaje && mensaje.includes('hasta debe ser mayor'), `alerta: ${mensaje}`)
+    esperar(mensaje && /hasta debe ser mayor|«hasta» debe ser posterior/.test(mensaje), `alerta: ${mensaje}`)
     esperar((await page.locator('table.ocupacion').count()) === 0, 'la rejilla vieja sigue visible pese al error')
     await page.close()
     return `error del servidor visible sin datos obsoletos`

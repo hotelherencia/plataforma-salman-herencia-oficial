@@ -429,10 +429,12 @@ try {
       // #356/#364: la reserva llega precargada y queda fija (sin ID a mano).
       await page.goto(`${FRONT}/hotel/pago?reserva_id=${encodeURIComponent(reservaId)}`)
       await page.waitForTimeout(1500)
-      await page.getByRole('spinbutton', { name: 'Monto (CLP)' }).fill('100000')
+      // 2026-11-19: ficha del huésped con la cuenta; sin clave técnica a la vista.
+      if ((await page.locator(`[data-ficha-estadia="${reservaId}"]`).count()) !== 1) throw new Error('sin ficha del huésped')
+      await page.getByRole('spinbutton', { name: 'Monto pagado (CLP)' }).fill('100000')
       // #365: abono menor que la deuda → aviso de saldo pendiente
       if ((await page.locator('[data-pago="parcial"]').count()) !== 1) throw new Error('sin aviso de pago parcial')
-      await page.getByRole('textbox', { name: 'Clave del cobro' }).fill('e2e-cobro-1')
+      if ((await page.getByRole('textbox', { name: 'Clave del cobro' }).count()) !== 0) throw new Error('clave técnica visible')
       await page.getByRole('button', { name: 'Registrar pago' }).click()
       await page.waitForTimeout(2000)
       const conf = await confirmacion(page)
@@ -443,14 +445,14 @@ try {
       return conf
     })
     await caso('PAG-02', '/hotel/pago', 'pasarela sin adaptador', 'caja', '503 «no configurado», nada cobrado', async () => {
-      await page.getByRole('button', { name: 'Nueva operación' }).click()
+      await page.getByRole('button', { name: 'Registrar otro pago para este huésped' }).click()
       await page.waitForTimeout(500)
-      await page.getByRole('spinbutton', { name: 'Monto (CLP)' }).fill('1000')
-      await page.getByRole('combobox', { name: 'Modo' }).selectOption('pasarela')
+      await page.getByRole('spinbutton', { name: 'Monto pagado (CLP)' }).fill('1000')
+      await page.getByRole('combobox', { name: 'Medio de pago' }).selectOption('pasarela')
       await page.getByRole('button', { name: 'Registrar pago' }).click()
       await page.waitForTimeout(1800)
       const a = await alerta(page)
-      if (!a || !a.includes('no está configurada')) throw new Error(`alerta: ${a}`)
+      if (!a || !a.includes('no está habilitado')) throw new Error(`alerta: ${a}`)
       return a
     })
     await caso('PAG-03', '/hotel/pago', 'pago duplicado con misma clave y cuerpo', 'caja', 'mismo resultado, un solo efecto', async () => {
@@ -530,13 +532,16 @@ try {
     const page = await ctx.newPage()
     await loginUi(page, 'admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123')
     await caso('SAL-01', '/hotel/salida', 'salida con saldo pendiente es bloqueada', 'administrador', '409 «saldo pendiente»', async () => {
+      // 2026-11-19: se busca al huésped (aquí por código) y se elige su tarjeta.
       await page.goto(`${FRONT}/hotel/salida`)
       await page.waitForTimeout(1500)
-      await page.getByRole('textbox', { name: 'Reserva' }).fill(reservaId)
-      await page.getByRole('button', { name: 'Liquidar cuenta' }).click()
-      await page.waitForTimeout(1800)
+      await page.getByRole('searchbox', { name: 'Buscar huésped' }).fill(reservaId)
+      await page.waitForTimeout(1200)
+      await page.locator(`[data-reserva="${reservaId}"]`).click()
+      await page.waitForTimeout(1200)
       const a = await alerta(page)
       if (!a || !a.includes('saldo pendiente')) throw new Error(`alerta: ${a}`)
+      if (!(await page.getByRole('button', { name: 'Registrar Salida y liquidar cuenta' }).isDisabled())) throw new Error('Salida habilitada con saldo')
       await evidencia(page, 'sal-01-saldo-pendiente')
       return a
     })
@@ -553,10 +558,9 @@ try {
       } else if (restante < 0) {
         throw new Error(`escenario mal plantado: sobrepagado en ${-restante}`)
       }
-      await page.getByRole('button', { name: 'Nueva operación' }).click()
-      await page.waitForTimeout(500)
-      await page.getByRole('textbox', { name: 'Reserva' }).fill(reservaId)
-      await page.getByRole('button', { name: 'Liquidar cuenta' }).click()
+      await page.goto(`${FRONT}/hotel/salida?reserva_id=${encodeURIComponent(reservaId)}`)
+      await page.waitForTimeout(1800)
+      await page.getByRole('button', { name: 'Registrar Salida y liquidar cuenta' }).click()
       await page.waitForTimeout(2000)
       const conf = await confirmacion(page)
       if (!conf || !conf.includes('liquidada')) throw new Error(`sin liquidación: ${conf}`)
@@ -812,9 +816,10 @@ try {
     if (!href.includes(`reserva_id=${rid}`)) throw new Error(`el enlace no lleva la reserva: ${href}`)
     await enlacePago.click()
     await page.waitForTimeout(1800)
-    // #356/#364: la reserva llega fija (data-reserva-fija), ya no en un input.
+    // #356/#364: la reserva llega fija; desde la búsqueda de huésped, en la ficha (data-ficha-estadia).
     const reservaPre = await page.evaluate(() =>
-      document.querySelector('[data-reserva-fija] code')?.textContent?.trim()
+      document.querySelector('[data-ficha-estadia]')?.getAttribute('data-ficha-estadia')
+      || document.querySelector('[data-reserva-fija] code')?.textContent?.trim()
       || [...document.querySelectorAll('input, select')].map((i) => i.value).find((v) => v.startsWith('RSV-')))
     await ctx.close()
     if (reservaPre !== rid) throw new Error(`el pago no nació con la reserva precargada: ${reservaPre}`)
