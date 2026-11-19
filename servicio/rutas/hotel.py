@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from .. import roles
 from .. import avisos
+from .. import busqueda_estadias
 from .. import canal_publico
 from .. import cobro
 from .. import documental
@@ -1145,3 +1146,23 @@ def gestionar_lead(
 # ------------------------------------------------------------------
 # Agente de reservas N0 (spec 005 / spec-api-v1 «Agente de reservas»)
 # ------------------------------------------------------------------
+
+
+# --- Búsqueda única de estadías (2026-11-19): Llegada, Salida y Caja ---
+
+@router.get("/hotel/estadias/busqueda")
+def buscar_estadias(
+    q: str | None = Query(default=None, max_length=80),
+    alcance: str = Query(default="salida", pattern="^(salida|llegada|pago)$"),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Busca por nombre del huésped, habitación, documento o código. Sin
+    texto devuelve la lista del día de esa pantalla. Tope de resultados."""
+    comun.exigir_rol(sesion, busqueda_estadias.ROLES_POR_ALCANCE[alcance])
+    try:
+        return busqueda_estadias.buscar(
+            conexion, sesion.empresa_id, q, alcance, ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED,
+        )
+    except busqueda_estadias.BusquedaInvalida as error:
+        raise HTTPException(status_code=422, detail=str(error))
