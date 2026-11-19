@@ -1806,9 +1806,20 @@ a.boton-primario {
 .definicion dl,
 .ficha-datos {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  /* MOV-02: sin mínimos de contenido la etiqueta larga empujaba la ficha a
+     359 px en un teléfono de 320 px. Las columnas pueden encogerse y el
+     texto largo se corta en palabras. */
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   gap: 0.2rem 0.75rem;
   margin: 0.4rem 0 0;
+}
+
+.definicion dt,
+.definicion dd,
+.ficha-datos dt,
+.ficha-datos dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .definicion dt,
@@ -2823,4 +2834,16 @@ a.boton-primario {
   font-weight: 700;
   line-height: 1.4;
   text-align: center;
+}
+
+/* MOV-02: en teléfonos angostos la ficha apila etiqueta y valor. */
+@media (max-width: 420px) {
+  .ficha-datos {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 0;
+  }
+
+  .ficha-datos dd {
+    margin-bottom: 0.45rem;
+  }
 }
