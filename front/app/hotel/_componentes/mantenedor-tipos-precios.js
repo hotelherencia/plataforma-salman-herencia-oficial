@@ -44,7 +44,7 @@ export default function TiposHabitacionesPrecios({ seccion = 'todo', sinMarco = 
       if (rh.estado === 200) setIdsExistentes(rh.datos.habitaciones.map((h) => h.habitacion_id))
     } catch {
       setTipos([])
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }, [])
 
@@ -219,7 +219,7 @@ function PanelIva({ tasa, puedeEditar, alConfirmar, alError }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -386,7 +386,7 @@ function FilaHabitacion({ h, ctx }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -439,7 +439,7 @@ function Excepciones({ tipo, ctx }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -508,7 +508,7 @@ function NuevaExcepcion({ tipo, ctx, alCerrar }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -578,7 +578,7 @@ function EdicionTipo({ tipo, ctx }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -652,7 +652,7 @@ function AltaPorLote({ tipos, idsExistentes, alConfirmar, alError }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -722,7 +722,7 @@ function NuevoTipo({ tasa, alConfirmar, alError }) {
         alConfirmar(resp.datos)
       }
     } catch {
-      alError('La API no está disponible')
+      alError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

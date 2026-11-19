@@ -26,7 +26,7 @@ export default function Reservas() {
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setResultado(r.datos)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       setCargando(false)
     }

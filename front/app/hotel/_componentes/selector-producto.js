@@ -34,7 +34,7 @@ export function SelectorProducto({ valor, alCambiar }) {
         setProductos(lista)
         setEstado(lista.length ? '' : 'Sin productos que coincidan')
       } catch {
-        if (!cancelado) setEstado('La API no está disponible')
+        if (!cancelado) setEstado('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
       }
     }, 200)
     return () => { cancelado = true; clearTimeout(t) }

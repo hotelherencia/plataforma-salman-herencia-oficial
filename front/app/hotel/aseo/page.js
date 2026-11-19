@@ -38,7 +38,7 @@ export default function Aseo() {
       if (r.estado === 200) setDatos(r.datos)
       else setError(mensajeDeError(r.datos, r.estado))
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }, [])
 
@@ -57,7 +57,7 @@ export default function Aseo() {
         await cargar()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

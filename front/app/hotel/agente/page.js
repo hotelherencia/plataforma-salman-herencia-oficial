@@ -37,7 +37,7 @@ export default function Agente() {
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setLista(r.datos.consultas)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -48,7 +48,7 @@ export default function Agente() {
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setDetalle(r.datos)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -87,7 +87,7 @@ export default function Agente() {
       setDetalle(r.datos.consulta)
       cargar(estado)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -118,7 +118,7 @@ export default function Agente() {
       await cargarDetalle(detalle.consulta_id)
       cargar(estado)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -144,7 +144,7 @@ export default function Agente() {
       await cargarDetalle(detalle.consulta_id)
       cargar(estado)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

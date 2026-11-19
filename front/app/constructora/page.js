@@ -8,7 +8,7 @@ import { MarcoHotel } from '../../lib/api'
 export default function Modulo() {
   return (
     <MarcoHotel titulo="Constructora">
-      <p className="estado">Fuera de la versión 1 (spec-front-v1: ruta existente y vacía).</p>
+      <p className="estado">Módulo de constructora en preparación. Estará disponible en una próxima versión.</p>
     </MarcoHotel>
   )
 }

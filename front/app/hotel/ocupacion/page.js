@@ -78,7 +78,7 @@ export default function Ocupacion() {
       }
     } catch {
       setDatos(null)
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

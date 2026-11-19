@@ -35,7 +35,7 @@ export default function SalidaPage() {
         renovarClave()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -47,7 +47,7 @@ export default function SalidaPage() {
           <button type="submit" className="boton-primario">Liquidar cuenta</button>
         </form>
       </section>
-      <p className="nota-clave">Clave de idempotencia (reintenta con la misma para no duplicar): <code>{clave}</code></p>
+      <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{clave}</code></span>
       <button onClick={() => { setSalida(null); setError(''); renovarClave() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />

@@ -46,7 +46,7 @@ export default function AjustesCorreo() {
         setRevision(r.datos.revision)
       } else setError(mensajeDeError(r.datos, r.estado))
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }, [])
 
@@ -66,7 +66,7 @@ export default function AjustesCorreo() {
       await cargar()
       return r.datos
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
       return null
     } finally {
       setOcupado(false)

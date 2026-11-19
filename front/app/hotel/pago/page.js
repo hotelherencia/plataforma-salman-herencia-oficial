@@ -78,7 +78,7 @@ export default function Pago() {
         setVersion((v) => v + 1)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -116,9 +116,9 @@ export default function Pago() {
           </CampoSelect>
           <button type="submit" className="boton-primario">Registrar pago</button>
         </form>
-        <p className="nota-tecnica">La clave del cobro identifica el abono ante la API: se genera sola en cada operación y solo debe repetirse para reintentar el mismo abono.</p>
+        <p className="nota-chica">El abono se registra directamente en la cuenta de la reserva seleccionada.</p>
       </section>
-      <p className="nota-clave">Clave de idempotencia (reintenta con la misma para no duplicar): <code>{clave}</code></p>
+      <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{clave}</code></span>
       <button onClick={() => { setSalida(null); setError(''); setAviso503(false); renovarClave(); setCampos((c) => ({ ...c, clave: claveDeCobro() })) }} className="boton-secundario">Nueva operación</button>
       {aviso503 && <p role="alert" className="alerta">La pasarela no está configurada: nada quedó marcado como cobrado.</p>}
       {error && <p role="alert" className="alerta">{error}</p>}

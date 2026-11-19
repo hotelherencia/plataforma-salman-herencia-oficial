@@ -31,3 +31,39 @@ const ERRORES_LOGIN = {
 export function mensajeErrorLogin(codigo) {
   return Object.prototype.hasOwnProperty.call(ERRORES_LOGIN, codigo) ? ERRORES_LOGIN[codigo] : null
 }
+
+const FORMULAS_HUMANAS = {
+  'noches_ocupadas / unidades-noche':
+    'Porcentaje de habitaciones con estadías activas respecto a la capacidad total de habitaciones vendibles durante las noches seleccionadas.',
+  'noches_reservadas / unidades-noche':
+    'Porcentaje de habitaciones con reserva confirmada respecto a la capacidad total del hotel para el período.',
+  'habitaciones_vendibles * noches':
+    'Capacidad hotelera total: habitaciones en servicio multiplicadas por las noches del período.',
+  'sum(cargos) - sum(reversos)':
+    'Monto neto facturado por cargos de habitación y consumos, descontando cancelaciones y reversos contables.',
+  'noches_ocupadas':
+    'Total acumulado de noches en que una habitación estuvo efectivamente ocupada por huéspedes.',
+  'noches_reservadas':
+    'Total de noches comprometidas bajo reservas confirmadas en el período.',
+  'reservas_canceladas':
+    'Cantidad de reservas anuladas en el período y total de noches liberadas.',
+  'reservas_registradas':
+    'Cantidad de reservas gestionadas en el sistema para este período.',
+}
+
+/** Explicación en lenguaje de negocio para fórmulas e indicadores del panel (#381). */
+export function traducirFormula(formula) {
+  if (!formula || typeof formula !== 'string') return ''
+  const f = formula.trim()
+  if (Object.prototype.hasOwnProperty.call(FORMULAS_HUMANAS, f)) {
+    return FORMULAS_HUMANAS[f]
+  }
+  return f
+    .replace(/noches_ocupadas/g, 'noches ocupadas')
+    .replace(/unidades-noche/g, 'capacidad total de noches')
+    .replace(/habitaciones_vendibles/g, 'habitaciones vendibles')
+    .replace(/reservas_canceladas/g, 'reservas canceladas')
+    .replace(/reservas_registradas/g, 'reservas registradas')
+    .replace(/sum\(cargos\)/g, 'suma de cargos')
+    .replace(/sum\(reversos\)/g, 'suma de reversos')
+}

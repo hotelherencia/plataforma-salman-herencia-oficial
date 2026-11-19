@@ -54,7 +54,7 @@ export default function Cuenta() {
         renovarClaveCambio()
       }
     } catch {
-      setClaveError('La API no está disponible')
+      setClaveError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       setClaveCambiando(false)
     }
@@ -68,7 +68,7 @@ export default function Cuenta() {
       if (r.estado >= 400) setError(r.datos?.detail ?? 'No se pudo iniciar el alta')
       else setAlta(r.datos)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -90,7 +90,7 @@ export default function Cuenta() {
         setExito('Autenticador nuevo pendiente: confírmalo con el código. El anterior sigue activo.')
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -108,7 +108,7 @@ export default function Cuenta() {
         recargarSesion()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -131,7 +131,7 @@ export default function Cuenta() {
         recargarSesion()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -161,9 +161,7 @@ export default function Cuenta() {
               {claveCambiando ? 'Cambiando…' : 'Cambiar clave'}
             </button>
           </form>
-          <p className="nota-clave nota-tecnica">
-            Clave de idempotencia (reintenta con la misma para no duplicar): <code>{claveCambio}</code>
-          </p>
+          <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveCambio}</code></span>
           {claveOk && <p role="status" className="aviso-ok">{claveOk}</p>}
           {claveError && <p role="alert" className="alerta">{claveError}</p>}
         </section>
@@ -201,7 +199,6 @@ export default function Cuenta() {
           <p className="nota-clave">
             Clave manual (base32): <code className="secreto">{alta.secreto}</code>
           </p>
-          <p className="nota-clave">URI de alta: <code>{alta.uri}</code></p>
           <form className="formulario" onSubmit={activar}>
             <label className="campo">
               <span className="campo-etiqueta">Código de confirmación</span>

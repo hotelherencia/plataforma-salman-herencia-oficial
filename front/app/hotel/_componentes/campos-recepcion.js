@@ -58,7 +58,7 @@ export function SelectorUnidad({ etiqueta = 'Habitación', inicio, fin, personas
         setItems(lista)
         setEstado(lista.length ? '' : 'No hay habitaciones libres con tarifa en ese rango.')
       })
-      .catch(() => { if (!cancelado) setEstado('La API no está disponible.') })
+      .catch(() => { if (!cancelado) setEstado('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.') })
     return () => { cancelado = true }
   }, [inicio, fin, personas])
 

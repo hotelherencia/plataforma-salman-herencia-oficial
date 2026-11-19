@@ -67,7 +67,7 @@ export default function DetalleReserva() {
         setVersion((v) => v + 1)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -90,7 +90,7 @@ export default function DetalleReserva() {
         setVersion((v) => v + 1)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -102,7 +102,7 @@ export default function DetalleReserva() {
         else if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
         else setReserva(r.datos)
       })
-      .catch(() => setError('La API no está disponible'))
+      .catch(() => setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.'))
   }, [sesion.fase, reservaId, version])
 
   return (

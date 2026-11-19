@@ -41,7 +41,7 @@ export function FilaUsuario({ usuario, alElegir }) {
       </span>
       <span role="cell" className="usuario-accion">
         <button type="button" className="boton-fantasma" onClick={() => alElegir(usuario.id)}>
-          Usar id
+          Seleccionar
         </button>
       </span>
     </li>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { traducirDetalle } from './mensajes.js'
+import { traducirDetalle, traducirFormula } from './mensajes.js'
 import { etiquetaRol } from './roles.js'
 
 // Contención: si el build no inyecta API_BASE_URL, el proxy same-origin /api
@@ -270,6 +270,21 @@ export function resumenConfirmacion(datos) {
   if (datos.habitacion_id && datos.tipo) {
     return `Habitación ${datos.habitacion_id}: ${datos.tipo}, capacidad ${datos.capacidad}`
   }
+  if (datos.cargo_id && typeof datos.monto_clp === 'number') {
+    return `Cargo de ${clp(datos.monto_clp)} registrado (${datos.concepto || 'consumo'})`
+  }
+  if (datos.reverso_id && typeof datos.monto_clp === 'number') {
+    return `Reverso contable de ${clp(datos.monto_clp)} aplicado`
+  }
+  if (datos.producto_id && datos.nombre) {
+    return `Producto «${datos.nombre}» guardado (${clp(datos.precio_unitario_clp || 0)})`
+  }
+  if (datos.solicitud_id && datos.tipo) {
+    return `Solicitud ${datos.solicitud_id} registrada para tipo «${datos.tipo}»`
+  }
+  if (datos.reserva_id && datos.codigo && datos.huesped) {
+    return `Reserva ${datos.codigo} confirmada para ${datos.huesped.nombre || 'huésped'}${datos.habitacion_id ? ` · Habitación ${datos.habitacion_id}` : ''}`
+  }
   if (datos.reserva_id && datos.estado === 'cancelada' && Array.isArray(datos.reversos)) {
     const totalReversado = datos.reversos.reduce((s, r) => s + (r.monto_clp || 0), 0)
     const txtReversos = datos.reversos.length
@@ -285,6 +300,8 @@ export function resumenConfirmacion(datos) {
         : ''
     return `Reserva ${datos.reserva_id}: estado «cancelada» · ${txtReversos}${txtPenalidad}${txtReembolso}`
   }
+  if (datos.reserva_id && datos.estado === 'en_casa') return `Check-in confirmado para reserva ${datos.reserva_id}: huésped en casa`
+  if (datos.reserva_id && datos.estado === 'terminada') return `Check-out confirmado para reserva ${datos.reserva_id}: habitación liberada`
   if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
   if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`
   if (typeof datos.sesiones_revocadas === 'number') return `Usuario ${datos.id}: ${datos.sesiones_revocadas} sesión(es) revocada(s)`
@@ -298,12 +315,11 @@ export function SalidaJson({ datos }) {
   if (!datos) return null
   const resumen = resumenConfirmacion(datos)
   return (
-    <div>
-      <p className="operacion-confirmada">{resumen || 'Operación confirmada por el servidor'}</p>
-      <details className="json-detalle">
-        <summary>Ver detalle técnico</summary>
-        <pre className="json-panel">{JSON.stringify(datos, null, 2)}</pre>
-      </details>
+    <div className="confirmacion-operacion-contenedor" role="status">
+      <span className="confirmacion-icono" aria-hidden="true">✓</span>
+      <div className="confirmacion-cuerpo">
+        <p className="operacion-confirmada">{resumen || 'Operación confirmada exitosamente'}</p>
+      </div>
     </div>
   )
 }
@@ -366,19 +382,28 @@ export function clp(monto) {
 }
 
 /** Definición declarada por la API para un indicador (spec-hotel-operacion-v1 §4):
- *  el front no reescribe fórmulas, las muestra tal como llegan. */
+ *  el front explica las fórmulas en lenguaje de negocio claro para el operador (#381). */
 export function Definicion({ indicador }) {
   if (!indicador) return null
+  const textoFormula = traducirFormula(indicador.formula) || indicador.formula
   return (
     <details className="definicion">
       <summary>Cómo se calcula</summary>
       <dl>
         <dt>Fórmula</dt>
-        <dd>{indicador.formula}</dd>
-        <dt>Unidad</dt>
-        <dd>{indicador.unidad}</dd>
-        <dt>Fuente</dt>
-        <dd>{indicador.fuente}</dd>
+        <dd>{textoFormula}</dd>
+        {indicador.unidad && (
+          <>
+            <dt>Unidad</dt>
+            <dd>{indicador.unidad}</dd>
+          </>
+        )}
+        {indicador.fuente && (
+          <>
+            <dt>Fuente</dt>
+            <dd>{indicador.fuente === 'registro de estadías' ? 'Registro operativo de estadías' : indicador.fuente}</dd>
+          </>
+        )}
         {indicador.limitaciones && (
           <>
             <dt>Limitaciones</dt>

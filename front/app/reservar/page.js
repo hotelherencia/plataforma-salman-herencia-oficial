@@ -119,7 +119,7 @@ function Reservar() {
         setAvisoTipo(aviso)
       }
     } catch {
-      setError('La API no está disponible: nada se puede confirmar. Intenta de nuevo en unos minutos.')
+      setError('No se pudo conectar con el servidor. Nada se puede confirmar por el momento. Intenta de nuevo en unos minutos.')
     } finally {
       setBuscando(false)
     }
@@ -218,7 +218,7 @@ function Reservar() {
         requestAnimationFrame(() => enfocar(refConfirmada))
       }
     } catch {
-      setErrorSolicitud('La API no está disponible: tu solicitud no se envió. Intenta de nuevo.')
+      setErrorSolicitud('No se pudo conectar con el servidor. Tu solicitud no se envió. Intenta de nuevo en unos minutos.')
       requestAnimationFrame(() => enfocar(refErrorSolicitud))
     } finally {
       setEnviando(false)

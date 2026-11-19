@@ -31,7 +31,7 @@ export default function Solicitudes() {
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else setLista(r.datos.solicitudes)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -56,7 +56,7 @@ export default function Solicitudes() {
         cargar(estado)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -81,7 +81,7 @@ export default function Solicitudes() {
         cargar(estado)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

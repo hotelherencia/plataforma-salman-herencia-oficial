@@ -39,7 +39,7 @@ export default function Leads() {
         setCorte({ ...r.datos.corte, antiguos: r.datos.sin_gestionar_antiguos })
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -64,7 +64,7 @@ export default function Leads() {
       enlace.click()
       URL.revokeObjectURL(enlace.href)
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -86,7 +86,7 @@ export default function Leads() {
         cargar(estado)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

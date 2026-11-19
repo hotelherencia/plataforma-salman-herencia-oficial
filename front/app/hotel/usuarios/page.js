@@ -55,7 +55,7 @@ export default function Usuarios() {
         cargarUsuarios()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       setEnviando(false)
     }
@@ -87,7 +87,7 @@ export default function Usuarios() {
         ) : (
           <ListaUsuarios usuarios={usuarios} total={usuarios.length} alElegir={usarId} />
         )}
-        <p className="nota-clave">«Usar id» copia el identificador en los formularios de cambio de clave, revocación y baja.</p>
+        <p className="nota-chica">Haz clic en «Seleccionar» o elige directamente en los selectores inferiores para cambiar clave, vincular Google o dar de baja.</p>
       </section>
       <section className="tarjeta">
         <h2>Alta de usuario</h2>
@@ -105,42 +105,70 @@ export default function Usuarios() {
           <p className="nota-chica">Con el correo, el usuario puede entrar con «Continuar con Google». Los roles administrativos enrolan el doble factor en el primer ingreso.</p>
           <button type="submit" className="boton-primario">Crear usuario</button>
         </form>
-        <p className="nota-clave">Clave de idempotencia: <code>{claveAlta}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveAlta}</code></span>
       </section>
       <section className="tarjeta">
         <h2>Cambio de clave de otro usuario</h2>
         <p className="estado">La administración de plataforma reemplaza la clave de otra persona. La tuya se cambia en Mi cuenta, con la clave actual.</p>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${claveCambio.id}/clave`, { clave: claveCambio.clave }, claveCambioOp, renovarClaveCambio, e)}>
-          <Campo etiqueta="Usuario (id)" value={claveCambio.id} onChange={(e) => setClaveCambio({ ...claveCambio, id: e.target.value })} />
+          <CampoSelect etiqueta="Usuario" value={claveCambio.id} onChange={(e) => setClaveCambio({ ...claveCambio, id: e.target.value })}>
+            <option value="">(Selecciona un usuario)</option>
+            {usuarios?.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre} · {ETIQUETAS_ROL[u.rol] || u.rol} {!u.activo ? '(inactivo)' : ''}
+              </option>
+            ))}
+          </CampoSelect>
           <CampoClave etiqueta="Clave nueva" autoComplete="new-password" value={claveCambio.clave} onChange={(e) => setClaveCambio({ ...claveCambio, clave: e.target.value })} />
-          <button type="submit" className="boton-primario">Cambiar clave</button>
+          <button type="submit" className="boton-primario" disabled={!claveCambio.id}>Cambiar clave</button>
         </form>
-        <p className="nota-clave">Clave de idempotencia: <code>{claveCambioOp}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveCambioOp}</code></span>
       </section>
       <section className="tarjeta">
         <h2>Correo de Google (vincular o quitar)</h2>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${vinculo.id}/email`, { email: vinculo.email.trim() || null }, claveVinculo, renovarClaveVinculo, e)}>
-          <Campo etiqueta="Usuario (id)" value={vinculo.id} onChange={(e) => setVinculo({ ...vinculo, id: e.target.value })} />
+          <CampoSelect etiqueta="Usuario" value={vinculo.id} onChange={(e) => setVinculo({ ...vinculo, id: e.target.value })}>
+            <option value="">(Selecciona un usuario)</option>
+            {usuarios?.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre} · {ETIQUETAS_ROL[u.rol] || u.rol} {!u.activo ? '(inactivo)' : ''}
+              </option>
+            ))}
+          </CampoSelect>
           <Campo etiqueta="Correo de Google (vacío = quitar)" type="email" autoComplete="off" value={vinculo.email} onChange={(e) => setVinculo({ ...vinculo, email: e.target.value })} />
-          <button type="submit" className="boton-primario" disabled={enviando}>Guardar correo</button>
+          <button type="submit" className="boton-primario" disabled={enviando || !vinculo.id}>Guardar correo</button>
         </form>
-        <p className="nota-clave">Clave de idempotencia: <code>{claveVinculo}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveVinculo}</code></span>
       </section>
       <section className="tarjeta">
         <h2>Revocación de sesiones (sobre otro usuario)</h2>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${revocacionId}/revocacion`, {}, claveRevocacion, renovarClaveRevocacion, e)}>
-          <Campo etiqueta="Usuario (id)" value={revocacionId} onChange={(e) => setRevocacionId(e.target.value)} />
-          <button type="submit" className="boton-primario" disabled={enviando} onClick={(e) => { if (!window.confirm('¿Revocar todas las sesiones de este usuario? Deberá iniciar sesión de nuevo.')) e.preventDefault() }}>Revocar sesiones</button>
+          <CampoSelect etiqueta="Usuario" value={revocacionId} onChange={(e) => setRevocacionId(e.target.value)}>
+            <option value="">(Selecciona un usuario)</option>
+            {usuarios?.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre} · {ETIQUETAS_ROL[u.rol] || u.rol} {!u.activo ? '(inactivo)' : ''}
+              </option>
+            ))}
+          </CampoSelect>
+          <button type="submit" className="boton-primario" disabled={enviando || !revocacionId} onClick={(e) => { if (!window.confirm('¿Revocar todas las sesiones de este usuario? Deberá iniciar sesión de nuevo.')) e.preventDefault() }}>Revocar sesiones</button>
         </form>
-        <p className="nota-clave">Clave de idempotencia: <code>{claveRevocacion}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveRevocacion}</code></span>
       </section>
       <section className="tarjeta">
         <h2>Baja de usuario (sobre otro usuario)</h2>
         <form className="formulario" onSubmit={(e) => postear(`/usuarios/${bajaId}/baja`, {}, claveBaja, renovarClaveBaja, e)}>
-          <Campo etiqueta="Usuario (id)" value={bajaId} onChange={(e) => setBajaId(e.target.value)} />
-          <button type="submit" className="boton-primario" disabled={enviando} onClick={(e) => { if (!window.confirm('¿Dar de baja este usuario? Queda inactivo y sin acceso.')) e.preventDefault() }}>Dar de baja</button>
+          <CampoSelect etiqueta="Usuario" value={bajaId} onChange={(e) => setBajaId(e.target.value)}>
+            <option value="">(Selecciona un usuario)</option>
+            {usuarios?.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre} · {ETIQUETAS_ROL[u.rol] || u.rol} {!u.activo ? '(inactivo)' : ''}
+              </option>
+            ))}
+          </CampoSelect>
+          <button type="submit" className="boton-primario" disabled={enviando || !bajaId} onClick={(e) => { if (!window.confirm('¿Dar de baja este usuario? Queda inactivo y sin acceso.')) e.preventDefault() }}>Dar de baja</button>
         </form>
-        <p className="nota-clave">Clave de idempotencia: <code>{claveBaja}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveBaja}</code></span>
       </section>
       <button onClick={() => { setSalida(null); setError(''); renovarClaveAlta(); renovarClaveCambio(); renovarClaveRevocacion(); renovarClaveBaja() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}

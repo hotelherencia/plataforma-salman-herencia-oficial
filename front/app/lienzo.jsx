@@ -38,7 +38,7 @@ function LienzoPrivado({ children }) {
     return (
       <main className="pagina">
         <p role="alert" className="alerta">
-          La API no está disponible: nada se puede leer ni confirmar.
+          No se pudo conectar con el servidor. Nada se puede leer ni confirmar por el momento.
         </p>
       </main>
     )

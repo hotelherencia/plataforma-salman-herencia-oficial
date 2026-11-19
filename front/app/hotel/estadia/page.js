@@ -132,7 +132,7 @@ export default function Estadia() {
         await refrescarDetalle(reservaId)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       enVueloRef.current = false
       setEnviando(false)
@@ -165,7 +165,7 @@ export default function Estadia() {
         await refrescarDetalle(reservaId)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       enVueloRef.current = false
       setEnviando(false)
@@ -204,7 +204,7 @@ export default function Estadia() {
         await refrescarDetalle(cargo.reserva_id)
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       enVueloRef.current = false
       setEnviando(false)
@@ -258,7 +258,7 @@ export default function Estadia() {
             La reserva está «{ETIQUETA_ESTADO[detalleActivo.estado] || detalleActivo.estado}»: el check-in solo procede desde «confirmada».
           </p>
         )}
-        <p className="nota-clave">Clave: <code>{claveEntrada}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveEntrada}</code></span>
       </section>
       {puedeCancelar && (
         <section className="tarjeta">
@@ -274,7 +274,7 @@ export default function Estadia() {
               La reserva ya está «{ETIQUETA_ESTADO[detalleActivo.estado] || detalleActivo.estado}»: la cancelación solo procede desde «confirmada».
             </p>
           )}
-          <p className="nota-clave">Clave: <code>{claveCancela}</code></p>
+          <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveCancela}</code></span>
         </section>
       )}
       <section className="tarjeta">
@@ -326,7 +326,7 @@ export default function Estadia() {
             La reserva está «{ETIQUETA_ESTADO[detalleCargoActivo.estado] || detalleCargoActivo.estado}» (cuenta cerrada): solo se admiten cargos en «confirmada» o «en estadía».
           </p>
         )}
-        <p className="nota-clave">Clave: <code>{claveCargo}</code></p>
+        <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveCargo}</code></span>
       </section>
       <button onClick={() => { setSalida(null); setError(''); renovarClaveEntrada(); renovarClaveCancela(); renovarClaveCargo() }} className="boton-secundario">Nueva operación</button>
       {error && <p role="alert" className="alerta">{error}</p>}

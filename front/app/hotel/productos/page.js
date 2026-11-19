@@ -31,7 +31,7 @@ export default function Productos() {
       if (r.estado === 200) setLista(r.datos.productos)
       else setError(mensajeDeError(r.datos, r.estado))
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }, [])
 
@@ -52,7 +52,7 @@ export default function Productos() {
       await cargar()
       return true
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
       return false
     }
   }
@@ -153,7 +153,7 @@ export default function Productos() {
             </li>
           ))}
         </ul>
-        <p className="nota-clave">La carga de stock leyendo la factura (compartida con la cafetería) queda para la épica #358.</p>
+        <p className="nota-chica">La carga automática de inventario a partir de facturas se habilitará en la siguiente actualización.</p>
       </section>
     </MarcoHotel>
   )

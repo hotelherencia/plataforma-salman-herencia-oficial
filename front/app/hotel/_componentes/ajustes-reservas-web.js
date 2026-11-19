@@ -19,7 +19,7 @@ export default function AjustesReservasWeb() {
   useEffect(() => {
     api('/hotel/ajustes')
       .then((r) => (r.estado === 200 ? setTope(r.datos.ajustes.tope_solicitudes_cliente) : setError(mensajeDeError(r.datos, r.estado))))
-      .catch(() => setError('La API no está disponible'))
+      .catch(() => setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.'))
   }, [])
 
   async function guardar(e) {
@@ -35,7 +35,7 @@ export default function AjustesReservasWeb() {
         setAviso('Tope guardado.')
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

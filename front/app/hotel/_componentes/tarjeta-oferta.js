@@ -111,7 +111,7 @@ export function OfertaVacia() {
   return (
     <div className="oferta-vacia">
       <p className="oferta-vacia-titulo">Sin disponibilidad para esas fechas</p>
-      <p className="oferta-vacia-texto">Probá con otro rango: la API responde solo lo vendible en ese período.</p>
+      <p className="oferta-vacia-texto">No hay disponibilidad para el período seleccionado. Te sugerimos consultar otro rango de fechas o tipo de habitación.</p>
     </div>
   )
 }

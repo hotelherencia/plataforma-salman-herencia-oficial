@@ -62,7 +62,7 @@ export default function Habitaciones() {
         cargarInventario()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -80,7 +80,7 @@ export default function Habitaciones() {
         cargarInventario()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -164,7 +164,7 @@ export default function Habitaciones() {
             <Campo etiqueta="Capacidad" type="number" min="1" max="30" value={alta.capacidad} onChange={(e) => setAlta({ ...alta, capacidad: e.target.value })} />
             <button type="submit" className="boton-primario">Dar de alta</button>
           </form>
-          <p className="nota-clave nota-tecnica">Clave: <code>{claveAlta}</code></p>
+          <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveAlta}</code></span>
         </section>
       )}
 

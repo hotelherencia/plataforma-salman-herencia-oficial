@@ -43,6 +43,32 @@ const HABITACIONES = [
   ['fuera_de_servicio', 'Fuera de servicio'],
 ]
 
+function formatearFecha(isoFecha) {
+  if (!isoFecha || typeof isoFecha !== 'string') return ''
+  const partes = isoFecha.split('-')
+  if (partes.length === 3) {
+    return `${partes[2]}/${partes[1]}/${partes[0]}`
+  }
+  return isoFecha
+}
+
+function diaSemana(isoFecha) {
+  try {
+    const d = new Date(`${isoFecha}T12:00:00Z`)
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    return dias[d.getUTCDay()]
+  } catch {
+    return ''
+  }
+}
+
+const ETIQUETAS_ESTADO = {
+  confirmada: { label: 'Confirmadas', color: '#9d5d3f', bg: '#fdf8f5' },
+  en_casa: { label: 'En estadía (alojados)', color: '#173326', bg: '#eef4ef' },
+  terminada: { label: 'Finalizadas (check-out)', color: '#4b5563', bg: '#f3f4f6' },
+  cancelada: { label: 'Canceladas', color: '#b91c1c', bg: '#fef2f2' },
+}
+
 function Tarjeta({ titulo, indicador, alerta, valor }) {
   if (!indicador) return null
   const mostrar = valor !== undefined ? valor : indicador.valor
@@ -53,8 +79,8 @@ function Tarjeta({ titulo, indicador, alerta, valor }) {
       {Array.isArray(indicador.reservas) && indicador.reservas.length > 0 && (
         <span className="kpi-reservas">
           {indicador.reservas.map((id) => (
-            <Link key={id} href={`/hotel/reservas/${id}`}>
-              {id}
+            <Link key={id} href={`/hotel/reservas/${id}`} className="kpi-enlace-reserva" title={`Ver detalle de reserva ${id}`}>
+              #{id.replace(/^RSV-/, '').slice(0, 8)}
             </Link>
           ))}
         </span>
@@ -90,7 +116,7 @@ export default function Panel() {
         setFiltros({ desde: r.datos.periodo.desde, hasta: r.datos.periodo.hasta, tipo: f.tipo })
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     } finally {
       setCargando(false)
     }
@@ -192,19 +218,88 @@ export default function Panel() {
               <Tarjeta titulo="Reservas registradas" indicador={p.reservas_registradas} />
             </div>
             {Object.keys(p.reservas_registradas.por_estado).length > 0 && (
-              <p className="nota-clave">
-                Registradas por estado actual:{' '}
-                {Object.entries(p.reservas_registradas.por_estado)
-                  .map(([estado, n]) => `${estado} ${n}`)
-                  .join(' · ')}
-              </p>
+              <div className="grafico-estados-bloque">
+                <h3 className="subtitulo">Distribución de reservas por estado</h3>
+                <div className="barra-proporcion">
+                  {Object.entries(p.reservas_registradas.por_estado).map(([estado, n]) => {
+                    const total = p.reservas_registradas.valor || 1
+                    const pct = Math.max(3, Math.round((n / total) * 100))
+                    const cfg = ETIQUETAS_ESTADO[estado] || { label: estado, color: '#5f6158' }
+                    return (
+                      <div
+                        key={estado}
+                        className="segmento-proporcion"
+                        style={{ width: `${pct}%`, backgroundColor: cfg.color }}
+                        title={`${cfg.label}: ${n} (${pct}%)`}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="grid-estados">
+                  {Object.entries(p.reservas_registradas.por_estado).map(([estado, n]) => {
+                    const total = p.reservas_registradas.valor || 1
+                    const pct = ((n / total) * 100).toFixed(0)
+                    const cfg = ETIQUETAS_ESTADO[estado] || { label: estado, color: '#5f6158', bg: '#f5f5f5' }
+                    return (
+                      <div key={estado} className="tarjeta-estado" style={{ borderLeftColor: cfg.color }}>
+                        <span className="estado-nombre">{cfg.label}</span>
+                        <div className="estado-conteo">
+                          <span className="estado-cantidad">{n}</span>
+                          <span className="estado-pct">{pct}%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             )}
+
+            {datos.serie && datos.serie.length > 0 && (
+              <div className="grafico-serie-bloque">
+                <div className="serie-cabecera">
+                  <h3 className="subtitulo">Ocupación y reservas por noche</h3>
+                  <div className="serie-leyenda">
+                    <span className="leyenda-item"><span className="punto punto-ocupada"></span> En casa</span>
+                    <span className="leyenda-item"><span className="punto punto-reservada"></span> Reservadas</span>
+                    <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles</span>
+                  </div>
+                </div>
+                <div className="grafico-barras-contenedor">
+                  <div className="grafico-barras">
+                    {datos.serie.map((s) => {
+                      const max = s.unidades || 1
+                      const ocupadas = s.ocupadas_estadias ?? 0
+                      const reservadas = s.reservadas || 0
+                      const pctOcupadas = Math.min(100, (ocupadas / max) * 100)
+                      const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
+                      const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
+                      const dia = diaSemana(s.fecha)
+                      const fechaCorta = s.fecha.slice(5).replace('-', '/')
+                      return (
+                        <div key={s.fecha} className="columna-noche">
+                          <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} ocupadas, ${reservadas} reservadas de ${max} unidades`}>
+                            {pctLibre > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%` }}></div>}
+                            {pctReservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%` }}></div>}
+                            {pctOcupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%` }}></div>}
+                          </div>
+                          <div className="columna-fecha">
+                            <span className="columna-dia">{dia}</span>
+                            <span className="columna-dia-num">{fechaCorta}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="tabla-contenedor">
             <table className="tabla serie">
               <thead>
                 <tr>
                   <th>Noche</th>
-                  <th>Unidades</th>
+                  <th>Capacidad</th>
                   <th>Ocupadas</th>
                   <th>Reservadas</th>
                 </tr>
@@ -212,7 +307,7 @@ export default function Panel() {
               <tbody>
                 {datos.serie.map((s) => (
                   <tr key={s.fecha}>
-                    <td>{s.fecha}</td>
+                    <td><strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span></td>
                     <td>{s.unidades}</td>
                     <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
                     <td>{s.reservadas}</td>
@@ -221,17 +316,6 @@ export default function Panel() {
               </tbody>
             </table>
             </div>
-          </section>
-
-          <section className="tarjeta" aria-label="Indicadores no disponibles">
-            <h2>No disponibles en esta versión</h2>
-            <ul className="no-disponibles">
-              {datos.no_disponibles.map((x) => (
-                <li key={x.indicador}>
-                  <strong>{x.indicador}:</strong> {x.motivo}
-                </li>
-              ))}
-            </ul>
           </section>
         </>
       )}

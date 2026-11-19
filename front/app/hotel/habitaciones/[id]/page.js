@@ -58,7 +58,7 @@ export default function FichaHabitacion() {
       setFicha(r.datos)
       setEdicion({ tipo: r.datos.tipo, capacidad: r.datos.capacidad })
     } catch {
-      setErrorCarga('La API no está disponible')
+      setErrorCarga('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }, [habitacionId])
 
@@ -83,7 +83,7 @@ export default function FichaHabitacion() {
         cargar()
       }
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -166,17 +166,16 @@ export default function FichaHabitacion() {
                   <Campo etiqueta="Capacidad" type="number" min="1" max="30" value={edicion.capacidad} onChange={(e) => setEdicion({ ...edicion, capacidad: e.target.value })} />
                   <button type="submit" className="boton-primario">Guardar cambios</button>
                 </form>
-                <p className="nota-clave nota-tecnica">Clave: <code>{claveEdicion}</code></p>
+                <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveEdicion}</code></span>
               </section>
 
               <section className="tarjeta" aria-label="Servicio">
                 <h2>{ficha.en_servicio ? 'Retirar de operación' : 'Reincorporar a la operación'}</h2>
                 {ficha.en_servicio ? (
                   <>
-                    <p className="nota-clave">
-                      Baja lógica: la habitación queda fuera de servicio y deja de ofrecerse, pero nada se borra (reservas,
-                      cargos, pagos, precios e historial siguen consultables). Se rechaza si tiene reservas confirmadas o
-                      en estadía: cancélalas o termínalas antes.
+                    <p className="nota-chica">
+                      Baja lógica: la habitación queda fuera de servicio y deja de ofrecerse, pero su historial de reservas,
+                      cargos y pagos se preserva.
                     </p>
                     <form className="formulario" onSubmit={(e) => cambiarServicio(e, false)}>
                       <Campo etiqueta="Motivo" value={motivo} placeholder="p. ej. remodelación del baño" onChange={(e) => setMotivo(e.target.value)} />
@@ -188,7 +187,7 @@ export default function FichaHabitacion() {
                     <button type="submit" className="boton-primario">Reincorporar a la operación</button>
                   </form>
                 )}
-                <p className="nota-clave nota-tecnica">Clave: <code>{claveServicio}</code></p>
+                <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveServicio}</code></span>
               </section>
             </>
           )}

@@ -65,7 +65,7 @@ export default function PantallaAcceso({ despues } = {}) {
         } else if (r.estado === 429) setError('Demasiados intentos. Espera unos minutos.')
         else setError('Código del autenticador inválido.')
       } catch {
-        setError('La API no está disponible')
+        setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
       }
       return
     }
@@ -97,7 +97,7 @@ export default function PantallaAcceso({ despues } = {}) {
       else if (r.datos?.detail === 'código 2FA inválido') setError('Código del autenticador inválido.')
       else setError(mensajeDeError(r.datos, r.estado) || 'Credenciales inválidas o sesión no disponible.')
     } catch {
-      setError('La API no está disponible')
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 

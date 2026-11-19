@@ -88,7 +88,7 @@ export default function Inicio() {
   if (sesion.fase === 'caida')
     return (
       <main className="pagina">
-        <p role="alert" className="alerta">La API no está disponible: nada se puede leer ni confirmar.</p>
+        <p role="alert" className="alerta">No se pudo conectar con el servidor. Nada se puede leer ni confirmar por el momento.</p>
       </main>
     )
   if (sesion.fase === 'fuera')

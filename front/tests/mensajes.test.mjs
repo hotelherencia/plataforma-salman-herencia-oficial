@@ -1,7 +1,7 @@
 // Mensajes del canal público (fix-e2e): ningún detalle técnico llega al visitante.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { traducirDetalle, mensajeErrorLogin } from '../lib/mensajes.js'
+import { traducirDetalle, mensajeErrorLogin, traducirFormula } from '../lib/mensajes.js'
 
 test('503 de servicio anterior se traduce a un mensaje con salida por WhatsApp', () => {
   const m = traducirDetalle('canal público temporalmente no disponible')
@@ -38,4 +38,18 @@ test('errores de login desconocidos o heredados no producen mensaje', () => {
 test('#351: errores de Google con reintento tienen mensaje', () => {
   assert.match(mensajeErrorLogin('google_vencido'), /Vuelve a intentarlo/)
   assert.match(mensajeErrorLogin('google_fallo'), /otra cuenta/)
+})
+
+test('#381: traducirFormula entrega lenguaje comprensible sin variables crudas', () => {
+  const t1 = traducirFormula('noches_ocupadas / unidades-noche')
+  assert.match(t1, /habitaciones con estadías activas/)
+  assert.doesNotMatch(t1, /noches_ocupadas/)
+  assert.doesNotMatch(t1, /unidades-noche/)
+
+  const t2 = traducirFormula('sum(cargos) - sum(reversos)')
+  assert.match(t2, /Monto neto facturado/)
+  assert.doesNotMatch(t2, /sum\(/)
+
+  assert.equal(traducirFormula(''), '')
+  assert.equal(traducirFormula(null), '')
 })
