@@ -1,10 +1,12 @@
 // Reglas puras de la búsqueda de estadías (Salida, Caja y Llegada), sin JSX
 // para probarlas con node --test (2026-11-19).
 
-/** «2026-11-19» → «19/11» (formato chileno corto). */
+import { fechaCorta as fechaCortaIso, plural } from './formato.js'
+
+/** «2026-11-19» (o una marca de tiempo) → «19/11», con el formato común de lib/formato. */
 export function fechaCorta(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
-  return m ? `${m[3]}/${m[2]}` : '—'
+  const dia = String(iso || '').slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(dia) ? fechaCortaIso(dia) : '—'
 }
 
 export function pesos(monto) {
@@ -14,7 +16,7 @@ export function pesos(monto) {
 }
 
 export function noches(n) {
-  return n === 1 ? '1 noche' : `${n} noches`
+  return plural(n, 'noche')
 }
 
 /** Texto mínimo aceptado por la API: 2 letras o un número de habitación. */

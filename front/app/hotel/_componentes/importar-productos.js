@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, mensajeDeError, useClaveOperacion, alRechazar } from '../../../lib/api'
 import { fechaCorta, pesos } from '../../../lib/estadias'
+import { fechaATexto, plural } from '../../../lib/formato'
 import {
   CAMPOS_PLANILLA, adivinarMapeo, decodificarXml, etiquetaConfianza, filaRevision, lineaParaConfirmar,
   lineasDesdePlanilla, parsearPlanilla, pareceEncabezado, resumenImportacion, resumenRevision, validarRevision,
@@ -62,13 +63,13 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
           <div><dt>Proveedor</dt><dd>{doc.emisor_razon_social || '—'}</dd></div>
           <div><dt>RUT</dt><dd>{doc.emisor_rut}</dd></div>
           <div><dt>{doc.tipo_nombre}</dt><dd>N° {doc.folio}</dd></div>
-          <div><dt>Fecha</dt><dd>{doc.fecha_emision ? fechaCorta(doc.fecha_emision) + '/' + doc.fecha_emision.slice(0, 4) : '—'}</dd></div>
+          <div><dt>Fecha</dt><dd>{fechaATexto(doc.fecha_emision) || '—'}</dd></div>
           {doc.monto_total_clp !== null && <div><dt>Total factura</dt><dd>{pesos(doc.monto_total_clp)}</dd></div>}
         </dl>
       )}
       {previa.ya_importada && (
         <p className="alerta" role="alert" data-ya-importada>
-          Esta factura ya se cargó el {fechaCorta(previa.ya_importada.registrada_en)} ({previa.ya_importada.unidades} unidades, por {previa.ya_importada.actor}).
+          Esta factura ya se cargó el {fechaCorta(previa.ya_importada.registrada_en)} ({plural(previa.ya_importada.unidades, 'unidad', 'unidades')}, por {previa.ya_importada.actor}).
           No se puede cargar dos veces.
         </p>
       )}
@@ -164,7 +165,7 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
         <span className={`${css.chip} ${css.chipExito}`}>{resumen.sumar} a sumar</span>
         <span className={`${css.chip} ${css.chipInfo}`}>{resumen.crear} nuevos</span>
         {resumen.omitir > 0 && <span className={css.chip}>{resumen.omitir} sin cargar</span>}
-        <span className={css.chip}>{resumen.unidades} unidades al stock</span>
+        <span className={css.chip}>{plural(resumen.unidades, 'unidad', 'unidades')} al stock</span>
       </div>
       {error && <p className="alerta" role="alert">{error}</p>}
       <button type="button" className="boton-primario" onClick={confirmar} disabled={enviando || Boolean(previa.ya_importada)}>
@@ -403,7 +404,7 @@ function FuenteLector({ alLeer }) {
       )}
       <p>
         <button type="button" className="boton-primario" onClick={revisar} disabled={!lote.length || leyendo}>
-          {leyendo ? 'Revisando…' : `Revisar y cargar (${lote.reduce((s, x) => s + x.cantidad, 0)} unidades)`}
+          {leyendo ? 'Revisando…' : `Revisar y cargar (${plural(lote.reduce((s, x) => s + x.cantidad, 0), 'unidad', 'unidades')})`}
         </button>
       </p>
     </section>
