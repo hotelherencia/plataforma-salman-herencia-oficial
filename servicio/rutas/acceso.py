@@ -474,6 +474,11 @@ def cambiar_clave_usuario(
     except idempotencia.ConflictoIdempotencia as error:
         raise HTTPException(status_code=409, detail=str(error))
     if previa is not None:
+        # SA-CLV-02: el digest de idempotencia omite la clave (C-01), así que un
+        # reintento con OTRA clave nueva repetiría «clave actualizada» sin
+        # cambiarla. Solo se repite el éxito si la clave pedida es la vigente.
+        if previa[0] == 200 and not seguridad.reautenticar_clave(conexion, usuario_id, cuerpo_clave.clave):
+            raise HTTPException(status_code=409, detail="la clave ya fue usada con otro cuerpo")
         return JSONResponse(status_code=previa[0], content=previa[1])
     if sesion.usuario_id == usuario_id and not seguridad.reautenticar_clave(
         conexion, sesion.usuario_id, cuerpo_clave.clave_actual or ""
