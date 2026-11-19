@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
 import { SelectorReserva } from '../_componentes/selector-reserva'
+import { BuscadorEstadias } from '../_componentes/buscador-estadias'
 import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
 import { SelectorProducto } from '../_componentes/selector-producto'
 import { esAdminHotel } from '../../../lib/roles'
@@ -102,7 +103,7 @@ export default function Estadia() {
     if (enVueloRef.current) return
     setError('')
     setSalida(null)
-    const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
+    const falta = camposFaltantes([[reservaId, 'el huésped (búscalo por nombre, habitación o documento)']])
     if (falta) { setError(falta); return }
     // D-ENT-01 (2026-11-06): la entrada exige documento del huésped. Si la
     // reserva no lo trae (p. ej. conversión de solicitud pública), se pide
@@ -145,7 +146,7 @@ export default function Estadia() {
     if (enVueloRef.current) return
     setError('')
     setSalida(null)
-    const falta = camposFaltantes([[reservaId, 'ID de la reserva']])
+    const falta = camposFaltantes([[reservaId, 'el huésped (búscalo por nombre, habitación o documento)']])
     if (falta) { setError(falta); return }
     if (!window.confirm('¿Cancelar esta reserva? Se reversan los cargos sin pagar y, fuera de plazo, se carga la primera noche.')) return
     enVueloRef.current = true
@@ -234,8 +235,23 @@ export default function Estadia() {
       )}
       <section className="tarjeta">
         <h2>Registrar Llegada</h2>
+        {puedeCancelar && !detalleActivo && (
+          <BuscadorEstadias alcance="llegada" elegidaId={reservaId} alElegir={(r) => { setError(''); setSalida(null); setReservaId(r.reserva_id) }} />
+        )}
         <form className="formulario" onSubmit={checkIn}>
-          <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+          {puedeCancelar && detalleActivo ? (
+            <div className="campo" data-reserva-fija>
+              <span className="campo-etiqueta">Huésped</span>
+              <span className="reserva-fija">
+                <strong>{detalleActivo.huesped_nombre}</strong> · habitación {detalleActivo.habitacion_id}
+                <button type="button" className="boton-fantasma" onClick={() => { setReservaId(''); setUnidadLlegada(''); setError('') }}>
+                  Cambiar huésped
+                </button>
+              </span>
+            </div>
+          ) : !puedeCancelar && (
+            <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
+          )}
           {detalleActivo && detalleActivo.estado === 'confirmada' && (
             <SelectorUnidad
               etiqueta="Habitación al llegar (confirma o cambia)"

@@ -142,7 +142,7 @@ def registrar_pago_manual(
 
 def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> dict:
     filas = conexion.execute(
-        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado, r.huesped_nombre "
+        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado, r.huesped_nombre, p.creado_en "
         "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
         "WHERE r.empresa_id = %s AND p.creado_en::date = %s AND p.estado = 'confirmado' "
         "ORDER BY p.creado_en",
@@ -150,7 +150,7 @@ def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> 
     ).fetchall()
     pagos = [
         {"pago_id": f[0], "reserva_id": f[1], "habitacion_id": f[2], "monto_clp": f[3], "modo": f[4], "estado": f[5],
-         "huesped_nombre": f[6]}
+         "huesped_nombre": f[6], "registrado_en": f[7].isoformat()}
         for f in filas
     ]
     return {"fecha": fecha.isoformat(), "pagos": pagos, "total_clp": sum(p["monto_clp"] for p in pagos)}
