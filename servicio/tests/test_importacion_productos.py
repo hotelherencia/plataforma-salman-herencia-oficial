@@ -90,6 +90,13 @@ class LecturaFacturaTest(unittest.TestCase):
     def test_normalizar_nombre_sin_tildes_ni_simbolos(self):
         self.assertEqual(imp.normalizar_nombre("  Café   Molido, 250g "), "cafe molido 250g")
 
+    def test_parecido_exige_las_mismas_medidas(self):
+        # Un formato distinto (500 ml vs 1500 ml, 350 vs 1,5 L) es otro producto: nunca se sugiere sumarlo.
+        self.assertGreaterEqual(imp._parecido("papas fritas americanas 45g", "papas fritas 45 g"), imp.UMBRAL_PARECIDO)
+        self.assertEqual(imp._parecido("agua mineral 500 ml", "agua mineral 1500 ml"), 0.0)
+        self.assertEqual(imp._parecido("bebida cola 350 ml", "bebida cola 1 5 l"), 0.0)
+        self.assertEqual(imp._parecido("cafe molido 250g", "cafe molido"), 0.0)
+
 
 class ImportacionHttpTest(unittest.TestCase):
     @classmethod

@@ -228,6 +228,9 @@ def _catalogo(conexion: psycopg.Connection) -> list[dict]:
 def _parecido(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
+    # Otro formato (500 ml / 1500 ml, 350 ml / 1,5 L) es otro producto: no se sugiere sumarlo.
+    if sorted(re.findall(r"\d+", a)) != sorted(re.findall(r"\d+", b)):
+        return 0.0
     base = difflib.SequenceMatcher(None, a, b).ratio()
     pa, pb = set(a.split()), set(b.split())
     jaccard = len(pa & pb) / len(pa | pb) if pa | pb else 0

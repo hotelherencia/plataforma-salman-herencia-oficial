@@ -23,7 +23,10 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
   const doc = previa.documento
   const porId = Object.fromEntries(catalogo.map((p) => [p.producto_id, p]))
 
-  const cambiar = (i, cambios) => setFilas((fs) => fs.map((f, j) => (j === i ? { ...f, ...cambios } : f)))
+  const cambiar = (i, cambios) => {
+    setFilas((fs) => fs.map((f, j) => (j === i ? { ...f, ...cambios } : f)))
+    setError('') // el aviso se recalcula al volver a «Cargar al inventario»
+  }
 
   async function confirmar() {
     const falta = validarRevision(filas)
