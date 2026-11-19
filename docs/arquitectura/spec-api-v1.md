@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (101)
+## Operaciones de esta versión (104)
 
 | Operación | Efecto |
 |---|---|
@@ -565,6 +565,9 @@ los compone el servidor.
 | `POST /hotel/habitaciones/{id}/observaciones` | (#363) Nota `{texto}` para aseo en una habitación. Recepción o administración del hotel. |
 | `POST /hotel/habitaciones/{id}/observaciones/{obs_id}/atendida` | (#363) Aseo (o recepción/administración) marca la observación como atendida; ya atendida → 409. |
 | `GET /hotel/avisos` | (#353, 2026-11-18) `{solicitudes_recibidas, canales_activos}`: contador para la insignia del menú y del panel (el front sondea cada 60 s) y canales de aviso encendidos (`correo`, `whatsapp`). Roles de gestión de solicitudes. |
+| `GET /hotel/avisos/configuracion` | (2026-11-19) Configuración → Avisos: `preferencias` por tipo de evento (`solicitud_recibida`, `consulta_recibida`, `reserva_confirmada`, `pago_registrado`, `resumen_diario`) con `activo` y `destinatarios`; `destinatarios_defecto` (destino del buzón de envío, `AVISO_CORREO_DESTINO` o `ADMIN_EMAIL`); `canal` desde el que sale el correo, sin secretos; `envios`: los 20 últimos con estado `enviado`/`fallido`/`reintentando`/`omitido` y detalle legible. Solo administración del hotel. |
+| `PUT /hotel/avisos/preferencias` | (2026-11-19) `{preferencias: [{tipo, activo, destinatarios}]}`: guarda qué eventos avisan y a quién (máximo 10 correos por aviso; lista vacía = correo por defecto). Validación → 422. Idempotente y auditado. Solo administración del hotel. |
+| `POST /hotel/avisos/prueba` | (2026-11-19) Envía ahora un correo de prueba a todos quienes reciben algún aviso encendido (su lista o el correo por defecto) por el buzón de envío vigente; queda en «últimos envíos». Responde `{ok, detalle, destinatarios}`. Solo administración del hotel. |
 | `GET /hotel/productos` | (#357, 2026-11-18) Catálogo para cargos: `texto` (todas las palabras, en nombre o categoría), `categoria` (`minibar`, `cafeteria`, `servicio`, `extra`), `inactivos` (solo administración). Recepción, caja o administración del hotel. |
 | `POST /hotel/productos` | (#357) Alta `{nombre, categoria, precio_clp (IVA incluido), controla_stock, stock}`; nombre único sin distinguir mayúsculas → 409. Solo administración del hotel. |
 | `PUT /hotel/productos/{id}` | (#357) Cambia nombre, categoría, precio, `activo` o `controla_stock`. Los cargos asentados conservan su precio. Solo administración del hotel. |
