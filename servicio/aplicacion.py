@@ -320,6 +320,13 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
         respuesta.headers["X-Content-Type-Options"] = "nosniff"
         respuesta.headers["X-Frame-Options"] = "DENY"
         respuesta.headers["Referrer-Policy"] = "no-referrer"
+        # SA-HDR-01: la API entrega datos de huéspedes, caja y usuarios; ninguna
+        # respuesta debe quedar en caché del navegador ni de un proxy/CDN.
+        if "cache-control" not in respuesta.headers:
+            respuesta.headers["Cache-Control"] = "no-store"
+        config = app.state.configuracion
+        if config is not None and config.cookie_segura:
+            respuesta.headers["Strict-Transport-Security"] = "max-age=31536000"
         return respuesta
 
     @app.middleware("http")
