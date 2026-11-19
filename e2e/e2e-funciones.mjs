@@ -242,6 +242,8 @@ try {
     esperar(pRec.url().includes('/hotel/pago') && pRec.url().includes('volver=salida'), `url: ${pRec.url()}`)
     const monto = await pRec.getByRole('spinbutton', { name: 'Monto pagado (CLP)' }).inputValue()
     esperar(Number(monto) === (await saldo(R2)), `monto propuesto ${monto}`)
+    // Fase 1 contable: el efectivo exige turno abierto; aquí se paga por transferencia.
+    await pRec.getByRole('combobox', { name: 'Medio de pago' }).selectOption('transferencia')
     await pRec.getByRole('button', { name: 'Registrar pago' }).click()
     await pRec.waitForTimeout(2000)
     const conf = await confirmacion(pRec)
@@ -290,6 +292,8 @@ try {
     await pCaja.getByRole('spinbutton', { name: 'Monto pagado (CLP)' }).fill('5000')
     esperar((await pCaja.locator('[data-pago="parcial"]').count()) === 1, 'sin aviso de pago parcial')
     await evidencia(pCaja, 'pago-ficha-parcial')
+    // Fase 1 contable: el efectivo exige turno abierto; aquí se paga por transferencia.
+    await pCaja.getByRole('combobox', { name: 'Medio de pago' }).selectOption('transferencia')
     await pCaja.getByRole('button', { name: 'Registrar pago' }).click()
     await pCaja.waitForTimeout(2000)
     const conf = await confirmacion(pCaja)

@@ -435,6 +435,8 @@ try {
       // #365: abono menor que la deuda → aviso de saldo pendiente
       if ((await page.locator('[data-pago="parcial"]').count()) !== 1) throw new Error('sin aviso de pago parcial')
       if ((await page.getByRole('textbox', { name: 'Clave del cobro' }).count()) !== 0) throw new Error('clave técnica visible')
+      // Fase 1 contable: el efectivo exige turno abierto; aquí se paga por transferencia.
+      await page.getByRole('combobox', { name: 'Medio de pago' }).selectOption('transferencia')
       await page.getByRole('button', { name: 'Registrar pago' }).click()
       await page.waitForTimeout(2000)
       const conf = await confirmacion(page)

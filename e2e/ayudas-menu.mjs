@@ -37,7 +37,7 @@ export async function irDesdeMenu(page, enlace, ruta, front) {
   } else if (BAJO_CAJA.has(enlace)) {
     await barra.getByRole('link', { name: 'Caja y pagos', exact: true }).click()
     await page.waitForTimeout(500)
-    const nombre = enlace === 'Caja' ? 'Caja del día' : enlace === 'Pago' ? 'Registrar pago' : enlace
+    const nombre = (enlace === 'Caja' || enlace === 'Caja del día') ? 'Caja' : enlace === 'Pago' ? 'Registrar pago' : enlace
     await page.locator('.subnav').getByRole('link', { name: nombre, exact: true }).click()
   } else if (TIPOS.has(enlace) || ruta === '/hotel/tipos') {
     await barra.getByRole('link', { name: 'Configuración', exact: true }).click()
