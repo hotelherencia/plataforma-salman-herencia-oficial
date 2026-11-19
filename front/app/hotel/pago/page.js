@@ -6,6 +6,8 @@ import { api, alRechazar, mensajeDeError, MarcoHotel, Campo, CampoSelect, useCla
 import { clasificarPago, DOCUMENTOS, MEDIOS, esTarjeta, validarDatosPago } from '../../../lib/caja'
 import { resumenPago } from '../../../lib/estadias'
 import Subnav from '../_componentes/subnav'
+import SaldoReserva, { useSaldoReserva } from '../_componentes/saldo-reserva'
+import { formatearRut } from '../../../lib/contabilidad'
 import { useDetalleReserva } from '../_componentes/selector-reserva'
 import { BuscadorEstadias, FichaEstadia, estilosOperacion as css } from '../_componentes/buscador-estadias'
 import { SUBNAV_CAJA } from '../../../lib/menu-hotel'
@@ -38,7 +40,9 @@ export default function Pago() {
   const [enviando, setEnviando] = useState(false)
   const [clave, renovarClave] = useClaveOperacion()
   const detalle = useDetalleReserva(reservaId, version)
-  const saldo = detalle ? detalle.cuenta.saldo_clp : null
+  // Saldo contable: incluye las noches aún no asentadas (un abono antes de la Llegada no es «exceso»).
+  const estadoSaldo = useSaldoReserva(reservaId, version)
+  const saldo = estadoSaldo.saldo ? estadoSaldo.saldo.pendiente_clp : null
   const clasificacion = clasificarPago(monto, saldo)
 
   // V1-ISSUE-35: precarga desde el detalle de la reserva o desde Salida.
@@ -63,10 +67,10 @@ export default function Pago() {
 
   // #365: el monto propuesto es el saldo pendiente de la reserva elegida.
   useEffect(() => {
-    if (detalle && !pago) setMonto(detalle.cuenta.saldo_clp > 0 ? String(detalle.cuenta.saldo_clp) : '')
+    if (detalle && !pago && saldo !== null) setMonto(saldo > 0 ? String(saldo) : '')
     setConfirmaExceso(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detalle?.reserva_id])
+  }, [detalle?.reserva_id, saldo === null])
 
   function elegir(estadia) {
     setError('')
@@ -156,6 +160,7 @@ export default function Pago() {
         <section className="tarjeta">
           <h2>Pago de la cuenta</h2>
           <FichaEstadia detalle={detalle} alCambiar={() => nuevo()} />
+          <SaldoReserva estado={estadoSaldo} />
           {pago ? (
             <>
               <div className="confirmacion-operacion-contenedor" role="status">
@@ -221,7 +226,8 @@ export default function Pago() {
                   {[['rut', 'RUT de la empresa'], ['razon_social', 'Razón social'], ['giro', 'Giro'],
                     ['direccion', 'Dirección'], ['comuna', 'Comuna'], ['correo', 'Correo para enviar la factura (opcional)']].map(([k, etiqueta]) => (
                     <Campo key={k} etiqueta={etiqueta} value={receptor[k]} maxLength={k === 'direccion' ? 160 : 120}
-                      onChange={(e) => setReceptor({ ...receptor, [k]: e.target.value })} />
+                      onChange={(e) => setReceptor({ ...receptor, [k]: e.target.value })}
+                      onBlur={k === 'rut' ? () => { const f = formatearRut(receptor.rut); if (f) setReceptor((r) => ({ ...r, rut: f })) } : undefined} />
                   ))}
                 </fieldset>
               )}

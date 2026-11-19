@@ -1,4 +1,5 @@
 // Reglas puras de caja (#365), sin JSX para probarlas con node --test.
+import { rutValido } from './contabilidad.js'
 
 /** Clasifica el pago frente al saldo: total, parcial (queda saldo) o exceso. */
 export function clasificarPago(monto, saldo) {
@@ -89,6 +90,7 @@ export function validarDatosPago({ medio, codigo, ultimos4, documento, receptor 
     const faltan = [['rut', 'RUT'], ['razon_social', 'razón social'], ['giro', 'giro'], ['direccion', 'dirección'], ['comuna', 'comuna']]
       .filter(([k]) => !String(receptor?.[k] || '').trim()).map(([, n]) => n)
     if (faltan.length) return `Para la factura falta: ${faltan.join(', ')}.`
+    if (!rutValido(receptor.rut)) return 'El RUT no es válido: revisa el número y el dígito verificador.'
   }
   return null
 }

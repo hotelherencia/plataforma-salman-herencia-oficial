@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 import psycopg
 from psycopg.types.json import Json
 
-from . import ajustes, iva, roles
+from . import ajustes, clientes, imputacion, iva, roles
 
 ZONA = ZoneInfo("America/Santiago")
 CAJA = "principal"
@@ -155,14 +155,12 @@ def validar_datos_pago(conexion: psycopg.Connection, empresa_id: str, datos: dic
         raise DatosCajaInvalidos("indica si el cliente requiere boleta o factura")
     receptor = None
     if documento == "factura":
-        from . import documento as documento_mod
-
         r = datos.get("receptor") or {}
         if not isinstance(r, dict):
             raise DatosCajaInvalidos("faltan los datos de la factura")
         try:
-            rut = documento_mod.normalizar_rut(r.get("rut") or "")
-        except documento_mod.DocumentoInvalido as error:
+            rut = clientes.rut_clave(r.get("rut") or "")  # se guarda solo con números y dígito verificador
+        except clientes.RutInvalido as error:
             raise DatosCajaInvalidos(f"factura: {error}") from None
         receptor = {
             "rut": rut,
@@ -172,6 +170,8 @@ def validar_datos_pago(conexion: psycopg.Connection, empresa_id: str, datos: dic
             "comuna": _texto(r.get("comuna"), "la comuna", 60, True),
             "correo": _texto(r.get("correo"), "el correo", 120),
         }
+        # Un RUT es una sola persona o empresa: el mismo RUT con otro nombre se rechaza antes de cobrar.
+        clientes.exigir_nombre_coherente(conexion, rut, receptor["razon_social"])
     marca = _texto(datos.get("tarjeta_marca"), "la marca de la tarjeta", 30)
     ultimos4 = _texto(datos.get("tarjeta_ultimos4"), "los últimos 4 dígitos", 4)
     autorizacion = _texto(datos.get("codigo_autorizacion"), "el código de autorización", 20)
@@ -246,11 +246,26 @@ def entrega_pendiente(conexion: psycopg.Connection, empresa_id: str) -> dict | N
 
 
 def totales_turno(conexion: psycopg.Connection, turno: dict) -> dict:
+    # Lo cobrado con la caja cerrada (sin turno) pertenece al turno que se abre después: se cuenta desde que cerró
+    # el turno anterior hasta que abrió este. Antes quedaba fuera de toda cuadratura.
     filas = conexion.execute(
-        "SELECT medio, tipo, COALESCE(SUM(monto_clp), 0), count(*) FROM caja_movimientos WHERE turno_id = %s "
-        "GROUP BY medio, tipo",
-        (turno["turno_id"],),
+        "SELECT medio, tipo, COALESCE(SUM(monto_clp), 0), count(*) FROM caja_movimientos m WHERE (m.turno_id = %(t)s "
+        "OR (m.turno_id IS NULL AND m.empresa_id = (SELECT empresa_id FROM caja_turnos WHERE id = %(t)s) "
+        "AND m.creado_en <= (SELECT abierto_en FROM caja_turnos WHERE id = %(t)s) "
+        "AND m.creado_en > COALESCE((SELECT max(p.cerrado_en) FROM caja_turnos p WHERE p.estado = 'cerrado' "
+        "AND p.empresa_id = m.empresa_id AND p.abierto_en < (SELECT abierto_en FROM caja_turnos WHERE id = %(t)s)), "
+        "'-infinity'::timestamptz))) GROUP BY medio, tipo",
+        {"t": turno["turno_id"]},
     ).fetchall()
+    (sin_turno,) = conexion.execute(
+        "SELECT COALESCE(SUM(monto_clp), 0) FROM caja_movimientos m WHERE m.turno_id IS NULL "
+        "AND m.empresa_id = (SELECT empresa_id FROM caja_turnos WHERE id = %(t)s) "
+        "AND m.creado_en <= (SELECT abierto_en FROM caja_turnos WHERE id = %(t)s) "
+        "AND m.creado_en > COALESCE((SELECT max(p.cerrado_en) FROM caja_turnos p WHERE p.estado = 'cerrado' "
+        "AND p.empresa_id = m.empresa_id AND p.abierto_en < (SELECT abierto_en FROM caja_turnos WHERE id = %(t)s)), "
+        "'-infinity'::timestamptz)",
+        {"t": turno["turno_id"]},
+    ).fetchone()
     por_medio = {m: 0 for m in (*MEDIOS, "no_informado")}
     retiros = 0
     cobros = 0
@@ -263,7 +278,8 @@ def totales_turno(conexion: psycopg.Connection, turno: dict) -> dict:
                 cobros += cuenta
     esperado = turno["fondo_inicial_clp"] + por_medio["efectivo"] - retiros
     return {"por_medio": por_medio, "retiros_deposito_clp": retiros, "cobros": cobros,
-            "total_cobrado_clp": sum(por_medio.values()), "efectivo_esperado_clp": esperado}
+            "total_cobrado_clp": sum(por_medio.values()), "efectivo_esperado_clp": esperado,
+            "recibido_sin_turno_clp": sin_turno}
 
 
 def abrir_turno(conexion: psycopg.Connection, empresa_id: str, usuario_id: str, actor: str,
@@ -534,6 +550,7 @@ def reversar_pago(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_
          preparado["turno_id"], actor, motivo, fila[6]),
     )
     asentar_movimiento_pago(conexion, empresa_id, reverso_id, preparado, fila[2], -fila[1], actor, "reverso_cobro")
+    imputacion.revertir_pago(conexion, pago_id, actor)  # la imputación del pago se deshace con filas negativas
     from . import hotel_sql
 
     # El dominio deja de ver el pago anulado (hotel_sql.recargar) y el saldo vuelve a subir.

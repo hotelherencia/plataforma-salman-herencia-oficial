@@ -182,12 +182,13 @@ class CajaContableTest(unittest.TestCase):
 
     def test_anticipo_y_caja_del_dia_en_hora_de_chile(self):
         futura = self.reservar(inicio=HOY + timedelta(days=10), con_cargo=False)
-        # La cuenta nace vacía: un anticipo es un pago sobre saldo 0 y se confirma como tal.
+        # Contabilidad 2.1: un abono antes de la Llegada se mide contra el total de las noches, no contra la cuenta
+        # vacía del dominio; por eso no es «exceso» y no pide confirmación. Pagar de más que el total sí la pide.
         r = self.pagar(futura, 25000, medio="transferencia", comprobante="TRX-1")
-        self.assertEqual(r.status_code, 409, r.text)
-        r = self.pagar(futura, 25000, medio="transferencia", comprobante="TRX-1", confirmar_exceso=True)
         self.assertEqual(r.status_code, 201, r.text)
         self.assertTrue(r.json()["es_anticipo"])
+        self.assertEqual(r.json()["tipo"], "parcial")
+        self.assertEqual(self.pagar(futura, 80000, medio="transferencia", comprobante="TRX-2").status_code, 409)
         caja = self.caja.get(f"/hotel/caja?fecha={HOY.isoformat()}").json()
         self.assertEqual(caja["total_clp"], 25000)
         self.assertEqual(caja["por_medio"], {"transferencia": 25000})

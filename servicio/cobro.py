@@ -96,7 +96,7 @@ def registrar_pago_manual(
     """Pago manual. #365: compara con el saldo de la cuenta bajo el cerrojo de
     la reserva; un monto menor queda como pago parcial (con saldo pendiente) y
     uno mayor exige `confirmar_exceso`. #364: la respuesta trae el huésped."""
-    from . import contabilidad
+    from . import clientes, contabilidad, imputacion
 
     reserva = _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     huesped, habitacion = conexion.execute(
@@ -115,8 +115,8 @@ def registrar_pago_manual(
         return {"pago_id": existente[0], "reserva_id": reserva_id, "monto_clp": existente[1],
                 "clave": clave, "modo": "manual", "estado": "confirmado", "reintento": True,
                 "huesped_nombre": huesped, "habitacion_id": habitacion, "saldo_despues_clp": neto - pagado}
-    neto, pagado = hotel_sql.cuenta(conexion, hotel, empresa_id, reserva_id)
-    saldo_antes = neto - pagado
+    # Saldo contable: incluye las noches aún no asentadas, así un abono antes de la Llegada no es «exceso».
+    saldo_antes = imputacion.saldo_reserva(conexion, reserva_id)["pendiente_clp"]
     # Fase 1 contable: medio, documento y voucher se validan antes de tocar
     # el núcleo o la base (un 4xx no deja nada a medias).
     columnas = contabilidad.validar_datos_pago(conexion, empresa_id, datos)
@@ -140,6 +140,14 @@ def registrar_pago_manual(
     contabilidad.completar_pago(conexion, pago_id, columnas, preparado, actor)
     contabilidad.asentar_movimiento_pago(conexion, empresa_id, pago_id, preparado, columnas["medio"], monto_clp,
                                          actor or "sistema")
+    # Contabilidad 2.1: cliente de la factura (RUT solo con números) e imputación a noche, habitación y cliente.
+    receptor = columnas["receptor"]
+    cliente_id = None
+    if receptor:
+        cliente_id = clientes.asegurar(
+            conexion, receptor["rut"], receptor["razon_social"], actor or "sistema", giro=receptor["giro"],
+            direccion=receptor["direccion"], comuna=receptor["comuna"], correo=receptor["correo"])
+    imputacion.imputar_pago(conexion, reserva_id, pago_id, monto_clp, cliente_id, actor or "sistema")
     saldo_despues = saldo_antes - monto_clp
     tipo = "total" if saldo_despues == 0 else ("parcial" if saldo_despues > 0 else "exceso")
     # Aviso «pago registrado» en la misma transacción (sin datos del huésped).

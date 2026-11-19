@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (128)
+## Operaciones de esta versión (130)
 
 | Operación | Efecto |
 |---|---|
@@ -594,6 +594,8 @@ los compone el servidor.
 | `POST /hotel/habitaciones/{id}/limpieza` | Completa la limpieza pendiente y, si estaba sucia, deja la unidad `limpia`. Sin limpieza pendiente → 409 (ENMIENDA ADP-8, 2026-11-19: no hay tarea que completar). Roles recepción o administrador. |
 | `POST /hotel/habitaciones/{id}/mantenimiento` | Abre o cierra el mantenimiento de la unidad (con su tarea). Solo administrador. Con mantenimiento abierto la oferta no la incluye y la entrada responde 409. |
 | `GET /hotel/caja?fecha=YYYY-MM-DD` | Pagos del día contable en hora de Chile (antes por fecha UTC), con `medio`, `documento_tipo` y `por_medio`; los reversos restan. Sin movimiento bancario en esta versión. |
+| `GET /hotel/reservas/{id}/saldo` | (Contabilidad 2.1) Total, abonado (recibido sin aplicar), pagado (aplicado) y pendiente de la reserva, con el detalle por noche (`precio`, `pagado`, `pendiente`, `asentada`). El total incluye las noches aún no asentadas; un pago reversado deja de contar. Ajena o inexistente → 403. |
+| `GET /hotel/contabilidad/movimientos?desde&hasta` | (Contabilidad 2.1) Cargos, reversos de cargo, pagos y reversos de pago del rango (días en hora de Chile) con quién los hizo, huésped, habitación, medio y documento. No depende de que haya un turno abierto: un cargo con la caja cerrada queda aquí. Roles caja o administración del hotel. |
 | `GET /hotel/caja/estado` | (Fase 1 contable) Turno abierto con totales en vivo por medio, efectivo por recibir del turno anterior, fecha contable y parámetros de la caja. Roles caja, recepción o administración del hotel. |
 | `POST /hotel/caja/turnos` | Abre el turno de caja: `{fondo_inicial_clp, nota?}`. Una sola caja abierta a la vez (409). Si el turno anterior entregó efectivo y el fondo difiere, exige nota de 10+ caracteres (422). Idempotente y auditado. |
 | `GET /hotel/caja/turnos?desde&hasta` | Turnos del rango (máx. 92 días) con totales por medio, esperado, contado y diferencia. |

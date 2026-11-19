@@ -154,6 +154,11 @@ function TurnoAbierto({ turno, parametros, esAdmin, alCambiar }) {
           <div className={css.cifra}><dt>Cobros del turno</dt><dd>{plural(t.cobros, 'cobro')} · {clp(t.total_cobrado_clp)}</dd></div>
           <div className={css.cifra}><dt>Efectivo que debería haber en caja</dt><dd><strong>{clp(t.efectivo_esperado_clp)}</strong></dd></div>
         </dl>
+        {t.recibido_sin_turno_clp > 0 && (
+          <p className="estado" role="status" data-sin-turno>
+            Incluye <strong>{clp(t.recibido_sin_turno_clp)}</strong> cobrados con la caja cerrada, antes de abrir este turno.
+          </p>
+        )}
         <TablaPorMedio porMedio={t.por_medio} retiros={t.retiros_deposito_clp} />
         <div className={css.acciones}>
           <Link className="boton-secundario" href="/hotel/pago">Registrar pago</Link>

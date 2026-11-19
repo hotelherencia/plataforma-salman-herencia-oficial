@@ -2,21 +2,21 @@
 
 Estado al 2026-11-19. Plan escrito antes de codificar; se ajusta por subapartado.
 
-## 0. Punto de partida (lo que hay y lo que no)
+## 0. Punto de partida (lo que hay)
 
-- **La fase 1 no está en `main` ni en ninguna rama remota.** No existen apertura ni cierre de caja, turnos, retiros de
-  efectivo, medios de pago, cierre diario ni la corrección horaria de «Caja del día» (`cobro.caja_del_dia` sigue usando
-  `p.creado_en::date`, es decir UTC). Las subpartes 2.3 y 2.4 consolidan el cierre diario y 2.6 cruza los retiros, así
-  que dependen de ella. Ver «Dependencias» abajo.
-- Existen: `pagos` (monto, clave, `modo` manual/pasarela, estado), `cargos` append-only, `liquidaciones`,
-  `reserva_noches` (precio congelado por noche), IVA editable (`ajustes_plataforma.iva_porcentaje`, `servicio/iva.py`),
-  `ajustes` (JSON editable en Configuración, `servicio/ajustes.py`), `auditoria`, roles `admin_hotel`
-  (`roles.con_admin_hotel`), y las facturas **de proveedor** (0040, recibidas). **No** existe registro de boletas ni
-  facturas **emitidas** al huésped ni maestro de clientes.
+- **La fase 1 (caja) ya está en `main`** (migración `0050_caja_y_contabilidad.sql`, `servicio/contabilidad.py`,
+  `servicio/rutas/caja.py`): turnos con arqueo y entrega entre turnos, medios de pago, retiros para depósito, reverso
+  de pagos, cierre diario con conciliación por habitación, documento (boleta o factura con receptor) y voucher sin PAN,
+  «Caja del día» en hora de Chile. Su diseño está en el informe de la fase 1; esta fase 2 **reutiliza** esas tablas y
+  no las duplica: `pagos.documento_*` y `receptor` son el registro del documento, `caja_movimientos` (retiros) lo que
+  cruza la conciliación bancaria y `cierres_diarios.resumen` lo que consolida el cierre mensual.
 - Desde la épica ADP el dominio (`ServicioHotelInventario`) decide cuenta, pagos y liquidación; PostgreSQL proyecta.
   La fase 2 es contabilidad sobre esa proyección: **no recalcula reglas del hotel**, las lee. Lo que el dominio no
-  modela (imputación por noche, documento tributario, cliente) vive en tablas nuevas, append-only.
-- Front sin librería de gráficos ni de planillas (`next`, `react`, `react-dom` y nada más). Backend sin librería `.xlsx`.
+  modela (imputación por noche, cliente) vive en tablas nuevas, solo de agregar.
+- Nombres: donde la fase 1 propuso otros nombres para la fase 2, manda este documento (`imputaciones_pago`, no
+  `pago_imputaciones`). Módulos nuevos: `servicio/clientes.py` e `servicio/imputacion.py` (el `contabilidad.py` es de la
+  fase 1). Migraciones de la fase 2: desde `0051`.
+- Front sin librería de gráficos ni de planillas; backend sin librería `.xlsx` (se aprobó `openpyxl` y SVG propio).
 
 ## 1. Reglas que se mantienen en todo el módulo
 
@@ -26,32 +26,34 @@ movimiento de dinero auditado (quién, cuándo, antes y después) e inmutable al
 número de tarjeta ni CVV (marca y 4 últimos); textos al huésped con «Llegada» y «Salida»; sin JSON a la vista, miles
 con punto y fechas dd-mm-aaaa.
 
-## 2. Dependencias y decisiones abiertas
+## 2. Decisiones tomadas
 
-| Tema | Decisión propuesta | Falta |
-|---|---|---|
-| Fase 1 | Construirla primero **solo** si no existe en otro lugar (otro agente trabaja en paralelo) | Confirmar dónde está |
-| `.xlsx` | Agregar `openpyxl` a `servicio/requirements.txt` y a los dos `pyproject.toml` | Aprobar la dependencia |
-| Gráficos | Componentes SVG propios en `front/lib` (sin dependencia nueva) | Aprobar |
-| Emisión al SII | Fuera de alcance: se **registran** boletas y facturas (folio, neto, IVA, total); no se envía nada al SII | Confirmar |
-| Folios | Los carga y valida el mantenedor (rango por tipo de documento); no se generan en código | Definir origen del folio |
+| Tema | Decisión |
+|---|---|
+| Fase 1 | Ya está en `main`; no se duplica. |
+| `.xlsx` | `openpyxl` en `servicio/requirements.txt` y en los dos `pyproject.toml` (aprobado). |
+| Gráficos | Componentes SVG propios en `front/lib`, sin dependencia nueva (aprobado). |
+| Emisión al SII | Fuera de alcance: se **registran** boletas y facturas (folio, neto, IVA, total); no se envía nada. |
+| Abono antes de la Llegada | Se mide contra el total de las noches, no contra la cuenta vacía del dominio: no es «exceso» y no pide confirmación. Pagar más que el total sí la pide. (Cambia un criterio de la fase 1.) |
+| Cobrado con la caja cerrada | Lo cobrado sin turno entra en la cuadratura del turno que se abre después (desde que cerró el anterior). |
 
 ## 3. Subapartados
 
 Migraciones: siguiente número libre al construir (hoy 0041 y más; 0035 la usa la cuenta vacía y 0040 las facturas de
 proveedor). Cada subapartado trae migración, modelo, endpoints con rol, pestaña, tests de backend y un E2E corto.
 
-### 2.1 Imputación de pagos y abonos
+### 2.1 Imputación de pagos y abonos (hecho)
 
-- `clientes` (id, tipo persona|empresa, rut único normalizado, razón social, giro, correo, activo).
-- `documentos_venta` (id, tipo boleta|factura|nota_credito, folio, fecha, cliente_id, reserva_id, neto, iva, total,
-  referencia a otro documento, estado, actor). Append-only; la corrección es una nota de crédito.
-- `imputaciones_pago` (id, pago_id, reserva_id, habitacion_id, noche NULL, cliente_id, monto_clp, tipo
-  anticipo|consumo|ajuste, documento_id, actor, creado_en). Un pago se reparte en una o varias noches; un anticipo
-  sin noche se aplica al consumo de cada noche (noche a noche, al asentarse en la Llegada).
-- `GET /hotel/reservas/{id}/saldo`: total, abonado (anticipos), pagado (consumo imputado) y pendiente.
-- `POST /hotel/reservas/{id}/pagos` acepta `documento: {tipo, rut?, razon_social?, giro?}`; factura exige los tres.
-- Front: pestaña «Imputación» en Caja y bloque de saldo siempre visible en el detalle de la reserva.
+- `clientes` (migración `0051`): RUT solo con números y dígito verificador (`CHECK`), único; el nombre se compara sin
+  tildes ni mayúsculas. El mismo RUT con otro nombre responde 409, en el pago con factura y al crear una reserva.
+- `imputaciones_pago`: pago → habitación, noche, cliente y monto (`anticipo`, `aplicacion_anticipo`, `consumo`,
+  `ajuste`). Solo de agregar; el reverso de un pago agrega filas negativas con `revierte_id`.
+- Antes de la Llegada el pago es anticipo; en la Llegada se aplica noche a noche; en la estadía va a las noches más
+  antiguas, luego a consumos sueltos y el resto queda como abono.
+- `GET /hotel/reservas/{id}/saldo` (total, abonado, pagado, pendiente y detalle por noche) y
+  `GET /hotel/contabilidad/movimientos` (cargos, reversos y pagos con quién los hizo, sin depender de la caja).
+- Front: bloque de saldo en Registrar pago, pestaña «Cargos y pagos» en Caja y validación del RUT.
+- El documento (boleta o factura con receptor) y el folio siguen siendo los de la fase 1 en `pagos`.
 
 ### 2.2 Políticas de crédito por cliente
 

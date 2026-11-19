@@ -22,6 +22,8 @@ for _ruta in (_RAIZ / "core" / "incremento1", _RAIZ / "verticales" / "hotel" / "
 import psycopg
 from psycopg.errors import ExclusionViolation
 
+from . import imputacion
+
 from hotel_inventario.servicio import (
     CargoNoReversible,
     CheckInIncompleto,
@@ -457,6 +459,7 @@ def entrada(
     except CheckInNoPermitido as error:
         raise cobro.TransicionInvalida(str(error)) from error
     persistir(conexion, hotel, empresa_id)
+    imputacion.aplicar_anticipos(conexion, reserva_id, actor)  # los abonos previos se aplican noche a noche
     return {"reserva_id": reserva_id, "habitacion_id": reserva.unidad_id, "estado": "en_estadia"}
 
 

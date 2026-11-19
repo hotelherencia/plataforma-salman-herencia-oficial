@@ -39,7 +39,7 @@ test('nombres en castellano para medios y documentos', () => {
 })
 
 test('pestañas de Caja (sin ítem de menú nuevo)', () => {
-  assert.deepEqual(PESTANAS_CAJA.map(([id]) => id), ['dia', 'turno', 'movimientos', 'depositos', 'cierre'])
+  assert.deepEqual(PESTANAS_CAJA.map(([id]) => id), ['dia', 'turno', 'movimientos', 'cuenta', 'depositos', 'cierre'])
 })
 
 test('exportación por rango: validación, parámetros y nombre de archivo', () => {

@@ -9,6 +9,7 @@ import { horaChile } from '../../../lib/estadias'
 import { nombreDocumento, nombreMedio } from '../../../lib/caja'
 import { fechaATexto } from '../../../lib/formato'
 import Subnav from '../_componentes/subnav'
+import MovimientosContables from '../_componentes/movimientos-contables'
 import { hoyChile, PestanaCierreDiario, PestanaMovimientos, PestanaTurno } from '../_componentes/caja-contable'
 import css from '../_componentes/operacion.module.css'
 import { PESTANAS_CAJA, SUBNAV_CAJA } from '../../../lib/menu-hotel'
@@ -16,7 +17,7 @@ import { PESTANAS_CAJA, SUBNAV_CAJA } from '../../../lib/menu-hotel'
 // Fase 1 contable (2026-11-19): pestañas dentro de Caja y pagos (sin ítem de
 // menú nuevo). Caja y administración ven todo; recepción opera el turno.
 const POR_ROL = {
-  caja: ['dia', 'turno', 'movimientos', 'depositos', 'cierre'],
+  caja: ['dia', 'turno', 'movimientos', 'cuenta', 'depositos', 'cierre'],
   recepcion: ['turno', 'movimientos', 'depositos'],
 }
 
@@ -58,6 +59,7 @@ function CajaConPestanas() {
       </div>
       <div role="tabpanel" id="panel-caja" aria-labelledby={`pestana-${pestana}`}>
       {sesion.fase === 'ok' && pestana === 'dia' && <CajaDelDia />}
+      {sesion.fase === 'ok' && pestana === 'cuenta' && <MovimientosContables hoy={hoyChile()} />}
       {sesion.fase === 'ok' && pestana === 'turno' && <PestanaTurno esAdmin={esAdmin} />}
       {sesion.fase === 'ok' && pestana === 'movimientos' && <PestanaMovimientos esAdmin={esAdmin} />}
       {sesion.fase === 'ok' && pestana === 'depositos' && <PestanaMovimientos esAdmin={esAdmin} soloDepositos />}

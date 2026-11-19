@@ -24,6 +24,7 @@ export const PESTANAS_CAJA = [
   ['dia', 'Caja del día'],
   ['turno', 'Turno'],
   ['movimientos', 'Movimientos'],
+  ['cuenta', 'Cargos y pagos'],
   ['depositos', 'Depósitos'],
   ['cierre', 'Cierre diario'],
 ]

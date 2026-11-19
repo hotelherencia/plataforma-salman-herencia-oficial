@@ -17,6 +17,7 @@ from .. import roles
 from .. import avisos
 from .. import busqueda_estadias
 from .. import canal_publico
+from .. import clientes
 from .. import cobro
 from .. import contabilidad
 from .. import documental
@@ -363,7 +364,8 @@ def confirmar_reserva(
             )
         except reservas_db.SinCupo as error:
             return 409, {"detail": str(error)}
-        except (reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:
+        except (reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible,
+                clientes.ClienteConflicto) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "reserva", creada["reserva_id"], "confirmada")
         return 201, creada
@@ -393,7 +395,7 @@ def registrar_pago(
             )
         except contabilidad.DatosCajaInvalidos as error:
             return 422, {"detail": str(error)}
-        except contabilidad.OperacionCajaInvalida as error:
+        except (contabilidad.OperacionCajaInvalida, clientes.ClienteConflicto) as error:
             return 409, {"detail": str(error)}
         except cobro.PagoEnExceso as error:
             return 409, {"detail": str(error), "saldo_clp": error.saldo_clp, "exceso_clp": error.exceso_clp}

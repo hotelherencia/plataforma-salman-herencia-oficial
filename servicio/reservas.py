@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 import psycopg
 from psycopg.errors import ExclusionViolation
 
-from . import hotel_sql, iva, politicas, precios
+from . import clientes, hotel_sql, iva, politicas, precios
 
 VIGENCIA_OFERTA = timedelta(minutes=15)
 ESTABLECIMIENTO_SINTETICO = "EST-SINT-001"
@@ -427,6 +427,9 @@ def crear_reserva(
     extras: dict | None = None,
     huesped_documento_tipo: str | None = None,
 ) -> dict:
+    # Un RUT es una sola persona o empresa: si ya es de un cliente registrado con otro nombre, no se acepta.
+    if huesped_documento and huesped_documento_tipo == "rut":
+        clientes.exigir_nombre_coherente(conexion, clientes.rut_clave(huesped_documento), huesped_nombre)
     # ADP-4: si la unidad se vende y hay cupo lo decide `hotel.reservar` del dominio (tras el cerrojo de
     # fila de la unidad). Aquí solo se cotiza con el resolvedor de precios y se aplica la política del hotel.
     hotel = hotel_sql.hotel_registrado()
