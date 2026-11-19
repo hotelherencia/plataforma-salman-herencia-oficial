@@ -30,6 +30,44 @@ arranque). Solo biblioteca estándar + estas dependencias declaradas en
 - `GET /salud` (sin autenticar) responde 200 con estado y versión;
   `GET /readiness` (OPS-A02) consulta la base y migraciones.
 
+- **El hotel arranca sin unidades** (ENMIENDA ADP-3, 2026-11-19): el inventario
+  son las filas de `habitaciones` que crea la API (`PUT /hotel/habitaciones/{id}`);
+  el arranque no siembra habitaciones.
+
+## Adaptador hotel ↔ SQL (ADP, 2026-11-19)
+
+HECHO DOCUMENTADO (fuente: `servicio/hotel_sql.py`; pruebas `test_hotel_sql`,
+`test_adp3`…`test_adp10`, `test_adaptador_dominio`). El proceso único
+`app.state.aplicacion.hotel` (`ServicioHotelInventario`) es el **único que
+decide** cupo, oferta, confirmación, entrada, salida, cancelación, penalización,
+cargos, reverso, limpieza, mantenimiento y cambio de habitación. PostgreSQL es
+almacén y proyección. Cada operación HTTP del hotel, dentro de la misma
+transacción y de una sección crítica del proceso (`EXCLUSIVO`, mantenida hasta el
+commit):
+
+1. **recarga** el singleton desde las filas actuales (`recargar`), con la
+   ventana de fechas de la operación (precios por noche y mantenimiento);
+2. llama **un método público** del dominio (`reservar`, `check_in`, `cancelar`,
+   `check_out`, `asentar_cargo`, `reversar_cargo`, `registrar_pago`,
+   `completar_tarea`, `abrir/cerrar_mantenimiento`, `reasignar`);
+3. **persiste** el estado que ese método dejó (`persistir`): upsert por id de
+   reservas y tareas; estados de habitación; cargos y pagos solo se insertan;
+   liquidaciones se insertan una vez; nunca se borra.
+
+El adaptador solo **traduce nombres** (`hospedada`↔`en_estadia`,
+`salida`↔`finalizada`; `SUCIA`↔`disponible`+`sucia`) y traduce los rechazos del
+dominio a 409. **Configuración que sigue en SQL** y que el dominio consume ya
+resuelta: el precio de cada noche (`precios.py`: tipo, precio propio y
+excepciones), la política del hotel y el IVA (`politicas.py`, `iva.py`), el
+catálogo y el stock de productos, y el rango de fechas del mantenimiento (#349).
+Guardas del adaptador sobre datos que el dominio no recibe: `personas` contra la
+capacidad y «alguna noche sin precio». Cambios de comportamiento: la cuenta nace
+vacía y el alojamiento se asienta en la entrada, noche a noche (#305); la entrada
+exige las 15:00 del día de inicio (reloj del servidor, `hotel_sql.ahora`); la
+salida deja la unidad sucia con limpieza aunque otra estadía contigua siga; una
+limpieza sin tarea pendiente responde 409. Los llamadores sin petición a mano
+(canal público, agente, evaluación) usan el hotel registrado del proceso.
+
 ## Flujo real de las reglas (sincronizado 2026-11-05, ARC-A01)
 
 La auditoría de jefatura 2026-11-03 señaló que la decisión documentada («el

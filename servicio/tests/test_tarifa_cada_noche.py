@@ -177,8 +177,9 @@ class TarifaCadaNocheTest(unittest.TestCase):
         reserva = respuesta.json()
         self.assertEqual(reserva["total_clp"], ofrecida["total_clp"])
         self.assertEqual(reserva["tarifa_noche_aceptada_clp"], ofrecida["tarifa_noche_clp"])
-        (cargo,) = self.sql("SELECT monto_clp FROM cargos WHERE reserva_id = %s", (reserva["reserva_id"],))[0]
-        self.assertEqual(cargo, ofrecida["total_clp"])
+        # ADP-4/5: la cuenta nace vacía; el cargo igual al total ofrecido se asienta en la entrada
+        # (lo ejerce test_adp5_entrada_dominio.test_la_cuenta_coincide_con_el_total_ofrecido).
+        self.assertEqual(self.sql("SELECT count(*) FROM cargos WHERE reserva_id = %s", (reserva["reserva_id"],))[0][0], 0)
 
     def test_oferta_coincide_con_las_noches_disponibles_de_ocupacion(self):
         """§5: la unidad está en la oferta de [inicio, fin) sii todas sus noches son `disponible`."""

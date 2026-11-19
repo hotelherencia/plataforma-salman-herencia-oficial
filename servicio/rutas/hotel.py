@@ -19,6 +19,7 @@ from .. import busqueda_estadias
 from .. import canal_publico
 from .. import cobro
 from .. import documental
+from .. import hotel_sql
 from .. import idempotencia
 from .. import inventario_documental
 from .. import leads as leads_mod
@@ -39,6 +40,19 @@ from .modelos import (
 ROLES_DOCUMENTO_HUESPED = roles.con_admin_hotel("recepcion")
 
 router = APIRouter()
+
+
+def _ejecutar_exclusivo(conexion, empresa_id, clave, cuerpo, operacion) -> JSONResponse:
+    """Operación idempotente del hotel: recarga, decide y persiste dentro de la sección crítica del
+    dominio (singleton en memoria), que se mantiene hasta el commit."""
+    with hotel_sql.EXCLUSIVO:
+        hotel_sql.bloquear(conexion)  # entre procesos: la segunda instancia espera y recarga lo ya confirmado
+        try:
+            codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, empresa_id, clave, cuerpo, operacion)
+        except idempotencia.ConflictoIdempotencia as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
 
 @router.put("/hotel/habitaciones/{habitacion_id}")
 def definir_habitacion(
@@ -75,6 +89,8 @@ def definir_habitacion(
             )
         except reservas_db.HabitacionYaExiste as error:
             return 409, {"detail": str(error)}
+        # El dominio ve la unidad nueva o editada sin esperar a la próxima operación (ADP-3).
+        hotel_sql.recargar(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id)
         if guardada["creada"]:
             resultado = f"creada tipo={habitacion.tipo} capacidad={habitacion.capacidad}"
         elif guardada["cambios"]:
@@ -91,12 +107,7 @@ def definir_habitacion(
             **guardada,
         }
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 def _extras_consulta(hora_llegada, hora_salida, cama_adicional, ninos, mascotas) -> dict | None:
     extras = {}
@@ -200,12 +211,7 @@ def fijar_servicio_habitacion(
         seguridad.auditar(conexion, sesion.nombre, "habitacion-servicio", habitacion_id, texto)
         return 200, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.get("/hotel/ocupacion")
 def consultar_ocupacion(
@@ -361,14 +367,7 @@ def confirmar_reserva(
         seguridad.auditar(conexion, sesion.nombre, "reserva", creada["reserva_id"], "confirmada")
         return 201, creada
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(
-            conexion, sesion.empresa_id, idempotency_key, cuerpo, operacion
-        )
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, idempotency_key, cuerpo, operacion)
 
 @router.post("/hotel/reservas/{reserva_id}/pagos")
 def registrar_pago(
@@ -388,7 +387,7 @@ def registrar_pago(
         comun.exigir_rol(sesion, cobro.ROLES_PAGO_MANUAL)
         try:
             registrado = cobro.registrar_pago_manual(
-                conexion, request.app.state.aplicacion.nucleo, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave,
+                conexion, request.app.state.aplicacion.nucleo, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, pago.monto_clp, pago.clave,
                 confirmar_exceso=pago.confirmar_exceso,
             )
         except cobro.PagoEnExceso as error:
@@ -402,12 +401,7 @@ def registrar_pago(
         seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "confirmado")
         return 201, registrado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.get("/hotel/caja")
 def ver_caja(
@@ -420,6 +414,7 @@ def ver_caja(
 
 @router.post("/hotel/reservas/{reserva_id}/entrada")
 def check_in(
+    request: Request,
     reserva_id: str,
     idempotency_key: str | None = Header(default=None),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
@@ -440,25 +435,21 @@ def check_in(
 
     def operacion() -> tuple[int, dict]:
         try:
-            ingreso = cobro.entrada(conexion, sesion.empresa_id, reserva_id,
-                                    documento=cuerpo.documento if cuerpo else None,
-                                    documento_tipo=cuerpo.documento_tipo if cuerpo else None,
-                                    habitacion_id=cuerpo.habitacion_id if cuerpo else None,
-                                    actor=sesion.nombre)
+            ingreso = hotel_sql.entrada(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id,
+                                        cuerpo.documento if cuerpo else None, hotel_sql.ahora(),
+                                        documento_tipo=cuerpo.documento_tipo if cuerpo else None,
+                                        habitacion_id=cuerpo.habitacion_id if cuerpo else None,
+                                        actor=sesion.nombre)
         except (cobro.HabitacionNoLista, cobro.TransicionInvalida, cobro.ReasignacionInvalida) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "entrada", reserva_id, "en_estadia")
         return 200, ingreso
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo_idem, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo_idem, operacion)
 
 @router.post("/hotel/reservas/{reserva_id}/habitacion")
 def reasignar_habitacion(
+    request: Request,
     reserva_id: str,
     reasignacion: ReasignacionIn,
     idempotency_key: str | None = Header(default=None),
@@ -472,20 +463,15 @@ def reasignar_habitacion(
 
     def operacion() -> tuple[int, dict]:
         try:
-            hecho = cobro.reasignar(conexion, sesion.empresa_id, reserva_id, reasignacion.habitacion_id,
-                                    reasignacion.motivo, sesion.nombre)
+            hecho = hotel_sql.reasignar(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id,
+                                        reasignacion.habitacion_id, reasignacion.motivo, sesion.nombre)
         except (cobro.TransicionInvalida, cobro.ReasignacionInvalida) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "reasignacion", reserva_id,
                           f"{hecho['desde_habitacion_id']}->{hecho['hacia_habitacion_id']}")
         return 200, hecho
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.get("/hotel/aseo")
 def ver_aseo(
@@ -510,12 +496,7 @@ def _operacion_aseo(conexion, sesion, idempotency_key, cuerpo, funcion, accion, 
         seguridad.auditar(conexion, sesion.nombre, accion, recurso, "ok")
         return 200, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 
 @router.post("/hotel/limpiezas/{tarea_id}/verificacion")
@@ -573,6 +554,7 @@ def atender_observacion(
 
 @router.post("/hotel/reservas/{reserva_id}/salida")
 def check_out(
+    request: Request,
     reserva_id: str,
     idempotency_key: str | None = Header(default=None),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
@@ -586,18 +568,13 @@ def check_out(
 
     def operacion() -> tuple[int, dict]:
         try:
-            liquidada = cobro.salida(conexion, sesion.empresa_id, reserva_id)
+            liquidada = hotel_sql.salida(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, hotel_sql.ahora())
         except (cobro.SaldoPendiente, cobro.TransicionInvalida) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "salida", reserva_id, "liquidada")
         return 200, liquidada
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 # --- Maduración de la operación (spec-api-v1, 2026-10-30) ---
 
@@ -631,17 +608,19 @@ def buscar_reservas_hotel(
 
 @router.get("/hotel/reservas/{reserva_id}")
 def detalle_reserva_hotel(
+    request: Request,
     reserva_id: str,
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
     """Detalle con cuenta (spec-hotel-operacion-v1 §3.2); ajena → 403."""
     return cobro.detalle_reserva(
-        conexion, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED
+        conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED
     )
 
 @router.post("/hotel/habitaciones/{habitacion_id}/limpieza")
 def completar_limpieza_habitacion(
+    request: Request,
     habitacion_id: str,
     idempotency_key: str | None = Header(default=None),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
@@ -653,21 +632,19 @@ def completar_limpieza_habitacion(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.completar_limpieza(conexion, habitacion_id, actor=sesion.nombre)
+            resultado = hotel_sql.completar_limpieza(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, habitacion_id, actor=sesion.nombre)
         except cobro.RecursoAjenoOInexistente as error:
             raise seguridad.ErrorPermiso(str(error)) from error
+        except cobro.TransicionInvalida as error:
+            return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "limpieza", habitacion_id, "completada")
         return 200, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.post("/hotel/habitaciones/{habitacion_id}/mantenimiento")
 def fijar_mantenimiento_habitacion(
+    request: Request,
     habitacion_id: str,
     cuerpo_mantenimiento: MantenimientoIn,
     idempotency_key: str | None = Header(default=None),
@@ -680,8 +657,9 @@ def fijar_mantenimiento_habitacion(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.fijar_mantenimiento(conexion, habitacion_id, cuerpo_mantenimiento.abierto,
-                                                  cuerpo_mantenimiento.desde, cuerpo_mantenimiento.hasta)
+            resultado = hotel_sql.fijar_mantenimiento(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, habitacion_id,
+                                                      cuerpo_mantenimiento.abierto, cuerpo_mantenimiento.desde,
+                                                      cuerpo_mantenimiento.hasta)
         except cobro.RecursoAjenoOInexistente as error:
             raise seguridad.ErrorPermiso(str(error)) from error
         seguridad.auditar(
@@ -690,15 +668,11 @@ def fijar_mantenimiento_habitacion(
         )
         return 200, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.post("/hotel/reservas/{reserva_id}/cancelacion")
 def cancelar_reserva(
+    request: Request,
     reserva_id: str,
     idempotency_key: str | None = Header(default=None),
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
@@ -710,21 +684,17 @@ def cancelar_reserva(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.cancelar(conexion, sesion.empresa_id, reserva_id, datetime.now())
+            resultado = hotel_sql.cancelar(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, hotel_sql.ahora())
         except cobro.TransicionInvalida as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "cancelacion", reserva_id, "cancelada")
         return 200, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.post("/hotel/reservas/{reserva_id}/cargos")
 def asentar_cargo_reserva(
+    request: Request,
     reserva_id: str,
     cargo: CargoIn,
     idempotency_key: str | None = Header(default=None),
@@ -744,8 +714,8 @@ def asentar_cargo_reserva(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.asentar_cargo(
-                conexion, sesion.empresa_id, reserva_id, cargo.concepto, cargo.monto_clp,
+            resultado = hotel_sql.asentar_cargo(
+                conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, cargo.concepto, cargo.monto_clp,
                 producto_id=cargo.producto_id, cantidad=cargo.cantidad, actor=sesion.nombre,
             )
         except (cobro.TransicionInvalida, productos_db.ProductoInvalido) as error:
@@ -753,15 +723,11 @@ def asentar_cargo_reserva(
         seguridad.auditar(conexion, sesion.nombre, "cargo", f"{reserva_id}:{resultado['cargo_id']}", "asentado")
         return 201, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.post("/hotel/reservas/{reserva_id}/cargos/{cargo_id}/reverso")
 def reversar_cargo_reserva(
+    request: Request,
     reserva_id: str,
     cargo_id: str,
     cuerpo_reverso: ReversoCargoIn,
@@ -776,19 +742,14 @@ def reversar_cargo_reserva(
 
     def operacion() -> tuple[int, dict]:
         try:
-            resultado = cobro.reversar_cargo(conexion, sesion.empresa_id, reserva_id, cargo_id, cuerpo_reverso.motivo,
-                                             actor=sesion.nombre)
+            resultado = hotel_sql.reversar_cargo(conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, cargo_id,
+                                                cuerpo_reverso.motivo, actor=sesion.nombre)
         except (cobro.TransicionInvalida, cobro.CargoNoReversable) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "cargo_reverso", f"{reserva_id}:{cargo_id}", resultado["cargo_id"])
         return 201, resultado
 
-    try:
-        codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    except idempotencia.ConflictoIdempotencia as error:
-        raise HTTPException(status_code=409, detail=str(error))
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 # --- Canal público (spec-api-v1 «Canal público», V1-ISSUE-22/24) ---
 def _clave_publica(idempotency_key: str | None) -> str:
@@ -1031,9 +992,7 @@ def convertir_solicitud(
             return 409, {"detail": error.detalle}
         return 201, resultado
 
-    codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 
 @router.post("/hotel/solicitudes/{solicitud_id}/rechazo")
 def rechazar_solicitud(

@@ -64,7 +64,14 @@ class CajaHallazgosTest(unittest.TestCase):
             headers=self.idem(),
         )
         self.assertEqual(r.status_code, 201, r.text)
-        return r.json()["reserva_id"]
+        rid = r.json()["reserva_id"]
+        # ADP-4 AC-3: la cuenta nace vacía y el alojamiento se asienta en la entrada. Estas pruebas miden
+        # el cobro, no la entrada: dejan el alojamiento como cargo para tener un saldo que cobrar.
+        c = self.cliente.post(f"/hotel/reservas/{rid}/cargos",
+                              json={"concepto": f"Alojamiento {noches} noches", "monto_clp": 50_000 * noches},
+                              headers=self.idem())
+        self.assertEqual(c.status_code, 201, c.text)
+        return rid
 
     def saldo(self, rid):
         return self.cliente.get(f"/hotel/reservas/{rid}").json()["cuenta"]["saldo_clp"]

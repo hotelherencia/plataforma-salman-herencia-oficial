@@ -94,10 +94,10 @@ class OperacionBaseTest(unittest.TestCase):
             f"/hotel/reservas/{reserva_id}/salida", headers={"Idempotency-Key": self.clave()}
         )
 
-    def pagar(self, reserva_id, monto, clave_cobro):
+    def pagar(self, reserva_id, monto, clave_cobro, exceso=False):
         return self.cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": monto, "clave": clave_cobro, "modo": "manual"},
+            json={"monto_clp": monto, "clave": clave_cobro, "modo": "manual", "confirmar_exceso": exceso},
             headers={"Idempotency-Key": self.clave()},
         )
 
@@ -132,7 +132,7 @@ class BusquedaReservasTest(OperacionBaseTest):
 
         # texto: ILIKE sobre nombre, documento, habitación e id
         for termino, esperado in (("ana", {r1}), ("BRUNO", {r2}), ("222-2", {r2}),
-                                  ("HAB-SINT-101", {r1, r2}), (r1[4:10], {r1})):
+                                  ("HAB-SINT-101", {r1, r2}), (r1[4:], {r1})):
             with self.subTest(texto=termino):
                 respuesta = self.cliente.get("/hotel/reservas", params={"texto": termino})
                 self.assertEqual({i["reserva_id"] for i in respuesta.json()["reservas"]}, esperado)
@@ -387,17 +387,17 @@ class HabitacionOperacionTest(OperacionBaseTest):
         )
         self.assertEqual(solape.status_code, 409, solape.text)
 
-        # Salida de A (saldo en cero): finalizada. V1-ISSUE-15: con B todavía
-        # en_estadia en la unidad, la habitación sigue ocupada y limpia, sin
-        # tarea nueva; B no se altera.
+        # Salida de A (saldo en cero): finalizada. ADP-6 (2026-11-19): `check_out` del
+        # dominio deja la unidad sucia y abre la limpieza aunque B siga dentro (reemplaza
+        # la excepción de V1-ISSUE-15 que decidía el SQL); B no se altera.
         self.pagar(a, 200_000, "cobro-a")
         respuesta = self.salida(a)
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         operativo, preparacion = self.select(
             "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id='HAB-SINT-101'")[0]
-        self.assertEqual((operativo, preparacion), ("ocupada", "limpia"))
+        self.assertEqual((operativo, preparacion), ("disponible", "sucia"))
         self.assertEqual(self.select(
-            "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")[0][0], 0)
+            "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")[0][0], 1)
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "en_estadia")
 
         # La salida de B —la última estadía de la unidad— sí deja disponible y
@@ -410,7 +410,8 @@ class HabitacionOperacionTest(OperacionBaseTest):
         self.assertEqual((operativo, preparacion), ("disponible", "sucia"))
         tarea = self.select(
             "SELECT tipo, estado FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")
-        self.assertEqual(tarea, [("limpieza", "pendiente")])
+        # una por cada salida (la de A y la de B): el dominio abre una tarea en cada check_out
+        self.assertEqual(tarea, [("limpieza", "pendiente")] * 2)
 
         # Mientras la unidad está sucia, una estadía nueva no puede entrar.
         d = self.reservar(inicio=str(_BASE + timedelta(days=6)), fin=str(_BASE + timedelta(days=8)), nombre="Estadia D")
@@ -422,7 +423,7 @@ class HabitacionOperacionTest(OperacionBaseTest):
             "/hotel/habitaciones/HAB-SINT-101/limpieza", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
         self.assertEqual(respuesta.json()["estado_preparacion"], "limpia")
-        self.assertEqual(respuesta.json()["tareas_completadas"], 1)
+        self.assertEqual(respuesta.json()["tareas_completadas"], 2)
         pendientes = self.select(
             "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' AND estado='pendiente'")
         self.assertEqual(pendientes[0][0], 0)
@@ -464,6 +465,14 @@ class HabitacionOperacionTest(OperacionBaseTest):
         self.assertEqual(recepcion.post(
             "/hotel/habitaciones/HAB-SINT-101/mantenimiento", json={"abierto": True},
             headers={"Idempotency-Key": self.clave()}).status_code, 403)
+        # ADP-8: sin limpieza pendiente el dominio no tiene nada que completar (409)
+        sin_tarea = recepcion.post(
+            "/hotel/habitaciones/HAB-SINT-101/limpieza", headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(sin_tarea.status_code, 409, sin_tarea.text)
+        with psycopg.connect(URL_TEST) as conexion:
+            conexion.execute("UPDATE habitaciones SET estado_preparacion='sucia' WHERE id='HAB-SINT-101'")
+            conexion.execute("INSERT INTO tareas_operativas (id, habitacion_id, tipo, estado) "
+                             "VALUES ('TSK-LIMP-1', 'HAB-SINT-101', 'limpieza', 'pendiente')")
         respuesta = recepcion.post(
             "/hotel/habitaciones/HAB-SINT-101/limpieza", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
@@ -488,11 +497,10 @@ class HabitacionOperacionTest(OperacionBaseTest):
         self.assertEqual(
             self.select("SELECT estado_operativo FROM habitaciones WHERE id='HAB-SINT-101'")[0][0], "ocupada")
 
-    def test_salida_con_otra_estadia_en_curso_no_marca_disponible(self):
-        """V1-ISSUE-15: entrada admite el turnover no solapado (rangos
-        contiguos), así que una unidad puede tener dos estadías en curso. La
-        salida de una no debe marcar disponible+sucia ni abrir limpieza si la
-        otra estadía sigue en curso."""
+    def test_salida_con_otra_estadia_en_curso_la_decide_el_dominio(self):
+        """V1-ISSUE-15 / ADP-6: la entrada admite el turnover no solapado (rangos contiguos), así que
+        una unidad puede tener dos estadías en curso. La salida la resuelve `check_out` del dominio:
+        la unidad queda disponible y sucia con una limpieza pendiente, aunque la otra estadía siga."""
         a = self.reservar(inicio=str(_BASE), fin=str(_BASE + timedelta(days=2)))  # 2 noches
         b = self.reservar(inicio=str(_BASE + timedelta(days=2)), fin=str(_BASE + timedelta(days=4)))
         self.assertEqual(self.entrada(a).status_code, 200)
@@ -506,22 +514,18 @@ class HabitacionOperacionTest(OperacionBaseTest):
         # A finalizada, B sigue en_estadia
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (a,))[0][0], "finalizada")
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "en_estadia")
-        # la unidad NO queda disponible ni sucia: B sigue dentro
         operativo, preparacion = self.select(
             "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id='HAB-SINT-101'"
         )[0]
-        self.assertEqual(operativo, "ocupada")
-        self.assertEqual(preparacion, "limpia")
-        # sin tarea de limpieza nueva: la del turnover ya pasó antes de la entrada de B
+        self.assertEqual((operativo, preparacion), ("disponible", "sucia"))
         self.assertEqual(self.select(
             "SELECT count(*) FROM tareas_operativas WHERE habitacion_id='HAB-SINT-101' "
-            "AND tipo='limpieza' AND estado='pendiente'")[0][0], 0)
+            "AND tipo='limpieza' AND estado='pendiente'")[0][0], 1)
 
-        # la salida de la última estadía sí libera la unidad
+        # la salida de B también procede
         self.assertEqual(self.pagar(b, 100_000, self.clave()).status_code, 201)
         self.assertEqual(self.salida(b).status_code, 200)
-        self.assertEqual(
-            self.select("SELECT estado_operativo FROM habitaciones WHERE id='HAB-SINT-101'")[0][0], "disponible")
+        self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (b,))[0][0], "finalizada")
 
 
 class CancelacionTest(OperacionBaseTest):
@@ -534,19 +538,11 @@ class CancelacionTest(OperacionBaseTest):
         cuerpo = respuesta.json()
         self.assertEqual(cuerpo["estado"], "cancelada")
         self.assertEqual(cuerpo["penalidad_clp"], 0)
-        self.assertEqual(len(cuerpo["reversos"]), 1)
         self.assertEqual(self.select("SELECT estado FROM reservas WHERE id=%s", (rid,))[0][0], "cancelada")
 
-        # un reverso por el cargo de alojamiento, con referencia y monto positivo
-        reverso = self.select(
-            "SELECT tipo, monto_clp, referencia FROM cargos WHERE reserva_id=%s AND tipo='reverso'", (rid,))
-        self.assertEqual(len(reverso), 1)
-        self.assertEqual(reverso[0][0], "reverso")
-        self.assertEqual(reverso[0][1], 200_000)  # 4 noches x 50000
-        original = self.select(
-            "SELECT id, concepto, monto_clp FROM cargos WHERE reserva_id=%s AND tipo='cargo'", (rid,))
-        self.assertEqual(reverso[0][2], original[0][0])
-        self.assertIn("Alojamiento", original[0][1])
+        # ADP-7 AC-3: la cuenta nació vacía, así que no hay cargo de estadía que reversar
+        self.assertEqual(cuerpo["reversos"], [])
+        self.assertEqual(self.select("SELECT count(*) FROM cargos WHERE reserva_id=%s", (rid,))[0][0], 0)
 
         # el cupo queda libre: la oferta muestra la habitación y se puede re-reservar
         oferta = self.cliente.get("/hotel/oferta", params={"inicio": str(_BASE + timedelta(days=1)), "fin": str(_BASE + timedelta(days=2)), "personas": 2})
@@ -563,16 +559,16 @@ class CancelacionTest(OperacionBaseTest):
         self.assertEqual(respuesta.json()["penalidad_clp"], 50_000)
         penalidad = self.select(
             "SELECT concepto, monto_clp, tipo FROM cargos WHERE reserva_id=%s AND tipo='cargo'", (rid,))
-        self.assertEqual(len(penalidad), 2)  # alojamiento + penalidad
+        self.assertEqual(len(penalidad), 1)  # solo la penalidad: la cuenta nació vacía (ADP-4/7)
         conceptos = {c[0] for c in penalidad}
         self.assertIn("Cancelación fuera de plazo: primera noche", conceptos)
-        # neto = penalidad (alojamiento reverzado)
+        # neto = penalidad
         (neto,) = self.select(
             "SELECT COALESCE(SUM(CASE WHEN tipo='reverso' THEN -monto_clp ELSE monto_clp END),0) "
             "FROM cargos WHERE reserva_id=%s", (rid,))[0]
         self.assertEqual(neto, 50_000)
 
-    def test_solo_desde_confirmada_y_sin_dobles_reversos(self):
+    def test_solo_desde_confirmada_y_sin_reversos_ni_penalidad_doble(self):
         rid = self.reservar()
         self.entrada(rid)
         self.assertEqual(self.cliente.post(
@@ -586,12 +582,12 @@ class CancelacionTest(OperacionBaseTest):
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid2}/cancelacion", headers={"Idempotency-Key": "cancela-2"}).status_code, 409)
         self.assertEqual(self.select(
-            "SELECT count(*) FROM cargos WHERE reserva_id=%s AND tipo='reverso'", (rid2,))[0][0], 1)
+            "SELECT count(*) FROM cargos WHERE reserva_id=%s AND tipo='reverso'", (rid2,))[0][0], 0)
 
     def test_con_pagos_el_neto_a_favor_se_confirma_sin_reembolso(self):
         futuro = date.today() + timedelta(days=30)
         rid = self.reservar(inicio=str(futuro), fin=str(futuro + timedelta(days=4)))
-        self.pagar(rid, 200_000, "cobro-total")
+        self.pagar(rid, 200_000, "cobro-total", exceso=True)  # cuenta vacía (ADP-4): se cobra por adelantado
         respuesta = self.cliente.post(
             f"/hotel/reservas/{rid}/cancelacion", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)
@@ -671,7 +667,7 @@ class CargosEstadiaTest(OperacionBaseTest):
         r3 = caja.post(f"/hotel/reservas/{rid}/cargos", json={"producto_id": "PRD-TEST-CONSUMO", "cantidad": 2},
                        headers={"Idempotency-Key": "cargo-1"})
         self.assertEqual(r3.status_code, 409)
-        self.assertEqual(self.select("SELECT count(*) FROM cargos WHERE reserva_id=%s", (rid,))[0][0], 2)  # alojamiento + 1 cargo
+        self.assertEqual(self.select("SELECT count(*) FROM cargos WHERE reserva_id=%s", (rid,))[0][0], 1)  # solo el cargo: la cuenta nace vacía (ADP-4)
 
 
 if __name__ == "__main__":

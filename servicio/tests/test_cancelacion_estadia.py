@@ -106,15 +106,15 @@ class CancelacionEstadiaTest(unittest.TestCase):
         rid = self.reservar(clave="res-lectura")
         antes = self.cliente.get(f"/hotel/reservas/{rid}").json()
         self.assertEqual(antes["estado"], "confirmada")
-        self.assertEqual(len(antes["cargos"]), 1)
-        self.assertEqual(antes["cuenta"]["cargos_netos_clp"], 150_000)
+        self.assertEqual(len(antes["cargos"]), 0)  # la cuenta nace vacía (ADP-4/5)
+        self.assertEqual(antes["cuenta"]["cargos_netos_clp"], 0)
 
         # Releer repetidamente equivale a abrir/recargar con ?reserva_id=...
         for _ in range(3):
             despues = self.cliente.get(f"/hotel/reservas/{rid}").json()
             self.assertEqual(despues["estado"], "confirmada")
-            self.assertEqual(len(despues["cargos"]), 1)
-            self.assertEqual(despues["cuenta"]["cargos_netos_clp"], 150_000)
+            self.assertEqual(len(despues["cargos"]), 0)
+            self.assertEqual(despues["cuenta"]["cargos_netos_clp"], 0)
 
     def test_cancelacion_concurrente_con_distinta_clave_no_duplica_reversos_ni_penalidad(self):
         """Dos solicitudes concurrentes con distinta Idempotency-Key sobre una
@@ -158,9 +158,9 @@ class CancelacionEstadiaTest(unittest.TestCase):
         self.assertEqual(detalle["estado"], "cancelada")
         reversos = [c for c in detalle["cargos"] if c["tipo"] == "reverso"]
         penalidades = [c for c in detalle["cargos"] if c["tipo"] == "cargo" and "primera noche" in c["concepto"]]
-        self.assertEqual(len(reversos), 2, f"Reversos duplicados: {detalle['cargos']}")
+        self.assertEqual(len(reversos), 1, f"Reversos duplicados: {detalle['cargos']}")  # solo el minibar
         self.assertEqual(len(penalidades), 1, f"Penalidades duplicadas: {detalle['cargos']}")
-        # Neto = 0 (alojamiento + minibar reversados) + 50.000 (1 noche de penalidad) = 50.000
+        # Neto = 0 (minibar reversado) + 50.000 (1 noche de penalidad) = 50.000
         self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 50_000)
 
         with psycopg.connect(URL_TEST) as conexion:
@@ -203,7 +203,7 @@ class CancelacionEstadiaTest(unittest.TestCase):
         detalle = self.cliente.get(f"/hotel/reservas/{rid}").json()
         reversos = [c for c in detalle["cargos"] if c["tipo"] == "reverso"]
         penalidades = [c for c in detalle["cargos"] if c["tipo"] == "cargo" and "primera noche" in c["concepto"]]
-        self.assertEqual(len(reversos), 1)
+        self.assertEqual(len(reversos), 0)  # nada que reversar: la cuenta nació vacía
         self.assertEqual(len(penalidades), 1)
         self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 50_000)
 
@@ -292,7 +292,7 @@ class CancelacionEstadiaTest(unittest.TestCase):
         self.assertEqual(
             self.cliente.post(
                 f"/hotel/reservas/{rid}/pagos",
-                json={"monto_clp": 60_000, "clave": "cob-inv-1", "modo": "manual"},
+                json={"monto_clp": 60_000, "clave": "cob-inv-1", "modo": "manual", "confirmar_exceso": True},  # cuenta vacía (ADP-4): el pago excede el saldo
                 headers={"Idempotency-Key": "pag-inv-1"},
             ).status_code,
             201,
@@ -306,7 +306,7 @@ class CancelacionEstadiaTest(unittest.TestCase):
             201,
         )
         antes = self.cliente.get(f"/hotel/reservas/{rid}").json()
-        self.assertEqual(antes["cuenta"], {"cargos_netos_clp": 160_000, "pagado_clp": 60_000, "saldo_clp": 100_000})
+        self.assertEqual(antes["cuenta"], {"cargos_netos_clp": 10_000, "pagado_clp": 60_000, "saldo_clp": -50_000})
 
         # Sin sesión -> 401
         anon = TestClient(self.app)
@@ -346,8 +346,8 @@ class CancelacionEstadiaTest(unittest.TestCase):
         self.assertEqual(datos1["estado"], "cancelada")
         self.assertEqual(datos1["penalidad_clp"], 0)
         self.assertEqual(datos1["reembolso"], "no configurado")
-        self.assertEqual(len(datos1["reversos"]), 2)
-        self.assertEqual(sum(x["monto_clp"] for x in datos1["reversos"]), 160_000)
+        self.assertEqual(len(datos1["reversos"]), 1)  # el minibar; no hubo alojamiento que reversar
+        self.assertEqual(sum(x["monto_clp"] for x in datos1["reversos"]), 10_000)
 
         # Reintento con la misma clave -> 200 idéntico
         r2 = self.cliente.post(f"/hotel/reservas/{rid}/cancelacion", json={}, headers={"Idempotency-Key": "can-inv-ok"})
@@ -369,10 +369,10 @@ class CancelacionEstadiaTest(unittest.TestCase):
         self.assertEqual(r_ya.status_code, 409)
         self.assertIn("cancelada", r_ya.json()["detail"])
 
-        # Estado final persistido: 2 cargos + 2 reversos, neto 0, pagado 60.000 intacto, saldo -60.000
+        # Estado final persistido: 1 cargo + 1 reverso, neto 0, pagado 60.000 intacto, saldo -60.000
         despues = self.cliente.get(f"/hotel/reservas/{rid}").json()
         self.assertEqual(despues["estado"], "cancelada")
-        self.assertEqual(len(despues["cargos"]), 4)
+        self.assertEqual(len(despues["cargos"]), 2)
         self.assertEqual(despues["cuenta"], {"cargos_netos_clp": 0, "pagado_clp": 60_000, "saldo_clp": -60_000})
         self.assertEqual(len(despues["pagos"]), 1)
 

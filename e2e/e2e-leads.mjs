@@ -18,6 +18,7 @@
 
 import { chromium } from 'playwright'
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, extname, join, normalize } from 'node:path'
@@ -33,6 +34,14 @@ const ADMIN = ['admin_e2e', process.env.ADMIN_CLAVE_E2E || 'E2eClave123']
 const RUN = Date.now().toString(36)
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const RAIZ_LANDING = join(AQUI, '..', 'landing')
+
+// Misma política que publica `landing/.htaccess` (fuente: landing/hosting/csp.txt), con los orígenes locales del E2E
+// añadidos a connect-src. Así el E2E detecta lo que en producción bloquearía el navegador (reCAPTCHA, API).
+function politicaDeLanding() {
+  const base = readFileSync(join(RAIZ_LANDING, 'hosting', 'csp.txt'), 'utf8').trim()
+  const locales = [new URL(FRONT).origin, new URL(API).origin].join(' ')
+  return base.replace('connect-src ', `connect-src ${locales} `)
+}
 
 const TIPOS = {
   '.html': 'text/html; charset=utf-8',
@@ -56,7 +65,10 @@ function servirLanding() {
         return
       }
       const cuerpo = await readFile(archivo)
-      respuesta.writeHead(200, { 'Content-Type': TIPOS[extname(archivo)] || 'application/octet-stream' })
+      respuesta.writeHead(200, {
+        'Content-Type': TIPOS[extname(archivo)] || 'application/octet-stream',
+        'Content-Security-Policy': politicaDeLanding(),
+      })
       respuesta.end(cuerpo)
     } catch {
       respuesta.writeHead(404).end('no encontrado')
@@ -176,8 +188,30 @@ try {
     window.LANDING_PLATAFORMA_URL = front
     window.LANDING_API_URL = apiBase
     window.LANDING_RECAPTCHA_SITE_KEY = ''
+    window.__violacionesCsp = []
+    document.addEventListener('securitypolicyviolation', (e) =>
+      window.__violacionesCsp.push(`${e.violatedDirective} ${e.blockedURI}`))
   }, { front: FRONT, api: API })
   const page = await ctx.newPage()
+
+  // ---------- LEAD-E2E-00: la política de seguridad del sitio deja pasar a reCAPTCHA ----------
+  await caso('LEAD-E2E-00', '/', 'cargar la landing con la política de seguridad de producción e intentar cargar reCAPTCHA', 'visitante',
+    'ninguna violación de la política: el script de reCAPTCHA y su marco no los bloquea el navegador', async () => {
+      await page.goto(LANDING)
+      await page.evaluate(() => {
+        const script = document.createElement('script')
+        script.src = 'https://www.google.com/recaptcha/api.js?render=clave-de-prueba'
+        document.head.append(script)
+        const marco = document.createElement('iframe')
+        marco.src = 'https://www.google.com/recaptcha/api2/anchor'
+        marco.hidden = true
+        document.body.append(marco)
+      })
+      await page.waitForTimeout(1500)
+      const violaciones = await page.evaluate(() => window.__violacionesCsp)
+      esperar(violaciones.length === 0, `el navegador bloqueó: ${violaciones.join(' | ')}`)
+      return 'sin violaciones de la política en la carga ni al pedir reCAPTCHA'
+    })
 
   // ---------- LEAD-E2E-01: el formulario propio deja el lead en la plataforma ----------
   await caso('LEAD-E2E-01', '/#contacto', 'enviar el formulario de contacto: el lead queda nuevo en la plataforma', 'visitante',
@@ -202,6 +236,8 @@ try {
       esperar(mio.correo === LEAD.correo && mio.telefono === LEAD.telefono, 'datos de contacto distintos')
       esperar(mio.origen === 'landing', `origen inesperado: ${mio.origen}`)
       esperar(mio.check_in === LEAD.check_in && mio.check_out === LEAD.check_out, 'fechas distintas')
+      const violaciones = await page.evaluate(() => window.__violacionesCsp)
+      esperar(violaciones.length === 0, `la política bloqueó el envío: ${violaciones.join(' | ')}`)
       return await evidencia(page, 'lead-e2e-01-formulario-enviado')
     })
 

@@ -162,8 +162,8 @@ class MantenedorHabitacionesTest(BaseOperacion):
         self.assertEqual(r.json()["cambios"], {"tipo": ["doble", "suite"], "capacidad": [2, 4]})
         self.assertEqual(self.sql("SELECT habitacion_id, inicio, fin, estado, tarifa_noche_aceptada_clp "
                                   "FROM reservas"), antes)
-        self.assertEqual(self.admin.get(f"/hotel/reservas/{reserva['reserva_id']}").json()["cuenta"]["cargos_netos_clp"],
-                         3 * 45000)
+        # la cuenta nace vacía (ADP-4/5): el alojamiento se asienta en la entrada
+        self.assertEqual(self.admin.get(f"/hotel/reservas/{reserva['reserva_id']}").json()["cuenta"]["cargos_netos_clp"], 0)
         auditoria = [f[0] for f in self.sql("SELECT resultado FROM auditoria WHERE accion = 'habitacion'")]
         self.assertIn("editada tipo: doble→suite; capacidad: 2→4", auditoria)
         # el mismo cuerpo otra vez (otra clave): sin cambios, también auditado
@@ -189,7 +189,7 @@ class MantenedorHabitacionesTest(BaseOperacion):
         # la reserva conserva su tarifa y su cargo
         detalle = self.admin.get(f"/hotel/reservas/{reserva['reserva_id']}").json()
         self.assertEqual(detalle["tarifa_noche_aceptada_clp"], 45000)
-        self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 90000)
+        self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 0)  # cuenta vacía hasta la entrada
         # historial completo en la ficha, con la vigente de hoy marcada
         ficha = self.admin.get("/hotel/habitaciones/HAB-M-1").json()
         self.assertEqual(len(ficha["excepciones"]), 3)
@@ -225,7 +225,7 @@ class MantenedorHabitacionesTest(BaseOperacion):
         self.assertEqual(ficha["motivo_fuera_de_servicio"], "remodelación")
         self.assertEqual([x["estado"] for x in ficha["reservas"]], ["cancelada"])
         self.assertEqual(len(ficha["excepciones"]), 1)
-        self.assertGreater(self.sql("SELECT count(*) FROM cargos")[0][0], 0)
+        self.assertEqual(self.sql("SELECT count(*) FROM cargos")[0][0], 0)  # ADP-7: sin cargos ni reversos que conservar
         # retirar otra vez: sin cambios
         r = self.admin.post("/hotel/habitaciones/HAB-M-1/servicio",
                             json={"en_servicio": False, "motivo": "remodelación"}, headers=self.clave())
@@ -308,16 +308,16 @@ class ConsultaReservasTest(BaseOperacion):
         self.assertEqual(item["noches"], 4)
 
     def test_ca_res_02_detalle_con_cuenta_y_saldo_de_la_salida(self):
-        reserva = self.reservar("HAB-C-2", iso(0), iso(2))
+        reserva = self.reservar("HAB-C-2", iso(-1), iso(1))  # ya comenzó: la entrada no depende de la hora
         rid = reserva["reserva_id"]
-        self.admin.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 50000, "clave": "p1", "modo": "manual"},
-                        headers=self.clave())
-        self.admin.post(f"/hotel/reservas/{rid}/entrada", json={}, headers=self.clave())
+        self.admin.post(f"/hotel/reservas/{rid}/entrada", json={}, headers=self.clave())  # asienta las noches
         self.admin.post(f"/hotel/reservas/{rid}/cargos", json={"concepto": "minibar", "monto_clp": 7000},
+                        headers=self.clave())
+        self.admin.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 50000, "clave": "p1", "modo": "manual"},
                         headers=self.clave())
         detalle = self.admin.get(f"/hotel/reservas/{rid}").json()
         self.assertEqual(detalle["cuenta"], {"cargos_netos_clp": 97000, "pagado_clp": 50000, "saldo_clp": 47000})
-        self.assertEqual([c["concepto"] for c in detalle["cargos"]], ["Alojamiento 2 noches", "minibar"])
+        self.assertEqual([c["concepto"] for c in detalle["cargos"]], ["Noche", "Noche", "minibar"])  # ADP-5: una por noche
         self.assertEqual(detalle["huesped_documento"], "11.111.111-1")
         salida = self.admin.post(f"/hotel/reservas/{rid}/salida", json={}, headers=self.clave())
         self.assertEqual(salida.status_code, 409)

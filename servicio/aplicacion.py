@@ -42,6 +42,7 @@ from . import cobro  # noqa: E402
 from . import panel  # noqa: E402
 from . import canal_publico  # noqa: E402
 from . import agente  # noqa: E402
+from . import hotel_sql  # noqa: E402
 from . import observabilidad  # noqa: E402
 from .modelo_lenguaje import ModeloGuionado, NoConfigurado, SinAdaptador  # noqa: E402
 from nucleo.empresa import Empresa  # noqa: E402
@@ -96,10 +97,8 @@ def construir_aplicacion(nucleo: Nucleo | None = None) -> Aplicacion:
         establecimiento = Establecimiento(
             id="EST-HERENCIA-001", empresa_id=nucleo.empresa.id, nombre=EMPRESA_TITULAR_MARCA
         )
-    unidades = tuple(
-        Unidad(f"HAB-SINT-10{n}", establecimiento.id, 2, 50_000, EstadoUnidad.LIMPIA) for n in range(1, 4)
-    )
-    return Aplicacion(nucleo=nucleo, hotel=construir_hotel(nucleo, establecimiento, unidades))
+    # ADP-3: el dominio nace vacío; `hotel_sql.recargar` lo llena desde las filas de `habitaciones`.
+    return Aplicacion(nucleo=nucleo, hotel=construir_hotel(nucleo, establecimiento, ()))
 
 
 def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> None:
@@ -137,10 +136,8 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
             agente.asegurar_agente_servicio(conexion, aplicacion.nucleo.empresa.id)
             if config.admin_email and config.admin_usuario:
                 seguridad.vincular_email(conexion, config.admin_usuario, config.admin_email)
-            # HAB-SINT solo en núcleo sintético de pruebas. En titular real
-            # el inventario operativo son HAB-01..17 (documental).
-            if aplicacion.nucleo.empresa.es_sintetico:
-                reservas_db.sembrar_habitaciones(conexion)
+            # ADP-3: el servicio arranca sin habitaciones sembradas; el inventario lo crea la API
+            # (PUT /hotel/habitaciones/{id}) y el dominio lo lee de las filas en cada operación.
             if (
                 config.inventario_documental
                 and not aplicacion.nucleo.empresa.es_sintetico
@@ -205,6 +202,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     )
     app.add_middleware(canal_publico.TopeCuerpoPublico)
     app.state.aplicacion = aplicacion
+    hotel_sql.registrar(aplicacion.hotel)  # lecturas del canal público, el agente y la evaluación
     app.state.configuracion = configuracion
     if configuracion is not None and configuracion.database_url:
         _preparar_base_de_datos(configuracion, aplicacion)

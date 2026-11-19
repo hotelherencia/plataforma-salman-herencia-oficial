@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 import psycopg
 from psycopg.errors import ExclusionViolation
 
-from . import iva, politicas, precios
+from . import hotel_sql, iva, politicas, precios
 
 VIGENCIA_OFERTA = timedelta(minutes=15)
 ESTABLECIMIENTO_SINTETICO = "EST-SINT-001"
@@ -163,52 +163,12 @@ def fijar_servicio(conexion: psycopg.Connection, habitacion_id: str, en_servicio
     }
 
 
-def _libre(conexion: psycopg.Connection, habitacion_id: str, inicio: date, fin: date) -> bool:
-    fila = conexion.execute(
-        "SELECT count(*) FROM reservas WHERE habitacion_id = %s AND estado IN ('confirmada', 'en_estadia') "
-        "AND daterange(inicio, fin, '[)') && daterange(%s, %s, '[)')",
-        (habitacion_id, inicio, fin),
-    ).fetchone()
-    return fila[0] == 0
-
-
 def oferta(conexion: psycopg.Connection, inicio: date, fin: date, personas: int, ahora: datetime, empresa_id: str | None = None, extras: dict | None = None) -> dict:
-    # HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): ocupada y sucia se venden
-    # en otras fechas; mantenimiento, bloqueada y fuera_de_servicio quedan fuera.
-    unidades = conexion.execute(
-        "SELECT id, tipo, capacidad FROM habitaciones WHERE capacidad >= %s "
-        f"AND NOT {SQL_MANTENIMIENTO_SOLAPA} AND estado_operativo <> ALL(%s) "
-        "ORDER BY id",
-        (personas, inicio, fin, list(ESTADOS_NO_VENDIBLES)),
-    ).fetchall()
-    ids = [u[0] for u in unidades]
-    ocupadas = {
-        f[0]
-        for f in conexion.execute(
-            "SELECT DISTINCT habitacion_id FROM reservas WHERE habitacion_id = ANY(%s) "
-            "AND estado IN ('confirmada', 'en_estadia') "
-            "AND daterange(inicio, fin, '[)') && daterange(%s, %s, '[)')",
-            (ids, inicio, fin),
-        ).fetchall()
-    } if ids else set()
-    tabla = precios.cargar(conexion, inicio, fin, ids) if ids else None
-    items = []
-    for habitacion_id, tipo, capacidad in unidades:
-        if habitacion_id in ocupadas:
-            continue
-        cotizacion = precios.cotizar_en(tabla, habitacion_id, inicio, fin)
-        if cotizacion.sin_tarifa is not None:
-            continue
-        items.append(
-            {
-                "habitacion_id": habitacion_id,
-                "tipo": tipo,
-                "capacidad": capacidad,
-                "tarifa_noche_clp": cotizacion.tarifa_primera,
-                "total_clp": cotizacion.total,
-                "vigente_hasta": (ahora + VIGENCIA_OFERTA).isoformat(),
-            }
-        )
+    # ADP-4: qué unidades se venden lo decide `consultar_oferta` del dominio (ocupada y sucia se venden en
+    # otras fechas; mantenimiento fuera de rango, bloqueada y fuera de servicio no). Aquí solo se enriquece
+    # con la política del hotel y el IVA.
+    hotel = hotel_sql.hotel_registrado()
+    items = hotel_sql.candidatas(conexion, hotel, hotel.empresa.id, inicio, fin, personas, ahora)
     # UX: con 4+ personas la oferta queda vacía; el front explica el tope por
     # habitación con este dato (no lo inventa).
     tope = conexion.execute(
@@ -467,19 +427,9 @@ def crear_reserva(
     extras: dict | None = None,
     huesped_documento_tipo: str | None = None,
 ) -> dict:
-    # El estado se lee tras el cerrojo: un retiro concurrente y esta reserva se
-    # serializan sobre la fila (spec-hotel-operacion-v1 §2.7, misma regla que la oferta).
-    habitacion = conexion.execute(
-        "SELECT estado_operativo, mantenimiento, capacidad FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
-    ).fetchone()
-    if habitacion is not None and (
-        habitacion[0] in ESTADOS_NO_VENDIBLES or mantenimiento_solapa(conexion, habitacion_id, inicio, fin)
-    ):
-        raise HabitacionNoVendible(f"{habitacion_id} está fuera del cupo: no admite reservas nuevas")
-    # #298 (DECISIÓN 2026-11-06): las personas se validan contra la capacidad
-    # al confirmar, igual que la oferta las filtra.
-    if personas is not None and habitacion is not None and habitacion[2] < personas:
-        raise SinCupo(f"la unidad {habitacion_id} admite hasta {habitacion[2]} personas")
+    # ADP-4: si la unidad se vende y hay cupo lo decide `hotel.reservar` del dominio (tras el cerrojo de
+    # fila de la unidad). Aquí solo se cotiza con el resolvedor de precios y se aplica la política del hotel.
+    hotel = hotel_sql.hotel_registrado()
     # Cada noche necesita tarifa (§2.8) y cada noche se cobra con su tarifa
     # vigente (#305, DECISIÓN 2026-11-06; reemplaza D-TAR-02).
     cotizacion = precios.cotizar(conexion, habitacion_id, inicio, fin)
@@ -496,36 +446,18 @@ def crear_reserva(
         )
     tarifa, total = cotizacion.tarifa_primera, item["total_clp"]
     snapshot = politicas.snapshot_para_reserva(cuerpo_politica, item)
-    reserva_id = f"RSV-{uuid.uuid4().hex[:12]}"
-    try:
-        with conexion.transaction():  # savepoint: la violación no aborta la transacción externa
-            conexion.execute(
-                "INSERT INTO reservas (id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, "
-                "huesped_documento_tipo, tarifa_noche_aceptada_clp, personas, total_aceptado_clp, politica_snapshot, recargos) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                (reserva_id, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento,
-                 huesped_documento_tipo, tarifa,
-                 personas, total, psycopg.types.json.Json(snapshot),
-                 psycopg.types.json.Json(item.get("recargos") or [])),
-            )
-            # Entrega 1A: precio congelado noche a noche, con su origen.
-            with conexion.cursor() as cursor:
-                cursor.executemany(
-                    "INSERT INTO reserva_noches (reserva_id, noche, precio_clp, origen) VALUES (%s, %s, %s, %s)",
-                    [(reserva_id, noche, p.precio_clp, p.origen) for noche, p in cotizacion.noches],
-                )
-            conexion.execute(
-                "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
-                (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, f"Alojamiento {(fin - inicio).days} noches",
-                 item["subtotal_noches_clp"]),
-            )
-            for recargo in item.get("recargos") or []:
-                conexion.execute(
-                    "INSERT INTO cargos (id, reserva_id, concepto, monto_clp) VALUES (%s, %s, %s, %s)",
-                    (f"CRG-{uuid.uuid4().hex[:12]}", reserva_id, recargo["detalle"], recargo["monto_clp"]),
-                )
-    except ExclusionViolation as error:
-        raise SinCupo(f"sin cupo para {habitacion_id} en [{inicio}, {fin})") from error
+    creada = hotel_sql.reservar(
+        conexion, hotel, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, personas,
+        columnas={
+            "huesped_documento_tipo": huesped_documento_tipo,
+            "total_aceptado_clp": total,
+            "politica_snapshot": psycopg.types.json.Json(snapshot),
+            "recargos": psycopg.types.json.Json(item.get("recargos") or []),
+        },
+        noches=cotizacion.noches,
+        recargos=item.get("recargos") or [],
+    )
+    reserva_id = creada["reserva_id"]
     # Aviso «reserva confirmada» en la misma transacción (sin datos del huésped).
     from . import avisos
 

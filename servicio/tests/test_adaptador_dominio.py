@@ -86,9 +86,8 @@ class AdaptadorDominioTest(unittest.TestCase):
         return respuesta.json()["reserva_id"]
 
     def test_1_el_rechazo_propaga_409_y_no_deja_estado_parcial(self):
-        """Arquitectura vigente (spec-api-v1, 2026-10-30): las reglas de
-        operación las decide el servicio sobre PostgreSQL (fuente de verdad).
-        Lo que este test protege: todo rechazo responde 409/403 y la
+        """Arquitectura (ADP-0): las reglas de operación las decide el dominio y PostgreSQL las
+        proyecta. Lo que este test protege: todo rechazo del dominio responde 409/403 y la
         transacción no deja estado a medias (unidad/reserva intactas)."""
         rid = self.reservar(clave="stp-r")
         # doble entrada: la segunda se niega y la primera no se corrompe
@@ -120,16 +119,28 @@ class AdaptadorDominioTest(unittest.TestCase):
                 "SELECT count(*) FROM cargos WHERE reserva_id = %s AND tipo = 'reverso'", (rid,)).fetchone()
         self.assertEqual((estado, reversos), ("en_estadia", 0))
 
-    def test_2_la_politica_de_cancelacion_tiene_fuente_unica_en_el_dominio(self):
-        """Los valores de la política (48 h / 15:00) se importan del dominio
-        (`hotel_inventario.servicio`), no se redefinen en el adaptador; y el
-        no-solape lo garantiza el constraint de la migración, no el código."""
-        from hotel_inventario import servicio as servicio_dominio
-        import servicio.cobro as cobro_modulo
-        self.assertIs(cobro_modulo.HORA_LLEGADA, servicio_dominio.HORA_LLEGADA)
-        self.assertIs(cobro_modulo.LIMITE_CANCELACION_GRATUITA, servicio_dominio.LIMITE_CANCELACION_GRATUITA)
-        texto_cobro = open(os.path.join(RAIZ, "servicio/cobro.py"), encoding="utf-8").read()
-        self.assertNotIn("timedelta(hours=48)", texto_cobro)
+    def test_2_cobro_y_reservas_no_deciden_la_regla_del_hotel(self):
+        """ADP-10 AC-2 (escaneo de fuente): `cobro.py` y `reservas.py` persisten y traducen HTTP; no
+        redefinen la política de cancelación (48 h / 15:00), ni los `if` de mantenimiento, preparación
+        o solape que deciden la entrada, ni la oferta o la confirmación. El no-solape lo garantiza el
+        constraint de la migración."""
+        import re
+
+        for archivo in ("servicio/cobro.py", "servicio/reservas.py"):
+            with open(os.path.join(RAIZ, archivo), encoding="utf-8") as f:
+                texto = f.read()
+            with self.subTest(archivo=archivo):
+                patrones = [
+                    r"timedelta\(hours=48\)", r"HORA_LLEGADA", r"LIMITE_CANCELACION_GRATUITA",
+                    r"estado_preparacion\s+not\s+in", r"habitacion\[\d\]", r"daterange\(inicio, fin, '\[\)'\)\s*&&",
+                ]
+                if archivo.endswith("cobro.py"):  # la baja lógica de `reservas.py` es mantenedor, no operación
+                    patrones += [r"UPDATE habitaciones SET estado_operativo", r"INSERT INTO cargos"]
+                for patron in patrones:
+                    self.assertIsNone(re.search(patron, texto), f"{archivo} reescribe una regla: {patron}")
+        with open(os.path.join(RAIZ, "servicio/reservas.py"), encoding="utf-8") as f:
+            texto = f.read()
+        self.assertNotIn("INSERT INTO reservas", texto)  # la reserva la persiste el adaptador (ADP-2/4)
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             (vigente,) = conexion.execute(
@@ -138,11 +149,11 @@ class AdaptadorDominioTest(unittest.TestCase):
 
     def test_3_estado_perdura_y_la_segunda_entrada_la_niega_el_dominio(self):
         rid = self.reservar()
+        self.assertEqual(self.cliente.post(
+            f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-1"}).status_code, 200)
         self.cliente.post(f"/hotel/reservas/{rid}/pagos",
                           json={"monto_clp": 200_000, "clave": "cob-1", "modo": "manual"},
                           headers={"Idempotency-Key": "pag-1"})
-        self.assertEqual(self.cliente.post(
-            f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-1"}).status_code, 200)
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid}/salida", json={}, headers={"Idempotency-Key": "sal-1"}).status_code, 200)
         # proceso nuevo contra la misma base: todo sigue y check_in niega la reentrada
@@ -155,7 +166,7 @@ class AdaptadorDominioTest(unittest.TestCase):
             (tareas,) = conexion.execute("SELECT count(*) FROM tareas_operativas WHERE estado = 'pendiente'").fetchone()
             (cargos,) = conexion.execute("SELECT count(*) FROM cargos").fetchone()
             (pagos,) = conexion.execute("SELECT count(*) FROM pagos").fetchone()
-        self.assertEqual((reservas, tareas, cargos, pagos), (1, 1, 1, 1))
+        self.assertEqual((reservas, tareas, cargos, pagos), (1, 1, 4, 1))  # 4 noches asentadas en la entrada (ADP-5)
         respuesta = cliente2.post(f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-2"})
         self.assertEqual(respuesta.status_code, 409)
         with psycopg.connect(URL_TEST) as conexion:

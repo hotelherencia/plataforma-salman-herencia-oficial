@@ -187,7 +187,7 @@ class TiposHabitacion1ATest(unittest.TestCase):
         detalle = self.recepcion.get(f"/hotel/reservas/{reserva_id}").json()
         self.assertEqual(detalle["total_aceptado_clp"], 160000)
         self.assertEqual([n["precio_clp"] for n in detalle["precio_por_noche"]], [70000, 90000])
-        self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 160000)
+        self.assertEqual(detalle["cuenta"]["cargos_netos_clp"], 0)  # la cuenta nace vacía (ADP-4); las noches se asientan en la entrada
 
     def test_sin_precio_base_la_unidad_queda_sin_tarifa(self):
         self.crear_tipo(precio=None)

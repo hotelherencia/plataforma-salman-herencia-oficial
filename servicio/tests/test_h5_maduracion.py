@@ -159,6 +159,11 @@ class MaduracionTest(unittest.TestCase):
 
     def test_auditoria_registra_actor_accion_recurso_resultado(self):
         rid = self.reservar()
+        self.cliente.post(  # ADP-4: la cuenta nace vacía; el pago necesita un saldo que cobrar
+            f"/hotel/reservas/{rid}/cargos",
+            json={"concepto": "Alojamiento 2 noches", "monto_clp": 100_000},
+            headers={"Idempotency-Key": "cgo-1"},
+        )
         self.cliente.post(
             f"/hotel/reservas/{rid}/pagos",
             json={"monto_clp": 100_000, "clave": "cob-1", "modo": "manual"},
@@ -229,6 +234,9 @@ class ReinicioTest(unittest.TestCase):
                 {"habitacion_id": "HAB-SINT-101", **RANGO, "huesped": {"nombre": "Persistente"}},
                 cookies={"Cookie": galleta}, idempotency_key="res-reinicio",
             )
+            http("POST", f"/hotel/reservas/{creada['reserva_id']}/cargos",  # ADP-4: la cuenta nace vacía
+                 {"concepto": "Alojamiento 2 noches", "monto_clp": 100_000},
+                 cookies={"Cookie": galleta}, idempotency_key="cgo-reinicio")
             http("POST", f"/hotel/reservas/{creada['reserva_id']}/pagos",
                  {"monto_clp": 100_000, "clave": "cob-1", "modo": "manual"},
                  cookies={"Cookie": galleta}, idempotency_key="pag-reinicio")

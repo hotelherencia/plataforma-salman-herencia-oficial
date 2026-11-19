@@ -33,7 +33,10 @@ import tempfile
 import psycopg
 from psycopg import conninfo
 
-from servicio import canal_publico, inventario_documental, migracion, precios
+from servicio import canal_publico, hotel_sql, inventario_documental, migracion, precios
+from nucleo.servicio import Nucleo
+from servicio.aplicacion import construir_aplicacion
+from servicio.empresa_titular import EMPRESA_TITULAR
 from servicio import reservas as reservas_db
 from servicio.tests import legado_precios_27f9ccf as legado
 
@@ -228,6 +231,8 @@ class RegresionPreciosMigraciones1ATest(unittest.TestCase):
 
     def _comparar(self, etiqueta, antes, noche_esperada=None):
         noche_esperada = noche_esperada or antes["noche"]
+        # La oferta la decide el dominio (ADP-4): hace falta el hotel del proceso, que la app registra al arrancar.
+        hotel_sql.registrar(construir_aplicacion(Nucleo(empresa=EMPRESA_TITULAR)).hotel)  # las reservas sembradas son del titular
         grilla_esperada = {k: v for k, v in noche_esperada.items() if v is not None}
         with psycopg.connect(self.url) as conexion:
             rango = precios.precios_del_rango(conexion, DESDE, HASTA)

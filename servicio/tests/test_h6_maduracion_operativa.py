@@ -291,17 +291,17 @@ class MaduracionOperativaTest(unittest.TestCase):
     def test_turnover_solape_sucia_limpieza_y_siguiente_checkin(self):
         # A [p1,p5) con 4 noches; entrada ocupa la unidad y asienta las noches.
         rid_a = self.reservar("HAB-SINT-101", P1, P5, "Alicia", clave="r-a")
-        self.assertEqual(self.pagar(rid_a, 200_000, "cob-a", "pag-a").status_code, 201)
         self.assertEqual(self.entrada(rid_a, "ent-a").status_code, 200)
+        self.assertEqual(self.pagar(rid_a, 200_000, "cob-a", "pag-a").status_code, 201)
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             (operativo,) = conexion.execute(
                 "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
             (noches,) = conexion.execute(
-                "SELECT count(*) FROM cargos WHERE reserva_id = %s AND concepto LIKE 'Alojamiento%%'", (rid_a,)).fetchone()
+                "SELECT count(*) FROM cargos WHERE reserva_id = %s AND concepto = 'Noche'", (rid_a,)).fetchone()
         self.assertEqual(operativo, "ocupada")
-        # V1 (spec-api-v1): el cargo del alojamiento completo nace al confirmar
-        self.assertEqual(noches, 1)  # un solo cargo «Alojamiento N noches»
+        # ADP-5: el alojamiento se asienta en la entrada, noche a noche
+        self.assertEqual(noches, 4)  # p1..p5: cuatro noches
         # B [p5,p7) se crea aunque A esté en estadía (turnover, fuente check_in)
         rid_b = self.reservar("HAB-SINT-101", P5, P7, "Beatriz", clave="r-b")
         # la entrada de B con A todavía en estadía responde 200 (turnover)
@@ -313,8 +313,8 @@ class MaduracionOperativaTest(unittest.TestCase):
             headers={"Idempotency-Key": "r-c"},
         )
         self.assertEqual(solape.status_code, 409)
-        # salida de A (saldo 0) con B todavía en_estadia (V1-ISSUE-15): la
-        # unidad sigue ocupada y limpia; no nace tarea de limpieza
+        # salida de A (saldo 0) con B todavía en_estadia: `check_out` del dominio (ADP-6)
+        # deja la unidad disponible y sucia y abre la limpieza, aunque B siga dentro
         self.assertEqual(self.salida(rid_a, "sal-a").status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
@@ -325,9 +325,9 @@ class MaduracionOperativaTest(unittest.TestCase):
                 "SELECT count(*) FROM tareas_operativas WHERE habitacion_id = 'HAB-SINT-101' "
                 "AND tipo = 'limpieza' AND estado = 'pendiente'"
             ).fetchone()
-        self.assertEqual((operativo, preparacion), ("ocupada", "limpia"))
-        self.assertEqual(tareas_pendientes, 0)
-        # la salida de B, la última estadía de la unidad, deja sucia y con tarea
+        self.assertEqual((operativo, preparacion), ("disponible", "sucia"))
+        self.assertEqual(tareas_pendientes, 1)
+        # la salida de B abre otra tarea y deja la unidad sucia
         self.assertEqual(self.pagar(rid_b, 100_000, "cob-b", "pag-b").status_code, 201)
         self.assertEqual(self.salida(rid_b, "sal-b").status_code, 200)
         with psycopg.connect(URL_TEST) as conexion:
@@ -335,12 +335,12 @@ class MaduracionOperativaTest(unittest.TestCase):
             (operativo, preparacion) = conexion.execute(
                 "SELECT estado_operativo, estado_preparacion FROM habitaciones WHERE id = 'HAB-SINT-101'"
             ).fetchone()
-            (tarea,) = conexion.execute(
+            tareas = conexion.execute(
                 "SELECT id FROM tareas_operativas WHERE habitacion_id = 'HAB-SINT-101' "
                 "AND tipo = 'limpieza' AND estado = 'pendiente'"
-            ).fetchone()
+            ).fetchall()
         self.assertEqual((operativo, preparacion), ("disponible", "sucia"))
-        self.assertIsNotNone(tarea)
+        self.assertEqual(len(tareas), 2)
         # una reserva nueva en la unidad sucia no puede hacer check-in
         rid_c = self.reservar("HAB-SINT-101", P7, P9, "Clara", clave="r-c2")
         self.assertEqual(self.entrada(rid_c, "ent-c").status_code, 409)
@@ -357,13 +357,11 @@ class MaduracionOperativaTest(unittest.TestCase):
             (operativo,) = conexion.execute(
                 "SELECT estado_operativo FROM habitaciones WHERE id = 'HAB-SINT-101'").fetchone()
         self.assertEqual(operativo, "ocupada")
-        # limpieza sin tarea pendiente: no-op idempotente (200, 0 tareas cerradas)
+        # ADP-8 AC-2: limpieza sin tarea pendiente → 409 (el dominio no tiene nada que completar)
         otra = self.cliente.post(
             "/hotel/habitaciones/HAB-SINT-101/limpieza", json={}, headers={"Idempotency-Key": "limp-2"}
         )
-        self.assertEqual(otra.status_code, 200)
-        self.assertEqual(otra.json()["tareas_completadas"], 0)
-        self.assertEqual(otra.json()["estado_preparacion"], "limpia")
+        self.assertEqual(otra.status_code, 409)
 
     def test_mantenimiento_bloquea_entrada_y_sale_de_la_oferta(self):
         rid = self.reservar("HAB-SINT-102", P1, P3, "Carlos", clave="r-mant")
@@ -463,10 +461,11 @@ class MaduracionOperativaTest(unittest.TestCase):
         futura = self.reservar("HAB-SINT-102", FUTURO, FUTURO_FIN, "Fito", clave="r-fu")
         respuesta = self.entrada(futura, "ent-fu")
         self.assertEqual(respuesta.status_code, 409)
-        self.assertIn("día de entrada", respuesta.json()["detail"])
-        hoy = HOY.isoformat()
+        self.assertIn("hora de llegada", respuesta.json()["detail"])  # lo niega check_in del dominio
+        # ADP-5 AC-5: la entrada HTTP usa una reserva que ya comenzó (no depende de la hora del día)
+        ayer = (HOY - timedelta(days=1)).isoformat()
         manana = (HOY + timedelta(days=2)).isoformat()
-        actual = self.reservar("HAB-SINT-102", hoy, manana, "Gabi", clave="r-ga")
+        actual = self.reservar("HAB-SINT-102", ayer, manana, "Gabi", clave="r-ga")
         self.assertEqual(self.entrada(actual, "ent-ga").status_code, 200)
 
     # ---- 5. cancelación (decide el dominio, sin reversos) ----
@@ -478,12 +477,9 @@ class MaduracionOperativaTest(unittest.TestCase):
         self.assertEqual(respuesta.json()["estado"], "cancelada")
         self.assertEqual(respuesta.json()["penalidad_clp"], 0)
         self.assertEqual(respuesta.json()["reembolso"], "no configurado")
-        # V1: el alojamiento completo nace al confirmar y la cancelación lo
-        # revierte: un cargo + un reverso. Los cargos no se borran.
-        cargos = self._cargos_de(rid)
-        self.assertEqual(len(cargos), 2)
-        tipos = sorted(c[1] for c in cargos)
-        self.assertEqual(tipos, ["cargo", "reverso"])
+        # ADP-7 AC-3: la cuenta nace vacía, así que no hay cargo que reversar
+        self.assertEqual(self._cargos_de(rid), [])
+        self.assertEqual(respuesta.json()["reversos"], [])
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             (estado,) = conexion.execute("SELECT estado FROM reservas WHERE id = %s", (rid,)).fetchone()
@@ -498,9 +494,9 @@ class MaduracionOperativaTest(unittest.TestCase):
         respuesta = self.cancelar(rid, "can-fab")
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.json()["penalidad_clp"], 50_000)
-        # alojamiento + reverso + penalidad de la primera noche
+        # solo la penalidad de la primera noche (sin alojamiento ni reverso)
         cargos = self._cargos_de(rid)
-        self.assertEqual(len(cargos), 3)
+        self.assertEqual(len(cargos), 1)
         penalidad = [c for c in cargos if c[1] == "cargo" and "primera noche" in c[2]]
         self.assertEqual(len(penalidad), 1)
         self.assertEqual(penalidad[0][3], 50_000)
@@ -550,8 +546,8 @@ class MaduracionOperativaTest(unittest.TestCase):
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             (cargos,) = conexion.execute("SELECT count(*) FROM cargos WHERE reserva_id = %s", (rid,)).fetchone()
-        # alojamiento + reverso + penalidad (fuera de plazo), sin duplicar
-        self.assertEqual(cargos, 3)
+        # solo la penalidad (fuera de plazo), sin duplicar
+        self.assertEqual(cargos, 1)
 
     def test_cancelacion_requiere_rol_recepcion_o_admin(self):
         self.alta_usuario("caja1", "caja", "clave-caja", "u-caja")
@@ -578,8 +574,8 @@ class MaduracionOperativaTest(unittest.TestCase):
                 (rid,),
             ).fetchone()
         self.assertEqual((tipo, concepto, monto), ("cargo", "Minibar", 7_000))
+        self.entrada(rid, "ent-kar")  # ADP-5: la entrada asienta las noches; luego se cobra el saldo
         self.pagar(rid, 107_000, "cob-kar", "pag-kar")
-        self.entrada(rid, "ent-kar")
         cargo2 = self.cliente.post(
             f"/hotel/reservas/{rid}/cargos",
             json={"concepto": "consumo restaurante", "monto_clp": 3_000},
@@ -600,8 +596,8 @@ class MaduracionOperativaTest(unittest.TestCase):
             headers={"Idempotency-Key": "car-val"},
         )
         self.assertEqual(invalido.status_code, 422)
-        self.pagar(rid, 50_000, "cob-lui", "pag-lui")
         self.entrada(rid, "ent-lui")
+        self.pagar(rid, 50_000, "cob-lui", "pag-lui")
         self.salida(rid, "sal-lui")
         finalizada = self.cliente.post(
             f"/hotel/reservas/{rid}/cargos",

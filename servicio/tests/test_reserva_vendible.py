@@ -112,7 +112,7 @@ class ReservaVendibleTest(unittest.TestCase):
         )
         self.servicio("HAB-V-1", {"en_servicio": True})
         self.assertEqual(self.reservar("HAB-V-1").status_code, 201)
-        self.assertEqual(self.efectos("HAB-V-1"), (1, 1, 1))
+        self.assertEqual(self.efectos("HAB-V-1"), (1, 0, 1))  # cuenta vacía hasta la entrada (ADP-4)
 
     def test_ca_hab_07_bloqueada_y_mantenimiento_rechazan_para_cualquier_rol(self):
         self.sql_mutar("UPDATE habitaciones SET estado_operativo = 'bloqueada' WHERE id = 'HAB-V-1'")

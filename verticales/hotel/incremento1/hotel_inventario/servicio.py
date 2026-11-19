@@ -72,6 +72,10 @@ class CheckInNoPermitido(Exception):
     pass
 
 
+class ReasignacionNoPermitida(Exception):
+    """La reserva no puede pasar a esa unidad; el mensaje dice por qué."""
+
+
 class NocheNoAsentable(Exception):
     pass
 
@@ -170,6 +174,10 @@ class ServicioHotelInventario:
     @property
     def empresa(self) -> Empresa:
         return self._empresa
+
+    @property
+    def establecimiento(self) -> Establecimiento:
+        return self._establecimiento
 
     def consultar_disponibilidad(
         self,
@@ -949,7 +957,7 @@ class ServicioHotelInventario:
                 raise ValueError("pedido inexistente")
             return pedido.entregado
 
-    def reversar_cargo(self, empresa_id: str, cargo_id: str) -> Cargo:
+    def reversar_cargo(self, empresa_id: str, cargo_id: str, motivo: str | None = None) -> Cargo:
         self._exigir_empresa(empresa_id)
         with self._cerrojo:
             original = next((c for c in self._cargos if c.id == cargo_id), None)
@@ -962,7 +970,7 @@ class ServicioHotelInventario:
             return self._asentar(
                 original.reserva_id,
                 TipoCargo.REVERSO,
-                f"Reverso de {cargo_id}",
+                f"Reverso de {original.concepto}: {motivo}"[:200] if motivo else f"Reverso de {cargo_id}",
                 original.monto_clp,
                 referencia=cargo_id,
             )
@@ -1068,6 +1076,53 @@ class ServicioHotelInventario:
             self._liquidar(reserva_id)
             return salida
 
+    def reasignar(self, empresa_id: str, reserva_id: str, destino_id: str) -> Reserva:
+        """Mueve una reserva confirmada o hospedada a otra unidad (#361), con su tarifa aceptada.
+
+        El destino debe existir, ser vendible, no estar en mantenimiento y estar libre en el rango.
+        Una estadía en curso solo pasa a una unidad preparada; la unidad que deja queda sucia con una
+        limpieza pendiente, igual que en la salida."""
+        self._exigir_empresa(empresa_id)
+        with self._cerrojo:
+            reserva = self._reservas.get(reserva_id)
+            if reserva is None or reserva.estado not in self.ESTADOS_CON_CUENTA_ABIERTA:
+                raise ReasignacionNoPermitida(f"la reserva {reserva_id} no admite cambio de unidad")
+            if destino_id == reserva.unidad_id:
+                raise ReasignacionNoPermitida(f"la reserva ya está en {destino_id}")
+            destino = self._unidades.get(destino_id)
+            if destino is None:
+                raise ReasignacionNoPermitida(f"la unidad {destino_id} no existe")
+            if not self._vendible(destino):
+                raise ReasignacionNoPermitida(f"la unidad {destino_id} está fuera del cupo (mantenimiento o bloqueo)")
+            if reserva.estado is EstadoReserva.HOSPEDADA and destino.estado not in (
+                EstadoUnidad.LIMPIA, EstadoUnidad.INSPECCIONADA
+            ):
+                raise ReasignacionNoPermitida(f"la unidad {destino_id} no está lista ({destino.estado.value})")
+            if any(
+                r.id != reserva_id
+                and r.unidad_id == destino_id
+                and r.estado in self.ESTADOS_CON_CUENTA_ABIERTA
+                and reserva.inicio < r.fin
+                and reserva.fin > r.inicio
+                for r in self._reservas.values()
+            ):
+                raise ReasignacionNoPermitida(f"la unidad {destino_id} está ocupada en parte de esas fechas")
+            origen = self._unidades[reserva.unidad_id]
+            movida = replace(reserva, unidad_id=destino_id)
+            self._reservas[reserva_id] = movida
+            if reserva.estado is EstadoReserva.HOSPEDADA:
+                self._unidades[destino_id] = replace(destino, estado=EstadoUnidad.OCUPADA)
+                self._unidades[origen.id] = replace(origen, estado=EstadoUnidad.SUCIA)
+                tarea = TareaOperativa(
+                    id=self._nuevo_id("TSK"),
+                    empresa_id=self._empresa.id,
+                    unidad_id=origen.id,
+                    tipo="limpieza",
+                    estado=EstadoTarea.PENDIENTE,
+                )
+                self._tareas[tarea.id] = tarea
+            return movida
+
     def completar_tarea(self, empresa_id: str, tarea_id: str) -> TareaOperativa:
         self._exigir_empresa(empresa_id)
         with self._cerrojo:
@@ -1163,6 +1218,64 @@ class ServicioHotelInventario:
     def _exigir_rango(inicio: date, fin: date) -> None:
         if fin <= inicio:
             raise ValueError("el rango debe terminar después de empezar")
+
+    def alta_unidad(self, unidad: Unidad) -> None:
+        """ADP-1 (aditivo): crea una unidad en el dominio; rechaza id duplicado o de otro establecimiento."""
+        with self._cerrojo:
+            if unidad.establecimiento_id != self._establecimiento.id:
+                raise ValueError("la unidad pertenece a otro establecimiento")
+            if unidad.id in self._unidades:
+                raise ValueError("unidad duplicada")
+            self._unidades[unidad.id] = unidad
+
+    def recargar(
+        self,
+        unidades=(),
+        reservas=(),
+        cargos=(),
+        pagos=(),
+        tareas=(),
+        tarifas_aceptadas=None,
+        tarifas_por_rango=(),
+        liquidaciones=(),
+    ) -> None:
+        """ADP-1 (aditivo): vuelve a llenar las estructuras del servicio desde las filas actuales.
+
+        `tarifas_por_rango` son tuplas (unidad_id, desde, hasta, tarifa_clp, tipo) con ambos
+        extremos incluidos; se expanden a una entrada por día, la granularidad del dominio.
+        El contador de ids queda más allá de cualquier `XXX-SINT-NNNN` cargado.
+        """
+        por_fecha: dict[tuple[str, date], tuple[str, int]] = {}
+        for unidad_id, desde, hasta, tarifa_clp, tipo in tarifas_por_rango:
+            dia = desde
+            while dia <= hasta:
+                por_fecha[(unidad_id, dia)] = (tipo, tarifa_clp)
+                dia += timedelta(days=1)
+        reservas = tuple(reservas)
+        cargos = tuple(cargos)
+        pagos = tuple(pagos)
+        tareas = tuple(tareas)
+        with self._cerrojo:
+            self._unidades = {u.id: u for u in unidades}
+            self._reservas = {r.id: r for r in reservas}
+            self._cargos = list(cargos)
+            self._pagos = list(pagos)
+            self._tareas = {t.id: t for t in tareas}
+            self._tarifas_aceptadas = dict(tarifas_aceptadas or {})
+            self._tarifas_por_fecha = por_fecha
+            self._liquidaciones = {liquidacion.reserva_id: liquidacion for liquidacion in liquidaciones}
+            self._fecha_pagos = {}
+            maximo = 0
+            for identificador in (
+                *(r.id for r in reservas),
+                *(c.id for c in cargos),
+                *(p.id for p in pagos),
+                *(t.id for t in tareas),
+            ):
+                _, separador, numero = identificador.rpartition("-SINT-")
+                if separador and numero.isdigit():
+                    maximo = max(maximo, int(numero))
+            self._ids = itertools.count(maximo + 1)
 
     def _nuevo_id(self, prefijo: str) -> str:
         return f"{prefijo}-SINT-{next(self._ids):04d}"

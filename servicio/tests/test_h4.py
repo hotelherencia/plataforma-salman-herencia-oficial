@@ -53,14 +53,24 @@ class CobroEstadiaTest(unittest.TestCase):
         self.cliente = TestClient(self.app)
         self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
 
-    def reservar(self, clave="res-1", habitacion_id="HAB-SINT-101"):
+    def reservar(self, clave="res-1", habitacion_id="HAB-SINT-101", con_cuenta=True):
+        """Confirma la reserva. ADP-4 AC-3: la cuenta nace vacía y el alojamiento se asienta en la
+        entrada; `con_cuenta` deja el saldo del alojamiento (100.000) como cargo, sin pasar la entrada."""
         respuesta = self.cliente.post(
             "/hotel/reservas",
             json={"habitacion_id": habitacion_id, **RANGO, "huesped": {"nombre": "Huésped", "documento": "DOC-H4"}},
             headers={"Idempotency-Key": clave},
         )
         self.assertEqual(respuesta.status_code, 201, respuesta.text)
-        return respuesta.json()["reserva_id"]
+        reserva_id = respuesta.json()["reserva_id"]
+        if con_cuenta:
+            cargo = self.cliente.post(
+                f"/hotel/reservas/{reserva_id}/cargos",
+                json={"concepto": "Alojamiento 2 noches", "monto_clp": 100_000},
+                headers={"Idempotency-Key": f"cuenta-{clave}"},
+            )
+            self.assertEqual(cargo.status_code, 201, cargo.text)
+        return reserva_id
 
     def pagar(self, reserva_id, monto=100_000, clave="cob-1", modo="manual", idem="pag-1"):
         return self.cliente.post(
@@ -181,7 +191,7 @@ class CobroEstadiaTest(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 403)
 
     def test_entrada_exige_habitacion_lista(self):
-        rid = self.reservar()
+        rid = self.reservar(con_cuenta=False)
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
             conexion.execute("UPDATE habitaciones SET estado_preparacion = 'sucia' WHERE id = 'HAB-SINT-101'")
@@ -201,9 +211,9 @@ class CobroEstadiaTest(unittest.TestCase):
         self.assertEqual(respuesta.json()["estado"], "en_estadia")
 
     def test_salida_liquida_la_cuenta_saldada(self):
-        rid = self.reservar()
+        rid = self.reservar(con_cuenta=False)
+        self.cliente.post(f"/hotel/reservas/{rid}/entrada", headers={"Idempotency-Key": "ent-1"})  # asienta 2 noches
         self.pagar(rid)
-        self.cliente.post(f"/hotel/reservas/{rid}/entrada", headers={"Idempotency-Key": "ent-1"})
         respuesta = self.cliente.post(f"/hotel/reservas/{rid}/salida", headers={"Idempotency-Key": "sal-1"})
         self.assertEqual(respuesta.status_code, 200)
         cuerpo = respuesta.json()
@@ -212,7 +222,7 @@ class CobroEstadiaTest(unittest.TestCase):
         self.assertEqual(cuerpo["estado"], "liquidada")
 
     def test_salida_con_saldo_pendiente_responde_409(self):
-        rid = self.reservar()
+        rid = self.reservar(con_cuenta=False)
         self.cliente.post(f"/hotel/reservas/{rid}/entrada", headers={"Idempotency-Key": "ent-1"})
         respuesta = self.cliente.post(f"/hotel/reservas/{rid}/salida", headers={"Idempotency-Key": "sal-1"})
         self.assertEqual(respuesta.status_code, 409)

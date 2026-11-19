@@ -172,12 +172,31 @@ def ejecutar_caso(conexion: psycopg.Connection, empresa_id: str, caso: dict, hoy
     }
 
 
+def _hotel_de_evaluacion(empresa_id: str):
+    """Hotel del dominio de la empresa sintética de la evaluación (el dominio es de una sola empresa)."""
+    from hotel_inventario.dominio import Establecimiento
+    from hotel_inventario.empresa import Empresa
+    from hotel_inventario.servicio import ServicioHotelInventario
+
+    empresa = Empresa(id=empresa_id, nombre="Evaluación sintética", es_sintetico=True)
+    establecimiento = Establecimiento(id=reservas.ESTABLECIMIENTO_SINTETICO, empresa_id=empresa_id,
+                                      nombre="Hotel de evaluación")
+    return ServicioHotelInventario(establecimiento, (), empresa=empresa)
+
+
 def evaluar(
     conexion: psycopg.Connection, empresa_id: str, casos: list[dict],
     hoy: date | None = None, modelo_nombre: str = "grabado",
 ) -> dict:
-    hoy = hoy or date.today()
-    detalle = [ejecutar_caso(conexion, empresa_id, c, hoy) for c in casos]
+    from . import hotel_sql
+
+    previo = hotel_sql._REGISTRADO
+    hotel_sql.registrar(_hotel_de_evaluacion(empresa_id))  # corre sin la app HTTP, con su propia empresa
+    try:
+        hoy = hoy or date.today()
+        detalle = [ejecutar_caso(conexion, empresa_id, c, hoy) for c in casos]
+    finally:
+        hotel_sql.registrar(previo)
     # Las propuestas de los casos adversariales (inyección) se esperan
     # rechazadas/escaladas: no miden calidad del borrador, miden defensa.
     no_adversariales = [d for d in detalle if d["categoria"] != "inyeccion"]
