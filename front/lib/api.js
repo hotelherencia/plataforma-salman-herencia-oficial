@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { traducirDetalle, traducirFormula } from './mensajes.js'
 import { fechaATexto, fechaDesdeTexto, mascaraFecha, plural } from './formato.js'
@@ -351,6 +351,8 @@ export function Campo({ etiqueta, ...props }) {
 function CampoFecha({ etiqueta, value, onChange, min, max, required, disabled, id, readOnly, className, ...resto }) {
   const [texto, setTexto] = useState(fechaATexto(value))
   const nativo = useRef(null)
+  const idAuto = useId()
+  const idCampo = id || `fecha-${idAuto}`
   useEffect(() => {
     if (fechaDesdeTexto(texto) !== (value || null)) setTexto(fechaATexto(value))
   }, [value])
@@ -366,12 +368,14 @@ function CampoFecha({ etiqueta, value, onChange, min, max, required, disabled, i
   const iso = fechaDesdeTexto(texto)
   const invalida = texto.trim() !== '' && (!iso || fueraDeRango(iso))
   return (
-    <label className="campo">
-      <span className="campo-etiqueta">{etiqueta}</span>
+    // El botón de calendario queda fuera del <label>: el campo se nombra solo
+    // con su rótulo y el botón con «Abrir calendario».
+    <div className="campo">
+      <label className="campo-etiqueta" htmlFor={idCampo}>{etiqueta}</label>
       <span className="campo-fecha">
         <input
           {...resto}
-          id={id}
+          id={idCampo}
           className={className || 'entrada'}
           type="text"
           inputMode="numeric"
@@ -389,7 +393,7 @@ function CampoFecha({ etiqueta, value, onChange, min, max, required, disabled, i
         <button
           type="button"
           className="boton-calendario"
-          aria-label={`Elegir ${String(etiqueta || 'fecha').toLowerCase()} en el calendario`}
+          aria-label="Abrir calendario"
           disabled={disabled || readOnly}
           onClick={() => { try { nativo.current?.showPicker() } catch { nativo.current?.focus() } }}
         >
@@ -409,7 +413,7 @@ function CampoFecha({ etiqueta, value, onChange, min, max, required, disabled, i
           onChange={(e) => { setTexto(fechaATexto(e.target.value)); emitir(e.target.value) }}
         />
       </span>
-    </label>
+    </div>
   )
 }
 

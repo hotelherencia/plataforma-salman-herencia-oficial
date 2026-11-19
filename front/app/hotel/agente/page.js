@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
+import { fechaHora } from '../../../lib/formato'
 
 /** Bandeja del agente de reservas N0 (V1-ISSUE-30): recepción o administrador
  *  pegan la consulta entrante, el copiloto propone un borrador con las cifras
@@ -241,7 +242,7 @@ export default function Agente() {
                   <tr key={c.consulta_id}>
                     <td>{c.consulta_id}</td>
                     <td>{c.canal_origen}</td>
-                    <td>{c.recibida_en}</td>
+                    <td className="celda-fecha">{fechaHora(c.recibida_en)}</td>
                     <td>{c.registrada_por}</td>
                     <td>{c.estado}</td>
                     <td>{c.motivo || '—'}</td>

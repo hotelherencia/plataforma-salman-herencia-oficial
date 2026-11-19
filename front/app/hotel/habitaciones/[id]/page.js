@@ -16,7 +16,7 @@ import {
 } from '../../../../lib/api'
 import { esAdminHotel } from '../../../../lib/roles'
 import { etiquetaOrigen, rangoNoches } from '../../../../lib/tipos'
-import { fechaATexto, plural } from '../../../../lib/formato'
+import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 
 /**
  * Ficha de la habitación (spec-hotel-operacion-v1 §2.3–2.6). Muestra lo que
@@ -353,7 +353,7 @@ export default function FichaHabitacion() {
                   <tbody>
                     {ficha.auditoria.map((a, i) => (
                       <tr key={`${a.registrada_en}-${i}`}>
-                        <td>{a.registrada_en.slice(0, 16).replace('T', ' ')}</td>
+                        <td className="celda-fecha">{fechaHora(a.registrada_en)}</td>
                         <td>{a.actor}</td>
                         <td>{a.accion}</td>
                         <td>{a.resultado}</td>

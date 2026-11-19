@@ -97,3 +97,12 @@ test('cabeceras de noches en dd/mm (nunca mm-dd)', async () => {
   assert.equal(fechaCorta('2026-11-19'), '19/11')
   for (const f of ['app/hotel/ocupacion/page.js', 'app/hotel/panel/page.js']) assert.doesNotMatch(leer(f), /\.slice\(5\)/, f)
 })
+
+test('montos y marcas de tiempo legibles: $152.000 y 19/11/2026 13:30', async () => {
+  const { fechaHora } = await import('../lib/formato.js')
+  assert.equal(fechaHora('2026-11-19T13:30:23.187269'), '19/11/2026 13:30')
+  const oferta = leer('app/hotel/_componentes/tarjeta-oferta.js')
+  assert.doesNotMatch(oferta, />\$\{/, 'montos sin separador de miles')
+  assert.match(oferta, /fechaHora\(emitidaEn\)/)
+  assert.doesNotMatch(leer('app/hotel/oferta/page.js'), /inicio: '20\d\d-/, 'la oferta no parte en una fecha fija')
+})

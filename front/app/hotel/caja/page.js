@@ -74,7 +74,7 @@ export default function Caja() {
                     <td>{p.habitacion_id}</td>
                     <td className="nota-tecnica">{p.pago_id}</td>
                     <td><Link href={`/hotel/reservas/${p.reserva_id}`}>{p.reserva_id}</Link></td>
-                    <td>${p.monto_clp}</td>
+                    <td>{clp(p.monto_clp)}</td>
                     <td>{p.modo}</td>
                     <td>{p.estado}</td>
                   </tr>

@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { clp } from '../../../lib/api'
+import { fechaHora } from '../../../lib/formato'
 
 /**
  * Capa del módulo Hotel — oferta (pura, sin fetch): recibe solo props y
@@ -50,11 +52,11 @@ export function CabeceraOferta({ emitidaEn, vigenciaMinutos, cantidad }) {
       </div>
       <div className="oferta-estadistica">
         <span className="oferta-etiqueta">oferta emitida</span>
-        <span className="oferta-valor">{emitidaEn}</span>
+        <span className="oferta-valor">{fechaHora(emitidaEn)}</span>
       </div>
       <div className="oferta-estadistica">
         <span className="oferta-etiqueta">vigente</span>
-        <span className="oferta-valor">{vigenciaMinutos} minutos</span>
+        <span className="oferta-valor">{vigenciaMinutos === 1 ? '1 minuto' : `${vigenciaMinutos} minutos`}</span>
       </div>
     </div>
   )
@@ -70,22 +72,22 @@ export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, po
       <div className="ficha-oferta-campos">
         <div className="ficha-campo">
           <span className="ficha-campo-etiqueta"><IconoEtiqueta /> total de la estadía</span>
-          <span className="ficha-campo-valor ficha-precio">${totalClp}</span>
+          <span className="ficha-campo-valor ficha-precio">{clp(totalClp)}</span>
         </div>
         <div className="ficha-campo">
           <span className="ficha-campo-etiqueta">tarifa por noche</span>
-          <span className="ficha-campo-valor">${tarifaNocheClp}</span>
+          <span className="ficha-campo-valor">{clp(tarifaNocheClp)}</span>
         </div>
         {totalRecargosClp > 0 && (
           <div className="ficha-campo ancho">
             <span className="ficha-campo-etiqueta">alojamiento</span>
-            <span className="ficha-campo-valor">${subtotalNochesClp ?? (totalClp - totalRecargosClp)}</span>
+            <span className="ficha-campo-valor">{clp(subtotalNochesClp ?? (totalClp - totalRecargosClp))}</span>
           </div>
         )}
         {(recargos || []).map((r) => (
           <div className="ficha-campo ancho" key={r.concepto}>
             <span className="ficha-campo-etiqueta">recargos: {r.detalle || r.concepto}</span>
-            <span className="ficha-campo-valor">${r.monto_clp}</span>
+            <span className="ficha-campo-valor">{clp(r.monto_clp)}</span>
           </div>
         ))}
         <div className="ficha-campo ancho">
@@ -94,7 +96,7 @@ export function TarjetaOferta({ habitacionId, tipo, tarifaNocheClp, totalClp, po
         </div>
         <div className="ficha-campo ancho">
           <span className="ficha-campo-etiqueta"><IconoReloj /> vigencia de la oferta</span>
-          <span className="ficha-campo-valor ficha-validez">vigente hasta {vigenteHasta}</span>
+          <span className="ficha-campo-valor ficha-validez">vigente hasta {fechaHora(vigenteHasta)}</span>
         </div>
       </div>
       <Link

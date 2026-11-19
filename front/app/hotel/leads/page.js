@@ -5,7 +5,7 @@ import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechaz
 import { gestionaRecepcion } from '../../../lib/roles'
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
-import { fechaATexto } from '../../../lib/formato'
+import { fechaATexto, fechaHora } from '../../../lib/formato'
 
 /** Bandeja de leads (V1-ISSUE-20 punto 8, spec-api-v1 «Contacto y leads de la
  *  landing»): las consultas generales del formulario propio de la landing
@@ -176,7 +176,7 @@ export default function Leads() {
                       {l.leads_del_contacto > 1 && <span className="nota-clave"> · {l.leads_del_contacto} leads del mismo contacto</span>}
                     </td>
                     <td>{l.nota ?? '—'}</td>
-                    <td>{l.gestion_por ? `${l.gestion_por === 'auto:correo' ? 'automático (correo)' : l.gestion_por} · ${l.gestion_en}` : '—'}</td>
+                    <td>{l.gestion_por ? `${l.gestion_por === 'auto:correo' ? 'automático (correo)' : l.gestion_por} · ${fechaHora(l.gestion_en)}` : '—'}</td>
                     <td>
                       {l.estado !== 'cerrado' ? (
                         <div className="acciones-fila">

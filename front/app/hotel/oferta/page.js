@@ -6,8 +6,15 @@ import { CabeceraOferta, TarjetaOferta, OfertaVacia } from '../_componentes/tarj
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../lib/menu-hotel'
 
+// Fechas por defecto: hoy y mañana en el reloj del equipo (antes quedaban fijas en el pasado).
+function diaLocal(dias) {
+  const d = new Date()
+  d.setDate(d.getDate() + dias)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function Oferta() {
-  const [consulta, setConsulta] = useState({ inicio: '2026-11-10', fin: '2026-11-12', personas: '2', hora_llegada: '', hora_salida: '' })
+  const [consulta, setConsulta] = useState(() => ({ inicio: diaLocal(0), fin: diaLocal(1), personas: '2', hora_llegada: '', hora_salida: '' }))
   const [salida, setSalida] = useState(null)
   const [error, setError] = useState('')
 

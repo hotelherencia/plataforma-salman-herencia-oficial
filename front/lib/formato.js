@@ -65,3 +65,10 @@ export function fechaCorta(iso) {
   const r = String(iso || '').match(/^\d{4}-(\d{2})-(\d{2})$/)
   return r ? `${r[2]}/${r[1]}` : String(iso || '')
 }
+
+/** Marca de tiempo de la API («2026-11-19T13:30:23.18») → «19/11/2026 13:30».
+ *  Se muestra la hora tal como la envía el servidor (hora del hotel). */
+export function fechaHora(marca) {
+  const r = String(marca || '').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
+  return r ? `${r[3]}/${r[2]}/${r[1]} ${r[4]}:${r[5]}` : String(marca || '')
+}

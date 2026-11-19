@@ -237,7 +237,7 @@ function Reservar() {
         <a href={SITIO}>← Volver a hotelherencia.cl</a>
       </p>
       <header className="pagina-cabecera pagina-cabecera-marca">
-        <img className="cabecera-logo" src={LOGO.h64} srcSet={`${LOGO.h64} 1x, ${LOGO.h128} 2x`} alt={NOMBRE_COMERCIAL} width="80" height="64" />
+        <img className="cabecera-logo" src={LOGO.hojaSvg} alt="" width="68" height="60" />
         <div>
           <h1>Reserva · {NOMBRE_COMERCIAL}</h1>
           <p className="operador">Consulta disponibilidad y deja tu solicitud: recepción la confirma contigo.</p>

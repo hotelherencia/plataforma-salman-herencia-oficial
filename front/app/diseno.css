@@ -1286,3 +1286,38 @@ input[type="radio"] {
   padding: 0.12rem 0.65rem;
   white-space: nowrap;
 }
+
+/* /reservar: la hoja de la marca (la misma del favicon), nítida a cualquier densidad. */
+.pagina-cabecera-marca .cabecera-logo {
+  width: auto;
+  height: 3.25rem;
+}
+
+/* Clave: «Mostrar/Ocultar» dentro del campo, del mismo alto y tipografía que el resto. */
+.campo-clave {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.campo-clave .entrada {
+  width: 100%;
+  padding-right: 5.5rem;
+}
+
+.boton-ver-clave {
+  position: absolute;
+  right: 0.3rem;
+  min-height: 2.25rem;
+  min-width: 4.75rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--c-verde);
+}
+
+.boton-ver-clave:hover {
+  background: var(--c-verde-suave);
+}

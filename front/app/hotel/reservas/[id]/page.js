@@ -8,7 +8,7 @@ import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
 import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
-import { fechaATexto, plural } from '../../../../lib/formato'
+import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 
 /**
  * Detalle de la reserva con su cuenta (spec-hotel-operacion-v1 §3.2). El saldo
@@ -198,7 +198,7 @@ export default function DetalleReserva() {
                 <ul className="lista-simple">
                   {reserva.reasignaciones.map((a) => (
                     <li key={a.registrado_en}>
-                      {a.registrado_en.slice(0, 16).replace('T', ' ')} · {a.desde_habitacion_id} → {a.hacia_habitacion_id} · {a.motivo} ({a.actor})
+                      {fechaHora(a.registrado_en)} · {a.desde_habitacion_id} → {a.hacia_habitacion_id} · {a.motivo} ({a.actor})
                     </li>
                   ))}
                 </ul>
