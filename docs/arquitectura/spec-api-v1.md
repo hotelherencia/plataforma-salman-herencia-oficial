@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (97)
+## Operaciones de esta versión (101)
 
 | Operación | Efecto |
 |---|---|
@@ -570,12 +570,16 @@ los compone el servidor.
 | `PUT /hotel/productos/{id}` | (#357) Cambia nombre, categoría, precio, `activo` o `controla_stock`. Los cargos asentados conservan su precio. Solo administración del hotel. |
 | `POST /hotel/productos/{id}/stock` | (#357) Ajuste `{delta, motivo}` (reposición o merma); nunca deja stock negativo (409). Solo administración del hotel. |
 | `GET /hotel/productos/{id}/movimientos` | (#357) Últimos movimientos de stock (stock inicial, ajustes, cargos y reversos). Solo administración del hotel. |
+| `POST /hotel/productos/importacion/vista-previa` | (2026-11-19) Revisa sin escribir las líneas de una factura electrónica XML (DTE 33/34, sin DOCTYPE/ENTITY, máx. 1,5 MB), de una planilla pegada o del lector de códigos: devuelve cada línea con su producto coincidente (`codigo`, `nombre` o `parecido`) o nueva, y si la factura ya fue cargada. Solo administración del hotel. |
+| `POST /hotel/productos/importacion` | (2026-11-19) Confirma la carga en una sola transacción con `Idempotency-Key`: suma stock a los existentes (movimiento con `importacion_id`), crea los nuevos (precio de venta obligatorio, lo fija la administración) y registra costo neto. Una factura (emisor, tipo, folio) solo se carga una vez → 409. Solo administración del hotel. |
+| `GET /hotel/productos/importaciones` | (2026-11-19) Últimas cargas (origen, documento, líneas, unidades, quién y cuándo). Solo administración del hotel. |
 | `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con reversos y regla de 48 h (ver «Cancelación»). Roles recepción o administrador. |
 | `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **la reserva ya comenzó** (`inicio ≤ hoy` del servidor; si no → 409 «aún no llega su día de entrada»). Exige el documento del huésped (D-ENT-01, DECISIÓN 2026-11-06): si la reserva no lo trae, el cuerpo `{"documento"}` lo registra; sin documento en ninguno → 409. Roles recepción o administrador (D-ROL-ENT, #304). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
 | `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. Roles recepción o administrador (D-ROL-ENT, DECISIÓN 2026-11-06, #304). Si no queda otra estadía en curso en la unidad, la habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente; si otra estadía sigue en curso (turnover no solapado), la unidad permanece `ocupada` y limpia, sin tarea nueva (V1-ISSUE-15, 2026-11-03). |
 | `POST /hotel/habitaciones/{id}/limpieza` | Completa la limpieza pendiente y, si estaba sucia, deja la unidad `limpia`. Roles recepción o administrador. |
 | `POST /hotel/habitaciones/{id}/mantenimiento` | Abre o cierra el mantenimiento de la unidad (con su tarea). Solo administrador. Con mantenimiento abierto la oferta no la incluye y la entrada responde 409. |
 | `GET /hotel/caja?fecha=YYYY-MM-DD` | Pagos del día ligados a reserva. Sin movimiento bancario en esta versión. |
+| `GET /hotel/estadias/busqueda?q&alcance` | (2026-11-19) Busca reservas por nombre del huésped (sin distinguir tildes), número de habitación, código de reserva o documento. `alcance`: `salida` (en estadía; recepción/administración), `llegada` (confirmadas; recepción/administración), `pago` (confirmadas o en estadía; también caja). Sin texto devuelve la lista del día. Máx. 12 resultados con `hay_mas`, saldo de la cuenta incluido. Caja solo encuentra por documento completo y nunca lo recibe. |
 | `GET /publico/disponibilidad?inicio&fin&personas` | Sin sesión: la oferta vigente con la misma regla de cupo y tarifa que `/hotel/oferta` (ver «Canal público»). (#346, 2026-11-18) Sin `habitacion_id`: el visitante ve una línea por unidad libre con su tipo y precio, nunca el número; el hotel asigna la unidad al convertir. |
 | `POST /publico/solicitudes` | Sin sesión: persiste una solicitud `recibida` por **tipo** de habitación (#346: cuerpo con `tipo`; `habitacion_id` solo por compatibilidad, se traduce a su tipo; la respuesta nunca trae número) con `Idempotency-Key` propia; sin cupo o sin tarifa → 409 y nada se persiste. Ver «Canal público». |
 | `GET /hotel/solicitudes?estado=` | Bandeja de solicitudes públicas (recibida/convertida/rechazada). Roles recepción o administrador. |
