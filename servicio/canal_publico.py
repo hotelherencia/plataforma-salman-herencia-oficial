@@ -27,6 +27,12 @@ from . import seguridad
 MAX_PERSONAS = 30
 MAX_NOCHES = 30
 TOPE_CUERPO_BYTES = 8192
+# SA-BODY-01 (auditoría 2026-11-17): el resto de las rutas también tiene tope.
+# Antes solo /publico/* lo tenía y un POST sin sesión (webhook, /sesion) se
+# leía entero en memoria antes de validar firma o credenciales.
+TOPE_CUERPO_WEBHOOK_BYTES = 1024 * 1024
+TOPE_CUERPO_GENERAL_BYTES = 256 * 1024
+_METODOS_CON_CUERPO = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 ROLES_GESTION = roles.con_admin_hotel("recepcion")
 
 
@@ -157,24 +163,40 @@ def ip_visible(request) -> str:
 
 
 class TopeCuerpoPublico:
-    """Corta un POST /publico/* que supere 8 KB, haya o no Content-Length."""
+    """Corta un cuerpo que supere su tope, haya o no Content-Length.
 
-    def __init__(self, app, tope: int = TOPE_CUERPO_BYTES) -> None:
+    POST /publico/*: 8 KB. Webhook de mensajería: 1 MB. Cualquier otra
+    mutación: 256 KB (SA-BODY-01)."""
+
+    def __init__(
+        self,
+        app,
+        tope: int = TOPE_CUERPO_BYTES,
+        tope_webhook: int = TOPE_CUERPO_WEBHOOK_BYTES,
+        tope_general: int = TOPE_CUERPO_GENERAL_BYTES,
+    ) -> None:
         self.app = app
         self.tope = tope
+        self.tope_webhook = tope_webhook
+        self.tope_general = tope_general
+
+    def _tope_de(self, ruta: str) -> int:
+        if ruta.startswith("/publico/"):
+            return self.tope
+        if ruta.startswith("/mensajeria/"):
+            return self.tope_webhook
+        return self.tope_general
 
     async def __call__(self, scope, receive, send):
-        if scope.get("type") != "http" or scope.get("method") != "POST":
+        if scope.get("type") != "http" or scope.get("method") not in _METODOS_CON_CUERPO:
             await self.app(scope, receive, send)
             return
-        if not str(scope.get("path", "")).startswith("/publico/"):
-            await self.app(scope, receive, send)
-            return
+        tope = self._tope_de(str(scope.get("path", "")))
         cabeceras = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
         declarado = cabeceras.get("content-length")
         if declarado:
             try:
-                if int(declarado) > self.tope:
+                if int(declarado) > tope:
                     await _responder_413(send)
                     return
             except ValueError:
@@ -188,7 +210,7 @@ class TopeCuerpoPublico:
                 continue
             bloque = mensaje.get("body", b"") or b""
             recibido += len(bloque)
-            if recibido > self.tope:
+            if recibido > tope:
                 await _responder_413(send)
                 return
             trozos.append(bloque)
