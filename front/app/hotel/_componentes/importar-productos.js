@@ -429,7 +429,7 @@ function Historial({ version }) {
               <tr key={x.importacion_id}>
                 <td>{fechaCorta(x.registrada_en)}</td>
                 <td>{origen[x.origen] || x.origen}</td>
-                <td>{x.folio ? `N° ${x.folio} · ${x.emisor_razon_social || x.emisor_rut}` : `${x.lineas} líneas`}</td>
+                <td>{x.folio ? `N° ${x.folio} · ${x.emisor_razon_social || x.emisor_rut}` : plural(x.lineas, 'línea')}</td>
                 <td>{x.unidades}</td>
                 <td>{x.productos_nuevos}</td>
                 <td>{x.actor}</td>
