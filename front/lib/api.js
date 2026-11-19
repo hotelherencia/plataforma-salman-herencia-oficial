@@ -252,6 +252,15 @@ export function resumenConfirmacion(datos) {
   if (datos.iva && datos.iva.porcentaje !== undefined && Object.keys(datos).length === 1) {
     return `Tasa de IVA: ${String(datos.iva.porcentaje).replace('.', ',')} %. Los precios con IVA no cambian.`
   }
+  // Solicitud web (#346/#347): la respuesta trae habitacion_id y tipo, así que
+  // debe resolverse antes que los resúmenes de habitación (antes mostraba
+  // «Habitación …: tipo, capacidad undefined» al convertir).
+  if (datos.solicitud_id && datos.estado === 'convertida' && datos.reserva_id) {
+    return `Solicitud ${datos.solicitud_id} convertida en la reserva ${datos.reserva_id}${datos.habitacion_id ? ` · Habitación ${datos.habitacion_id}` : ''}`
+  }
+  if (datos.solicitud_id && datos.estado === 'rechazada') {
+    return `Solicitud ${datos.solicitud_id} rechazada`
+  }
   if (datos.habitacion_id && typeof datos.en_servicio === 'boolean') {
     if (!datos.cambio) return `Habitación ${datos.habitacion_id}: sin cambios (${datos.en_servicio ? 'en servicio' : 'fuera de servicio'})`
     return datos.en_servicio
