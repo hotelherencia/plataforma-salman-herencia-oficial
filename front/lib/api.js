@@ -19,10 +19,14 @@ export function urlApi(ruta) {
 }
 
 /** Cliente HTTP del front: solo habla con API_BASE_URL y jamás calcula negocio. */
-export async function api(ruta, { metodo = 'GET', cuerpo, claveIdempotencia, cabeceras: extra, timeoutMs } = {}) {
+export async function api(ruta, { metodo = 'GET', cuerpo, binario, claveIdempotencia, cabeceras: extra, timeoutMs } = {}) {
   const cabeceras = { ...(extra || {}) }
   let cuerpoSerializado
-  if (cuerpo !== undefined) {
+  if (binario !== undefined) {
+    // Foto o PDF tal cual (facturas de proveedores): el tipo lo verifica el servidor.
+    cabeceras['Content-Type'] = binario.type || 'application/octet-stream'
+    cuerpoSerializado = binario
+  } else if (cuerpo !== undefined) {
     cabeceras['Content-Type'] = 'application/json'
     cuerpoSerializado = JSON.stringify(cuerpo)
   }

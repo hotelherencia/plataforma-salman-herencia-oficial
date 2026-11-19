@@ -139,6 +139,7 @@ const CONFIANZA = {
   codigo: { texto: 'Mismo código', tono: 'exito' },
   nombre: { texto: 'Mismo nombre', tono: 'exito' },
   parecido: { texto: 'Parecido: revisa', tono: 'aviso' },
+  recordado: { texto: 'Recordado del proveedor', tono: 'exito' },
 }
 
 export function etiquetaConfianza(linea) {

@@ -26,6 +26,7 @@ import base64
 import io
 import json
 import os
+import time
 import re
 from typing import Callable, Protocol
 
@@ -59,6 +60,10 @@ class VisionNoConfigurada(Exception):
 class VisionFallida(Exception):
     """El proveedor respondió con error o con algo que no es el JSON pedido."""
 
+    def __init__(self, mensaje: str, transitoria: bool = False):
+        super().__init__(mensaje)
+        self.transitoria = transitoria  # 429/5xx: vale la pena un segundo intento
+
 
 class Proveedor(Protocol):
     nombre: str
@@ -79,7 +84,8 @@ def _post_json(url: str, cabeceras: dict, cuerpo: dict) -> dict:
     except httpx.HTTPError as error:
         raise VisionFallida(f"el proveedor de visión no respondió ({type(error).__name__})") from error
     if respuesta.status_code >= 400:
-        raise VisionFallida(f"el proveedor de visión respondió {respuesta.status_code}")
+        raise VisionFallida(f"el proveedor de visión respondió {respuesta.status_code}",
+                            transitoria=respuesta.status_code in (429, 500, 502, 503, 504))
     return respuesta.json()
 
 
@@ -174,6 +180,7 @@ class ProveedorGemini:
         self.modelos = list(dict.fromkeys(self.modelos))
         self.post = post or _post_json
         self.modelo_usado: str | None = None
+        self.espera_reintento = 2.0
 
     def extraer(self, contenido: bytes, tipo_mime: str) -> dict:
         cuerpo = {
@@ -187,15 +194,22 @@ class ProveedorGemini:
         ultimo: Exception | None = None
         for modelo in self.modelos:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-            try:
-                r = self.post(url, {"x-goog-api-key": self.clave}, cuerpo)
-                texto = "".join(p.get("text", "") for p in r["candidates"][0]["content"]["parts"])
-                datos = _json_de_texto(texto)
-                self.modelo_usado = modelo
-                return datos
-            except (VisionFallida, KeyError, IndexError, TypeError) as error:
-                ultimo = error
-                continue
+            for intento in range(2):  # un reintento si Google responde 429/5xx (sobrecarga momentánea)
+                try:
+                    r = self.post(url, {"x-goog-api-key": self.clave}, cuerpo)
+                    texto = "".join(p.get("text", "") for p in r["candidates"][0]["content"]["parts"])
+                    datos = _json_de_texto(texto)
+                    self.modelo_usado = modelo
+                    return datos
+                except VisionFallida as error:
+                    ultimo = error
+                    if error.transitoria and intento == 0:
+                        time.sleep(self.espera_reintento)
+                        continue
+                    break
+                except (KeyError, IndexError, TypeError) as error:
+                    ultimo = error
+                    break
         if isinstance(ultimo, VisionFallida):
             raise ultimo
         raise VisionFallida("respuesta inesperada del proveedor de visión")

@@ -112,6 +112,17 @@ class VisionTest(unittest.TestCase):
         self.assertEqual(cuerpo["generationConfig"]["responseMimeType"], "application/json")
         self.assertIn("lineas", cuerpo["generationConfig"]["responseSchema"]["properties"])
 
+    def test_gemini_reintenta_una_vez_si_google_esta_sobrecargado(self):
+        post = GeminiFalso([vision.VisionFallida("503", transitoria=True), EXTRACCION])
+        p = vision.ProveedorGemini("k", "principal", post=post)
+        p.espera_reintento = 0
+        self.assertEqual(p.extraer(b"\xff\xd8\xffx", "image/jpeg")["folio"], "3797574")
+        self.assertEqual([u for u, _, _ in post.llamadas], [post.llamadas[0][0]] * 2)
+        post = GeminiFalso([vision.VisionFallida("400")])
+        with self.assertRaises(vision.VisionFallida):
+            vision.ProveedorGemini("k", "principal", post=post).extraer(b"x", "image/jpeg")
+        self.assertEqual(len(post.llamadas), 1)  # un 400 no se reintenta
+
     def test_normaliza_sin_inventar_precios_y_valida_contra_el_timbre(self):
         datos = json.loads(json.dumps(EXTRACCION))
         datos["lineas"][1]["precio_neto"] = None

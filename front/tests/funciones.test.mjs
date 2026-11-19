@@ -196,5 +196,6 @@ test('Productos carga desde factura, planilla o lector en pestañas, sin entrada
   assert.doesNotMatch(menu, /importa|factura|lector/i)
   const imp = leer('app/hotel/_componentes/importar-productos.js')
   assert.match(imp, /\/hotel\/productos\/importacion\/vista-previa/)
-  assert.match(imp, /proveedor de inteligencia artificial/)
+  assert.match(imp, /<FacturasProveedor /)
+  assert.match(leer('app/hotel/_componentes/facturas-proveedor.js'), /\/hotel\/productos\/documentos\/archivo/)
 })

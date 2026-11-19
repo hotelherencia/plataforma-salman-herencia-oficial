@@ -16,7 +16,7 @@
 
 import { chromium } from 'playwright'
 import { execFileSync } from 'node:child_process'
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -380,7 +380,8 @@ try {
     esperar(a.includes('ya se cargó'), `aviso: ${a}`)
     esperar(await pAdm.getByRole('button', { name: 'Cargar al inventario' }).isDisabled(), 'botón habilitado')
     const lineas = await pAdm.evaluate(() => [...document.querySelectorAll('tr[data-linea]')].map((t) => t.innerText))
-    esperar(lineas.every((t) => t.includes('Mismo')), `emparejamiento: ${lineas.join(' / ')}`)
+    // Tras la primera carga, el proveedor queda recordado (bandeja de facturas).
+    esperar(lineas.every((t) => t.includes('Mismo') || t.includes('Recordado')), `emparejamiento: ${lineas.join(' / ')}`)
     await evidencia(pAdm, 'productos-factura-repetida')
     const r = await api('POST', '/hotel/productos/importacion', { cookie: cAdmin, clave: K('imp-dup'), cuerpo: {
       origen: 'factura_xml', xml: facturaXml({ folio: FOLIO, rut: '76.123.456-0', items: ITEMS }),
@@ -436,6 +437,137 @@ try {
     const b = await api('POST', '/hotel/productos/importacion/vista-previa', { cookie: cCaja, cuerpo: { origen: 'planilla', lineas: [{ nombre: 'x', cantidad: 1 }] } })
     esperar(a.estado === 403 && b.estado === 403, `${a.estado}/${b.estado}`)
     return `${a.estado}/${b.estado}`
+  })
+
+  // ===== Facturas de proveedores: foto con timbre, envases, pedidos =====
+  const PY = process.env.E2E_PYTHON || join(AQUI, '..', '.venv', 'bin', 'python')
+  const RUT_F = rutUnico(41).replace(/\./g, '')
+  const FOLIO_F = String(parseInt(RUN.slice(-6), 36) % 800000 + 150000)
+  const fotoFactura = join(tmpdir(), `foto-factura-${RUN}.jpg`)
+  const fotoPedido = join(tmpdir(), `foto-pedido-${RUN}.jpg`)
+  // Fotos sintéticas (sin datos reales): página con timbre PDF417 y otra sin timbre.
+  execFileSync(PY, ['-c', [
+    'import sys; from servicio.tests import facturas_sinteticas as s',
+    `open(sys.argv[1], "wb").write(s.jpeg(s.pagina(folio="${FOLIO_F}", rut="${RUT_F}"), escala=2))`,
+    `open(sys.argv[2], "wb").write(s.jpeg(s.pagina(folio="1", rut="${RUT_F}", con_timbre=False), escala=1))`,
+  ].join('\n'), fotoFactura, fotoPedido], { cwd: join(AQUI, '..'), stdio: 'inherit' })
+  const AGUA = `Agua sin gas caja x 24 ${PRD}`
+  const BEBIDA = `Bebida cola ${PRD} lata x 6`
+  let pedidoId = null
+
+  await caso('FN-FAC-01', '/hotel/productos', 'fotografiar la factura: timbre SII, líneas a mano y unidades por envase', 'administrador',
+    'proveedor y folio desde el timbre; 2 cajas x 24 + 3 packs x 6 = 66 unidades; costo por unidad', async () => {
+      await ir(pAdm, '/hotel/productos')
+      await pAdm.getByRole('tab', { name: 'Cargar desde factura' }).click()
+      await pAdm.waitForTimeout(600)
+      await evidencia(pAdm, 'facturas-bandeja')
+      await pAdm.locator('input[capture="environment"]').setInputFiles(fotoFactura)
+      await pAdm.locator('[data-documento-abierto]').waitFor({ timeout: 30000 })
+      const cab = await textoMain(pAdm)
+      esperar(cab.includes(`Factura N° ${FOLIO_F}`), `sin folio del timbre: ${cab.slice(0, 300)}`)
+      esperar((await pAdm.locator('[data-timbre]').count()) === 1, 'no se leyó el timbre')
+      await pAdm.getByLabel('Descripción línea 1').fill(AGUA)
+      await pAdm.getByLabel('Cantidad línea 1').fill('2')
+      await pAdm.getByLabel('Costo línea 1').fill('12000')
+      await pAdm.getByLabel('Descripción línea 2').fill(BEBIDA)
+      await pAdm.getByLabel('Cantidad línea 2').fill('3')
+      await pAdm.getByLabel('Costo línea 2').fill('3990')
+      await evidencia(pAdm, 'facturas-foto-lineas-a-mano')
+      await pAdm.getByRole('button', { name: 'Guardar líneas' }).click()
+      await pAdm.locator('tr[data-linea]').first().waitFor({ timeout: 10000 })
+      const envAgua = await pAdm.getByLabel(`Unidades por envase de ${AGUA}`).inputValue()
+      const envBebida = await pAdm.getByLabel(`Unidades por envase de ${BEBIDA}`).inputValue()
+      esperar(envAgua === '24' && envBebida === '6', `envases sugeridos ${envAgua}/${envBebida}`)
+      await pAdm.getByLabel(`Precio de venta de ${AGUA}`).fill('1500')
+      await pAdm.getByLabel(`Precio de venta de ${BEBIDA}`).fill('1200')
+      await evidencia(pAdm, 'facturas-revision-envases')
+      await pAdm.getByRole('button', { name: 'Cargar al inventario' }).click()
+      await pAdm.waitForTimeout(2500)
+      const conf = await confirmacion(pAdm)
+      esperar(conf && conf.includes('66 unidades'), `confirmación: ${conf}`)
+      const cat = await catalogo()
+      esperar(cat[AGUA]?.stock === 48 && cat[AGUA]?.costo_clp === 500, `agua: ${JSON.stringify(cat[AGUA])}`)
+      esperar(cat[BEBIDA]?.stock === 18 && cat[BEBIDA]?.costo_clp === 665, `bebida: ${JSON.stringify(cat[BEBIDA])}`)
+      sinDatosTecnicos(await textoMain(pAdm), 'Productos')
+      await evidencia(pAdm, 'facturas-foto-cargada')
+      return conf
+    })
+  await caso('FN-FAC-02', '/hotel/productos', 'la misma foto no se carga dos veces', 'administrador', 'abre la misma factura con aviso «ya se cargó»', async () => {
+    await pAdm.getByRole('button', { name: 'Cargar otra' }).click()
+    await pAdm.waitForTimeout(500)
+    await pAdm.getByLabel('PDF o foto de la factura').setInputFiles(fotoFactura)
+    await pAdm.locator('[data-ya-importada]').waitFor({ timeout: 30000 })
+    esperar(await pAdm.getByRole('button', { name: 'Cargar al inventario' }).isDisabled(), 'botón habilitado')
+    esperar((await catalogo())[AGUA].stock === 48, 'el stock cambió')
+    await evidencia(pAdm, 'facturas-foto-repetida')
+    return (await pAdm.locator('[data-ya-importada]').textContent()).trim()
+  })
+  await caso('FN-FAC-03', '/hotel/productos/documentos', 'pedido en borrador: no suma stock', 'administrador', 'foto sin timbre marcada como pedido → borrador', async () => {
+    const buf = readFileSync(fotoPedido)
+    const r = await fetch(`${API}/hotel/productos/documentos/archivo`, { method: 'POST', body: buf,
+      headers: { cookie: cAdmin, 'Content-Type': 'image/jpeg', 'X-Nombre-Archivo': 'pedido.jpg' } })
+    const d = await r.json()
+    esperar(r.status === 201 && d.clase === 'desconocido', `subida ${r.status} ${d.clase}`)
+    const p = await api('PUT', `/hotel/productos/documentos/${d.documento_id}`, { cookie: cAdmin, cuerpo: { clase: 'pedido', emisor_rut: RUT_F, folio: '21027' } })
+    esperar(p.estado === 200 && p.datos.estado === 'borrador', `pedido ${p.estado} ${p.datos.estado}`)
+    pedidoId = d.documento_id
+    return 'borrador'
+  })
+  await caso('FN-FAC-04', '/hotel/productos', 'segunda factura del proveedor: producto y envase recordados; cierra el pedido', 'administrador',
+    '«Recordado del proveedor», 24 por caja sin escribirlo; pedido facturado', async () => {
+      const xml = facturaXml({ folio: String(Number(FOLIO_F) + 1), rut: RUT_F, items: [{ codigo: null, nombre: AGUA, cantidad: 1, costo: 12600 }] })
+      const archivo = join(tmpdir(), `factura2-${RUN}.xml`)
+      writeFileSync(archivo, Buffer.from(xml, 'latin1'))
+      await pAdm.getByRole('button', { name: 'Volver a la bandeja' }).first().click()
+      await pAdm.waitForTimeout(800)
+      await evidencia(pAdm, 'facturas-bandeja-con-pedido')
+      await pAdm.getByLabel('Archivo XML de la factura').setInputFiles(archivo)
+      await pAdm.locator('tr[data-linea]').first().waitFor({ timeout: 15000 })
+      const fila = await pAdm.locator('tr[data-linea]').first().innerText()
+      esperar(fila.includes('Recordado del proveedor'), `sin recordar: ${fila}`)
+      esperar(await pAdm.getByLabel(`Unidades por envase de ${AGUA}`).inputValue() === '24', 'envase no recordado')
+      esperar(await pAdm.getByRole('checkbox', { name: /cierra el pedido N° 21027/ }).isChecked(), 'no sugiere cerrar el pedido')
+      await evidencia(pAdm, 'facturas-recordado-y-pedido')
+      await pAdm.getByRole('button', { name: 'Cargar al inventario' }).click()
+      await pAdm.waitForTimeout(2500)
+      const conf = await confirmacion(pAdm)
+      esperar(conf && conf.includes('24 unidades'), `confirmación: ${conf}`)
+      esperar((await catalogo())[AGUA].stock === 72 && (await catalogo())[AGUA].costo_clp === 525, 'stock/costo tras 2ª factura')
+      const ped = await api('GET', `/hotel/productos/documentos/${pedidoId}`, { cookie: cAdmin })
+      esperar(ped.datos.estado === 'facturado', `pedido ${ped.datos.estado}`)
+      return conf
+    })
+  await caso('FN-FAC-05', '/hotel/productos', 'productos recordados por proveedor: editar unidades por envase', 'administrador', 'cambio a 12 guardado', async () => {
+    await pAdm.getByRole('button', { name: 'Cargar otra' }).click()
+    await pAdm.waitForTimeout(800)
+    await pAdm.locator('summary', { hasText: 'Productos recordados por proveedor' }).click()
+    const campo = pAdm.getByLabel(`Unidades por envase de ${AGUA}`)
+    await campo.fill('12')
+    await campo.locator('xpath=ancestor::tr').getByRole('button', { name: 'Guardar' }).click()
+    await pAdm.waitForTimeout(1000)
+    const eq = (await api('GET', '/hotel/productos/equivalencias', { cookie: cAdmin })).datos.equivalencias.find((e) => e.descripcion === AGUA)
+    esperar(eq?.unidades_por_paquete === 12, `equivalencia ${JSON.stringify(eq)}`)
+    await evidencia(pAdm, 'facturas-recordados')
+    return 'unidades_por_paquete=12'
+  })
+  await caso('FN-FAC-06', '/hotel/productos/documentos', 'recepción y caja no ven la bandeja de facturas', 'recepcion/caja', 'API 403', async () => {
+    const a = await api('GET', '/hotel/productos/documentos', { cookie: cRecepcion })
+    const b = await api('GET', '/hotel/productos/documentos', { cookie: cCaja })
+    esperar(a.estado === 403 && b.estado === 403, `${a.estado}/${b.estado}`)
+    return `${a.estado}/${b.estado}`
+  })
+  await caso('FN-FAC-07', '/hotel/productos', 'cargar desde factura en celular (390 px)', 'administrador', 'botón «Fotografiar factura» con cámara; sin desborde', async () => {
+    const p = await paginaDe(ADMIN, { width: 390, height: 844 })
+    await ir(p, '/hotel/productos')
+    await p.getByRole('tab', { name: 'Cargar desde factura' }).click()
+    await p.waitForTimeout(800)
+    const m = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth,
+      cam: document.querySelector('input[capture="environment"]')?.accept }))
+    await evidencia(p, 'facturas-celular')
+    await p.context().close()
+    esperar(m.cam === 'image/*', 'sin entrada de cámara')
+    esperar(m.sw <= m.iw, `desborde ${m.sw} > ${m.iw}`)
+    return `scrollWidth ${m.sw} ≤ ${m.iw}`
   })
 
   // ===== Celular =====

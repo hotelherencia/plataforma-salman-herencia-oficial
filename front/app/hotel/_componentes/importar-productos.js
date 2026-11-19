@@ -5,18 +5,25 @@ import { api, mensajeDeError, useClaveOperacion, alRechazar } from '../../../lib
 import { fechaCorta, pesos } from '../../../lib/estadias'
 import { fechaATexto, plural } from '../../../lib/formato'
 import {
-  CAMPOS_PLANILLA, adivinarMapeo, decodificarXml, etiquetaConfianza, filaRevision, lineaParaConfirmar,
+  CAMPOS_PLANILLA, adivinarMapeo, etiquetaConfianza, filaRevision, lineaParaConfirmar,
   lineasDesdePlanilla, parsearPlanilla, pareceEncabezado, resumenImportacion, resumenRevision, validarRevision,
 } from '../../../lib/importacion'
+import {
+  costoPorUnidad, extrasDocumento, lineaConfirmacionDocumento, textoOrigenUnidades, unidadesTotales, validarEnvases,
+} from '../../../lib/facturas'
 import { CATEGORIAS_PRODUCTO } from './selector-producto'
+import { FacturasProveedor } from './facturas-proveedor'
 import css from './operacion.module.css'
 
 const TONO = { exito: css.chipExito, aviso: css.chipAviso, info: css.chipInfo, neutro: '', error: css.chipError }
 const SIN_CONEXION = 'No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.'
 
-/** Revisión común a las tres fuentes: cada línea se suma a un producto, se crea o se omite. */
-function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
-  const [filas, setFilas] = useState(() => previa.lineas.map(filaRevision))
+/** Revisión común a todas las fuentes: cada línea se suma a un producto, se crea o se omite.
+ *  Con `documentoId` (bandeja de facturas) agrega las unidades por envase y confirma el documento. */
+export function Revision({ previa, xml, catalogo, alTerminar, alCancelar, documentoId, pedidoSugerido, textoCancelar }) {
+  const conEnvases = Boolean(documentoId)
+  const [filas, setFilas] = useState(() => previa.lineas.map((l) => (conEnvases ? { ...filaRevision(l), ...extrasDocumento(l) } : filaRevision(l))))
+  const [cerrarPedido, setCerrarPedido] = useState(Boolean(pedidoSugerido))
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [clave, renovarClave] = useClaveOperacion()
@@ -30,14 +37,22 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
   }
 
   async function confirmar() {
-    const falta = validarRevision(filas)
+    const falta = validarRevision(filas) || (conEnvases ? validarEnvases(filas) : null)
     if (falta) { setError(falta); return }
     setError('')
     setEnviando(true)
     try {
-      const cuerpo = { origen: previa.origen, lineas: filas.map(lineaParaConfirmar) }
-      if (previa.origen === 'factura_xml') cuerpo.xml = xml
-      const r = await api('/hotel/productos/importacion', { metodo: 'POST', cuerpo, claveIdempotencia: clave })
+      let ruta = '/hotel/productos/importacion'
+      let cuerpo
+      if (conEnvases) {
+        ruta = `/hotel/productos/documentos/${encodeURIComponent(documentoId)}/confirmacion`
+        cuerpo = { lineas: filas.map((f) => lineaConfirmacionDocumento(f, lineaParaConfirmar(f))) }
+        if (pedidoSugerido && cerrarPedido) cuerpo.pedido_id = pedidoSugerido.documento_id
+      } else {
+        cuerpo = { origen: previa.origen, lineas: filas.map(lineaParaConfirmar) }
+        if (previa.origen === 'factura_xml') cuerpo.xml = xml
+      }
+      const r = await api(ruta, { metodo: 'POST', cuerpo, claveIdempotencia: clave })
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
         alRechazar(r.estado, renovarClave)
@@ -56,15 +71,15 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
     <section className="tarjeta" aria-label="Revisar la carga">
       <div className="tarjeta-cabecera">
         <h2>Revisa antes de cargar</h2>
-        <button type="button" className="boton-fantasma" onClick={alCancelar}>Empezar de nuevo</button>
+        <button type="button" className="boton-fantasma" onClick={alCancelar}>{textoCancelar || 'Empezar de nuevo'}</button>
       </div>
       {doc && (
         <dl className={css.documento} data-documento-factura>
           <div><dt>Proveedor</dt><dd>{doc.emisor_razon_social || '—'}</dd></div>
           <div><dt>RUT</dt><dd>{doc.emisor_rut}</dd></div>
-          <div><dt>{doc.tipo_nombre}</dt><dd>N° {doc.folio}</dd></div>
+          <div><dt>{doc.tipo_nombre || 'Documento'}</dt><dd>{doc.folio ? `N° ${doc.folio}` : '—'}</dd></div>
           <div><dt>Fecha</dt><dd>{fechaATexto(doc.fecha_emision) || '—'}</dd></div>
-          {doc.monto_total_clp !== null && <div><dt>Total factura</dt><dd>{pesos(doc.monto_total_clp)}</dd></div>}
+          {doc.monto_total_clp !== null && doc.monto_total_clp !== undefined && <div><dt>Total factura</dt><dd>{pesos(doc.monto_total_clp)}</dd></div>}
         </dl>
       )}
       {previa.ya_importada && (
@@ -85,7 +100,8 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
               <th>Qué hacer</th>
               <th>Producto</th>
               <th>Cantidad</th>
-              <th>Costo neto</th>
+              {conEnvases && <th>Unidades por envase</th>}
+              <th>{conEnvases ? 'Costo neto por envase' : 'Costo neto'}</th>
               <th>Precio venta (con IVA)</th>
             </tr>
           </thead>
@@ -120,7 +136,7 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
                         </select>
                         {actual && (
                           <span className={css.ayuda}>
-                            {actual.controla_stock ? `Stock actual ${actual.stock} → ${actual.stock + (Number(f.cantidad) || 0)}` : 'No controla stock: solo se actualiza el costo'}
+                            {actual.controla_stock ? `Stock actual ${actual.stock} → ${actual.stock + (conEnvases ? unidadesTotales(f) : (Number(f.cantidad) || 0))}` : 'No controla stock: solo se actualiza el costo'}
                           </span>
                         )}
                       </>
@@ -141,7 +157,17 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
                       value={f.cantidad} onChange={(e) => cambiar(i, { cantidad: e.target.value })} disabled={f.accion === 'omitir'} />
                     {f.unidad && <span className={css.ayuda}>{f.unidad}</span>}
                     {f.redondeada && <span className={css.ayuda}>Venía {String(f.cantidad_original).replace('.', ',')}: revisa</span>}
+                    {conEnvases && f.nota && <span className={`${css.ayuda} ${css.ayudaBloque}`} data-nota-manuscrita>Nota a mano: «{f.nota}»</span>}
                   </td>
+                  {conEnvases && (
+                    <td className={css.celdaNumero}>
+                      <input className="entrada" type="number" min="1" step="1" inputMode="numeric"
+                        aria-label={`Unidades por envase de ${f.nombre_factura}`} value={f.unidades_por_paquete}
+                        onChange={(e) => cambiar(i, { unidades_por_paquete: e.target.value, origen_unidades: null })} disabled={f.accion === 'omitir'} />
+                      <span className={`${css.ayuda} ${css.ayudaBloque}`} data-unidades-stock>{plural(unidadesTotales(f), 'unidad', 'unidades')} al stock</span>
+                      {f.origen_unidades && <span className={`${css.ayuda} ${css.ayudaBloque}`}>{textoOrigenUnidades(f.origen_unidades)}</span>}
+                    </td>
+                  )}
                   <td className={css.celdaNumero}>
                     <input className="entrada" type="number" min="0" inputMode="numeric" aria-label={`Costo neto de ${f.nombre_factura}`}
                       value={f.costo} onChange={(e) => cambiar(i, { costo: e.target.value })} disabled={f.accion === 'omitir'} />
@@ -152,7 +178,7 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
                       aria-invalid={f.accion === 'crear' && !(Number(f.precio) > 0)}
                       value={f.precio} onChange={(e) => cambiar(i, { precio: e.target.value })} disabled={f.accion === 'omitir'} />
                     {f.accion === 'crear' && Number(f.costo) > 0 && (
-                      <span className={css.ayuda}>Costo con IVA {pesos(Number(f.costo) * 1.19)}</span>
+                      <span className={css.ayuda}>Costo con IVA {pesos((conEnvases ? costoPorUnidad(f) : Number(f.costo)) * 1.19)}{conEnvases && Number(f.unidades_por_paquete) > 1 ? ' por unidad' : ''}</span>
                     )}
                   </td>
                 </tr>
@@ -165,8 +191,17 @@ function Revision({ previa, xml, catalogo, alTerminar, alCancelar }) {
         <span className={`${css.chip} ${css.chipExito}`}>{resumen.sumar} a sumar</span>
         <span className={`${css.chip} ${css.chipInfo}`}>{resumen.crear} nuevos</span>
         {resumen.omitir > 0 && <span className={css.chip}>{resumen.omitir} sin cargar</span>}
-        <span className={css.chip}>{plural(resumen.unidades, 'unidad', 'unidades')} al stock</span>
+        <span className={css.chip}>{plural(conEnvases ? filas.filter((f) => f.accion !== 'omitir').reduce((s, f) => s + unidadesTotales(f), 0) : resumen.unidades, 'unidad', 'unidades')} al stock</span>
       </div>
+      {conEnvases && (
+        <p className={css.ayuda}>Al cargar se recuerda, para este proveedor, a qué producto corresponde cada ítem y cuántas unidades trae su envase.</p>
+      )}
+      {pedidoSugerido && (
+        <label className="campo-casilla">
+          <input type="checkbox" checked={cerrarPedido} onChange={(e) => setCerrarPedido(e.target.checked)} />
+          {' '}Esta factura cierra el pedido {pedidoSugerido.folio ? `N° ${pedidoSugerido.folio}` : 'en borrador'} del mismo proveedor
+        </label>
+      )}
       {error && <p className="alerta" role="alert">{error}</p>}
       <button type="button" className="boton-primario" onClick={confirmar} disabled={enviando || Boolean(previa.ya_importada)}>
         {enviando ? 'Cargando…' : 'Cargar al inventario'}
@@ -187,62 +222,6 @@ async function pedirVistaPrevia(cuerpo) {
   const r = await api('/hotel/productos/importacion/vista-previa', { metodo: 'POST', cuerpo })
   if (r.estado >= 400) return { error: mensajeDeError(r.datos, r.estado) }
   return { previa: r.datos }
-}
-
-/** Fuente 1: XML de la factura electrónica (SII). */
-function FuenteFactura({ alLeer }) {
-  const [arrastre, setArrastre] = useState(false)
-  const [error, setError] = useState('')
-  const [leyendo, setLeyendo] = useState(false)
-  const entrada = useRef(null)
-
-  async function leer(archivo) {
-    setError('')
-    if (!archivo) return
-    if (archivo.size > 1_500_000) { setError('El archivo es demasiado grande para una factura (máximo 1,5 MB).'); return }
-    if (!/\.xml$/i.test(archivo.name) && !/xml/.test(archivo.type)) {
-      setError('Sube el archivo XML de la factura (termina en .xml). Para PDF o foto, revisa la nota de abajo.')
-      return
-    }
-    setLeyendo(true)
-    try {
-      const xml = decodificarXml(new Uint8Array(await archivo.arrayBuffer()))
-      const { previa, error: e } = await pedirVistaPrevia({ origen: 'factura_xml', xml })
-      if (e) setError(e)
-      else alLeer(previa, xml)
-    } catch {
-      setError(SIN_CONEXION)
-    } finally {
-      setLeyendo(false)
-      if (entrada.current) entrada.current.value = ''
-    }
-  }
-
-  return (
-    <section className="tarjeta">
-      <h2>Cargar desde la factura del proveedor</h2>
-      <p className={css.ayuda}>
-        Usa el archivo XML de la factura electrónica (lo envía el proveedor por correo o se descarga desde el SII).
-        Se leen el proveedor, el folio y cada producto con su cantidad y costo.
-      </p>
-      <label
-        className={`${css.zonaArchivo} ${arrastre ? css.zonaArchivoActiva : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setArrastre(true) }}
-        onDragLeave={() => setArrastre(false)}
-        onDrop={(e) => { e.preventDefault(); setArrastre(false); leer(e.dataTransfer.files?.[0]) }}
-      >
-        <span className={css.zonaTitulo}>{leyendo ? 'Leyendo la factura…' : 'Arrastra aquí el XML de la factura'}</span>
-        <span className={css.ayuda}>o haz clic para elegir el archivo</span>
-        <input ref={entrada} className={css.ocultoVisual} type="file" accept=".xml,text/xml,application/xml"
-          aria-label="Archivo XML de la factura" onChange={(e) => leer(e.target.files?.[0])} />
-      </label>
-      {error && <p className="alerta" role="alert">{error}</p>}
-      <p className="nota-chica">
-        ¿Factura en papel o PDF? La lectura desde una foto o PDF se activará cuando se elija el proveedor de inteligencia artificial.
-        Mientras tanto, usa «Pegar planilla» o el lector de códigos.
-      </p>
-    </section>
-  )
 }
 
 /** Fuente 2: filas pegadas desde Excel o CSV, con mapeo de columnas. */
@@ -442,7 +421,7 @@ function Historial({ version }) {
   )
 }
 
-/** Carga amigable de productos: factura XML, planilla o lector, con revisión común. */
+/** Carga amigable de productos: bandeja de facturas (foto, PDF, XML, correo), planilla o lector, con revisión común. */
 export function ImportarProductos({ fuente, alCargar }) {
   const [version, setVersion] = useState(0)
   const catalogo = useCatalogo(version)
@@ -478,7 +457,10 @@ export function ImportarProductos({ fuente, alCargar }) {
   const alLeer = (p, x = null) => { setPrevia(p); setXml(x) }
   return (
     <>
-      {fuente === 'factura' && <FuenteFactura alLeer={alLeer} />}
+      {fuente === 'factura' && (
+        <FacturasProveedor catalogo={catalogo} version={version}
+          alTerminar={(r) => { setResultado(r); setVersion((v) => v + 1); alCargar?.() }} />
+      )}
       {fuente === 'planilla' && <FuentePlanilla alLeer={alLeer} />}
       {fuente === 'lector' && <FuenteLector alLeer={alLeer} />}
       <Historial version={version} />
