@@ -109,6 +109,11 @@ class AvisosCorreoTest(CanalPublicoBaseTest):
         self.assertEqual(ev[0][2]["total_clp"], reserva["total_clp"])
         self.assertNotIn("Marta", str(ev[0][2]))
         self.assertNotIn("11.111", str(ev[0][2]))
+        # ADP-4: la cuenta nace vacía; el alojamiento queda como cargo para que el pago de 10.000 sea parcial.
+        cargo = self.cliente.post(f"/hotel/reservas/{rid}/cargos",
+                                  json={"concepto": "Alojamiento", "monto_clp": reserva["total_clp"]},
+                                  headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(cargo.status_code, 201, cargo.text)
         pago = self.cliente.post(f"/hotel/reservas/{rid}/pagos",
                                  json={"monto_clp": 10000, "clave": "c-1", "modo": "manual"},
                                  headers={"Idempotency-Key": self.clave()})
