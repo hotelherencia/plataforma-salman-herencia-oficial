@@ -13,6 +13,7 @@ Lote 1 (seguridad y operación, en verde tras el arreglo):
 Pruebas HTTP contra PostgreSQL de test (mismo patrón que test_preh7_seguridad).
 """
 import os
+import time
 import unittest
 from unittest import mock
 
@@ -185,11 +186,15 @@ class SECA02MfaReauthTest(BaseAuditoriaTest):
         self.cliente.cookies.clear()
         r = self.login_admin(codigo=totp.codigo(secreto_viejo))
         self.assertEqual(r.status_code, 200, r.text)
-        # confirmar el nuevo cambia el activo (la sesión se abre con el viejo,
-        # que sigue vigente hasta la activación)
-        r = self.login_admin(codigo=totp.codigo(secreto_viejo))
-        self.assertEqual(r.status_code, 200, r.text)
-        r = self.cliente.post("/cuenta/2fa/activar", json={"codigo": totp.codigo(secreto_nuevo)})
+        # confirmar el nuevo cambia el activo (la sesión abierta arriba con el
+        # viejo sigue vigente). SA-TOTP-01: el mismo código viejo ya no abre
+        # otra sesión, y la activación usa el código del paso anterior para que
+        # el login con el código vigente del nuevo no choque con el consumido.
+        self.assertEqual(self.login_admin(codigo=totp.codigo(secreto_viejo)).status_code, 401)
+        r = self.cliente.post(
+            "/cuenta/2fa/activar",
+            json={"codigo": totp.codigo(secreto_nuevo, int(time.time()) - totp.PASO_SEGUNDOS)},
+        )
         self.assertEqual(r.status_code, 200, r.text)
         self.cliente.cookies.clear()
         self.assertEqual(self.login_admin(codigo=totp.codigo(secreto_viejo)).status_code, 401)

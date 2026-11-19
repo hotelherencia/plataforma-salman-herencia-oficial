@@ -1,5 +1,6 @@
 """Segundo factor TOTP: vectores RFC 6238 y flujo completo contra la API."""
 import os
+import time
 import unittest
 
 import psycopg
@@ -9,6 +10,11 @@ from servicio import seguridad, totp
 from servicio.tests.aislamiento import exigir_base_libre
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
+
+
+def codigo_previo(secreto: str) -> str:
+    """Código del paso de 30 s anterior (válido por la ventana de tolerancia)."""
+    return totp.codigo(secreto, int(time.time()) - totp.PASO_SEGUNDOS)
 
 URL_TEST = os.environ.get(
     "DATABASE_URL_TEST", "postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma_test"
@@ -108,7 +114,10 @@ class DosFactoresHttpTest(unittest.TestCase):
 
         r = self.cliente.post("/cuenta/2fa/activar", json={"codigo": codigo_malo(secreto)})
         self.assertEqual(r.status_code, 400)
-        r = self.cliente.post("/cuenta/2fa/activar", json={"codigo": totp.codigo(secreto)})
+        # SA-TOTP-01: el código de activación queda consumido; se activa con el
+        # del paso anterior (aceptado por la ventana) para que el login de más
+        # abajo use el código vigente sin esperar 30 s.
+        r = self.cliente.post("/cuenta/2fa/activar", json={"codigo": codigo_previo(secreto)})
         self.assertEqual(r.status_code, 200)
 
         self.assertTrue(self.cliente.get("/sesion").json()["totp_activado"])

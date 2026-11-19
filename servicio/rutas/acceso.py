@@ -53,12 +53,12 @@ def abrir_sesion(
     usuario_id, empresa_id, rol, totp_activado = auth
     config = request.app.state.configuracion
     if totp_activado:
-        secreto = seguridad.secreto_totp(conexion, usuario_id)
         if not credenciales.totp:
             seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "falta codigo 2fa", ip=ip)
             conexion.commit()
             raise HTTPException(status_code=401, detail="codigo_totp_requerido")
-        if secreto is None or not totp.verificar(secreto, credenciales.totp):
+        # SA-TOTP-01: verifica y consume el código (no se acepta dos veces).
+        if not seguridad.consumir_totp(conexion, usuario_id, credenciales.totp):
             freno.registrar_fallo(ip, credenciales.usuario, time.time())
             freno.registrar_fallo_usuario(credenciales.usuario, time.time())
             seguridad.auditar(conexion, credenciales.usuario, "login", "/sesion", "2fa rechazado", ip=ip)
@@ -277,8 +277,8 @@ def completar_login_google_totp(
         seguridad.auditar(conexion, nombre, "login", "/auth/google/totp", "frenado", ip=ip)
         conexion.commit()
         raise HTTPException(status_code=429, detail="demasiados intentos; espera unos minutos")
-    secreto = seguridad.secreto_totp(conexion, pendiente["usuario_id"])
-    if secreto is None or not totp.verificar(secreto, cuerpo.codigo):
+    # SA-TOTP-01: verifica y consume el código (no se acepta dos veces).
+    if not seguridad.consumir_totp(conexion, pendiente["usuario_id"], cuerpo.codigo):
         pendientes.fallo(tx)
         freno.registrar_fallo(ip, nombre, ahora)
         freno.registrar_fallo_usuario(nombre, ahora)
@@ -335,11 +335,12 @@ def activar_2fa(
     secreto = seguridad.secreto_totp_pendiente(conexion, sesion.usuario_id)
     if secreto is None:
         raise HTTPException(status_code=400, detail="no hay alta de 2FA en curso")
-    if not totp.verificar(secreto, cuerpo.codigo):
+    paso = totp.paso_verificado(secreto, cuerpo.codigo)
+    if paso is None:
         seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa/activar", "rechazado")
         conexion.commit()
         raise HTTPException(status_code=400, detail="código 2FA inválido")
-    seguridad.activar_totp(conexion, sesion.usuario_id)
+    seguridad.activar_totp(conexion, sesion.usuario_id, paso)
     seguridad.auditar(conexion, sesion.nombre, "2fa", "/cuenta/2fa/activar", "activado")
     conexion.commit()
     return {"estado": "activado"}

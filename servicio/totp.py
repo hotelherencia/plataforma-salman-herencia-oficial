@@ -34,13 +34,22 @@ def codigo(secreto: str, en_segundos: int | None = None, digitos: int = DIGITOS)
     return str(valor % 10**digitos).zfill(digitos)
 
 
-def verificar(secreto: str, codigo_usuario: str, pasos_atras: int = 1) -> bool:
-    codigo_usuario = codigo_usuario.strip().replace(" ", "")
+def paso_verificado(secreto: str, codigo_usuario: str, pasos_atras: int = 1) -> int | None:
+    """Paso de 30 s (contador RFC 6238) del código si es válido; None si no.
+
+    Permite al llamador rechazar la reutilización del mismo código
+    (SA-TOTP-01, RFC 6238 §5.2)."""
+    codigo_usuario = (codigo_usuario or "").strip().replace(" ", "")
     ahora = int(time.time())
     for atras in range(pasos_atras + 1):
-        if hmac.compare_digest(codigo(secreto, ahora - atras * PASO_SEGUNDOS), codigo_usuario):
-            return True
-    return False
+        instante = ahora - atras * PASO_SEGUNDOS
+        if hmac.compare_digest(codigo(secreto, instante), codigo_usuario):
+            return instante // PASO_SEGUNDOS
+    return None
+
+
+def verificar(secreto: str, codigo_usuario: str, pasos_atras: int = 1) -> bool:
+    return paso_verificado(secreto, codigo_usuario, pasos_atras) is not None
 
 
 def uri_de_alta(secreto: str, usuario: str, emisor: str = "Plataforma Herencia") -> str:

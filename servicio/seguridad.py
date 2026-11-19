@@ -155,19 +155,42 @@ def secreto_totp_pendiente(conexion: psycopg.Connection, usuario_id: str) -> str
     return fila[0] if fila else None
 
 
-def activar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
-    """Mueve el secreto pendiente a activo (idempotente tras verificar el código)."""
+def activar_totp(conexion: psycopg.Connection, usuario_id: str, paso: int | None = None) -> None:
+    """Mueve el secreto pendiente a activo (idempotente tras verificar el código).
+
+    SA-TOTP-01: `paso` es el del código de activación; queda consumido para
+    que ese mismo código no abra sesión después."""
     conexion.execute(
         "UPDATE usuarios SET totp_secreto = totp_secreto_pendiente, "
-        "totp_secreto_pendiente = NULL, totp_activado = TRUE WHERE id = %s",
-        (usuario_id,),
+        "totp_secreto_pendiente = NULL, totp_activado = TRUE, totp_ultimo_paso = %s WHERE id = %s",
+        (paso, usuario_id),
     )
+
+
+def consumir_totp(conexion: psycopg.Connection, usuario_id: str, codigo_usuario: str | None) -> bool:
+    """Verifica el código contra el secreto activo y lo consume (SA-TOTP-01).
+
+    Un código ya aceptado (mismo paso de 30 s o anterior) se rechaza: el
+    UPDATE condicional es atómico, así dos logins simultáneos con el mismo
+    código no abren dos sesiones."""
+    secreto = secreto_totp(conexion, usuario_id)
+    if secreto is None or not codigo_usuario:
+        return False
+    paso = totp.paso_verificado(secreto, codigo_usuario)
+    if paso is None:
+        return False
+    fila = conexion.execute(
+        "UPDATE usuarios SET totp_ultimo_paso = %s WHERE id = %s "
+        "AND (totp_ultimo_paso IS NULL OR totp_ultimo_paso < %s) RETURNING id",
+        (paso, usuario_id, paso),
+    ).fetchone()
+    return fila is not None
 
 
 def desactivar_totp(conexion: psycopg.Connection, usuario_id: str) -> None:
     conexion.execute(
         "UPDATE usuarios SET totp_activado = FALSE, totp_secreto = NULL, "
-        "totp_secreto_pendiente = NULL WHERE id = %s",
+        "totp_secreto_pendiente = NULL, totp_ultimo_paso = NULL WHERE id = %s",
         (usuario_id,),
     )
 
