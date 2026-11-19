@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
+import { Explicacion } from '../_componentes/explicacion'
+import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
@@ -68,7 +70,7 @@ const ETIQUETAS_ESTADO = {
   cancelada: { label: 'Canceladas', color: '#b91c1c', bg: '#fef2f2' },
 }
 
-function Tarjeta({ titulo, indicador, alerta, valor, detalle }) {
+function Tarjeta({ clave, titulo, indicador, alerta, valor, detalle }) {
   if (!indicador) return null
   const mostrar = valor !== undefined ? valor : indicador.valor
   return (
@@ -85,7 +87,7 @@ function Tarjeta({ titulo, indicador, alerta, valor, detalle }) {
           ))}
         </span>
       )}
-      <Definicion indicador={indicador} />
+      {EXPLICACIONES[clave] ? <Explicacion clave={clave} titulo={titulo} /> : <Definicion indicador={indicador} />}
     </div>
   )
 }
@@ -157,13 +159,13 @@ export default function Panel() {
             <h2>Situación de hoy</h2>
             <div className="kpi-rejilla">
               {SITUACION.map(([clave, titulo, alerta]) => (
-                <Tarjeta key={clave} titulo={titulo} indicador={datos.hoy[clave]} alerta={alerta} />
+                <Tarjeta key={clave} clave={clave} titulo={titulo} indicador={datos.hoy[clave]} alerta={alerta} />
               ))}
             </div>
             <h3 className="subtitulo">Habitaciones</h3>
             <div className="kpi-rejilla">
               {HABITACIONES.map(([clave, titulo]) => (
-                <Tarjeta key={clave} titulo={titulo} indicador={datos.hoy[clave]} />
+                <Tarjeta key={clave} clave={clave} titulo={titulo} indicador={datos.hoy[clave]} />
               ))}
             </div>
           </section>
@@ -212,21 +214,29 @@ export default function Panel() {
         {datos && (
         <>
             <div className="kpi-rejilla">
-              <Tarjeta titulo="Ocupación (estadías reales)" indicador={p.ocupacion} valor={porcentaje(p.ocupacion.valor)} />
-              <Tarjeta titulo="Ocupación reservada" indicador={p.ocupacion_reservada} valor={porcentaje(p.ocupacion_reservada.valor)} />
-              <Tarjeta titulo="Noches ocupadas" indicador={p.noches_ocupadas} />
-              <Tarjeta titulo="Noches reservadas" indicador={p.noches_reservadas} />
+              <Tarjeta titulo="Ocupación (estadías reales)" clave="ocupacion" indicador={p.ocupacion} valor={porcentaje(p.ocupacion.valor)} />
+              <Tarjeta titulo="Ocupación reservada" clave="ocupacion_reservada" indicador={p.ocupacion_reservada} valor={porcentaje(p.ocupacion_reservada.valor)} />
+              <Tarjeta titulo="Noches ocupadas" clave="noches_ocupadas" indicador={p.noches_ocupadas} />
+              <Tarjeta titulo="Noches reservadas" clave="noches_reservadas" indicador={p.noches_reservadas} />
               {p.ingresos_periodo_clp && (
-                <Tarjeta titulo="Ingresos del periodo" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
+                <Tarjeta titulo="Ingresos del periodo" clave="ingresos_periodo_clp" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
               )}
-              <Tarjeta titulo="Unidades-noche" indicador={p.unidades_noche} />
+              <Tarjeta titulo="Unidades-noche" clave="unidades_noche" indicador={p.unidades_noche} />
               <Tarjeta
                 titulo="Reservas canceladas"
-                indicador={p.reservas_canceladas}
+                clave="reservas_canceladas" indicador={p.reservas_canceladas}
                 detalle={plural(p.reservas_canceladas.noches, 'noche')}
               />
-              <Tarjeta titulo="Reservas registradas" indicador={p.reservas_registradas} />
+              <Tarjeta titulo="Reservas registradas" clave="reservas_registradas" indicador={p.reservas_registradas} />
             </div>
+            <details className="aun-no-disponibles">
+              <summary>Indicadores que todavía no se calculan (tarifa promedio, RevPAR y otros)</summary>
+              <ul>
+                {AUN_NO_DISPONIBLES.map((i) => (
+                  <li key={i.nombre}><strong>{i.nombre}.</strong> {i.texto}</li>
+                ))}
+              </ul>
+            </details>
             {Object.keys(p.reservas_registradas.por_estado).length > 0 && (
               <div className="grafico-estados-bloque">
                 <h3 className="subtitulo">Distribución de reservas por estado</h3>

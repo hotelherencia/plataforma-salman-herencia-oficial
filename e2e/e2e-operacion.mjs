@@ -392,7 +392,8 @@ try {
     await admin.getByRole('button', { name: 'Actualizar' }).click()
     await admin.waitForTimeout(1800)
     const t = await texto(admin)
-    const pct = `${(ind.periodo_indicadores.ocupacion_reservada.valor * 100).toFixed(1)} %`
+    // Formato chileno en pantalla (coma decimal): 1,7 %.
+    const pct = `${(ind.periodo_indicadores.ocupacion_reservada.valor * 100).toFixed(1).replace('.', ',')} %`
     esperar(t.includes(`Datos al ${HOY.split('-').reverse().join('/')}`) && t.includes(pct) && t.includes('sin muestra'), `panel sin ${pct} / «sin muestra»`)
     await admin.getByText('Cómo se calcula').first().click()
     esperar((await texto(admin)).includes('Fórmula'), 'definición no desplegable')
