@@ -5,13 +5,6 @@ Fecha del paquete: 2026-11-13
    (el sitio que hoy sirve el Apache estático). Los archivos van tal cual:
    index.html, css/, js/. HACER UN RESPALDO del sitio actual antes de pisar.
 
-1b. POLÍTICA DE SEGURIDAD (CSP): el paquete trae `.htaccess` (archivo oculto: al copiar,
-   incluir los archivos ocultos). Sin él, o si el hosting ya impone `default-src 'self'`, el
-   navegador bloquea reCAPTCHA, las tipografías y el envío del formulario (error visto en
-   Firefox: «blocked the loading of a resource (default-src) ... recaptcha/api.js»). El hosting
-   necesita `mod_headers`. Si el hosting define la cabecera por otro medio (panel, WAF, CDN),
-   copiar ahí el contenido de `hosting/csp.txt` en lugar del `.htaccess`.
-
 2. CONFIGURACIÓN (ya viene apuntando a producción; js/config.js):
    - PLATAFORMA_URL: https://plataforma-salman-herencia-oficial.vercel.app
    - API_URL: la misma + /api (reenvío al backend según front/vercel.json)
@@ -26,8 +19,6 @@ Fecha del paquete: 2026-11-13
        «Consultar reserva» del hero y del sticky sigue en #contacto.
    [ ] Rango inválido (salida antes de llegada) muestra aviso y NO navega.
    [ ] El formulario de contacto (#contacto) envía y muestra «Consulta enviada».
-   [ ] Consola del navegador sin «Content-Security-Policy: ... blocked» (los avisos de cookies
-       de reCAPTCHA «Partitioned» son de Google y no afectan el envío).
    [ ] https://hotelherencia.cl/reservar no existe en el hosting (la reserva
        vive en el front de la plataforma): 404 del hosting está bien.
 
