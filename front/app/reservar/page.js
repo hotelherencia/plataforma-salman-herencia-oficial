@@ -247,15 +247,15 @@ function Reservar() {
             buscar(inicio, fin, personas)
           }}
         >
-          <Campo etiqueta="Llegada" type="date" min={hoyLocal()} value={inicio} onChange={(e) => setInicio(e.target.value)} />
-          <Campo etiqueta="Salida" type="date" min={inicio || hoyLocal()} value={fin} onChange={(e) => setFin(e.target.value)} />
+          <Campo etiqueta="Llegada" type="date" min={hoyLocal()} value={inicio} onChange={(e) => { setInicio(e.target.value); setOferta(null); setElegida('') }} />
+          <Campo etiqueta="Salida" type="date" min={inicio || hoyLocal()} value={fin} onChange={(e) => { setFin(e.target.value); setOferta(null); setElegida('') }} />
           <Campo
             etiqueta="Personas"
             type="number"
             min="1"
             max="30"
             value={personas}
-            onChange={(e) => setPersonas(e.target.value)}
+            onChange={(e) => { setPersonas(e.target.value); setOferta(null); setElegida('') }}
           />
           <button type="submit" className="boton-primario" disabled={buscando}>
             {buscando ? 'Consultando…' : 'Ver disponibilidad'}
@@ -364,7 +364,7 @@ function Reservar() {
                       <Campo
                         etiqueta="Correo o teléfono"
                         ref={refContacto}
-                        autoComplete="email"
+                        autoComplete="on"
                         maxLength={120}
                         value={contacto}
                         aria-invalid={erroresCampo.contacto ? 'true' : undefined}
@@ -379,7 +379,7 @@ function Reservar() {
                   </div>
                 )}
                 <p className="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
-                  Hotel Herencia usará tu nombre, correo, teléfono, fechas y mensaje para responder esta consulta y, si sigues, para dejar la solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos RUT, datos de salud ni tarjeta; no los escribas en el mensaje. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
+                  Hotel Herencia usará tu nombre, correo o teléfono y fechas para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos RUT, datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
                 </p>
                 {errorSolicitud && (
                   <p role="alert" className="alerta" tabIndex={-1} ref={refErrorSolicitud}>{errorSolicitud}</p>

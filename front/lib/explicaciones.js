@@ -125,11 +125,11 @@ export const EXPLICACIONES = {
     ejemplo: '60 noches reservadas ÷ 112 unidades-noche = 53,6 %.',
   },
   ingresos_periodo_clp: {
-    mide: 'Cuánto dinero se cobró en el periodo.',
-    formula: 'Ingresos del periodo = suma de los pagos confirmados con fecha de pago dentro del periodo.',
-    cuenta: 'Pagos confirmados, en pesos y con IVA incluido (tal como se cobraron), aunque correspondan a estadías de otras fechas.',
-    noCuenta: 'Lo reservado y aún no pagado, pagos no confirmados y abonos de fuera del periodo. No es ingreso por noche vendida.',
-    ejemplo: 'Un abono de $50.000 el día 3 y un pago de $415.000 el día 9 = $465.000.',
+    mide: 'Cuánto dinero se recaudó en caja durante el periodo (base percibida).',
+    formula: 'Recaudación del periodo = suma de los cobros confirmados con fecha contable dentro del periodo.',
+    cuenta: 'Cobros confirmados, en pesos y con IVA incluido (tal como se recibieron), aunque correspondan a estadías de otras fechas.',
+    noCuenta: 'Lo reservado y aún no pagado, cobros no confirmados ni ingresos devengados por noche vendida (eso vive en Cierre diario).',
+    ejemplo: 'Un anticipo de $50.000 el día 3 y un cobro de $415.000 el día 9 = $465.000.',
   },
   reservas_canceladas: {
     mide: 'Cuántas reservas canceladas tenían noches dentro del periodo.',
@@ -150,12 +150,12 @@ export const EXPLICACIONES = {
 /** Indicadores estándar de la industria que el panel todavía no calcula. */
 export const AUN_NO_DISPONIBLES = [
   {
-    nombre: 'Tarifa promedio por noche vendida (ADR)',
-    texto: 'Sería ingresos por alojamiento ÷ noches ocupadas. Falta definir cómo se reconoce el ingreso de cada noche (por ejemplo, una estadía pagada por adelantado), así que hoy no se muestra para no dar una cifra equivocada.',
+    nombre: 'Tarifa promedio por noche vendida acumulada del periodo (ADR)',
+    texto: 'Ya se calcula por día en Caja y pagos → Cierre diario. El acumulado multi-día con comparación de periodos llega en la fase de reportería ejecutiva.',
   },
   {
-    nombre: 'Ingreso por habitación disponible (RevPAR)',
-    texto: 'Sería ingresos por alojamiento ÷ unidades-noche (o tarifa promedio × ocupación). Depende de la misma definición de ingreso por noche que la tarifa promedio.',
+    nombre: 'Ingreso por habitación disponible acumulado del periodo (RevPAR)',
+    texto: 'Ya se calcula por día en Caja y pagos → Cierre diario. El acumulado multi-día con comparación de periodos llega en la fase de reportería ejecutiva.',
   },
   {
     nombre: 'Ingresos por canal de venta',

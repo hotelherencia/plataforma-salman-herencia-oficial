@@ -35,8 +35,10 @@ ZONA = ZoneInfo("America/Santiago")
 CAJA = "principal"
 MEDIOS = ajustes.MEDIOS_CAJA
 DOCUMENTOS = ajustes.DOCUMENTOS_CAJA
+CATEGORIAS_DIRECTAS = ("cafeteria", "minibar", "estacionamiento", "servicio", "otro_ingreso", "gasto_operacional")
+TIPOS_DIRECTOS = ("cargo_directo", "egreso_operacional")
 NOMBRE_MEDIO = {"efectivo": "Efectivo", "debito": "Tarjeta de débito", "credito": "Tarjeta de crédito",
-                "transferencia": "Transferencia", "no_informado": "Sin medio informado"}
+                "transferencia": "Transferencia", "no_informado": "Sin medio informado", "pendiente": "Pendiente de cobro"}
 
 # Quién opera la caja: caja y recepción (en un hotel chico la recepción cobra)
 # más la administración del hotel. El cierre del día: caja o administración.
@@ -268,17 +270,23 @@ def totales_turno(conexion: psycopg.Connection, turno: dict) -> dict:
     ).fetchone()
     por_medio = {m: 0 for m in (*MEDIOS, "no_informado")}
     retiros = 0
+    egresos = 0
+    egresos_efectivo = 0
     cobros = 0
     for medio, tipo, suma, cuenta in filas:
         if tipo == "retiro_deposito":
             retiros += -suma
+        elif tipo == "egreso_caja":
+            egresos += -suma
+            if medio == "efectivo":
+                egresos_efectivo += -suma
         else:
             por_medio[medio] += suma
-            if tipo == "cobro":
+            if tipo in ("cobro", "cobro_directo"):
                 cobros += cuenta
-    esperado = turno["fondo_inicial_clp"] + por_medio["efectivo"] - retiros
-    return {"por_medio": por_medio, "retiros_deposito_clp": retiros, "cobros": cobros,
-            "total_cobrado_clp": sum(por_medio.values()), "efectivo_esperado_clp": esperado,
+    esperado = turno["fondo_inicial_clp"] + por_medio["efectivo"] - retiros - egresos_efectivo
+    return {"por_medio": por_medio, "retiros_deposito_clp": retiros, "egresos_caja_clp": egresos,
+            "cobros": cobros, "total_cobrado_clp": sum(por_medio.values()), "efectivo_esperado_clp": esperado,
             "recibido_sin_turno_clp": sin_turno}
 
 
@@ -403,11 +411,21 @@ def cerrar_turno(conexion: psycopg.Connection, empresa_id: str, turno_id: str, u
 
 
 def movimientos(conexion: psycopg.Connection, empresa_id: str, desde: date | None = None, hasta: date | None = None,
-                turno_id: str | None = None, medio: str | None = None) -> list[dict]:
+                turno_id: str | None = None, medio: str | None = None, incluir_sin_turno: bool = False) -> list[dict]:
     filtros, parametros_sql = ["m.empresa_id = %s"], [empresa_id]
     if turno_id:
-        filtros.append("m.turno_id = %s")
-        parametros_sql.append(turno_id)
+        if incluir_sin_turno:
+            filtros.append(
+                "(m.turno_id = %s OR (m.turno_id IS NULL "
+                "AND m.creado_en <= (SELECT abierto_en FROM caja_turnos WHERE id = %s) "
+                "AND m.creado_en > COALESCE((SELECT max(p.cerrado_en) FROM caja_turnos p WHERE p.estado = 'cerrado' "
+                "AND p.empresa_id = m.empresa_id AND p.abierto_en < (SELECT abierto_en FROM caja_turnos WHERE id = %s)), "
+                "'-infinity'::timestamptz)))"
+            )
+            parametros_sql.extend([turno_id, turno_id, turno_id])
+        else:
+            filtros.append("m.turno_id = %s")
+            parametros_sql.append(turno_id)
     if desde:
         filtros.append("m.fecha_contable >= %s")
         parametros_sql.append(desde)
@@ -419,18 +437,22 @@ def movimientos(conexion: psycopg.Connection, empresa_id: str, desde: date | Non
         parametros_sql.append(medio)
     filas = conexion.execute(
         "SELECT m.id, m.turno_id, m.fecha_contable, m.tipo, m.medio, m.monto_clp, m.pago_id, m.comprobante, m.banco, "
-        "m.nota, m.actor, m.creado_en, p.reserva_id, r.habitacion_id, r.huesped_nombre, p.documento_tipo, "
-        "p.documento_folio, p.es_anticipo, p.tarjeta_marca, p.tarjeta_ultimos4, p.codigo_autorizacion "
+        "m.nota, m.actor, m.creado_en, p.reserva_id, r.habitacion_id, r.huesped_nombre, "
+        "COALESCE(p.documento_tipo, md.documento_tipo), COALESCE(p.documento_folio, md.documento_folio), "
+        "p.es_anticipo, COALESCE(p.tarjeta_marca, md.tarjeta_marca), COALESCE(p.tarjeta_ultimos4, md.tarjeta_ultimos4), "
+        "COALESCE(p.codigo_autorizacion, md.codigo_autorizacion), m.movimiento_directo_id, md.concepto, md.categoria "
         "FROM caja_movimientos m LEFT JOIN pagos p ON p.id = m.pago_id LEFT JOIN reservas r ON r.id = p.reserva_id "
+        "LEFT JOIN movimientos_directos md ON md.id = m.movimiento_directo_id "
         f"WHERE {' AND '.join(filtros)} ORDER BY m.creado_en, m.id LIMIT 2000",
         parametros_sql,
     ).fetchall()
     return [
         {"movimiento_id": f[0], "turno_id": f[1], "fecha_contable": f[2].isoformat(), "tipo": f[3], "medio": f[4],
-         "monto_clp": f[5], "pago_id": f[6], "comprobante": f[7], "banco": f[8], "nota": f[9], "actor": f[10],
+         "monto_clp": f[5], "pago_id": f[6], "comprobante": f[7], "banco": f[8], "nota": f[9] or f[22], "actor": f[10],
          "registrado_en": f[11].isoformat(), "reserva_id": f[12], "habitacion_id": f[13], "huesped_nombre": f[14],
          "documento_tipo": f[15], "documento_folio": f[16], "es_anticipo": f[17], "tarjeta_marca": f[18],
-         "tarjeta_ultimos4": f[19], "codigo_autorizacion": f[20]}
+         "tarjeta_ultimos4": f[19], "codigo_autorizacion": f[20], "movimiento_directo_id": f[21],
+         "concepto": f[22], "categoria": f[23]}
         for f in filas
     ]
 
@@ -438,7 +460,7 @@ def movimientos(conexion: psycopg.Connection, empresa_id: str, desde: date | Non
 def detalle_turno(conexion: psycopg.Connection, empresa_id: str, turno_id: str) -> dict:
     turno = _turno(conexion, empresa_id, turno_id)
     return {**turno, "totales": totales_turno(conexion, turno),
-            "movimientos": movimientos(conexion, empresa_id, turno_id=turno_id)}
+            "movimientos": movimientos(conexion, empresa_id, turno_id=turno_id, incluir_sin_turno=True)}
 
 
 def listar_turnos(conexion: psycopg.Connection, empresa_id: str, desde: date, hasta: date) -> list[dict]:
@@ -538,6 +560,8 @@ def reversar_pago(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_
         raise TurnoAjenoOInexistente("pago inexistente")
     if fila[3] != "pago" or fila[4] != "confirmado":
         raise OperacionCajaInvalida("solo se reversa un pago confirmado")
+    if fila[5] == "finalizada":
+        raise OperacionCajaInvalida("la reserva ya está liquidada (finalizada): no se puede reversar el pago")
     if conexion.execute("SELECT 1 FROM pagos WHERE referencia_pago_id = %s AND tipo = 'reverso'", (pago_id,)).fetchone():
         raise OperacionCajaInvalida("ese pago ya fue reversado")
     preparado = preparar_pago(conexion, empresa_id, fila[5], {"medio": fila[2]})
@@ -557,6 +581,279 @@ def reversar_pago(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_
     neto, pagado = hotel_sql.cuenta(conexion, hotel, empresa_id, reserva_id)
     return {"pago_id": reverso_id, "referencia_pago_id": pago_id, "reserva_id": reserva_id, "monto_clp": fila[1],
             "medio": fila[2], "fecha_contable": preparado["fecha_contable"].isoformat(), "saldo_clp": neto - pagado}
+
+
+# --- Movimientos directos (sin habitación ni reserva) --------------------------
+
+def _mov_directo_dict(f) -> dict:
+    return {
+        "movimiento_directo_id": f[0], "fecha_contable": f[1].isoformat(), "tipo": f[2], "categoria": f[3],
+        "concepto": f[4], "producto_id": f[5], "cantidad": f[6], "precio_unitario_clp": f[7],
+        "monto_clp": f[8], "iva_pct": float(f[9]), "neto_clp": f[10], "iva_clp": f[11],
+        "estado_cobro": f[12], "medio": f[13], "turno_id": f[14],
+        "documento_tipo": f[15], "documento_folio": f[16], "cliente_id": f[17],
+        "referencia_id": f[18], "motivo": f[19], "nota": f[20], "actor": f[21],
+        "registrado_en": f[22].isoformat(),
+    }
+
+
+def _obtener_mov_directo(conexion: psycopg.Connection, empresa_id: str, mov_id: str, bloqueo: bool = False) -> dict:
+    fila = conexion.execute(
+        "SELECT id, fecha_contable, tipo, categoria, concepto, producto_id, cantidad, precio_unitario_clp, "
+        "monto_clp, iva_pct, neto_clp, iva_clp, estado_cobro, medio, turno_id, documento_tipo, documento_folio, "
+        "cliente_id, referencia_id, motivo, nota, actor, creado_en "
+        "FROM movimientos_directos WHERE empresa_id = %s AND id = %s" + (" FOR UPDATE" if bloqueo else ""),
+        (empresa_id, mov_id),
+    ).fetchone()
+    if fila is None:
+        raise TurnoAjenoOInexistente("movimiento directo inexistente")
+    return _mov_directo_dict(fila)
+
+
+def registrar_movimiento_directo(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    actor: str,
+    *,
+    tipo: str = "cargo_directo",
+    categoria: str = "otro_ingreso",
+    concepto: str | None = None,
+    monto_clp: int | None = None,
+    producto_id: str | None = None,
+    cantidad: int = 1,
+    estado_cobro: str = "cobrado",
+    datos_pago: dict | None = None,
+    nota: str | None = None,
+    hoy: date | None = None,
+) -> dict:
+    """Registra un cargo, venta de mostrador o egreso operacional SIN habitación ni reserva.
+    Siempre entra en contabilidad aunque la caja esté cerrada. Si viene pagado por un medio
+    no efectivo (o con turno abierto), asienta también el flujo en `caja_movimientos`."""
+    from . import productos as productos_db
+
+    if tipo not in TIPOS_DIRECTOS:
+        raise DatosCajaInvalidos("tipo de movimiento directo: cargo_directo o egreso_operacional")
+    if categoria not in CATEGORIAS_DIRECTAS:
+        raise DatosCajaInvalidos("categoría inválida para movimiento directo")
+    if estado_cobro not in ("cobrado", "pendiente"):
+        raise DatosCajaInvalidos("estado de cobro: cobrado o pendiente")
+    if tipo == "egreso_operacional" and producto_id:
+        raise DatosCajaInvalidos("un egreso operacional no descuenta productos del catálogo")
+
+    precio_unitario = None
+    cant_guardar = None
+    if producto_id:
+        if isinstance(cantidad, bool) or not isinstance(cantidad, int) or cantidad <= 0:
+            raise DatosCajaInvalidos("la cantidad debe ser al menos 1")
+        prod = productos_db.obtener(conexion, producto_id)
+        precio_unitario = prod["precio_clp"]
+        monto_clp = precio_unitario * cantidad
+        concepto_final = prod["nombre"] if cantidad == 1 else f"{prod['nombre']} × {cantidad}"
+        cant_guardar = cantidad
+        if categoria == "otro_ingreso" and prod["categoria"] in CATEGORIAS_DIRECTAS:
+            categoria = prod["categoria"]
+    else:
+        concepto_final = _texto(concepto, "el concepto", 200, True)
+        if isinstance(monto_clp, bool) or not isinstance(monto_clp, int) or monto_clp <= 0:
+            raise DatosCajaInvalidos("el monto debe ser un entero mayor que $0")
+
+    nota_limpia = _texto(nota, "la nota", 500)
+    fecha = fecha_contable_actual(conexion, empresa_id, hoy)
+    tasa = iva.tasa(conexion)
+    neto = _neto(monto_clp, tasa)
+    monto_iva = monto_clp - neto
+
+    turno = turno_abierto(conexion, empresa_id, bloqueo=True)
+    columnas = {
+        "medio": "pendiente", "documento_tipo": "pendiente", "documento_folio": None,
+        "receptor": None, "tarjeta_marca": None, "tarjeta_ultimos4": None,
+        "codigo_autorizacion": None, "comprobante": None,
+    }
+    turno_id = None
+    cliente_id = None
+    cobrado_en = None
+    cobrado_por = None
+
+    if estado_cobro == "cobrado":
+        datos_pago = dict(datos_pago or {})
+        if not datos_pago.get("medio"):
+            raise DatosCajaInvalidos("indica el medio de pago o regístralo como pendiente de cobro")
+        columnas = validar_datos_pago(conexion, empresa_id, datos_pago)
+        if columnas["medio"] == "efectivo" and turno is None and parametros(conexion, empresa_id)["exigir_turno_efectivo"]:
+            raise OperacionCajaInvalida(
+                "para recibir o retirar efectivo abre un turno de caja (Caja y pagos → Turno), "
+                "o regístralo como pendiente de cobro para que quede asentado en contabilidad"
+            )
+        turno_id = turno["turno_id"] if turno else None
+        if tipo == "egreso_operacional" and columnas["medio"] == "efectivo" and turno is not None:
+            disponible = totales_turno(conexion, turno)["efectivo_esperado_clp"]
+            if monto_clp > disponible:
+                raise OperacionCajaInvalida(
+                    f"el egreso en efectivo supera el efectivo disponible en caja ({_clp(disponible)})"
+                )
+        receptor = columnas["receptor"]
+        if receptor:
+            cliente_id = clientes.asegurar(
+                conexion, receptor["rut"], receptor["razon_social"], actor,
+                giro=receptor["giro"], direccion=receptor["direccion"],
+                comuna=receptor["comuna"], correo=receptor["correo"],
+            )
+        cobrado_en = ahora_chile()
+        cobrado_por = actor
+    else:
+        doc_opt = (datos_pago or {}).get("documento_tipo")
+        if doc_opt in DOCUMENTOS:
+            columnas["documento_tipo"] = doc_opt
+
+    mov_id = f"DIR-{uuid.uuid4().hex[:12]}"
+    if producto_id:
+        try:
+            productos_db.descontar_para_cargo(conexion, producto_id, cant_guardar, actor, mov_id)
+        except productos_db.ProductoInvalido as error:
+            raise OperacionCajaInvalida(str(error)) from error
+
+    conexion.execute(
+        "INSERT INTO movimientos_directos (id, empresa_id, fecha_contable, tipo, categoria, concepto, producto_id, "
+        "cantidad, precio_unitario_clp, monto_clp, iva_pct, neto_clp, iva_clp, estado_cobro, medio, turno_id, "
+        "cobrado_en, cobrado_por, documento_tipo, documento_folio, receptor, cliente_id, tarjeta_marca, "
+        "tarjeta_ultimos4, codigo_autorizacion, comprobante, nota, actor) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        (mov_id, empresa_id, fecha, tipo, categoria, concepto_final, producto_id, cant_guardar, precio_unitario,
+         monto_clp, tasa, neto, monto_iva, estado_cobro, columnas["medio"], turno_id, cobrado_en, cobrado_por,
+         columnas["documento_tipo"], columnas["documento_folio"],
+         Json(columnas["receptor"]) if columnas["receptor"] else None, cliente_id,
+         columnas["tarjeta_marca"], columnas["tarjeta_ultimos4"], columnas["codigo_autorizacion"],
+         columnas["comprobante"], nota_limpia, actor),
+    )
+
+    if estado_cobro == "cobrado":
+        tipo_caja = "egreso_caja" if tipo == "egreso_operacional" else "cobro_directo"
+        monto_caja = -monto_clp if tipo == "egreso_operacional" else monto_clp
+        conexion.execute(
+            "INSERT INTO caja_movimientos (id, empresa_id, turno_id, fecha_contable, tipo, medio, monto_clp, "
+            "movimiento_directo_id, comprobante, nota, actor) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (f"MOV-{uuid.uuid4().hex[:12]}", empresa_id, turno_id, fecha, tipo_caja, columnas["medio"],
+             monto_caja, mov_id, columnas["comprobante"], concepto_final, actor),
+        )
+    return _obtener_mov_directo(conexion, empresa_id, mov_id)
+
+
+def cobrar_movimiento_directo(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    mov_id: str,
+    actor: str,
+    datos_pago: dict,
+    hoy: date | None = None,
+) -> dict:
+    """Registra el cobro (o pago) de un movimiento directo previamente asentado como pendiente."""
+    mov = _obtener_mov_directo(conexion, empresa_id, mov_id, bloqueo=True)
+    if mov["tipo"] == "reverso_directo":
+        raise OperacionCajaInvalida("un reverso no se puede cobrar")
+    if mov["estado_cobro"] != "pendiente":
+        raise OperacionCajaInvalida("ese movimiento ya fue cobrado")
+    if conexion.execute(
+        "SELECT 1 FROM movimientos_directos WHERE referencia_id = %s AND tipo = 'reverso_directo'", (mov_id,)
+    ).fetchone():
+        raise OperacionCajaInvalida("ese movimiento fue reversado")
+    datos_pago = dict(datos_pago or {})
+    if not datos_pago.get("medio"):
+        raise DatosCajaInvalidos("indica el medio de pago")
+    columnas = validar_datos_pago(conexion, empresa_id, datos_pago)
+    turno = turno_abierto(conexion, empresa_id, bloqueo=True)
+    if columnas["medio"] == "efectivo" and turno is None and parametros(conexion, empresa_id)["exigir_turno_efectivo"]:
+        raise OperacionCajaInvalida("abre un turno de caja (Caja y pagos → Turno) antes de recibir o entregar efectivo")
+    turno_id = turno["turno_id"] if turno else None
+    if mov["tipo"] == "egreso_operacional" and columnas["medio"] == "efectivo" and turno is not None:
+        disponible = totales_turno(conexion, turno)["efectivo_esperado_clp"]
+        if mov["monto_clp"] > disponible:
+            raise OperacionCajaInvalida(
+                f"el egreso en efectivo supera el efectivo disponible en caja ({_clp(disponible)})"
+            )
+    cliente_id = mov["cliente_id"]
+    receptor = columnas["receptor"]
+    if receptor:
+        cliente_id = clientes.asegurar(
+            conexion, receptor["rut"], receptor["razon_social"], actor,
+            giro=receptor["giro"], direccion=receptor["direccion"],
+            comuna=receptor["comuna"], correo=receptor["correo"],
+        )
+    fecha = fecha_contable_actual(conexion, empresa_id, hoy)
+    conexion.execute(
+        "UPDATE movimientos_directos SET estado_cobro = 'cobrado', medio = %s, turno_id = %s, cobrado_en = now(), "
+        "cobrado_por = %s, documento_tipo = %s, documento_folio = %s, receptor = %s, cliente_id = %s, "
+        "tarjeta_marca = %s, tarjeta_ultimos4 = %s, codigo_autorizacion = %s, comprobante = %s WHERE id = %s",
+        (columnas["medio"], turno_id, actor, columnas["documento_tipo"], columnas["documento_folio"],
+         Json(receptor) if receptor else None, cliente_id, columnas["tarjeta_marca"],
+         columnas["tarjeta_ultimos4"], columnas["codigo_autorizacion"], columnas["comprobante"], mov_id),
+    )
+    tipo_caja = "egreso_caja" if mov["tipo"] == "egreso_operacional" else "cobro_directo"
+    monto_caja = -mov["monto_clp"] if mov["tipo"] == "egreso_operacional" else mov["monto_clp"]
+    conexion.execute(
+        "INSERT INTO caja_movimientos (id, empresa_id, turno_id, fecha_contable, tipo, medio, monto_clp, "
+        "movimiento_directo_id, comprobante, nota, actor) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        (f"MOV-{uuid.uuid4().hex[:12]}", empresa_id, turno_id, fecha, tipo_caja, columnas["medio"],
+         monto_caja, mov_id, columnas["comprobante"], mov["concepto"], actor),
+    )
+    return _obtener_mov_directo(conexion, empresa_id, mov_id)
+
+
+def reversar_movimiento_directo(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    mov_id: str,
+    motivo: str,
+    actor: str,
+    hoy: date | None = None,
+) -> dict:
+    """Anulación inmutable de un movimiento directo (solo administración). Devuelve stock si era producto
+    y asienta flujo contrario en `caja_movimientos` si estaba cobrado."""
+    from . import productos as productos_db
+
+    motivo = _texto(motivo, "el motivo", 300, True)
+    if len(motivo) < MIN_JUSTIFICACION:
+        raise DatosCajaInvalidos("explica el motivo del reverso (mínimo 10 caracteres)")
+    original = _obtener_mov_directo(conexion, empresa_id, mov_id, bloqueo=True)
+    if original["tipo"] == "reverso_directo":
+        raise OperacionCajaInvalida("un reverso no se puede volver a reversar")
+    if conexion.execute(
+        "SELECT 1 FROM movimientos_directos WHERE referencia_id = %s AND tipo = 'reverso_directo'", (mov_id,)
+    ).fetchone():
+        raise OperacionCajaInvalida("ese movimiento directo ya fue reversado")
+    turno = turno_abierto(conexion, empresa_id, bloqueo=True)
+    if (
+        original["estado_cobro"] == "cobrado"
+        and original["medio"] == "efectivo"
+        and turno is None
+        and parametros(conexion, empresa_id)["exigir_turno_efectivo"]
+    ):
+        raise OperacionCajaInvalida("abre un turno de caja (Caja y pagos → Turno) antes de reversar un movimiento en efectivo")
+    fecha = fecha_contable_actual(conexion, empresa_id, hoy)
+    reverso_id = f"DIR-{uuid.uuid4().hex[:12]}"
+    turno_id = turno["turno_id"] if (turno and original["estado_cobro"] == "cobrado") else None
+    estado_rev = "cobrado" if original["estado_cobro"] == "cobrado" else "no_aplica"
+    medio_rev = original["medio"] if original["estado_cobro"] == "cobrado" else "pendiente"
+    conexion.execute(
+        "INSERT INTO movimientos_directos (id, empresa_id, fecha_contable, tipo, categoria, concepto, producto_id, "
+        "cantidad, precio_unitario_clp, monto_clp, iva_pct, neto_clp, iva_clp, estado_cobro, medio, turno_id, "
+        "documento_tipo, cliente_id, referencia_id, motivo, actor) "
+        "VALUES (%s,%s,%s,'reverso_directo',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'sin_documento',%s,%s,%s,%s)",
+        (reverso_id, empresa_id, fecha, original["categoria"], f"Reverso: {original['concepto']}"[:200],
+         original["producto_id"], original["cantidad"], original["precio_unitario_clp"],
+         original["monto_clp"], original["iva_pct"], original["neto_clp"], original["iva_clp"],
+         estado_rev, medio_rev, turno_id, original["cliente_id"], mov_id, motivo, actor),
+    )
+    if original["producto_id"]:
+        productos_db.devolver_por_reverso(conexion, original["producto_id"], original["cantidad"] or 1, actor, reverso_id)
+    if original["estado_cobro"] == "cobrado":
+        monto_caja = original["monto_clp"] if original["tipo"] == "egreso_operacional" else -original["monto_clp"]
+        conexion.execute(
+            "INSERT INTO caja_movimientos (id, empresa_id, turno_id, fecha_contable, tipo, medio, monto_clp, "
+            "movimiento_directo_id, nota, actor) VALUES (%s,%s,%s,%s,'reverso_directo',%s,%s,%s,%s,%s)",
+            (f"MOV-{uuid.uuid4().hex[:12]}", empresa_id, turno_id, fecha, original["medio"],
+             monto_caja, reverso_id, f"Reverso: {motivo}"[:200], actor),
+        )
+    return _obtener_mov_directo(conexion, empresa_id, reverso_id)
 
 
 # --- Conciliación diaria y cierre del día -----------------------------------------
@@ -627,9 +924,12 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
     ).fetchall()
     por_medio = {m: 0 for m in (*MEDIOS, "no_informado")}
     depositos = 0
+    egresos_caja = 0
     for medio, tipo, suma, _ in cobros:
         if tipo == "retiro_deposito":
             depositos += -suma
+        elif tipo == "egreso_caja":
+            egresos_caja += -suma
         else:
             por_medio[medio] += suma
     # Pagos sin movimiento de caja (sin medio informado y sin turno): igual cuentan.
@@ -640,16 +940,50 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
         (empresa_id, fecha),
     ).fetchone()
     por_medio["no_informado"] += sin_caja
+    # Consumos extra de reservas (minibar, cafetería, recargos, conceptos libres) devengados en la fecha.
+    (consumos_reserva,) = conexion.execute(
+        "SELECT COALESCE(SUM(CASE WHEN c.tipo = 'reverso' THEN -c.monto_clp ELSE c.monto_clp END), 0) "
+        "FROM cargos c JOIN reservas r ON r.id = c.reserva_id "
+        "WHERE r.empresa_id = %s AND (c.creado_en AT TIME ZONE 'America/Santiago')::date = %s "
+        "AND c.concepto <> 'Noche' AND NOT (c.tipo = 'reverso' AND EXISTS ("
+        "  SELECT 1 FROM cargos o WHERE o.id = c.referencia AND o.concepto = 'Noche'))",
+        (empresa_id, fecha),
+    ).fetchone()
+    # Movimientos directos sin habitación ni reserva (devengados en la fecha, estén cobrados o pendientes).
+    (ingreso_directo, egresos_op, pendientes_directos_cant, pendientes_directos_clp) = conexion.execute(
+        "SELECT "
+        "COALESCE(SUM(CASE WHEN d.tipo = 'cargo_directo' THEN d.monto_clp "
+        "  WHEN d.tipo = 'reverso_directo' AND o.tipo = 'cargo_directo' THEN -d.monto_clp ELSE 0 END), 0), "
+        "COALESCE(SUM(CASE WHEN d.tipo = 'egreso_operacional' THEN d.monto_clp "
+        "  WHEN d.tipo = 'reverso_directo' AND o.tipo = 'egreso_operacional' THEN -d.monto_clp ELSE 0 END), 0), "
+        "COUNT(*) FILTER (WHERE d.tipo = 'cargo_directo' AND d.estado_cobro = 'pendiente' "
+        "  AND NOT EXISTS (SELECT 1 FROM movimientos_directos rv WHERE rv.referencia_id = d.id AND rv.tipo = 'reverso_directo')), "
+        "COALESCE(SUM(d.monto_clp) FILTER (WHERE d.tipo = 'cargo_directo' AND d.estado_cobro = 'pendiente' "
+        "  AND NOT EXISTS (SELECT 1 FROM movimientos_directos rv WHERE rv.referencia_id = d.id AND rv.tipo = 'reverso_directo')), 0) "
+        "FROM movimientos_directos d LEFT JOIN movimientos_directos o ON o.id = d.referencia_id "
+        "WHERE d.empresa_id = %s AND d.fecha_contable = %s",
+        (empresa_id, fecha),
+    ).fetchone()
+    if pendientes_directos_cant:
+        alertas.append(
+            f"{pendientes_directos_cant} cargo(s) directo(s) sin habitación pendientes de cobro ({_clp(pendientes_directos_clp)})"
+        )
     documentos = {d: {"cantidad": 0, "monto_clp": 0} for d in (*DOCUMENTOS, "pendiente")}
     for doc, cantidad, suma in conexion.execute(
-        "SELECT p.documento_tipo, count(*), COALESCE(SUM(p.monto_clp), 0) FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
-        "WHERE r.empresa_id = %s AND p.fecha_contable = %s AND p.estado = 'confirmado' AND p.tipo = 'pago' "
-        "GROUP BY p.documento_tipo",
-        (empresa_id, fecha),
+        "SELECT documento_tipo, count(*), COALESCE(SUM(monto_clp), 0) FROM ("
+        "  SELECT p.documento_tipo, p.monto_clp FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+        "  WHERE r.empresa_id = %s AND p.fecha_contable = %s AND p.estado = 'confirmado' AND p.tipo = 'pago' "
+        "  AND NOT EXISTS (SELECT 1 FROM pagos rv WHERE rv.referencia_pago_id = p.id AND rv.tipo = 'reverso') "
+        "  UNION ALL "
+        "  SELECT d.documento_tipo, d.monto_clp FROM movimientos_directos d "
+        "  WHERE d.empresa_id = %s AND d.fecha_contable = %s AND d.tipo = 'cargo_directo' AND d.estado_cobro = 'cobrado' "
+        "  AND NOT EXISTS (SELECT 1 FROM movimientos_directos rv WHERE rv.referencia_id = d.id AND rv.tipo = 'reverso_directo')"
+        ") docs GROUP BY documento_tipo",
+        (empresa_id, fecha, empresa_id, fecha),
     ).fetchall():
         documentos[doc] = {"cantidad": cantidad, "monto_clp": suma}
     if documentos["pendiente"]["cantidad"]:
-        alertas.append(f"{documentos['pendiente']['cantidad']} pago(s) sin boleta ni factura indicada")
+        alertas.append(f"{documentos['pendiente']['cantidad']} cobro(s) sin boleta ni factura indicada")
     (anticipos_dia,) = conexion.execute(
         "SELECT COALESCE(SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END), 0) FROM pagos p "
         "JOIN reservas r ON r.id = p.reserva_id WHERE r.empresa_id = %s AND p.fecha_contable = %s "
@@ -675,6 +1009,8 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
         (empresa_id, fecha),
     ).fetchone()
     total_cobrado = sum(por_medio.values())
+    total_devengado = ingreso + consumos_reserva + ingreso_directo
+    total_devengado_neto = _neto(total_devengado, tasa)
     return {
         "fecha": fecha.isoformat(),
         "habitaciones": filas,
@@ -682,11 +1018,18 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
             "habitaciones_disponibles": disponibles, "habitaciones_ocupadas": ocupadas,
             "ocupacion_pct": round(100 * ocupadas / disponibles, 1) if disponibles else 0.0,
             "ingreso_alojamiento_clp": ingreso, "ingreso_alojamiento_neto_clp": _neto(ingreso, tasa),
+            "ingreso_consumos_reserva_clp": consumos_reserva,
+            "ingreso_directo_clp": ingreso_directo,
+            "egresos_operacionales_clp": egresos_op,
+            "total_ingresos_devengados_clp": total_devengado,
+            "total_ingresos_neto_clp": total_devengado_neto,
+            "total_iva_debito_clp": total_devengado - total_devengado_neto,
             "adr_clp": round(ingreso / ocupadas) if ocupadas else 0,
             "revpar_clp": round(ingreso / disponibles) if disponibles else 0,
             "iva_pct": float(tasa),
         },
         "cobros": {"por_medio": por_medio, "total_clp": total_cobrado, "depositos_clp": depositos,
+                   "egresos_caja_clp": egresos_caja,
                    "anticipos_recibidos_clp": anticipos_dia, "anticipos_vigentes_clp": anticipos_vigentes},
         "documentos": documentos,
         "turnos": [{k: t[k] for k in ("turno_id", "usuario_nombre", "estado", "fondo_inicial_clp",

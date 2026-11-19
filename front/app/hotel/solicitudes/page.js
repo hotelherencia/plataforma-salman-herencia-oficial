@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
@@ -161,7 +162,11 @@ export default function Solicitudes() {
                     <td>{s.huesped_contacto}</td>
                     <td>{s.origen || '—'}</td>
                     <td><span className={`reserva-estado solicitud-${s.estado}`}>{ESTADO_SOLICITUD[s.estado] || s.estado}</span></td>
-                    <td>{s.reserva_id || '—'}</td>
+                    <td>
+                      {s.reserva_id
+                        ? <Link href={`/hotel/reservas/${s.reserva_id}`}>{s.reserva_id}</Link>
+                        : '—'}
+                    </td>
                     <td>
                       {s.estado === 'recibida' ? (
                         <div className="acciones-fila">

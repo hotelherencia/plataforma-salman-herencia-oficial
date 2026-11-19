@@ -30,7 +30,15 @@ export function formatearRut(clave) {
   return `${cuerpo}-${limpio.slice(-1)}`
 }
 
-const ROTULOS = { cargo: 'Cargo', reverso: 'Reverso de cargo', pago: 'Pago', reverso_pago: 'Reverso de pago' }
+const ROTULOS = {
+  cargo: 'Cargo',
+  reverso: 'Reverso de cargo',
+  pago: 'Pago',
+  reverso_pago: 'Reverso de pago',
+  cargo_directo: 'Cargo directo (sin habitación)',
+  egreso_operacional: 'Egreso operacional',
+  reverso_directo: 'Reverso directo',
+}
 
 export function rotuloMovimiento(tipo) {
   return ROTULOS[tipo] || 'Movimiento'

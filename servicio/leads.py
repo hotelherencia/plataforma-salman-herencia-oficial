@@ -138,7 +138,9 @@ def _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje) 
         raise LeadInvalido("check_in y check_out vienen juntos o ninguno")
     if check_in is not None and check_out <= check_in:
         raise LeadInvalido("check_out debe ser mayor que check_in")
-    if check_in is not None and check_in < date.today():
+    from . import contabilidad
+
+    if check_in is not None and check_in < contabilidad.hoy_chile():
         raise LeadInvalido("check_in debe ser hoy o una fecha futura")
     if check_in is not None and (check_out - check_in).days > MAX_NOCHES:
         raise LeadInvalido(f"el rango supera las {MAX_NOCHES} noches")

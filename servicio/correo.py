@@ -767,11 +767,18 @@ def cargar(conexion: psycopg.Connection, empresa_id: str, buzon_id: str) -> Buzo
     return buzon_desde_fila(_fila(conexion, empresa_id, buzon_id))
 
 
-def buzon_envio_activo(conexion: psycopg.Connection) -> Buzon | None:
-    fila = conexion.execute(
-        f"SELECT {_COLUMNAS} FROM buzones_correo WHERE proposito = 'envio_avisos' AND activo "
-        "ORDER BY actualizado_en DESC LIMIT 1"
-    ).fetchone()
+def buzon_envio_activo(conexion: psycopg.Connection, empresa_id: str | None = None) -> Buzon | None:
+    if empresa_id:
+        fila = conexion.execute(
+            f"SELECT {_COLUMNAS} FROM buzones_correo WHERE empresa_id = %s AND proposito = 'envio_avisos' AND activo "
+            "ORDER BY actualizado_en DESC LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+    else:
+        fila = conexion.execute(
+            f"SELECT {_COLUMNAS} FROM buzones_correo WHERE proposito = 'envio_avisos' AND activo "
+            "ORDER BY actualizado_en DESC LIMIT 1"
+        ).fetchone()
     if fila is None:
         return None
     try:

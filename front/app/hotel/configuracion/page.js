@@ -126,8 +126,8 @@ function EditorPoliticas({ sesion, seccion }) {
       setDoc(r.datos)
       setCuerpo(JSON.parse(JSON.stringify(r.datos.cuerpo)))
       renovar()
-    } catch (err) {
-      alRechazar(err, setError)
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
   }
 
@@ -167,7 +167,7 @@ function EditorPoliticas({ sesion, seccion }) {
             <Registro cuerpo={cuerpo} setCuerpo={setCuerpo} puedeEditar={puedeEditar} />
             {puedeEditar ? (
               <p className="acciones">
-                <button type="submit" className="boton-principal">Guardar políticas</button>
+                <button type="submit" className="boton-primario">Guardar políticas</button>
               </p>
             ) : (
               <p className="tipos-solo-lectura" role="note">Solo lectura: las políticas las edita la administración del hotel.</p>
@@ -290,7 +290,7 @@ function BloqueDeposito({ cuerpo, setRuta, puedeEditar }) {
   return (
     <>
       <fieldset className="politica-bloque">
-        <legend>Depósito o garantía <BadgeConfirmacion valor={d.confirmacion} /></legend>
+        <legend>Garantía o anticipo de reserva <BadgeConfirmacion valor={d.confirmacion} /></legend>
         {d.nota && <p className="nota">{d.nota}</p>}
         <div className="politicas-fila">
           <CampoSelect id="dep-exigido" etiqueta="¿Se exige abono previo?" value={d.exigido === true ? 'si' : d.exigido === false ? 'no' : ''} disabled={ro} onChange={(e) => setRuta('deposito.exigido', e.target.value === '' ? null : e.target.value === 'si')}>
@@ -558,7 +558,7 @@ function CalculadoraPolitica({ tasa }) {
         <Campo id="sim-hl" etiqueta="Hora de llegada" type="time" value={form.hora_llegada} onChange={(e) => setForm({ ...form, hora_llegada: e.target.value })} />
         <Campo id="sim-hs" etiqueta="Hora de salida" type="time" value={form.hora_salida} onChange={(e) => setForm({ ...form, hora_salida: e.target.value })} />
         <Campo id="sim-precio" etiqueta="Precio por noche de ejemplo (IVA incl.)" type="number" min="1" value={form.precio_noche_clp} onChange={(e) => setForm({ ...form, precio_noche_clp: e.target.value })} />
-        <p className="acciones"><button type="submit" className="boton-principal">Calcular</button></p>
+        <p className="acciones"><button type="submit" className="boton-primario">Calcular</button></p>
       </form>
       {error && <p role="alert" className="alerta">{error}</p>}
       {s && (
@@ -619,8 +619,8 @@ function EditorFaq({ cuerpo, setCuerpo, puedeEditar, onGuardar }) {
           <legend>{item.id || `FAQ ${i + 1}`} <BadgeConfirmacion valor={item.confirmacion} /></legend>
           <Campo id={`faq-p-${i}`} etiqueta="Pregunta" value={item.pregunta} disabled={!puedeEditar} onChange={(e) => setItem(i, 'pregunta', e.target.value)} />
           <label className="campo" htmlFor={`faq-r-${i}`}>
-            <span>Respuesta</span>
-            <textarea id={`faq-r-${i}`} rows="3" value={item.respuesta} disabled={!puedeEditar} onChange={(e) => setItem(i, 'respuesta', e.target.value)} />
+            <span className="campo-etiqueta">Respuesta</span>
+            <textarea className="entrada" id={`faq-r-${i}`} rows="3" value={item.respuesta} disabled={!puedeEditar} onChange={(e) => setItem(i, 'respuesta', e.target.value)} />
           </label>
           <div className="politicas-fila">
             <label>
@@ -635,7 +635,7 @@ function EditorFaq({ cuerpo, setCuerpo, puedeEditar, onGuardar }) {
       {puedeEditar && (
         <p className="acciones">
           <button type="button" className="boton-secundario" onClick={agregar}>Agregar pregunta</button>
-          <button type="submit" className="boton-principal">Guardar preguntas frecuentes</button>
+          <button type="submit" className="boton-primario">Guardar preguntas frecuentes</button>
         </p>
       )}
     </form>

@@ -305,7 +305,7 @@ code,
 }
 
 .boton-salir {
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   border-radius: var(--r-sm);
   color: rgba(245, 239, 228, 0.86);
 }
@@ -526,7 +526,7 @@ input[type="radio"] {
 }
 
 .boton-fantasma {
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   padding: 0.35rem 1rem;
   background: transparent;
   color: var(--c-verde);
@@ -563,7 +563,7 @@ input[type="radio"] {
   border: 1px solid var(--c-linea);
   border-radius: var(--r-md);
   background: var(--c-superficie);
-  box-shadow: none;
+  box-shadow: inset -10px 0 12px -12px rgba(24, 34, 28, 0.22);
   max-width: 100%;
 }
 
@@ -1484,4 +1484,105 @@ input[type="radio"] {
   gap: var(--e-2);
   margin: var(--e-3) 0 0;
   padding-left: 1.1rem;
+}
+
+/* ---------- Correcciones de layout, clases globales y acceso (2026-11-19) ---------- */
+
+/* Fieldsets dentro de .formulario ocupan todo el ancho de la grilla (arqueo, factura, caja). */
+.formulario > fieldset {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.formulario > .campo-check {
+  grid-column: 1 / -1;
+}
+
+/* Botón secundario/Google en pantalla de acceso: ancho completo y centrado. */
+.login-tarjeta .boton-fantasma {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-decoration: none;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+}
+
+/* Resumen contable de saldo en Registrar pago (antes sin clase definida). */
+.resumen-cuenta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--e-3);
+  margin: var(--e-3) 0 var(--e-4);
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--c-linea);
+  border-radius: var(--r-md);
+  background: var(--c-superficie-2);
+}
+
+.resumen-cuenta > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.resumen-cuenta dt {
+  font-size: var(--t-xs);
+  color: var(--c-tinta-2);
+}
+
+.resumen-cuenta dd {
+  margin: 0;
+  font-size: var(--t-md);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Enlace tipo botón dentro de tablas (ej. Últimos cierres). */
+.enlace {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0.15rem 0;
+  color: var(--c-verde);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.enlace:hover {
+  color: var(--c-verde-oscuro);
+}
+
+/* Avisos informativos, notas y acciones en Configuración y Facturas. */
+.aviso {
+  margin: var(--e-3) 0;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--c-aviso);
+  border-radius: var(--r-md);
+  background: var(--c-aviso-fondo);
+  color: var(--c-aviso);
+  font-size: var(--t-sm);
+}
+
+.nota {
+  margin: var(--e-2) 0 var(--e-3);
+  font-size: var(--t-sm);
+  color: var(--c-tinta-2);
+  line-height: 1.5;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  align-items: center;
+  margin-top: var(--e-3);
+}
+
+.selector-reserva {
+  display: grid;
+  gap: var(--e-2);
+  grid-column: 1 / -1;
 }

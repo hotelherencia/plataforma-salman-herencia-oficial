@@ -252,9 +252,11 @@ async def _responder_413(send) -> None:
 
 
 def _validar_rango(inicio: date, fin: date, personas: int) -> None:
+    from . import contabilidad
+
     if fin <= inicio:
         raise SolicitudInvalida("fin debe ser mayor que inicio")
-    if inicio < date.today():
+    if inicio < contabilidad.hoy_chile():
         raise SolicitudInvalida("inicio debe ser hoy o una fecha futura")
     if (fin - inicio).days > MAX_NOCHES:
         raise SolicitudInvalida(f"el rango supera las {MAX_NOCHES} noches")
@@ -310,7 +312,6 @@ def crear_solicitud(
     Reintento (misma clave y cuerpo) devuelve la solicitud original con
     reintento=true; misma clave y otro cuerpo → ClaveEnConflicto (409). Sin
     unidad libre con tarifa del tipo → 409 y nada se persiste."""
-    _validar_rango(inicio, fin, personas)
     nombre = entrada_publica.limpiar_texto(huesped_nombre)
     contacto = entrada_publica.limpiar_texto(huesped_contacto)
     tipo = entrada_publica.limpiar_texto(tipo)
@@ -321,15 +322,13 @@ def crear_solicitud(
     if not tipo:
         raise SolicitudInvalida("tipo es obligatorio")
 
-    oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now(), empresa_id=empresa_id)
-    if not any(item["tipo"] == tipo for item in oferta["oferta"]):
-        raise SinCupoOSinTarifa(_motivo_sin_cupo(conexion, tipo, inicio, fin))
-
     cuerpo = {
         "tipo": tipo, "inicio": inicio.isoformat(), "fin": fin.isoformat(),
         "personas": personas, "huesped_nombre": nombre, "huesped_contacto": contacto,
     }
     cuerpo_hash = _hash_cuerpo(cuerpo)
+    # Idempotencia antes de cupo/reloj: si el reintento corresponde a una solicitud ya creada,
+    # devuelve la original aunque la última habitación se haya agotado o haya pasado la medianoche.
     existente = conexion.execute(
         "SELECT id, cuerpo_hash FROM solicitudes WHERE empresa_id = %s AND idempotency_key = %s",
         (empresa_id, clave),
@@ -340,6 +339,11 @@ def crear_solicitud(
         original = vista_publica(_fila_publica(conexion, existente[0]))
         original["reintento"] = True
         return original
+
+    _validar_rango(inicio, fin, personas)
+    oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now(), empresa_id=empresa_id)
+    if not any(item["tipo"] == tipo for item in oferta["oferta"]):
+        raise SinCupoOSinTarifa(_motivo_sin_cupo(conexion, tipo, inicio, fin))
 
     # #348: tope por cliente (después del reintento idempotente, que no cuenta).
     normalizado = contacto_normalizado(contacto)
@@ -424,10 +428,13 @@ def bandeja(conexion: psycopg.Connection, empresa_id: str, estado: str | None) -
     return {"solicitudes": [_fila_publica(conexion, fila[0]) for fila in filas]}
 
 
-def _solicitud_de_la_empresa(conexion: psycopg.Connection, solicitud_id: str, empresa_id: str):
+def _solicitud_de_la_empresa(
+    conexion: psycopg.Connection, solicitud_id: str, empresa_id: str, bloqueo: bool = False
+):
+    clausula = " FOR UPDATE" if bloqueo else ""
     fila = conexion.execute(
-        "SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas, tipo "
-        "FROM solicitudes WHERE id = %s AND empresa_id = %s",
+        f"SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas, tipo "
+        f"FROM solicitudes WHERE id = %s AND empresa_id = %s{clausula}",
         (solicitud_id, empresa_id),
     ).fetchone()
     if fila is None:
@@ -442,7 +449,7 @@ def convertir(
     última unidad) sobre CUALQUIER unidad libre del tipo pedido (#347). Si la
     solicitud traía una unidad (filas anteriores a #346) se prueba primero.
     Sin unidad libre con tarifa → 409 y la solicitud queda recibida."""
-    solicitud = _solicitud_de_la_empresa(conexion, solicitud_id, empresa_id)
+    solicitud = _solicitud_de_la_empresa(conexion, solicitud_id, empresa_id, bloqueo=True)
     if solicitud[1] != "recibida":
         raise TransicionInvalida(f"la solicitud está {solicitud[1]}")
     preferida, inicio, fin, nombre, personas, tipo = solicitud[2], solicitud[3], solicitud[4], solicitud[5], solicitud[6], solicitud[7]
@@ -479,7 +486,7 @@ def convertir(
 def rechazar(
     conexion: psycopg.Connection, empresa_id: str, solicitud_id: str, motivo: str, actor: str
 ) -> dict:
-    solicitud = _solicitud_de_la_empresa(conexion, solicitud_id, empresa_id)
+    solicitud = _solicitud_de_la_empresa(conexion, solicitud_id, empresa_id, bloqueo=True)
     if solicitud[1] != "recibida":
         raise TransicionInvalida(f"la solicitud está {solicitud[1]}")
     conexion.execute(

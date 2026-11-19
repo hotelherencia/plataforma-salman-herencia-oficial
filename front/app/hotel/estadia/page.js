@@ -225,7 +225,7 @@ export default function Estadia() {
           </h2>
           <p className="nota-clave">
             Habitación <strong>{detalleActivo.habitacion_id}</strong> ({detalleActivo.tipo_habitacion}) ·{' '}
-            {fechaATexto(detalleActivo.inicio)} → {fechaATexto(detalleActivo.fin)} ({plural(detalleActivo.noches, 'noche')}) · Cargos netos:{' '}
+            {fechaATexto(detalleActivo.inicio)} → {fechaATexto(detalleActivo.fin)} ({plural(detalleActivo.noches, 'noche')}) · Total cargos (IVA incl.):{' '}
             <strong>{clp(detalleActivo.cuenta.cargos_netos_clp)}</strong> · Pagado:{' '}
             <strong>{clp(detalleActivo.cuenta.pagado_clp)}</strong> · Saldo:{' '}
             <strong>{clp(detalleActivo.cuenta.saldo_clp)}</strong> ·{' '}

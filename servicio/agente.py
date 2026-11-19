@@ -806,9 +806,13 @@ def _recotizar(conexion, borrador: dict, actor: str) -> dict:
     )
     items = oferta.get("oferta") or []
     item_nuevo = borrador["campos"].get("item", 0)
+    def _sin_vigencia(texto: str) -> str:
+        cuerpo = texto.split("\n\n", 1)[1] if "\n\n" in texto else texto
+        return re.sub(r"\s*Cotización vigente hasta [^.\n]+\.?", "", cuerpo).strip()
+
     if items and 0 <= item_nuevo < len(items):
         texto_nuevo = componer("cotizacion", borrador["campos"], "", {"consultar_disponibilidad": oferta})
-        if texto_nuevo.split("\n\n", 1)[1] == borrador["texto_compuesto"].split("\n\n", 1)[1]:
+        if _sin_vigencia(texto_nuevo) == _sin_vigencia(borrador["texto_compuesto"]):
             actualizado = conexion.execute(
                 "UPDATE borradores_agente SET estado = 'aprobado', aprobado_por = %s, aprobado_en = now() "
                 "WHERE id = %s AND estado = 'pendiente_aprobacion'",
@@ -821,15 +825,23 @@ def _recotizar(conexion, borrador: dict, actor: str) -> dict:
                     "recotizado": False}
     nuevo_id = f"BOR-{uuid.uuid4().hex[:12]}"
     saludo = borrador["texto_compuesto"].split("\n\n", 1)[0]
-    texto_nuevo = componer("cotizacion", borrador["campos"], saludo, {"consultar_disponibilidad": oferta})
+    if items and 0 <= item_nuevo < len(items):
+        plantilla_nueva = "cotizacion"
+        campos_nuevos = borrador["campos"]
+        texto_nuevo = componer("cotizacion", campos_nuevos, saludo, {"consultar_disponibilidad": oferta})
+        vigente_nuevo = items[item_nuevo]["vigente_hasta"]
+    else:
+        plantilla_nueva = "sin_disponibilidad"
+        campos_nuevos = {"inicio": argumentos.get("inicio"), "fin": argumentos.get("fin"),
+                         "personas": argumentos.get("personas")}
+        texto_nuevo = componer("sin_disponibilidad", campos_nuevos, saludo, {"consultar_disponibilidad": oferta})
+        vigente_nuevo = None
     conexion.execute(
         "INSERT INTO borradores_agente (id, consulta_id, plantilla, campos, texto_compuesto, "
-        "oferta_emitida_en, vigente_hasta, estado, version) VALUES (%s, %s, 'cotizacion', %s, %s, %s, %s, "
+        "oferta_emitida_en, vigente_hasta, estado, version) VALUES (%s, %s, %s, %s, %s, %s, %s, "
         "'pendiente_aprobacion', %s)",
-        (nuevo_id, borrador["consulta_id"], json.dumps(borrador["campos"], ensure_ascii=False),
-         texto_nuevo, oferta["emitida_en"],
-         items[item_nuevo]["vigente_hasta"] if items and 0 <= item_nuevo < len(items) else None,
-         borrador["version"] + 1),
+        (nuevo_id, borrador["consulta_id"], plantilla_nueva, json.dumps(campos_nuevos, ensure_ascii=False),
+         texto_nuevo, oferta["emitida_en"], vigente_nuevo, borrador["version"] + 1),
     )
     seguridad.auditar(conexion, actor, "agente_oferta_cambio", borrador["borrador_id"],
                       f"borrador_nuevo:{nuevo_id}")

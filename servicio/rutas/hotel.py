@@ -858,11 +858,14 @@ def disponibilidad_publica(
         raise HTTPException(
             status_code=429, detail="demasiadas solicitudes; espera un minuto e intenta de nuevo"
         )
-    return canal_publico.disponibilidad(
-        conexion, _fecha_iso(inicio), _fecha_iso(fin), personas, datetime.now(),
-        empresa_id=request.app.state.aplicacion.nucleo.empresa.id,
-        extras=_extras_consulta(hora_llegada, hora_salida, cama_adicional, ninos, mascotas),
-    )
+    try:
+        return canal_publico.disponibilidad(
+            conexion, _fecha_iso(inicio), _fecha_iso(fin), personas, datetime.now(),
+            empresa_id=request.app.state.aplicacion.nucleo.empresa.id,
+            extras=_extras_consulta(hora_llegada, hora_salida, cama_adicional, ninos, mascotas),
+        )
+    except politicas.PoliticaInvalida as error:
+        raise HTTPException(status_code=422, detail=str(error))
 
 
 @router.get("/publico/referencia")
@@ -1024,9 +1027,8 @@ def rechazar_solicitud(
             return 409, {"detail": str(error)}
         return 200, resultado
 
-    codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
-    conexion.commit()
-    return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+
 
 # ------------------------------------------------------------------
 # Contacto y leads de la landing (spec-api-v1 «Contacto y leads»)

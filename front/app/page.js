@@ -109,7 +109,6 @@ export default function Inicio() {
           solo lugar, cada persona con lo que le toca hacer.
         </p>
         <p className="plataforma-hero-sesion">
-          <span className="plataforma-chip">{sesion.usuario.empresa_id}</span>
           <span className="plataforma-chip suave">
             {sesion.usuario.usuario} · {etiquetaRol(sesion.usuario.rol)}
           </span>

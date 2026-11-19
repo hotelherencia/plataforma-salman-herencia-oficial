@@ -52,12 +52,12 @@ function Mensaje({ error, ok }) {
   return (
     <>
       {error && <p role="alert" className="alerta">{error}</p>}
-      {ok && <p role="status" className="estado">{ok}</p>}
+      {ok && <p role="status" className="aviso-ok">{ok}</p>}
     </>
   )
 }
 
-function TablaPorMedio({ porMedio, retiros, titulo = 'Cobrado en el turno' }) {
+function TablaPorMedio({ porMedio, retiros, egresos, titulo = 'Cobrado en el turno' }) {
   return (
     <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Totales por medio de pago">
       <table className="tabla">
@@ -66,7 +66,8 @@ function TablaPorMedio({ porMedio, retiros, titulo = 'Cobrado en el turno' }) {
           {[...MEDIOS.map(([m]) => m), 'no_informado'].filter((m) => m !== 'no_informado' || porMedio?.[m]).map((m) => (
             <tr key={m}><td>{nombreMedio(m)}</td><td>{clp(porMedio?.[m] || 0)}</td></tr>
           ))}
-          {retiros !== undefined && <tr><td>Retiros para depósito (efectivo que salió)</td><td>{clp(-retiros)}</td></tr>}
+          {egresos > 0 && <tr><td>Egresos operacionales pagados desde caja</td><td>{clp(-egresos)}</td></tr>}
+          {retiros !== undefined && <tr><td>Retiros para depósito bancario (efectivo en tránsito)</td><td>{clp(-retiros)}</td></tr>}
         </tbody>
       </table>
     </div>
@@ -159,7 +160,7 @@ function TurnoAbierto({ turno, parametros, esAdmin, alCambiar }) {
             Incluye <strong>{clp(t.recibido_sin_turno_clp)}</strong> cobrados con la caja cerrada, antes de abrir este turno.
           </p>
         )}
-        <TablaPorMedio porMedio={t.por_medio} retiros={t.retiros_deposito_clp} />
+        <TablaPorMedio porMedio={t.por_medio} retiros={t.retiros_deposito_clp} egresos={t.egresos_caja_clp} />
         <div className={css.acciones}>
           <Link className="boton-secundario" href="/hotel/pago">Registrar pago</Link>
           <button type="button" className="boton-secundario" onClick={() => setModo(modo === 'retiro' ? '' : 'retiro')}>
@@ -331,7 +332,7 @@ export function PestanaMovimientos({ esAdmin, soloDepositos = false }) {
         ? <p className="estado estado-vacio">{soloDepositos ? 'Sin depósitos en estas fechas.' : 'Sin movimientos en estas fechas.'}</p>
         : (
           <>
-            <p className="resumen">{plural(filas.length, 'movimiento')} · {soloDepositos ? 'Total depositado' : 'Neto'}: <strong>{clp(soloDepositos ? -total : total)}</strong></p>
+            <p className="resumen">{plural(filas.length, 'movimiento')} · {soloDepositos ? 'Total retirado para banco (en tránsito)' : 'Flujo del periodo'}: <strong>{clp(soloDepositos ? -total : total)}</strong></p>
             <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Movimientos de caja (desliza para ver todas las columnas)">
               <table className="tabla">
                 <thead>
@@ -453,13 +454,31 @@ export function PestanaCierreDiario({ esAdmin }) {
             {cerrado && <p className="estado">Cerrado por {datos.cierre.cerrado_por} el {fechaHora(datos.cierre.cerrado_en)}. Cifras congeladas al cierre.</p>}
             <dl className={css.cifras}>
               <div className={css.cifra}><dt>Ocupación</dt><dd>{r.habitaciones_ocupadas} de {r.habitaciones_disponibles} ({String(r.ocupacion_pct).replace('.', ',')} %)</dd></div>
-              <div className={css.cifra}><dt>Alojamiento de la noche (IVA incl.)</dt><dd>{clp(r.ingreso_alojamiento_clp)} · neto {clp(r.ingreso_alojamiento_neto_clp)}</dd></div>
-              <div className={css.cifra}><dt>ADR / RevPAR</dt><dd>{clp(r.adr_clp)} / {clp(r.revpar_clp)}</dd></div>
-              <div className={css.cifra}><dt>Cobrado en el día</dt><dd><strong>{clp(datos.cobros.total_clp)}</strong></dd></div>
-              <div className={css.cifra}><dt>Depositado en el banco</dt><dd>{clp(datos.cobros.depositos_clp)}</dd></div>
+              <div className={css.cifra}>
+                <dt>Ingresos devengados del día (IVA incl.)</dt>
+                <dd>
+                  <strong>{clp(r.total_ingresos_devengados_clp ?? r.ingreso_alojamiento_clp)}</strong>
+                  {' '}· neto (sin IVA) {clp(r.total_ingresos_neto_clp ?? r.ingreso_alojamiento_neto_clp)}
+                  {r.total_iva_debito_clp !== undefined ? ` · IVA ${clp(r.total_iva_debito_clp)}` : ''}
+                </dd>
+              </div>
+              <div className={css.cifra}>
+                <dt>Desglose devengado</dt>
+                <dd>
+                  Alojamiento {clp(r.ingreso_alojamiento_clp)}
+                  {r.ingreso_consumos_reserva_clp ? ` · Consumos ${clp(r.ingreso_consumos_reserva_clp)}` : ''}
+                  {r.ingreso_directo_clp ? ` · Directos sin hab. ${clp(r.ingreso_directo_clp)}` : ''}
+                </dd>
+              </div>
+              <div className={css.cifra}><dt>ADR / RevPAR (alojamiento)</dt><dd>{clp(r.adr_clp)} / {clp(r.revpar_clp)}</dd></div>
+              <div className={css.cifra}><dt>Recaudado en el día (cobros)</dt><dd><strong>{clp(datos.cobros.total_clp)}</strong></dd></div>
+              <div className={css.cifra}><dt>Retiros a banco (en tránsito)</dt><dd>{clp(datos.cobros.depositos_clp)}</dd></div>
+              {r.egresos_operacionales_clp > 0 && (
+                <div className={css.cifra}><dt>Egresos operacionales</dt><dd>{clp(r.egresos_operacionales_clp)}</dd></div>
+              )}
               <div className={css.cifra}><dt>Anticipos recibidos hoy / vigentes</dt><dd>{clp(datos.cobros.anticipos_recibidos_clp)} / {clp(datos.cobros.anticipos_vigentes_clp)}</dd></div>
             </dl>
-            <TablaPorMedio porMedio={datos.cobros.por_medio} titulo="Cobrado en el día (neto de reversos)" />
+            <TablaPorMedio porMedio={datos.cobros.por_medio} egresos={datos.cobros.egresos_caja_clp} titulo="Cobrado en el día (descontando reversos)" />
             <p className="resumen">
               Documentos: {Object.entries(datos.documentos).filter(([, d]) => d.cantidad).map(([k, d]) => `${nombreDocumento(k)} ${d.cantidad} (${clp(d.monto_clp)})`).join(' · ') || 'sin pagos'}
             </p>

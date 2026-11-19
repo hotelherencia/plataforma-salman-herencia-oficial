@@ -91,9 +91,11 @@ _REGISTRADO = None
 
 
 def ahora():
-    """Reloj del servidor para las reglas que dependen de la hora (llegada 15:00, 48 h). Un solo punto
-    para que las pruebas fijen la hora sin tocar el reloj del sistema."""
-    return datetime.now()
+    """Reloj del servidor en hora de Chile (America/Santiago, naive para el dominio) para
+    las reglas que dependen de la hora (llegada 15:00, 48 h). Un solo punto para pruebas."""
+    from zoneinfo import ZoneInfo
+
+    return datetime.now(ZoneInfo("America/Santiago")).replace(tzinfo=None)
 
 
 def registrar(hotel) -> None:
@@ -432,34 +434,45 @@ def entrada(
     from . import cobro  # evita el ciclo de importación
 
     fila = cobro._reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)  # 403 y cerrojo de fila
-    if fila[2] == "confirmada" and habitacion_id and habitacion_id != fila[1]:
-        reasignar(conexion, hotel, empresa_id, reserva_id, habitacion_id, "asignada en la entrada", actor)
-    (guardado, inicio, fin) = conexion.execute(
-        "SELECT huesped_documento, inicio, fin FROM reservas WHERE id = %s", (reserva_id,)
-    ).fetchone()
-    if not guardado and documento and documento.strip():
-        # D-ENT-01: la entrada captura el documento que la reserva aún no traía
-        conexion.execute(
-            "UPDATE reservas SET huesped_documento = %s, huesped_documento_tipo = %s WHERE id = %s",
-            (documento.strip(), documento_tipo, reserva_id),
-        )
-    hoy = ahora.date()
-    recargar(conexion, hotel, empresa_id, (inicio, fin), mantenimiento_en=(hoy, hoy + timedelta(days=1)))
     try:
-        reserva = hotel.check_in(empresa_id, reserva_id, ahora)
-        noche = reserva.inicio + timedelta(days=1)
-        while noche < reserva.fin:
-            hotel.asentar_cargo(
-                empresa_id, reserva_id, "Noche", hotel.tarifa_vigente(empresa_id, reserva.unidad_id, noche),
-                clave=f"noche:{noche.isoformat()}",
+        with conexion.transaction():  # savepoint: un 409 no deja reasignación ni documento parcial comprometidos
+            if fila[2] == "confirmada" and habitacion_id and habitacion_id != fila[1]:
+                reasignar(conexion, hotel, empresa_id, reserva_id, habitacion_id, "asignada en la entrada", actor)
+            (guardado, inicio, fin) = conexion.execute(
+                "SELECT huesped_documento, inicio, fin FROM reservas WHERE id = %s", (reserva_id,)
+            ).fetchone()
+            if not guardado and documento and documento.strip():
+                # D-ENT-01: la entrada captura el documento que la reserva aún no traía
+                conexion.execute(
+                    "UPDATE reservas SET huesped_documento = %s, huesped_documento_tipo = %s WHERE id = %s",
+                    (documento.strip(), documento_tipo, reserva_id),
+                )
+            hoy = ahora.date()
+            recargar(conexion, hotel, empresa_id, (inicio, fin), mantenimiento_en=(hoy, hoy + timedelta(days=1)))
+            noches_congeladas = dict(
+                conexion.execute(
+                    "SELECT noche, precio_clp FROM reserva_noches WHERE reserva_id = %s", (reserva_id,)
+                ).fetchall()
             )
-            noche += timedelta(days=1)
+            reserva = hotel.check_in(empresa_id, reserva_id, ahora)
+            noche = reserva.inicio + timedelta(days=1)
+            while noche < reserva.fin:
+                # Congelamiento de tarifa (#305): respeta el precio pactado en reserva_noches
+                # incluso si cambió la tarifa vigente o se reasignó la habitación antes de entrar.
+                precio_noche = noches_congeladas.get(noche)
+                if precio_noche is None:
+                    precio_noche = hotel.tarifa_vigente(empresa_id, reserva.unidad_id, noche)
+                hotel.asentar_cargo(
+                    empresa_id, reserva_id, "Noche", precio_noche,
+                    clave=f"noche:{noche.isoformat()}",
+                )
+                noche += timedelta(days=1)
+            persistir(conexion, hotel, empresa_id)
+            imputacion.aplicar_anticipos(conexion, reserva_id, actor)  # los abonos previos se aplican noche a noche
     except CheckInIncompleto as error:
         raise cobro.TransicionInvalida("registra el documento del huésped para pasar la entrada") from error
     except CheckInNoPermitido as error:
         raise cobro.TransicionInvalida(str(error)) from error
-    persistir(conexion, hotel, empresa_id)
-    imputacion.aplicar_anticipos(conexion, reserva_id, actor)  # los abonos previos se aplican noche a noche
     return {"reserva_id": reserva_id, "habitacion_id": reserva.unidad_id, "estado": "en_estadia"}
 
 
@@ -484,6 +497,17 @@ def cancelar(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_id: s
             continue  # un reverso o un cargo ya reversado: lo dice el dominio
         reversos.append({"cargo_id": reverso.id, "referencia": cargo_id, "monto_clp": reverso.monto_clp})
     persistir(conexion, hotel, empresa_id)
+    from . import productos as productos_db
+
+    # Devuelve el stock de cualquier cargo de producto reversado al cancelar la reserva.
+    for item in reversos:
+        fila_prod = conexion.execute(
+            "SELECT producto_id, cantidad FROM cargos WHERE id = %s", (item["referencia"],)
+        ).fetchone()
+        if fila_prod and fila_prod[0]:
+            productos_db.devolver_por_reverso(
+                conexion, fila_prod[0], fila_prod[1] or 1, "cancelacion", item["cargo_id"]
+            )
     return {
         "reserva_id": reserva_id,
         "estado": "cancelada",

@@ -151,7 +151,7 @@ export default function Panel() {
 
           {solicitudesPendientes > 0 && (
             <p className="estado" role="status" data-solicitudes-pendientes>
-              <a href="/hotel/solicitudes">{plural(solicitudesPendientes, 'solicitud', 'solicitudes')} de reserva por responder</a>
+              <Link href="/hotel/solicitudes">{plural(solicitudesPendientes, 'solicitud', 'solicitudes')} de reserva por responder</Link>
               <Insignia valor={solicitudesPendientes} />
             </p>
           )}
@@ -219,7 +219,7 @@ export default function Panel() {
               <Tarjeta titulo="Noches ocupadas" clave="noches_ocupadas" indicador={p.noches_ocupadas} />
               <Tarjeta titulo="Noches reservadas" clave="noches_reservadas" indicador={p.noches_reservadas} />
               {p.ingresos_periodo_clp && (
-                <Tarjeta titulo="Ingresos del periodo" clave="ingresos_periodo_clp" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
+                <Tarjeta titulo="Recaudación del periodo (cobros)" clave="ingresos_periodo_clp" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
               )}
               <Tarjeta titulo="Unidades-noche" clave="unidades_noche" indicador={p.unidades_noche} />
               <Tarjeta
@@ -243,14 +243,14 @@ export default function Panel() {
                 <div className="barra-proporcion">
                   {Object.entries(p.reservas_registradas.por_estado).map(([estado, n]) => {
                     const total = p.reservas_registradas.valor || 1
-                    const pct = Math.max(3, Math.round((n / total) * 100))
+                    const pct = porcentaje((n / total) * 100)
                     const cfg = ETIQUETAS_ESTADO[estado] || { label: estado, color: '#5f6158' }
                     return (
                       <div
                         key={estado}
                         className="segmento-proporcion"
-                        style={{ width: `${pct}%`, backgroundColor: cfg.color }}
-                        title={`${cfg.label}: ${n} (${pct} %)`}
+                        style={{ flex: n, backgroundColor: cfg.color }}
+                        title={`${cfg.label}: ${n} (${pct})`}
                       />
                     )
                   })}

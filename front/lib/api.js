@@ -232,7 +232,7 @@ export function resumenConfirmacion(datos) {
     return `Tipo ${datos.nombre} creado (${datos.tipo_id})${datos.precio_base_clp ? ` · precio base ${clp(datos.precio_base_clp)}` : ' · sin precio base'}`
   }
   if (datos.pago_id) {
-    const monto = typeof datos.monto_clp === 'number' ? ` de $${datos.monto_clp}` : ''
+    const monto = typeof datos.monto_clp === 'number' ? ` de ${clp(datos.monto_clp)}` : ''
     return `Pago ${datos.pago_id}${monto}: estado «${datos.estado}»`
   }
   // Entrega 1A.2: precio propio, excepciones por fecha y tasa de IVA.

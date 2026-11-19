@@ -29,6 +29,9 @@ test('los movimientos se rotulan en castellano claro', () => {
   assert.equal(rotuloMovimiento('reverso'), 'Reverso de cargo')
   assert.equal(rotuloMovimiento('pago'), 'Pago')
   assert.equal(rotuloMovimiento('reverso_pago'), 'Reverso de pago')
+  assert.equal(rotuloMovimiento('cargo_directo'), 'Cargo directo (sin habitación)')
+  assert.equal(rotuloMovimiento('egreso_operacional'), 'Egreso operacional')
+  assert.equal(rotuloMovimiento('reverso_directo'), 'Reverso directo')
 })
 
 test('el saldo explica si falta pagar o queda a favor', () => {

@@ -10,11 +10,17 @@ HTTP local (sin red externa, NFR-A04) y la evaluación de 50 casos (SC-003)
 mide a este adaptador igual que al grabado cuando el proveedor se nombre.
 """
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from .modelo_lenguaje import ModeloFallo
+
+_ZONA_CL = ZoneInfo("America/Santiago")
+_RE_FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
 
 def _mensaje_openai(mensaje: dict) -> dict:
@@ -31,7 +37,13 @@ def _mensaje_openai(mensaje: dict) -> dict:
 _INSTRUCCION = (
     "Eres el modelo del agente de reservas del hotel. Responde EXCLUSIVAMENTE "
     "con un objeto JSON de la forma {\"herramienta\": <nombre>, \"argumentos\": "
-    "{...}} eligiendo una de las herramientas disponibles. Nada fuera del JSON."
+    "{...}} eligiendo una de las herramientas disponibles. Nada fuera del JSON. "
+    "Esquemas: "
+    "consultar_disponibilidad={inicio:'YYYY-MM-DD',fin:'YYYY-MM-DD',personas:int}; "
+    "consultar_politicas={tema:'general|llegada_salida|cancelacion|estacionamiento|desayuno|mascotas|ninos|pagos|ubicacion'}; "
+    "crear_solicitud={inicio:'YYYY-MM-DD',fin:'YYYY-MM-DD',personas:int,tipo:str,nombre:str,contacto:str}; "
+    "proponer_borrador={plantilla:'cotizacion|sin_disponibilidad|pedir_dato|informacion|escalar',campos:{...},saludo:str}. "
+    "No inventes cifras ni precios en saludo."
 )
 
 
@@ -81,7 +93,11 @@ class ModeloHttp:
         self._timeout = timeout_seg
 
     def decidir(self, mensajes: list[dict], herramientas: list[str]) -> dict:
-        system = {"role": "system", "content": _INSTRUCCION + " Herramientas: " + ", ".join(herramientas)}
+        hoy_cl = datetime.now(_ZONA_CL).date().isoformat()
+        system = {
+            "role": "system",
+            "content": f"{_INSTRUCCION} Fecha actual (Chile): {hoy_cl}. Herramientas: {', '.join(herramientas)}",
+        }
         cuerpo = json.dumps({
             "model": self._modelo,
             "messages": [system, *[_mensaje_openai(m) for m in mensajes]],
@@ -108,7 +124,7 @@ class ModeloHttp:
                 cerrar()
             raise ModeloFallo(f"el modelo no respondió usable: {error}") from error
         try:
-            contenido = payload["choices"][0]["message"]["content"]
+            contenido = _RE_FENCE.sub("", str(payload["choices"][0]["message"]["content"]).strip())
             decision = json.loads(contenido)
             herramienta = decision["herramienta"]
             argumentos = decision["argumentos"]

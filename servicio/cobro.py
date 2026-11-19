@@ -166,21 +166,35 @@ def registrar_pago_manual(
 
 
 def caja_del_dia(conexion: psycopg.Connection, empresa_id: str, fecha: date) -> dict:
-    """Pagos del día contable en hora de Chile (antes filtraba por la fecha
-    UTC: un pago de noche aparecía al día siguiente). Los reversos restan."""
+    """Cobros del día contable en hora de Chile: incluye pagos de reservas y
+    movimientos directos cobrados sin habitación ni reserva. Los reversos restan."""
     filas = conexion.execute(
-        "SELECT p.id, p.reserva_id, r.habitacion_id, p.monto_clp, p.modo, p.estado, r.huesped_nombre, p.creado_en, "
-        "p.medio, p.tipo, p.documento_tipo, p.referencia_pago_id, p.es_anticipo, p.turno_id "
-        "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
-        "WHERE r.empresa_id = %s AND p.fecha_contable = %s AND p.estado = 'confirmado' "
-        "ORDER BY p.creado_en",
-        (empresa_id, fecha),
+        "SELECT * FROM ("
+        "  SELECT p.id, p.reserva_id, r.habitacion_id, "
+        "    CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END AS monto_clp, "
+        "    p.modo, p.estado, r.huesped_nombre, p.creado_en, p.medio, p.tipo, p.documento_tipo, "
+        "    p.referencia_pago_id, p.es_anticipo, p.turno_id, NULL::text AS movimiento_directo_id, "
+        "    NULL::text AS concepto "
+        "  FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+        "  WHERE r.empresa_id = %s AND p.fecha_contable = %s AND p.estado = 'confirmado' "
+        "  UNION ALL "
+        "  SELECT d.id, NULL::text, NULL::text, "
+        "    CASE WHEN d.tipo = 'reverso_directo' AND o.tipo = 'cargo_directo' THEN -d.monto_clp "
+        "         WHEN d.tipo = 'reverso_directo' AND o.tipo = 'egreso_operacional' THEN d.monto_clp "
+        "         WHEN d.tipo = 'egreso_operacional' THEN -d.monto_clp ELSE d.monto_clp END AS monto_clp, "
+        "    'directo', 'confirmado', NULL::text, COALESCE(d.cobrado_en, d.creado_en), d.medio, d.tipo, "
+        "    d.documento_tipo, d.referencia_id, false, d.turno_id, d.id, d.concepto "
+        "  FROM movimientos_directos d LEFT JOIN movimientos_directos o ON o.id = d.referencia_id "
+        "  WHERE d.empresa_id = %s AND d.fecha_contable = %s AND d.estado_cobro = 'cobrado'"
+        ") u ORDER BY u.creado_en, u.id",
+        (empresa_id, fecha, empresa_id, fecha),
     ).fetchall()
     pagos = [
         {"pago_id": f[0], "reserva_id": f[1], "habitacion_id": f[2],
-         "monto_clp": -f[3] if f[9] == "reverso" else f[3], "modo": f[4], "estado": f[5],
+         "monto_clp": f[3], "modo": f[4], "estado": f[5],
          "huesped_nombre": f[6], "registrado_en": f[7].isoformat(), "medio": f[8], "tipo": f[9],
-         "documento_tipo": f[10], "referencia_pago_id": f[11], "es_anticipo": f[12], "turno_id": f[13]}
+         "documento_tipo": f[10], "referencia_pago_id": f[11], "es_anticipo": f[12], "turno_id": f[13],
+         "movimiento_directo_id": f[14], "concepto": f[15]}
         for f in filas
     ]
     por_medio: dict[str, int] = {}
@@ -374,6 +388,14 @@ def verificar_limpieza(conexion: psycopg.Connection, tarea_id: str, aprobada: bo
     if not aprobada and not texto:
         raise OperacionAseoInvalida("al rechazar, deja una observación para aseo")
     habitacion_id = tarea[0]
+    if not aprobada:
+        (estado_op,) = conexion.execute(
+            "SELECT estado_operativo FROM habitaciones WHERE id = %s FOR UPDATE", (habitacion_id,)
+        ).fetchone()
+        if estado_op == "ocupada":
+            raise OperacionAseoInvalida(
+                "la habitación ya está ocupada por un huésped: no se puede rechazar una limpieza anterior"
+            )
     conexion.execute(
         "UPDATE tareas_operativas SET verificacion = %s, verificada_por = %s, verificada_en = now(), observacion = %s "
         "WHERE id = %s",

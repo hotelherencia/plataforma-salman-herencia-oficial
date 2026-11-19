@@ -59,7 +59,7 @@ function CajaConPestanas() {
       </div>
       <div role="tabpanel" id="panel-caja" aria-labelledby={`pestana-${pestana}`}>
       {sesion.fase === 'ok' && pestana === 'dia' && <CajaDelDia />}
-      {sesion.fase === 'ok' && pestana === 'cuenta' && <MovimientosContables hoy={hoyChile()} />}
+      {sesion.fase === 'ok' && pestana === 'cuenta' && <MovimientosContables hoy={hoyChile()} esAdmin={esAdmin} />}
       {sesion.fase === 'ok' && pestana === 'turno' && <PestanaTurno esAdmin={esAdmin} />}
       {sesion.fase === 'ok' && pestana === 'movimientos' && <PestanaMovimientos esAdmin={esAdmin} />}
       {sesion.fase === 'ok' && pestana === 'depositos' && <PestanaMovimientos esAdmin={esAdmin} soloDepositos />}
@@ -129,12 +129,20 @@ function CajaDelDia() {
                   {caja.pagos.map((p) => (
                     <tr key={p.pago_id}>
                       <td>{p.registrado_en ? horaChile(p.registrado_en) : '—'}</td>
-                      <td>{p.huesped_nombre || '—'}</td>
-                      <td>{p.habitacion_id}</td>
-                      <td><Link href={`/hotel/reservas/${p.reserva_id}`}>{p.reserva_id}</Link></td>
-                      <td>{clp(p.monto_clp)}{p.tipo === 'reverso' ? ' (reverso)' : ''}{p.es_anticipo ? ' (anticipo)' : ''}</td>
+                      <td>{p.huesped_nombre || p.concepto || '—'}</td>
+                      <td>{p.habitacion_id || 'Sin hab.'}</td>
+                      <td>
+                        {p.reserva_id
+                          ? <Link href={`/hotel/reservas/${p.reserva_id}`}>{p.reserva_id}</Link>
+                          : 'Directo'}
+                      </td>
+                      <td>
+                        {clp(p.monto_clp)}
+                        {(p.tipo === 'reverso' || p.tipo === 'reverso_directo') ? ' (reverso)' : ''}
+                        {p.es_anticipo ? ' (anticipo)' : ''}
+                      </td>
                       <td>{nombreMedio(p.medio)}</td>
-                      <td>{p.tipo === 'reverso' ? '—' : nombreDocumento(p.documento_tipo)}</td>
+                      <td>{(p.tipo === 'reverso' || p.tipo === 'reverso_directo') ? '—' : nombreDocumento(p.documento_tipo)}</td>
                     </tr>
                   ))}
                 </tbody>

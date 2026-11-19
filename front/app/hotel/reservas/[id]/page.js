@@ -9,6 +9,7 @@ import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
+import { nombreDocumento, nombreMedio } from '../../../../lib/caja'
 
 /**
  * Detalle de la reserva con su cuenta (spec-hotel-operacion-v1 §3.2). El saldo
@@ -155,19 +156,19 @@ export default function DetalleReserva() {
           </section>
 
           <section className="tarjeta" aria-label="Cuenta">
-            <h2>Cuenta</h2>
+            <h2>Cuenta de la estadía</h2>
             <div className="kpi-rejilla">
               <div className="kpi">
-                <span className="kpi-titulo">Cargos netos</span>
+                <span className="kpi-titulo">Total cargos (IVA incl.)</span>
                 <span className="kpi-valor">{clp(reserva.cuenta.cargos_netos_clp)}</span>
               </div>
               <div className="kpi">
                 <span className="kpi-titulo">Pagado</span>
                 <span className="kpi-valor">{clp(reserva.cuenta.pagado_clp)}</span>
               </div>
-              <div className={`kpi${reserva.cuenta.saldo_clp !== 0 ? ' kpi-alerta' : ''}`}>
-                <span className="kpi-titulo">Saldo</span>
-                <span className="kpi-valor">{clp(reserva.cuenta.saldo_clp)}</span>
+              <div className={`kpi${reserva.cuenta.saldo_clp > 0 ? ' kpi-alerta' : ''}`}>
+                <span className="kpi-titulo">{reserva.cuenta.saldo_clp < 0 ? 'Saldo a favor del huésped' : 'Saldo pendiente'}</span>
+                <span className="kpi-valor">{clp(Math.abs(reserva.cuenta.saldo_clp))}</span>
               </div>
             </div>
             <p className="nota-clave">
@@ -216,21 +217,21 @@ export default function DetalleReserva() {
                 </tr>
               </thead>
               <tbody>
-                {reserva.cargos.map((c) => (
-                  <tr key={c.cargo_id}>
-                    <td>{c.registrado_en.slice(0, 16).replace('T', ' ')}</td>
-                    <td>{c.tipo}</td>
-                    <td>{c.concepto}</td>
-                    <td>{c.tipo === 'reverso' ? `−${clp(c.monto_clp)}` : clp(c.monto_clp)}</td>
-                    {puedeReversar && (
-                      <td>
-                        {c.tipo === 'cargo' && !c.reversado && ['confirmada', 'en_estadia'].includes(reserva.estado) ? (
-                          <button type="button" className="boton-fantasma" onClick={() => reversar(c)}>Reversar</button>
-                        ) : c.reversado ? 'reversado' : '—'}
-                      </td>
-                    )}
-                  </tr>
-                ))}
+                  {reserva.cargos.map((c) => (
+                    <tr key={c.cargo_id}>
+                      <td>{fechaHora(c.registrado_en)}</td>
+                      <td>{c.tipo === 'reverso' ? 'Reverso de cargo' : 'Cargo'}</td>
+                      <td>{c.concepto}</td>
+                      <td>{c.tipo === 'reverso' ? `−${clp(c.monto_clp)}` : clp(c.monto_clp)}</td>
+                      {puedeReversar && (
+                        <td>
+                          {c.tipo === 'cargo' && !c.reversado && ['confirmada', 'en_estadia'].includes(reserva.estado) ? (
+                            <button type="button" className="boton-fantasma" onClick={() => reversar(c)}>Reversar</button>
+                          ) : c.reversado ? 'Reversado' : '—'}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
               </tbody>
             </table></div>
             <h3 className="subtitulo">Pagos</h3>
@@ -241,7 +242,8 @@ export default function DetalleReserva() {
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Modo</th>
+                    <th>Medio</th>
+                    <th>Documento</th>
                     <th>Estado</th>
                     <th>Monto</th>
                   </tr>
@@ -249,10 +251,11 @@ export default function DetalleReserva() {
                 <tbody>
                   {reserva.pagos.map((g) => (
                     <tr key={g.pago_id}>
-                      <td>{g.registrado_en.slice(0, 16).replace('T', ' ')}</td>
-                      <td>{g.modo}</td>
-                      <td>{g.estado}</td>
-                      <td>{clp(g.monto_clp)}</td>
+                      <td>{fechaHora(g.registrado_en)}</td>
+                      <td>{nombreMedio(g.medio)}{g.es_anticipo ? ' (anticipo)' : ''}</td>
+                      <td>{g.tipo === 'reverso' ? 'Reverso' : nombreDocumento(g.documento_tipo)}</td>
+                      <td>{g.estado === 'confirmado' ? 'Confirmado' : g.estado}</td>
+                      <td>{g.tipo === 'reverso' ? `−${clp(g.monto_clp)}` : clp(g.monto_clp)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -260,7 +263,7 @@ export default function DetalleReserva() {
             )}
             {reserva.liquidacion && (
               <p className="nota-clave">
-                Liquidada el {reserva.liquidacion.liquidada_en.slice(0, 10)} ({reserva.liquidacion.liquidacion_id}): total{' '}
+                Liquidada el {fechaATexto(reserva.liquidacion.liquidada_en.slice(0, 10))} ({reserva.liquidacion.liquidacion_id}): total{' '}
                 {clp(reserva.liquidacion.total_clp)}, pagado {clp(reserva.liquidacion.pagado_clp)}, saldo{' '}
                 {clp(reserva.liquidacion.saldo_clp)}.
               </p>

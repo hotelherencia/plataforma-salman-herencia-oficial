@@ -91,7 +91,7 @@ export default function AjustesCaja() {
                   <>
                     <Campo etiqueta="Comisión (%)" inputMode="decimal" value={caja.medios[m].comision_pct}
                       onChange={(e) => medio(m, 'comision_pct', e.target.value)} />
-                    <Campo etiqueta="Días hasta el abono" type="number" min="0" max="30" value={caja.medios[m].dias_abono}
+                    <Campo etiqueta="Días hasta liquidación (abono bancario)" type="number" min="0" max="30" value={caja.medios[m].dias_abono}
                       onChange={(e) => medio(m, 'dias_abono', e.target.value)} />
                   </>
                 )}

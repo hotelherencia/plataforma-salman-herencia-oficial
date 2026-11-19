@@ -159,7 +159,7 @@ export default function Pago() {
       {detalle && (
         <section className="tarjeta">
           <h2>Pago de la cuenta</h2>
-          <FichaEstadia detalle={detalle} alCambiar={() => nuevo()} />
+          <FichaEstadia detalle={detalle} mostrarCuenta={false} alCambiar={() => nuevo()} />
           <SaldoReserva estado={estadoSaldo} />
           {pago ? (
             <>
@@ -248,7 +248,7 @@ export default function Pago() {
                   </label>
                 </div>
               )}
-              <button type="submit" className="boton-primario" disabled={enviando}>
+              <button type="submit" className="boton-primario" disabled={enviando || Boolean(sinTurnoEfectivo)}>
                 {enviando ? 'Registrando…' : 'Registrar pago'}
               </button>
             </form>

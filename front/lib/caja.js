@@ -37,7 +37,23 @@ export function nombreDocumento(tipo) {
   return NOMBRES_DOCUMENTO[tipo] || 'Por indicar'
 }
 
-const NOMBRES_MOVIMIENTO = { cobro: 'Cobro', reverso_cobro: 'Reverso de cobro', retiro_deposito: 'Retiro para depósito' }
+const NOMBRES_MOVIMIENTO = {
+  cobro: 'Cobro de reserva',
+  reverso_cobro: 'Reverso de cobro',
+  retiro_deposito: 'Retiro a banco (en tránsito)',
+  cobro_directo: 'Cobro directo (sin habitación)',
+  reverso_directo: 'Reverso directo',
+  egreso_caja: 'Egreso operacional',
+}
+
+export const CATEGORIAS_DIRECTAS = [
+  ['cafeteria', 'Cafetería / desayuno'],
+  ['minibar', 'Minibar / bebidas'],
+  ['estacionamiento', 'Estacionamiento'],
+  ['servicio', 'Servicio adicional'],
+  ['otro_ingreso', 'Otro ingreso'],
+  ['gasto_operacional', 'Gasto operacional (egreso)'],
+]
 
 export function nombreMovimiento(tipo) {
   return NOMBRES_MOVIMIENTO[tipo] || tipo

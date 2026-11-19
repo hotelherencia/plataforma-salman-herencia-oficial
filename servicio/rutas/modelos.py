@@ -169,6 +169,50 @@ class ReaperturaDiaIn(BaseModel):
     motivo: str = Field(min_length=1, max_length=500)
 
 
+class MovimientoDirectoIn(BaseModel):
+    """Cargo, venta de mostrador o egreso operacional SIN habitación ni reserva."""
+    model_config = ConfigDict(extra="forbid")
+    tipo: Literal["cargo_directo", "egreso_operacional"] = "cargo_directo"
+    categoria: Literal["cafeteria", "minibar", "estacionamiento", "servicio", "otro_ingreso", "gasto_operacional"] = "otro_ingreso"
+    concepto: str | None = Field(default=None, max_length=200)
+    monto_clp: int | None = Field(default=None, gt=0, le=1_000_000_000)
+    producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
+    cantidad: int = Field(default=1, ge=1, le=1000)
+    estado_cobro: Literal["cobrado", "pendiente"] = "cobrado"
+    medio: str | None = Field(default=None, pattern="^(efectivo|debito|credito|transferencia)$")
+    documento_tipo: str | None = Field(default=None, pattern="^(boleta|factura|sin_documento)$")
+    documento_folio: str | None = Field(default=None, max_length=20)
+    receptor: ReceptorFacturaIn | None = None
+    tarjeta_marca: str | None = Field(default=None, max_length=30)
+    tarjeta_ultimos4: str | None = Field(default=None, max_length=4)
+    codigo_autorizacion: str | None = Field(default=None, max_length=20)
+    comprobante: str | None = Field(default=None, max_length=60)
+    nota: str | None = Field(default=None, max_length=500)
+
+    def datos_pago(self) -> dict:
+        return self.model_dump(
+            include={"medio", "documento_tipo", "documento_folio", "receptor",
+                     "tarjeta_marca", "tarjeta_ultimos4", "codigo_autorizacion", "comprobante"},
+            exclude_none=True,
+        )
+
+
+class CobrarMovimientoDirectoIn(BaseModel):
+    """Cobro posterior de un movimiento directo asentado como pendiente."""
+    model_config = ConfigDict(extra="forbid")
+    medio: str = Field(pattern="^(efectivo|debito|credito|transferencia)$")
+    documento_tipo: str | None = Field(default=None, pattern="^(boleta|factura|sin_documento)$")
+    documento_folio: str | None = Field(default=None, max_length=20)
+    receptor: ReceptorFacturaIn | None = None
+    tarjeta_marca: str | None = Field(default=None, max_length=30)
+    tarjeta_ultimos4: str | None = Field(default=None, max_length=4)
+    codigo_autorizacion: str | None = Field(default=None, max_length=20)
+    comprobante: str | None = Field(default=None, max_length=60)
+
+    def datos_pago(self) -> dict:
+        return self.model_dump(exclude_none=True)
+
+
 _PATRON_CORREO = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 

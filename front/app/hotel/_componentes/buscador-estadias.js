@@ -125,7 +125,7 @@ export function BuscadorEstadias({ alcance, alElegir, elegidaId, autoFocus = fal
 }
 
 /** Ficha de la estadía elegida, con la cuenta al día. */
-export function FichaEstadia({ detalle, alCambiar, children }) {
+export function FichaEstadia({ detalle, alCambiar, mostrarCuenta = true, children }) {
   if (!detalle) return null
   const { cuenta } = detalle
   const saldo = cuenta.saldo_clp
@@ -143,14 +143,16 @@ export function FichaEstadia({ detalle, alCambiar, children }) {
           <button type="button" className="boton-fantasma" onClick={alCambiar}>Cambiar huésped</button>
         )}
       </div>
-      <dl className={css.cifras}>
-        <div className={css.cifra}><dt>Total de la cuenta</dt><dd>{pesos(cuenta.cargos_netos_clp)}</dd></div>
-        <div className={css.cifra}><dt>Pagado</dt><dd>{pesos(cuenta.pagado_clp)}</dd></div>
-        <div className={`${css.cifra} ${saldo > 0 ? css.cifraDestacada : saldo === 0 ? css.cifraOk : ''}`}>
-          <dt>{saldo < 0 ? 'A favor del huésped' : 'Saldo pendiente'}</dt>
-          <dd data-saldo={saldo}>{pesos(Math.abs(saldo))}</dd>
-        </div>
-      </dl>
+      {mostrarCuenta && (
+        <dl className={css.cifras}>
+          <div className={css.cifra}><dt>Total cargos (IVA incl.)</dt><dd>{pesos(cuenta.cargos_netos_clp)}</dd></div>
+          <div className={css.cifra}><dt>Pagado</dt><dd>{pesos(cuenta.pagado_clp)}</dd></div>
+          <div className={`${css.cifra} ${saldo > 0 ? css.cifraDestacada : saldo === 0 ? css.cifraOk : ''}`}>
+            <dt>{saldo < 0 ? 'Saldo a favor del huésped' : 'Saldo pendiente'}</dt>
+            <dd data-saldo={saldo}>{pesos(Math.abs(saldo))}</dd>
+          </div>
+        </dl>
+      )}
       {children}
     </section>
   )
