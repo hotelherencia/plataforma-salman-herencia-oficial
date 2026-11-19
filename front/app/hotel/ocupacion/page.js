@@ -13,7 +13,7 @@ import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../..
 
 const LEYENDA = {
   confirmada: ['Confirmada', 'reserva confirmada que ocupa el cupo'],
-  en_estadia: ['En estadía', 'huésped alojado (check-in hecho)'],
+  en_estadia: ['En estadía', 'huésped alojado (Llegada registrada)'],
   finalizada: ['Finalizada', 'noche pasada de una estadía ya liquidada'],
   disponible: ['Disponible', 'se puede vender (la oferta la incluye)'],
   sin_tarifa: ['Sin precio', 'libre, pero sin precio para esa noche: la oferta no la ofrece'],
@@ -29,6 +29,12 @@ const CORTO = {
   sin_tarifa: '$?',
   no_vendible: '×',
   sin_ocupar: '',
+}
+
+function fechaLarga(iso) {
+  if (!iso || typeof iso !== 'string') return ''
+  const [a, m, d] = iso.split('-')
+  return a && m && d ? `${d}/${m}/${a}` : iso
 }
 
 function Celda({ noche }) {
@@ -50,7 +56,10 @@ function Celda({ noche }) {
           {contenido}
         </Link>
       ) : (
-        <span aria-label={titulo}>{contenido}</span>
+        <>
+          <span aria-hidden="true">{contenido}</span>
+          <span className="sr-only">{titulo}</span>
+        </>
       )}
     </td>
   )
@@ -118,10 +127,10 @@ export default function Ocupacion() {
       {datos && (
         <section className="tarjeta">
           <p className="nota-clave">
-            Fecha de corte del servidor: <strong>{datos.fecha_corte}</strong> · {datos.periodo.noches} noche(s). La noche de una
+            Datos al <strong>{fechaLarga(datos.fecha_corte)}</strong> · {datos.periodo.noches} noche(s). La noche de una
             fecha va de ese día al siguiente.
           </p>
-          <div className="rejilla-ocupacion">
+          <div className="rejilla-ocupacion" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla ocupacion">
               <thead>
                 <tr>

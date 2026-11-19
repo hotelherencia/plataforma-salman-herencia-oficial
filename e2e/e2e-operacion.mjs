@@ -393,7 +393,7 @@ try {
     await admin.waitForTimeout(1800)
     const t = await texto(admin)
     const pct = `${(ind.periodo_indicadores.ocupacion_reservada.valor * 100).toFixed(1)} %`
-    esperar(t.includes(`Fecha de corte del servidor: ${HOY}`) && t.includes(pct) && t.includes('sin muestra'), `panel sin ${pct} / «sin muestra»`)
+    esperar(t.includes(`Datos al ${HOY.split('-').reverse().join('/')}`) && t.includes(pct) && t.includes('sin muestra'), `panel sin ${pct} / «sin muestra»`)
     await admin.getByText('Cómo se calcula').first().click()
     esperar((await texto(admin)).includes('Fórmula'), 'definición no desplegable')
     await evidencia(admin, 'panel')
@@ -431,7 +431,7 @@ try {
     const page = await paginaDe(ADMIN)
     await page.goto(`${FRONT}/hotel/panel`)
     await page.waitForTimeout(2500)
-    const total = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/HABITACIONES REGISTRADAS\s*(\d+)/)?.[1])
+    const total = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/Habitaciones registradas\s*(\d+)/i)?.[1])
     const tipo = await page.evaluate(() => {
       const s = [...document.querySelectorAll('select')].find((el) => /tipo/i.test(el.getAttribute('aria-label') || el.previousElementSibling?.textContent || ''))
         || document.querySelector('select')
@@ -441,7 +441,7 @@ try {
     await page.getByRole('combobox', { name: /TIPO DE HABITACIÓN/i }).selectOption(tipo)
     await page.getByRole('button', { name: 'Actualizar' }).click()
     await page.waitForTimeout(2500)
-    const filtrado = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/HABITACIONES REGISTRADAS\s*(\d+)/)?.[1])
+    const filtrado = await page.evaluate(() => document.querySelector('main')?.innerText?.match(/Habitaciones registradas\s*(\d+)/i)?.[1])
     await page.context().close()
     esperar(total && filtrado && total !== filtrado, `sin filtro ${total} / con filtro ${filtrado} (tipo ${tipo})`)
     return `sin filtro ${total} → solo «${tipo}» ${filtrado}`
@@ -516,8 +516,8 @@ try {
     })
     esperar(kpis.pares['Huéspedes en casa'] === String(ind.hoy.en_casa.valor),
             `en_casa UI ${kpis.pares['Huéspedes en casa']} vs API ${ind.hoy.en_casa.valor}`)
-    esperar(kpis.pares['Llegadas vencidas sin check-in'] === String(ind.hoy.llegadas_vencidas.valor),
-            `llegadas_vencidas UI ${kpis.pares['Llegadas vencidas sin check-in']} vs API ${ind.hoy.llegadas_vencidas.valor}`)
+    esperar(kpis.pares['Llegadas atrasadas sin registrar'] === String(ind.hoy.llegadas_vencidas.valor),
+            `llegadas_vencidas UI ${kpis.pares['Llegadas atrasadas sin registrar']} vs API ${ind.hoy.llegadas_vencidas.valor}`)
     esperar(kpis.pares['Noches reservadas'] === String(ind.periodo_indicadores.noches_reservadas.valor),
             `noches_reservadas UI ${kpis.pares['Noches reservadas']} vs API ${ind.periodo_indicadores.noches_reservadas.valor}`)
     esperar(kpis.pares['Unidades-noche'] === String(ind.periodo_indicadores.unidades_noche.valor),

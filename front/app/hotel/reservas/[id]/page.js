@@ -23,7 +23,7 @@ const ETIQUETA_ESTADO = {
 }
 
 const SIGUIENTE_PASO = {
-  confirmada: [['/hotel/estadia', 'Check-in, cargo o cancelación'], ['/hotel/pago', 'Registrar pago']],
+  confirmada: [['/hotel/estadia', 'Llegada, cargo o cancelación'], ['/hotel/pago', 'Registrar pago']],
   en_estadia: [['/hotel/estadia', 'Asentar un cargo'], ['/hotel/pago', 'Registrar pago'], ['/hotel/salida', 'Salida y liquidación']],
 }
 
@@ -204,7 +204,7 @@ export default function DetalleReserva() {
               </>
             )}
             <h3 className="subtitulo">Cargos y reversos</h3>
-            <div className="tabla-contenedor"><table className="tabla">
+            <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -234,9 +234,9 @@ export default function DetalleReserva() {
             </table></div>
             <h3 className="subtitulo">Pagos</h3>
             {reserva.pagos.length === 0 ? (
-              <p className="estado">Sin pagos.</p>
+              <p className="estado estado-vacio">Sin pagos.</p>
             ) : (
-              <div className="tabla-contenedor"><table className="tabla">
+              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Fecha</th>

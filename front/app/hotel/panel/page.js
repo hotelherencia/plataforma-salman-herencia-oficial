@@ -29,8 +29,8 @@ const SITUACION = [
   ['llegadas_hoy', 'Llegadas de hoy'],
   ['salidas_hoy', 'Salidas de hoy'],
   ['en_casa', 'Huéspedes en casa'],
-  ['llegadas_vencidas', 'Llegadas vencidas sin check-in', true],
-  ['salidas_vencidas', 'Salidas vencidas sin check-out', true],
+  ['llegadas_vencidas', 'Llegadas atrasadas sin registrar', true],
+  ['salidas_vencidas', 'Salidas atrasadas sin cerrar', true],
 ]
 
 const HABITACIONES = [
@@ -65,7 +65,9 @@ function diaSemana(isoFecha) {
 const ETIQUETAS_ESTADO = {
   confirmada: { label: 'Confirmadas', color: '#9d5d3f', bg: '#fdf8f5' },
   en_casa: { label: 'En estadía (alojados)', color: '#173326', bg: '#eef4ef' },
-  terminada: { label: 'Finalizadas (check-out)', color: '#4b5563', bg: '#f3f4f6' },
+  terminada: { label: 'Finalizadas (Salida registrada)', color: '#4b5563', bg: '#f3f4f6' },
+  finalizada: { label: 'Finalizadas (Salida registrada)', color: '#4b5563', bg: '#f3f4f6' },
+  en_estadia: { label: 'En estadía (alojados)', color: '#173326', bg: '#eef4ef' },
   cancelada: { label: 'Canceladas', color: '#b91c1c', bg: '#fef2f2' },
 }
 
@@ -138,44 +140,13 @@ export default function Panel() {
 
   return (
     <MarcoHotel titulo="Panel operativo">
-      <section className="tarjeta">
-        <form
-          className="formulario"
-          onSubmit={(e) => {
-            e.preventDefault()
-            cargar(filtros)
-          }}
-        >
-          <Campo etiqueta="Desde (noche)" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
-          <Campo etiqueta="Hasta (sin incluir)" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <CampoSelect etiqueta="Tipo de habitación" value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
-            <option value="">(todos)</option>
-            {tipos.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </CampoSelect>
-          <button type="submit" className="boton-primario">Actualizar</button>
-        </form>
-        {corte && (
-          <div className="atajos">
-            <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 1))}>Hoy</button>
-            <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -7), sumarDias(corte, 1))}>Últimos 7 días</button>
-            <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -30), sumarDias(corte, 1))}>Últimos 30 días</button>
-            <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 14))}>Próximos 14 días</button>
-          </div>
-        )}
-      </section>
-
       {error && <p role="alert" className="alerta">{error}</p>}
-      {cargando && <p className="estado">Calculando…</p>}
+      {cargando && <p className="estado" role="status" aria-busy="true">Calculando…</p>}
 
       {datos && (
         <>
-          <p className="nota-clave">
-            Fecha de corte del servidor: <strong>{datos.fecha_corte}</strong> · periodo {datos.periodo.desde} → {datos.periodo.hasta} ({datos.periodo.noches} noche(s))
-            {datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}
+          <p className="panel-corte">
+            Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong>
           </p>
 
           {solicitudesPendientes > 0 && (
@@ -198,9 +169,50 @@ export default function Panel() {
               ))}
             </div>
           </section>
+        </>
+      )}
 
-          <section className="tarjeta" aria-label="Indicadores del periodo">
-            <h2>Indicadores del periodo</h2>
+      <section className="tarjeta" aria-label="Indicadores del periodo">
+        <div className="tarjeta-cabecera">
+          <h2>Indicadores del periodo</h2>
+          {datos && (
+            <p className="nota-clave" data-periodo>
+              Del {formatearFecha(datos.periodo.desde)} al {formatearFecha(datos.periodo.hasta)} ({datos.periodo.noches} noche(s))
+              {datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}
+            </p>
+          )}
+        </div>
+        <div className="panel-filtros">
+          <form
+            className="formulario"
+            onSubmit={(e) => {
+              e.preventDefault()
+              cargar(filtros)
+            }}
+          >
+            <Campo etiqueta="Desde (noche)" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
+            <Campo etiqueta="Hasta (sin incluir)" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
+            <CampoSelect etiqueta="Tipo de habitación" value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
+              <option value="">(todos)</option>
+              {tipos.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </CampoSelect>
+            <button type="submit" className="boton-primario">Actualizar</button>
+          </form>
+          {corte && (
+            <div className="atajos">
+              <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 1))}>Hoy</button>
+              <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -7), sumarDias(corte, 1))}>Últimos 7 días</button>
+              <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -30), sumarDias(corte, 1))}>Últimos 30 días</button>
+              <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 14))}>Próximos 14 días</button>
+            </div>
+          )}
+        </div>
+        {datos && (
+        <>
             <div className="kpi-rejilla">
               <Tarjeta titulo="Ocupación (estadías reales)" indicador={p.ocupacion} valor={porcentaje(p.ocupacion.valor)} />
               <Tarjeta titulo="Ocupación reservada" indicador={p.ocupacion_reservada} valor={porcentaje(p.ocupacion_reservada.valor)} />
@@ -294,7 +306,7 @@ export default function Panel() {
               </div>
             )}
 
-            <div className="tabla-contenedor">
+            <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla serie">
               <thead>
                 <tr>
@@ -316,9 +328,9 @@ export default function Panel() {
               </tbody>
             </table>
             </div>
-          </section>
         </>
-      )}
+        )}
+      </section>
     </MarcoHotel>
   )
 }

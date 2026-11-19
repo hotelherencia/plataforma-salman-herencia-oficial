@@ -212,7 +212,7 @@ export default function Estadia() {
   }
 
   return (
-    <MarcoHotel titulo="Estadía: entrada, cancelación y cargos">
+    <MarcoHotel titulo="Llegada, cancelación y cargos">
       {detalleActivo && (
         <section className="tarjeta" aria-label="Contexto operativo">
           <h2>
@@ -232,7 +232,7 @@ export default function Estadia() {
         </section>
       )}
       <section className="tarjeta">
-        <h2>Check-in (entrada a la estadía)</h2>
+        <h2>Registrar Llegada</h2>
         <form className="formulario" onSubmit={checkIn}>
           <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
           {detalleActivo && detalleActivo.estado === 'confirmada' && (
@@ -250,12 +250,12 @@ export default function Estadia() {
             <CampoDocumento tipo={docEntrada.tipo} numero={docEntrada.numero} alCambiar={setDocEntrada} />
           )}
           <button type="submit" className="boton-primario" disabled={enviando || noAdmiteEntrada}>
-            {enviando ? "Procesando…" : "Registrar entrada"}
+            {enviando ? "Procesando…" : "Registrar Llegada"}
           </button>
         </form>
         {noAdmiteEntrada && (
           <p className="nota-clave">
-            La reserva está «{ETIQUETA_ESTADO[detalleActivo.estado] || detalleActivo.estado}»: el check-in solo procede desde «confirmada».
+            La reserva está «{ETIQUETA_ESTADO[detalleActivo.estado] || detalleActivo.estado}»: la Llegada solo se registra desde «confirmada».
           </p>
         )}
         <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveEntrada}</code></span>
@@ -265,7 +265,7 @@ export default function Estadia() {
           <h2>Cancelar reserva (recepción o administración del hotel)</h2>
           <form className="formulario" onSubmit={cancelar}>
             <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />
-            <button type="submit" className="boton-primario" disabled={enviando || noAdmiteCancelacion}>
+            <button type="submit" className="boton-secundario boton-peligro" disabled={enviando || noAdmiteCancelacion}>
               {enviando ? "Procesando…" : "Cancelar reserva"}
             </button>
           </form>

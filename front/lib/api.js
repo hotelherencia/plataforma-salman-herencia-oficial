@@ -142,7 +142,7 @@ export function MarcoHotel({ children, titulo }) {
   if (sesion.fase === 'cargando')
     return (
       <main className="pagina">
-        <p className="estado">Cargando…</p>
+        <p className="estado" role="status" aria-busy="true">Cargando…</p>
       </main>
     )
   if (sesion.fase === 'caida')
@@ -309,8 +309,8 @@ export function resumenConfirmacion(datos) {
         : ''
     return `Reserva ${datos.reserva_id}: estado «cancelada» · ${txtReversos}${txtPenalidad}${txtReembolso}`
   }
-  if (datos.reserva_id && datos.estado === 'en_casa') return `Check-in confirmado para reserva ${datos.reserva_id}: huésped en casa`
-  if (datos.reserva_id && datos.estado === 'terminada') return `Check-out confirmado para reserva ${datos.reserva_id}: habitación liberada`
+  if (datos.reserva_id && datos.estado === 'en_casa') return `Llegada registrada para la reserva ${datos.reserva_id}: huésped en casa`
+  if (datos.reserva_id && datos.estado === 'terminada') return `Salida registrada para la reserva ${datos.reserva_id}: habitación liberada`
   if (datos.reserva_id && datos.estado) return `Reserva ${datos.reserva_id}: estado «${datos.estado}»`
   if (datos.reserva_id) return `Reserva ${datos.reserva_id}: operación registrada`
   if (typeof datos.sesiones_revocadas === 'number') return `Usuario ${datos.id}: ${datos.sesiones_revocadas} sesión(es) revocada(s)`

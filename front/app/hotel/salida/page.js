@@ -40,7 +40,7 @@ export default function SalidaPage() {
   }
 
   return (
-    <MarcoHotel titulo="Check-out (salida y liquidación)">
+    <MarcoHotel titulo="Salida y liquidación de la cuenta">
       <section className="tarjeta">
         <form className="formulario" onSubmit={checkOut}>
           <Campo etiqueta="Reserva" value={reservaId} onChange={(e) => setReservaId(e.target.value)} />

@@ -740,7 +740,7 @@ try {
     const texto = await textoPrincipal(page)
     await page.close()
     if (texto.includes('Cancelar reserva')) throw new Error('caja ve la cancelación')
-    if (!texto.includes('Check-in')) throw new Error('caja debería ver el check-in')
+    if (!texto.includes('Registrar Llegada')) throw new Error('caja debería ver el registro de Llegada')
     return 'cancelación oculta para caja; check-in visible'
   })
 
