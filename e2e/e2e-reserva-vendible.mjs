@@ -123,25 +123,33 @@ try {
   }
   const retiro = await api('POST', `/hotel/habitaciones/${HAB_R}/servicio`, { cookie: cAdmin, clave: K('ret'), cuerpo: { en_servicio: false, motivo: 'remodelación sintética' } })
   esperar(retiro.estado === 200 && retiro.datos.estado_operativo === 'fuera_de_servicio', `retiro: ${retiro.estado} ${JSON.stringify(retiro.datos)}`)
-  const mant = await api('POST', `/hotel/habitaciones/${HAB_M}/mantenimiento`, { cookie: cAdmin, clave: K('mant'), cuerpo: { abierto: true } })
+  const mant = await api('POST', `/hotel/habitaciones/${HAB_M}/mantenimiento`, { cookie: cAdmin, clave: K('mant'), cuerpo: { abierto: true, desde: D(39), hasta: D(43) } }) // #349: mantenimiento por fechas; sin rango solo bloquea hoy
   esperar(mant.estado === 200, `mantenimiento: ${mant.estado} ${JSON.stringify(mant.datos)}`)
 
   const reservasDe = async (hid) =>
     (await api('GET', `/hotel/reservas?habitacion_id=${encodeURIComponent(hid)}`, { cookie: cRecepcion })).datos.reservas || []
 
   const recepcion = await paginaDe(RECEPCION)
+  // #367: la habitación se elige entre las libres del rango (selector) y el
+  // documento es obligatorio. Una unidad no vendible ya no aparece entre las
+  // libres; solo llega preseleccionada por enlace (?habitacion_id=…), y ahí
+  // el servidor debe seguir rechazándola.
   const llenarYConfirmar = async (hid, nombre) => {
-    await recepcion.getByRole('textbox', { name: 'Habitación' }).fill(hid)
-    await recepcion.getByRole('textbox', { name: 'Desde' }).fill(D(40))
-    await recepcion.getByRole('textbox', { name: 'Hasta' }).fill(D(42))
+    const q = new URLSearchParams({ habitacion_id: hid, inicio: D(40), fin: D(42) })
+    await recepcion.goto(`${FRONT}/hotel/reserva?${q}`)
+    await recepcion.waitForTimeout(1800)
     await recepcion.getByRole('textbox', { name: 'Huésped' }).fill(nombre)
+    await recepcion.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
     await recepcion.getByRole('button', { name: 'Confirmar reserva' }).click()
     await recepcion.waitForTimeout(1500)
   }
+  const ofrecidaLibre = (hid) =>
+    recepcion.evaluate((h) => [...document.querySelectorAll('select option')].some((o) => o.value === h && !o.textContent.includes('(actual)')), hid)
 
   await caso('RV-01', '/hotel/reserva', 'desde el menú, reservar una habitación retirada', 'recepcion', '409: alerta «fuera del cupo»; la API no registra reserva', async () => {
     await irDesdeMenu(recepcion, 'Nueva reserva', '/hotel/reserva', FRONT)
     await llenarYConfirmar(HAB_R, 'Huésped Retirada')
+    esperar(!(await ofrecidaLibre(HAB_R)), `${HAB_R} aparece entre las libres pese a estar retirada`)
     const a = await alerta(recepcion)
     await evidencia(recepcion, 'retirada-rechazada')
     esperar(a && a.includes('fuera del cupo'), `alerta: ${a}`)
@@ -152,9 +160,8 @@ try {
   })
 
   await caso('RV-02', '/hotel/reserva', 'reservar una habitación con mantenimiento abierto', 'recepcion', '409: alerta «fuera del cupo»; sin reserva', async () => {
-    await recepcion.getByRole('button', { name: 'Nueva operación' }).click()
-    await recepcion.waitForTimeout(500)
     await llenarYConfirmar(HAB_M, 'Huésped Mantenimiento')
+    esperar(!(await ofrecidaLibre(HAB_M)), `${HAB_M} aparece entre las libres pese al mantenimiento`)
     const a = await alerta(recepcion)
     esperar(a && a.includes('fuera del cupo'), `alerta: ${a}`)
     const lista = await reservasDe(HAB_M)
@@ -170,9 +177,8 @@ try {
     await admin.waitForTimeout(1500)
     const ficha = await api('GET', `/hotel/habitaciones/${HAB_R}`, { cookie: cAdmin })
     esperar(ficha.datos.estado_operativo === 'disponible', `estado tras reincorporar: ${ficha.datos.estado_operativo}`)
-    await recepcion.getByRole('button', { name: 'Nueva operación' }).click()
-    await recepcion.waitForTimeout(500)
     await llenarYConfirmar(HAB_R, 'Huésped Retirada')
+    esperar(await ofrecidaLibre(HAB_R), `${HAB_R} no vuelve a la lista de libres tras reincorporarla`)
     const c = await confirmacion(recepcion)
     await evidencia(recepcion, 'reincorporada-confirmada')
     esperar(c && c.includes('confirmada'), `confirmación: ${c} · alerta: ${await alerta(recepcion)}`)

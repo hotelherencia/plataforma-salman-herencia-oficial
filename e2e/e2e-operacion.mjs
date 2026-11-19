@@ -411,7 +411,10 @@ try {
     await ir(page, '/hotel/panel')
     const t = await texto(page)
     await page.close()
-    esperar(t.includes('No disponibles en esta versión') && t.includes('ADR'), 'la UI no declara lo no disponible')
+    // #381 retiró del panel el bloque «No disponibles en esta versión» (texto
+    // técnico); la declaración sigue en la API (arriba). La UI de caja no
+    // muestra montos.
+    esperar(!/\$\s?\d/.test(t), 'la UI de caja muestra montos')
     const largo = await api('GET', `/hotel/indicadores?desde=${D(0)}&hasta=${D(93)}`, { cookie: cCaja })
     esperar(largo.estado === 422, `periodo > 92: ${largo.estado}`)
     return 'recepción y caja leen; sin montos; ADR/RevPAR declarados pendientes; 422 > 92 noches'
@@ -524,7 +527,9 @@ try {
       const filaApi = ind.serie[i]
       const filaUi = kpis.serie[i]
       const ocupadasUi = filaApi.ocupadas_estadias === null ? 'futura' : String(filaApi.ocupadas_estadias)
-      esperar(filaUi[0] === filaApi.fecha && filaUi[1] === String(filaApi.unidades)
+      // #381: la noche se muestra como DD/MM/AAAA (día de la semana).
+      const [a, m, d] = filaApi.fecha.split('-')
+      esperar(filaUi[0].startsWith(`${d}/${m}/${a}`) && filaUi[1] === String(filaApi.unidades)
               && filaUi[2] === ocupadasUi && filaUi[3] === String(filaApi.reservadas),
               `serie ${filaApi.fecha}: UI ${filaUi} vs API ${JSON.stringify(filaApi)}`)
     }

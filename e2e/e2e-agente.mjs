@@ -133,11 +133,13 @@ function parsearClp(texto) {
  *  de la base: las aserciones se anclan a lo que dice el texto, nunca a ids
  *  propios de la corrida. */
 function itemOfertaDe(textoBorrador) {
-  const habitacion = (textoBorrador.match(/disponibilidad:\s*([^\s(]+)/i) || [])[1]
-    || (textoBorrador.match(/HAB-[A-Z]+-[a-z0-9]+/i) || [])[0]
+  // #346: el texto al huésped nombra el TIPO («habitación Doble»), no el id
+  // de la unidad; el id se toma de la oferta del servidor (ver ubicarItem0).
+  const tipo = ((textoBorrador.match(/disponibilidad:\s*habitación\s+(.+?)\s+—/i) || [])[1] || '').trim()
+  const habitacion = (textoBorrador.match(/HAB-[A-Z]+-[a-z0-9]+/i) || [])[0]
   const noche = parsearClp((textoBorrador.match(/\$[\d.]+ por noche/) || [])[0] || '')
   const total = parsearClp((textoBorrador.match(/\$[\d.]+ en total/) || [])[0] || '')
-  return { habitacion, noche, total }
+  return { tipo, habitacion, noche, total }
 }
 
 function sql(consulta) {
@@ -220,6 +222,12 @@ try {
 
     const textoBorrador = await page.evaluate(() => document.querySelector('.texto-borrador')?.textContent || '')
     item0 = itemOfertaDe(textoBorrador)
+    // Ítem 0 de la misma oferta que usa el agente (reservas.oferta, orden por id).
+    const ofertaTurno = await api('GET', `/hotel/oferta?inicio=${MANANA}&fin=${EN_3}&personas=2`, { cookie: cookieRecepcion })
+    const primero = ((ofertaTurno.datos && ofertaTurno.datos.oferta) || [])[0]
+    esperar(primero && primero.tarifa_noche_clp === item0.noche && primero.total_clp === item0.total,
+      `el borrador no coincide con el ítem 0 de la oferta: ${JSON.stringify(primero)} vs ${JSON.stringify(item0)}`)
+    item0.habitacion = item0.habitacion || primero.habitacion_id
     esperar(item0.habitacion && item0.noche > 0 && item0.total > 0, `el borrador no trae la oferta: ${textoBorrador.slice(0, 160)}`)
     esperar(item0.total === item0.noche * 2, `total ${item0.total} ≠ 2 noches × ${item0.noche}: ${textoBorrador.slice(0, 200)}`)
     const consultaId = (await page.evaluate(() => document.querySelector('.detalle-consulta h2')?.textContent || '')).match(/CON-[a-z0-9]+/i)?.[0]
@@ -259,7 +267,7 @@ try {
     await page.waitForSelector('.texto-borrador', { timeout: 10000 })
     const textoPrevio = await page.evaluate(() => document.querySelector('.texto-borrador')?.textContent || '')
     const previo = itemOfertaDe(textoPrevio)
-    esperar(previo.habitacion === item0.habitacion && previo.noche === item0.noche, `el borrador previo cambió de ítem: ${textoPrevio.slice(0, 160)}`)
+    esperar(previo.tipo === item0.tipo && previo.noche === item0.noche, `el borrador previo cambió de ítem: ${textoPrevio.slice(0, 160)}`)
     const consultaId = (await page.evaluate(() => document.querySelector('.detalle-consulta h2')?.textContent || '')).match(/CON-[a-z0-9]+/i)?.[0]
     esperar(consultaId, 'sin id de consulta en el detalle')
     await ctx.close()

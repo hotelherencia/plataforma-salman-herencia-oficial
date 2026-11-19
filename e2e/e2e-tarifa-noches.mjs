@@ -139,11 +139,25 @@ try {
     await recepcion.getByRole('button', { name: 'Consultar oferta' }).click()
     await recepcion.waitForTimeout(1500)
   }
-  const confirmarReserva = async () => {
-    await recepcion.getByRole('textbox', { name: 'Habitación' }).fill(HAB)
-    await recepcion.getByRole('textbox', { name: 'Desde' }).fill(INICIO)
-    await recepcion.getByRole('textbox', { name: 'Hasta' }).fill(FIN)
+  // #367: la habitación se elige entre las libres con tarifa del rango y el
+  // documento es obligatorio. Si no está en esa lista (TN-02) solo puede
+  // llegar preseleccionada por enlace, y el servidor debe rechazarla.
+  const confirmarReserva = async ({ desdeLista = false } = {}) => {
+    if (desdeLista) {
+      await recepcion.getByRole('textbox', { name: 'Desde' }).fill(INICIO)
+      await recepcion.getByRole('textbox', { name: 'Hasta' }).fill(FIN)
+      await recepcion.getByLabel('Personas').fill('2')
+      await recepcion.locator(`select option[value="${HAB}"]`).waitFor({ state: 'attached', timeout: 8000 })
+      await recepcion.getByRole('combobox', { name: 'Habitación' }).selectOption(HAB)
+    } else {
+      const q = new URLSearchParams({ habitacion_id: HAB, inicio: INICIO, fin: FIN })
+      await recepcion.goto(`${FRONT}/hotel/reserva?${q}`)
+      await recepcion.waitForTimeout(1800)
+      const libre = await recepcion.evaluate((h) => [...document.querySelectorAll('select option')].some((o) => o.value === h && !o.textContent.includes('(actual)')), HAB)
+      esperar(!libre, `${HAB} figura entre las libres pese a noches sin tarifa`)
+    }
     await recepcion.getByRole('textbox', { name: 'Huésped' }).fill('Huésped Noches')
+    await recepcion.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
     await recepcion.getByRole('button', { name: 'Confirmar reserva' }).click()
     await recepcion.waitForTimeout(1500)
   }
@@ -195,7 +209,7 @@ try {
     await evidencia(recepcion, 'oferta-cubierta')
 
     await irDesdeMenu(recepcion, 'Nueva reserva', '/hotel/reserva')
-    await confirmarReserva()
+    await confirmarReserva({ desdeLista: true })
     const c = await confirmacion(recepcion)
     await evidencia(recepcion, 'reserva-confirmada')
     esperar(c && c.includes('confirmada'), `confirmación: ${c} · alerta: ${await alerta(recepcion)}`)

@@ -122,9 +122,12 @@ async function entrarModuloHotel(page) {
 
 async function irMenu(page, nombre) {
   await entrarModuloHotel(page)
-  const link = page.locator('aside.barra, #menu-movil').getByRole('link', { name: nombre, exact: true }).first()
+  // #353: «Solicitudes y leads» puede llevar la insignia de pendientes, que
+  // se suma al nombre accesible («Solicitudes y leads 3 solicitud(es)…»).
+  const nombreRe = new RegExp(`^${nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`)
+  const link = page.locator('aside.barra, #menu-movil').getByRole('link', { name: nombreRe }).first()
   if (await link.count()) await link.click()
-  else await page.getByRole('link', { name, exact: true }).first().click()
+  else await page.getByRole('link', { name: nombreRe }).first().click({ timeout: 8000 })
   await page.waitForTimeout(700)
 }
 
@@ -332,6 +335,8 @@ try {
     await admin.goto(`${FRONT}/hotel/reserva?habitacion_id=${encodeURIComponent(HAB)}&inicio=${D(8)}&fin=${D(10)}&hora_llegada=11:00&hora_salida=15:00`)
     await admin.waitForTimeout(800)
     await admin.getByLabel('Huésped').fill('Huésped E2E Recargos')
+    // #367: documento del huésped obligatorio (RUT sintético válido).
+    await admin.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
     await admin.getByRole('button', { name: 'Confirmar reserva' }).click()
     await admin.waitForTimeout(1600)
     const cuerpo = await textoMain(admin)

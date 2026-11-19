@@ -136,6 +136,22 @@ async function confirmacion(page) {
   return page.evaluate(() => document.querySelector('.operacion-confirmada')?.textContent || null)
 }
 
+// #381 retiró el panel JSON de las pantallas: el id se lee de la respuesta
+// del POST que dispara la acción (misma fuente que mostraba el panel).
+async function respuestaPost(page, ruta, accion) {
+  const [resp] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith(ruta), { timeout: 15000 }),
+    accion(),
+  ])
+  try { return await resp.json() } catch { return {} }
+}
+
+// #350: las claves usan CampoClave (input password + «Mostrar»): no es un
+// textbox accesible; se ubica por la etiqueta visible del campo.
+function campoClave(page, etiqueta) {
+  return page.locator('label.campo').filter({ has: page.locator('.campo-etiqueta', { hasText: new RegExp(`^${etiqueta}$`) }) }).locator('input')
+}
+
 // ---------- TOTP (RFC 6238, SHA-1, 30 s, 6 dígitos) para el alta 2FA en UI ----------
 function base32Decodificar(b32) {
   const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -243,7 +259,8 @@ try {
       await page.goto(`${FRONT}${ruta}`)
       await page.waitForTimeout(1200)
       const texto = await textoPrincipal(page)
-      if (!/cerrad|fuera de la versión/i.test(texto)) throw new Error(`no anuncia cierre: ${texto.slice(0, 140)}`)
+      // #381 cambió el aviso a «… en preparación. Estará disponible en una próxima versión.»
+      if (!/cerrad|fuera de la versión|en preparación|próxima versión/i.test(texto)) throw new Error(`no anuncia cierre: ${texto.slice(0, 140)}`)
       if (texto.includes('Guardar') || texto.includes('Confirmar')) throw new Error('muestra acciones')
       return 'presentado como fuera de la versión, sin operación'
     })
@@ -340,11 +357,11 @@ try {
       await page.getByRole('combobox', { name: 'Habitación' }).selectOption(HAB_A)
       await page.getByRole('textbox', { name: 'Huésped' }).fill('Huésped Sintético')
       await page.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
-      await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+      const creada = await respuestaPost(page, '/hotel/reservas', () => page.getByRole('button', { name: 'Confirmar reserva' }).click())
       await page.waitForTimeout(2000)
       const conf = await confirmacion(page)
       if (!conf || !conf.includes('confirmada')) throw new Error(`sin confirmación: ${conf}`)
-      reservaId = JSON.parse(await page.evaluate(() => document.querySelector('.json-panel')?.textContent || '{}')).reserva_id
+      reservaId = creada.reserva_id
       const busqueda = await api('GET', `/hotel/reservas?texto=${reservaId}`, { cookie: cookieRecepcion })
       if (busqueda.datos.total !== 1) throw new Error('la reserva no aparece en la búsqueda')
       await evidencia(page, 'res-01-confirmada')
@@ -383,7 +400,8 @@ try {
     const conCaja = await api('GET', `/hotel/reservas?texto=${reservaId}`, { cookie: cookieCaja })
     const docRecep = conRecepcion.datos.reservas[0].huesped_documento
     const docCaja = conCaja.datos.reservas[0].huesped_documento
-    if (docRecep !== 'E2E-DOC-123') throw new Error(`recepcion no recibió el documento enviado: ${docRecep}`)
+    // #367: RES-01 envía el RUT sintético 11.111.111-1 (documento obligatorio y validado).
+    if (String(docRecep || '').replace(/[.\s-]/g, '') !== '111111111') throw new Error(`recepcion no recibió el documento enviado: ${docRecep}`)
     if (docCaja !== undefined && docCaja !== null) throw new Error('caja recibió documento')
     return `recepcion:${String(docRecep)} caja:${String(docCaja)}`
   })
@@ -468,9 +486,16 @@ try {
     return r.datos.detail
   })
   await caso('EST-02', '/hotel/estadia', 'cargo de minibar en estadía', 'caja', '201 cargo; entra en la liquidación', async () => {
-    const r = await api('POST', `/hotel/reservas/${reservaId}/cargos`, { cookie: cookieCaja, clave: K('e2e-cargo-1'), cuerpo: { concepto: 'minibar', monto_clp: 5000 } })
-    if (r.estado !== 201) throw new Error(`${r.estado}`)
-    return r.datos.cargo_id
+    // #357: caja asienta productos del catálogo (precio automático); el
+    // concepto libre queda para la administración del hotel.
+    const libre = await api('POST', `/hotel/reservas/${reservaId}/cargos`, { cookie: cookieCaja, clave: K('e2e-cargo-libre'), cuerpo: { concepto: 'minibar', monto_clp: 5000 } })
+    if (libre.estado !== 403) throw new Error(`concepto libre por caja: ${libre.estado}`)
+    const prod = await api('POST', '/hotel/productos', { cookie: cookieAdmin, clave: K('e2e-prod-minibar'), cuerpo: { nombre: `Minibar E2E ${RUN}`, categoria: 'minibar', precio_clp: 5000 } })
+    if (prod.estado !== 201) throw new Error(`producto: ${prod.estado} ${JSON.stringify(prod.datos)}`)
+    const r = await api('POST', `/hotel/reservas/${reservaId}/cargos`, { cookie: cookieCaja, clave: K('e2e-cargo-1'), cuerpo: { producto_id: prod.datos.producto_id, cantidad: 1 } })
+    if (r.estado !== 201) throw new Error(`${r.estado} ${JSON.stringify(r.datos)}`)
+    if (r.datos.monto_clp !== undefined && r.datos.monto_clp !== 5000) throw new Error(`monto ${r.datos.monto_clp}`)
+    return `${r.datos.cargo_id} (producto del catálogo; concepto libre 403)`
   })
   await caso('EST-03', '/hotel/estadia', 'cargo con monto inválido', 'recepcion', '422', async () => {
     const r = await api('POST', `/hotel/reservas/${reservaId}/cargos`, { cookie: cookieRecepcion, clave: K('e2e-cargo-422'), cuerpo: { concepto: 'x', monto_clp: -5 } })
@@ -566,7 +591,7 @@ try {
       await page.goto(`${FRONT}/hotel/usuarios`)
       await page.waitForTimeout(1800)
       await page.getByRole('textbox', { name: 'Nombre' }).fill(`recepcion_tmp_${RUN}`)
-      await page.getByRole('textbox', { name: 'Clave', exact: true }).fill('TmpRecep99')
+      await campoClave(page, 'Clave').fill('TmpRecep99')
       await page.getByRole('button', { name: 'Crear usuario' }).click()
       await page.waitForTimeout(2000)
       const filas = await page.evaluate(() => [...document.querySelectorAll('.usuario-fila')].map((f) => f.innerText))
@@ -775,9 +800,9 @@ try {
     if (!pre.url.includes('/hotel/reserva') || !pre.habitacion || !pre.desde) throw new Error(`no precargó: ${JSON.stringify(pre)}`)
     await page.getByRole('textbox', { name: 'Huésped' }).fill('Flujo Precargado')
     await page.getByRole('textbox', { name: 'Número de documento' }).fill('11.111.111-1')
-    await page.getByRole('button', { name: 'Confirmar reserva' }).click()
+    const creada = await respuestaPost(page, '/hotel/reservas', () => page.getByRole('button', { name: 'Confirmar reserva' }).click())
     await page.waitForTimeout(2000)
-    const rid = JSON.parse(await page.evaluate(() => document.querySelector('.json-panel')?.textContent || '{}')).reserva_id
+    const rid = creada.reserva_id
     if (!rid) throw new Error('no se confirmó la reserva precargada')
     await page.goto(`${FRONT}/hotel/reservas/${rid}`)
     await page.waitForTimeout(1800)
@@ -787,7 +812,10 @@ try {
     if (!href.includes(`reserva_id=${rid}`)) throw new Error(`el enlace no lleva la reserva: ${href}`)
     await enlacePago.click()
     await page.waitForTimeout(1800)
-    const reservaPre = await page.evaluate(() => [...document.querySelectorAll('input')].map((i) => i.value).find((v) => v.startsWith('RSV-')))
+    // #356/#364: la reserva llega fija (data-reserva-fija), ya no en un input.
+    const reservaPre = await page.evaluate(() =>
+      document.querySelector('[data-reserva-fija] code')?.textContent?.trim()
+      || [...document.querySelectorAll('input, select')].map((i) => i.value).find((v) => v.startsWith('RSV-')))
     await ctx.close()
     if (reservaPre !== rid) throw new Error(`el pago no nació con la reserva precargada: ${reservaPre}`)
     return `flujo completo precargado (${rid})`

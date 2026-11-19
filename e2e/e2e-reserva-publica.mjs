@@ -154,9 +154,9 @@ try {
     await paginaR.waitForSelector('.operacion-confirmada', { timeout: 8000 })
     const confirmacion = await paginaR.evaluate(() => document.querySelector('.operacion-confirmada')?.textContent || '')
     esperar(confirmacion.includes('convertida'), `confirmación: ${confirmacion}`)
-    const detalle = await paginaR.evaluate(() => document.querySelector('.json-panel')?.textContent || '{}')
-    const reservaId = (JSON.parse(detalle).reserva_id || '')
-    esperar(reservaId, `sin reserva_id en ${detalle.slice(0, 160)}`)
+    // #381 retiró el panel JSON: el id de la reserva sale del resumen visible.
+    const reservaId = (confirmacion.match(/RSV-[a-z0-9]+/i) || [])[0] || ''
+    esperar(reservaId, `sin reserva_id en ${confirmacion.slice(0, 160)}`)
     await evidencia(paginaR, 'pub-01-convertida')
     await ctxR.close()
 
@@ -233,12 +233,17 @@ try {
     const alerta = await page.evaluate(() => document.querySelector('[role=alert]')?.textContent || '')
     esperar(alerta.includes('posterior'), `alerta: ${alerta}`)
     esperar((await page.locator('.lista-opciones').count()) === 0, 'se ofertó pese a fechas invertidas')
+    // Desde a5d4c6f/#346 la lista blanca de la query descarta personas
+    // inválidas (aviso breve) y consulta con el valor por defecto: lo que se
+    // verifica es que 99 nunca llega a la API ni queda en la URL canónica.
+    const consultas = []
+    page.on('request', (req) => { if (req.url().includes('/publico/')) consultas.push(req.url()) })
     await page.goto(`${FRONT}/reservar?inicio=${MANANA}&fin=${EN_3}&personas=99`)
-    await page.waitForSelector('[role=alert]', { timeout: 8000 })
-    const alerta2 = await page.evaluate(() => document.querySelector('[role=alert]')?.textContent || '')
-    esperar(alerta2.includes('Personas'), `alerta2: ${alerta2}`)
+    await page.waitForTimeout(2500)
+    esperar(!consultas.some((u) => /personas=99/.test(u)), `personas=99 llegó a la API: ${consultas.join(' ')}`)
+    esperar(!/personas=99/.test(page.url()), `URL canónica conserva personas=99: ${page.url()}`)
     await ctx.close()
-    return 'fin invertido y personas=99 rechazados en el cliente'
+    return 'fin invertido rechazado en el cliente; personas=99 descartado (no llega a la API ni a la URL)'
   })
 
   // ---------- PUB-05: sin sesión no hay pantalla interna ----------
@@ -266,7 +271,8 @@ try {
     const aviso = page.locator('[data-aviso-sin-ref]')
     esperar((await aviso.count()) === 1, 'falta el aviso sin ref')
     const textoAviso = await aviso.innerText()
-    esperar(textoAviso.includes('consulta previa'), `aviso inesperado: ${textoAviso.slice(0, 120)}`)
+    // a5d4c6f cambió el texto del aviso sin consulta previa.
+    esperar(/consulta previa|Déjanos tu nombre/.test(textoAviso), `aviso inesperado: ${textoAviso.slice(0, 120)}`)
     const nombre = await page.getByRole('textbox', { name: 'Nombre' }).inputValue()
     const contacto = await page.getByRole('textbox', { name: 'Correo o teléfono' }).inputValue()
     esperar(nombre === '' && contacto === '', `contacto precargado sin ref: «${nombre}» / «${contacto}»`)
