@@ -1,6 +1,6 @@
 """ADP-4 AC-3 al desplegar sobre datos vivos: la cuenta de una reserva nace vacía y el alojamiento se asienta en
 la entrada. Una reserva confirmada ANTES del cambio ya trae su cargo «Alojamiento N noches»; la entrada asentaría las
-noches otra vez y cobraría doble. La migración 0032 reversa (append-only) ese cargo en las reservas aún confirmadas."""
+noches otra vez y cobraría doble. La migración 0035 reversa (append-only) ese cargo en las reservas aún confirmadas."""
 import os
 import unittest
 from datetime import date, timedelta
@@ -15,7 +15,7 @@ URL_TEST = os.environ.get(
 )
 EMPRESA = "EMP-SINTETICA-001"
 HOY = date.today()
-MIGRACION = migracion.DIRECTORIO_MIGRACIONES / "0032_cuenta_vacia_al_confirmar.sql"
+MIGRACION = migracion.DIRECTORIO_MIGRACIONES / "0035_cuenta_vacia_al_confirmar.sql"
 
 
 class MigracionCuentaVaciaTest(unittest.TestCase):
