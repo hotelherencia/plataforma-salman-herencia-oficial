@@ -17,7 +17,7 @@ describe('menú del hotel (entrega 1A.3)', () => {
     assert.ok(!nombres.includes('Tipos, habitaciones y precios'))
     assert.ok(!nombres.includes('Nueva reserva'))
     assert.ok(!nombres.includes('Políticas y registro'))
-    assert.deepEqual(PESTANAS_CONFIGURACION.map(([id]) => id), ['tipos', 'precios', 'politicas', 'faq', 'reservas_web', 'correo', 'avisos'])
+    assert.deepEqual(PESTANAS_CONFIGURACION.map(([id]) => id), ['tipos', 'precios', 'politicas', 'faq', 'reservas_web', 'correo', 'avisos', 'caja'])
   })
 
   it('resalta Reservas en oferta, nueva y ficha, sin confundir /hotel/reserva con /hotel/reservas', () => {

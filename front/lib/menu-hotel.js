@@ -16,6 +16,16 @@ export const PESTANAS_CONFIGURACION = [
   ['reservas_web', 'Reservas web'],
   ['correo', 'Correo'],
   ['avisos', 'Avisos'],
+  ['caja', 'Caja y medios de pago'],
+]
+
+// Fase 1 contable (2026-11-19): pestañas dentro de Caja y pagos, sin ítem de menú nuevo.
+export const PESTANAS_CAJA = [
+  ['dia', 'Caja del día'],
+  ['turno', 'Turno'],
+  ['movimientos', 'Movimientos'],
+  ['depositos', 'Depósitos'],
+  ['cierre', 'Cierre diario'],
 ]
 
 export const SUBNAV_RESERVAS = [
@@ -30,7 +40,7 @@ export const SUBNAV_BANDEJAS = [
 ]
 
 export const SUBNAV_CAJA = [
-  ['/hotel/caja', 'Caja del día'],
+  ['/hotel/caja', 'Caja'],
   ['/hotel/pago', 'Registrar pago'],
 ]
 

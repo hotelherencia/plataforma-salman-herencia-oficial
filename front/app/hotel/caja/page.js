@@ -1,28 +1,77 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
 import { esAdminHotel } from '../../../lib/roles'
-import { horaChile, medioDePago } from '../../../lib/estadias'
+import { horaChile } from '../../../lib/estadias'
+import { nombreDocumento, nombreMedio } from '../../../lib/caja'
+import { fechaATexto } from '../../../lib/formato'
 import Subnav from '../_componentes/subnav'
-import { SUBNAV_CAJA } from '../../../lib/menu-hotel'
+import { hoyChile, PestanaCierreDiario, PestanaMovimientos, PestanaTurno } from '../_componentes/caja-contable'
+import css from '../_componentes/operacion.module.css'
+import { PESTANAS_CAJA, SUBNAV_CAJA } from '../../../lib/menu-hotel'
 
-function hoyChile() {
-  // Fecha del día en Chile (no en UTC: de noche UTC ya es «mañana»).
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date())
+// Fase 1 contable (2026-11-19): pestañas dentro de Caja y pagos (sin ítem de
+// menú nuevo). Caja y administración ven todo; recepción opera el turno.
+const POR_ROL = {
+  caja: ['dia', 'turno', 'movimientos', 'depositos', 'cierre'],
+  recepcion: ['turno', 'movimientos', 'depositos'],
 }
 
 export default function Caja() {
+  return <Suspense fallback={null}><CajaConPestanas /></Suspense>
+}
+
+function CajaConPestanas() {
   const sesion = useSesion()
+  const router = useRouter()
+  const params = useSearchParams()
+  const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
+  const esAdmin = esAdminHotel(rol)
+  const visibles = esAdmin ? POR_ROL.caja : (POR_ROL[rol] || [])
+  const pestanas = PESTANAS_CAJA.filter(([id]) => visibles.includes(id))
+  const pedida = params.get('pestana')
+  const pestana = visibles.includes(pedida) ? pedida : visibles[0]
+
+  if (sesion.fase === 'ok' && visibles.length === 0) {
+    return (
+      <MarcoHotel titulo="Caja y pagos">
+        <Subnav items={SUBNAV_CAJA} />
+        <p className="estado">La caja es para caja, recepción o la administración del hotel.</p>
+      </MarcoHotel>
+    )
+  }
+
+  return (
+    <MarcoHotel titulo="Caja y pagos">
+      <Subnav items={SUBNAV_CAJA} />
+      <div className={css.pestanas} role="tablist" aria-label="Secciones de la caja">
+        {pestanas.map(([id, nombre]) => (
+          <button key={id} type="button" role="tab" id={`pestana-${id}`} aria-controls="panel-caja"
+            aria-selected={pestana === id} className={css.pestana}
+            onClick={() => router.replace(`/hotel/caja?pestana=${id}`, { scroll: false })}>
+            {nombre}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id="panel-caja" aria-labelledby={`pestana-${pestana}`}>
+      {sesion.fase === 'ok' && pestana === 'dia' && <CajaDelDia />}
+      {sesion.fase === 'ok' && pestana === 'turno' && <PestanaTurno esAdmin={esAdmin} />}
+      {sesion.fase === 'ok' && pestana === 'movimientos' && <PestanaMovimientos esAdmin={esAdmin} />}
+      {sesion.fase === 'ok' && pestana === 'depositos' && <PestanaMovimientos esAdmin={esAdmin} soloDepositos />}
+      {sesion.fase === 'ok' && pestana === 'cierre' && <PestanaCierreDiario esAdmin={esAdmin} />}
+      </div>
+    </MarcoHotel>
+  )
+}
+
+function CajaDelDia() {
   const [fecha, setFecha] = useState(hoyChile)
   const [caja, setCaja] = useState(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
-
-  // spec-api-v1: GET /hotel/caja es para caja o administrador.
-  const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
-  const permitido = rol === 'caja' || esAdminHotel(rol)
 
   const consultar = useCallback(async (dia) => {
     setError('')
@@ -39,24 +88,11 @@ export default function Caja() {
   }, [])
 
   // La caja del día se ve al entrar, sin apretar nada.
-  useEffect(() => {
-    if (sesion.fase === 'ok' && permitido) consultar(fecha)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sesion.fase, permitido])
-
-  if (sesion.fase === 'ok' && !permitido) {
-    return (
-      <MarcoHotel titulo="Caja del día">
-        <Subnav items={SUBNAV_CAJA} />
-        <p className="estado">La caja del día es solo para caja o la administración del hotel.</p>
-        <p><Link className="boton-primario" href="/hotel/pago">Registrar un pago</Link></p>
-      </MarcoHotel>
-    )
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { consultar(fecha) }, [])
 
   return (
-    <MarcoHotel titulo="Caja del día">
-      <Subnav items={SUBNAV_CAJA} />
+    <>
       <section className="tarjeta">
         <form className="formulario" onSubmit={(e) => { e.preventDefault(); consultar(fecha) }}>
           <Campo etiqueta="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
@@ -69,8 +105,9 @@ export default function Caja() {
       {caja && (
         <>
           <p className="resumen">
-            Total del día: <strong>{clp(caja.total_clp)}</strong>
+            Total del {fechaATexto(caja.fecha)}: <strong>{clp(caja.total_clp)}</strong>
             {' '}· {caja.pagos.length === 1 ? '1 pago' : `${caja.pagos.length} pagos`}
+            {Object.entries(caja.por_medio || {}).map(([m, monto]) => ` · ${nombreMedio(m)} ${clp(monto)}`).join('')}
           </p>
           {caja.pagos.length > 0 ? (
             <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Pagos del día (desliza para ver todas las columnas)">
@@ -83,6 +120,7 @@ export default function Caja() {
                     <th>Reserva</th>
                     <th>Monto</th>
                     <th>Medio</th>
+                    <th>Documento</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -92,8 +130,9 @@ export default function Caja() {
                       <td>{p.huesped_nombre || '—'}</td>
                       <td>{p.habitacion_id}</td>
                       <td><Link href={`/hotel/reservas/${p.reserva_id}`}>{p.reserva_id}</Link></td>
-                      <td>{clp(p.monto_clp)}</td>
-                      <td>{medioDePago(p.modo)}</td>
+                      <td>{clp(p.monto_clp)}{p.tipo === 'reverso' ? ' (reverso)' : ''}{p.es_anticipo ? ' (anticipo)' : ''}</td>
+                      <td>{nombreMedio(p.medio)}</td>
+                      <td>{p.tipo === 'reverso' ? '—' : nombreDocumento(p.documento_tipo)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -104,6 +143,6 @@ export default function Caja() {
           )}
         </>
       )}
-    </MarcoHotel>
+    </>
   )
 }

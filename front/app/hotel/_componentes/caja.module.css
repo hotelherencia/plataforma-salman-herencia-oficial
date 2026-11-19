@@ -1,0 +1,31 @@
+/* Caja y pagos, fase 1 contable (2026-11-19). Solo tokens de diseno.css. */
+.entradaCorta {
+  max-width: 7rem;
+}
+
+.linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-3);
+  align-items: flex-end;
+}
+
+.linea > label {
+  flex: 1 1 10rem;
+}
+
+.textoAlerta {
+  color: var(--c-error);
+}
+
+.grupo {
+  border: 1px solid var(--c-linea);
+  border-radius: var(--r-sm);
+  padding: var(--e-3);
+  margin: 0 0 var(--e-3);
+}
+
+.grupo legend {
+  font-weight: 700;
+  padding: 0 var(--e-1);
+}

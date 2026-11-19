@@ -12,6 +12,7 @@ import MantenedorTiposPrecios from '../_componentes/mantenedor-tipos-precios'
 import AjustesReservasWeb from '../_componentes/ajustes-reservas-web'
 import AjustesCorreo from '../_componentes/ajustes-correo'
 import AjustesAvisos from '../_componentes/ajustes-avisos'
+import AjustesCaja from '../_componentes/ajustes-caja'
 
 const ETIQUETA_CONF = {
   confirmado: 'Confirmado',
@@ -77,6 +78,7 @@ function ConfiguracionHotel() {
       {seccion === 'reservas_web' && <AjustesReservasWeb />}
       {seccion === 'correo' && <AjustesCorreo />}
       {seccion === 'avisos' && <AjustesAvisos />}
+      {seccion === 'caja' && <AjustesCaja />}
     </MarcoHotel>
   )
 }

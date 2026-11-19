@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, MarcoHotel, Campo, CampoSelect, useClaveOperacion, clp } from '../../../lib/api'
-import { clasificarPago } from '../../../lib/caja'
+import { clasificarPago, DOCUMENTOS, MEDIOS, esTarjeta, validarDatosPago } from '../../../lib/caja'
 import { resumenPago } from '../../../lib/estadias'
 import Subnav from '../_componentes/subnav'
 import { useDetalleReserva } from '../_componentes/selector-reserva'
@@ -24,7 +24,11 @@ function claveDeCobro() {
 export default function Pago() {
   const [reservaId, setReservaId] = useState('')
   const [monto, setMonto] = useState('')
-  const [modo, setModo] = useState('manual')
+  const [medio, setMedio] = useState('efectivo')
+  const [documento, setDocumento] = useState('boleta')
+  const [receptor, setReceptor] = useState({ rut: '', razon_social: '', giro: '', direccion: '', comuna: '', correo: '' })
+  const [voucher, setVoucher] = useState({ marca: '', ultimos4: '', codigo: '', comprobante: '' })
+  const [caja, setCaja] = useState(null)
   const [claveCobro, setClaveCobro] = useState(claveDeCobro)
   const [volverASalida, setVolverASalida] = useState(false)
   const [confirmaExceso, setConfirmaExceso] = useState(false)
@@ -43,6 +47,19 @@ export default function Pago() {
     if (p.get('reserva_id')) setReservaId(p.get('reserva_id'))
     setVolverASalida(p.get('volver') === 'salida')
   }, [])
+
+  // Fase 1 contable: medios habilitados, documento por defecto y turno abierto.
+  useEffect(() => {
+    api('/hotel/caja/estado').then((r) => {
+      if (r.estado < 400) {
+        setCaja(r.datos)
+        setDocumento(r.datos.parametros.documento_por_defecto)
+        if (!r.datos.parametros.medios.includes('efectivo')) setMedio(r.datos.parametros.medios[0] || 'transferencia')
+      }
+    }).catch(() => {})
+  }, [])
+  const medios = MEDIOS.filter(([m]) => !caja || caja.parametros.medios.includes(m))
+  const sinTurnoEfectivo = caja && !caja.turno && medio === 'efectivo' && caja.parametros.exigir_turno_efectivo
 
   // #365: el monto propuesto es el saldo pendiente de la reserva elegida.
   useEffect(() => {
@@ -77,6 +94,10 @@ export default function Pago() {
     setError('')
     setPago(null)
     if (!(Number(monto) > 0)) { setError('Indica el monto pagado (mayor que $0).'); return }
+    const invalido = medio === 'pasarela' ? null : validarDatosPago({
+      medio, codigo: voucher.codigo, ultimos4: voucher.ultimos4, documento, receptor,
+    })
+    if (invalido) { setError(invalido); return }
     if (clasificacion?.tipo === 'exceso' && !confirmaExceso) {
       setError(`El monto supera el saldo en ${clp(clasificacion.diferencia)}. Marca la confirmación de pago en exceso para continuar.`)
       return
@@ -86,10 +107,22 @@ export default function Pago() {
       const r = await api(`/hotel/reservas/${encodeURIComponent(detalle.reserva_id)}/pagos`, {
         metodo: 'POST',
         claveIdempotencia: clave,
-        cuerpo: {
-          monto_clp: Number(monto), clave: claveCobro, modo,
-          confirmar_exceso: clasificacion?.tipo === 'exceso' && confirmaExceso,
-        },
+        cuerpo: medio === 'pasarela'
+          ? { monto_clp: Number(monto), clave: claveCobro, modo: 'pasarela' }
+          : {
+            monto_clp: Number(monto), clave: claveCobro, modo: 'manual', medio,
+            confirmar_exceso: clasificacion?.tipo === 'exceso' && confirmaExceso,
+            documento_tipo: documento,
+            ...(documento === 'factura' ? {
+              receptor: Object.fromEntries(Object.entries(receptor).map(([k, v]) => [k, v.trim() || null])),
+            } : {}),
+            ...(esTarjeta(medio) ? {
+              codigo_autorizacion: voucher.codigo.trim(),
+              tarjeta_ultimos4: voucher.ultimos4.trim() || null,
+              tarjeta_marca: voucher.marca.trim() || null,
+            } : {}),
+            ...(medio === 'transferencia' && voucher.comprobante.trim() ? { comprobante: voucher.comprobante.trim() } : {}),
+          },
       })
       if (r.estado === 503) {
         setError('El pago en línea aún no está habilitado: no quedó nada cobrado. Registra el pago como efectivo o transferencia.')
@@ -153,10 +186,45 @@ export default function Pago() {
             <form className="formulario" onSubmit={cobrar}>
               <Campo etiqueta="Monto pagado (CLP)" type="number" min="1" inputMode="numeric" value={monto}
                 onChange={(e) => { setMonto(e.target.value); setConfirmaExceso(false) }} />
-              <CampoSelect etiqueta="Medio de pago" value={modo} onChange={(e) => setModo(e.target.value)}>
-                <option value="manual">Efectivo, tarjeta o transferencia (registro de caja)</option>
+              <CampoSelect etiqueta="Medio de pago" value={medio} onChange={(e) => setMedio(e.target.value)}>
+                {medios.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}
                 <option value="pasarela">Pago en línea (aún no habilitado)</option>
               </CampoSelect>
+              {sinTurnoEfectivo && (
+                <p className="alerta" role="alert" data-sin-turno>
+                  Para recibir efectivo abre primero el turno en <Link href="/hotel/caja?pestana=turno">Caja y pagos → Turno</Link>.
+                </p>
+              )}
+              {esTarjeta(medio) && (
+                <>
+                  <p className="nota-clave">La tarjeta se cobra en el POS. Aquí anota solo el código de autorización del voucher y, si quieres, la marca y los últimos 4 dígitos. Nunca el número completo ni el código de seguridad.</p>
+                  <Campo etiqueta="Código de autorización del voucher" value={voucher.codigo} maxLength={20}
+                    onChange={(e) => setVoucher({ ...voucher, codigo: e.target.value })} />
+                  <Campo etiqueta="Últimos 4 dígitos (opcional)" value={voucher.ultimos4} maxLength={4} inputMode="numeric"
+                    onChange={(e) => setVoucher({ ...voucher, ultimos4: e.target.value.replace(/\D/g, '') })} />
+                  <Campo etiqueta="Marca (opcional, p. ej. Visa)" value={voucher.marca} maxLength={30}
+                    onChange={(e) => setVoucher({ ...voucher, marca: e.target.value })} />
+                </>
+              )}
+              {medio === 'transferencia' && (
+                <Campo etiqueta="N° de comprobante de la transferencia (opcional)" value={voucher.comprobante} maxLength={60}
+                  onChange={(e) => setVoucher({ ...voucher, comprobante: e.target.value })} />
+              )}
+              {medio !== 'pasarela' && (
+                <CampoSelect etiqueta="¿Boleta o factura?" value={documento} onChange={(e) => setDocumento(e.target.value)}>
+                  {DOCUMENTOS.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}
+                </CampoSelect>
+              )}
+              {medio !== 'pasarela' && documento === 'factura' && (
+                <fieldset className="tarjeta">
+                  <legend>Datos para la factura</legend>
+                  {[['rut', 'RUT de la empresa'], ['razon_social', 'Razón social'], ['giro', 'Giro'],
+                    ['direccion', 'Dirección'], ['comuna', 'Comuna'], ['correo', 'Correo para enviar la factura (opcional)']].map(([k, etiqueta]) => (
+                    <Campo key={k} etiqueta={etiqueta} value={receptor[k]} maxLength={k === 'direccion' ? 160 : 120}
+                      onChange={(e) => setReceptor({ ...receptor, [k]: e.target.value })} />
+                  ))}
+                </fieldset>
+              )}
               {clasificacion?.tipo === 'parcial' && (
                 <p className="estado" role="status" data-pago="parcial">
                   Pago parcial: quedará un saldo pendiente de <strong>{clp(clasificacion.diferencia)}</strong>.

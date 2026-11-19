@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useDestacada } from '../_componentes/destacada'
-import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
+import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson, Campo } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 import { fechaATexto, fechaHora } from '../../../lib/formato'
+import { aCsv, errorRango, parametrosRango, sufijoRango } from '../../../lib/exportacion'
 
 /** Bandeja de leads (V1-ISSUE-20 punto 8, spec-api-v1 «Contacto y leads de la
  *  landing»): las consultas generales del formulario propio de la landing
@@ -24,6 +25,9 @@ export default function Leads() {
   const [salida, setSalida] = useState(null)
   const [notas, setNotas] = useState({})
   const [claveGestion, renovarGestion] = useClaveOperacion()
+  // Exportación por fecha o rango (2026-11-19): vacío = sin límite.
+  const [expDesde, setExpDesde] = useState('')
+  const [expHasta, setExpHasta] = useState('')
 
   // Enlace directo desde un aviso por correo (?id=…): la fila queda marcada.
   const destacada = useDestacada(lista)
@@ -53,20 +57,45 @@ export default function Leads() {
   }, [estado, puedeGestionar, todos])
 
   // #354: fidelización deduplicada por contacto (un envío por persona).
+  function descargar(contenido, nombre) {
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(new Blob([contenido], { type: 'text/csv;charset=utf-8' }))
+    enlace.download = nombre
+    enlace.click()
+    URL.revokeObjectURL(enlace.href)
+  }
+
+  // #354: fidelización deduplicada por contacto (un envío por persona).
   async function exportarContactos() {
     setError('')
+    const invalido = errorRango(expDesde, expHasta)
+    if (invalido) { setError(invalido); return }
     try {
-      const r = await api('/hotel/leads/contactos')
+      const q = new URLSearchParams()
+      if (expDesde) q.set('desde', expDesde)
+      if (expHasta) q.set('hasta', expHasta)
+      const r = await api(`/hotel/leads/contactos?${q}`)
       if (r.estado >= 400) { setError(mensajeDeError(r.datos, r.estado)); return }
-      const celda = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
-      const filas = [['nombre', 'correo', 'telefono', 'leads', 'ultimo_lead_en']]
-        .concat(r.datos.contactos.map((c) => [c.nombre, c.correo, c.telefono, c.leads, c.ultimo_lead_en]))
-      const csv = filas.map((f) => f.map(celda).join(',')).join('\n')
-      const enlace = document.createElement('a')
-      enlace.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-      enlace.download = `contactos-${new Date().toISOString().slice(0, 10)}.csv`
-      enlace.click()
-      URL.revokeObjectURL(enlace.href)
+      const filas = [['nombre', 'correo', 'telefono', 'leads', 'ultimo_lead']]
+        .concat(r.datos.contactos.map((c) => [c.nombre, c.correo, c.telefono, c.leads, fechaHora(c.ultimo_lead_en)]))
+      descargar(aCsv(filas), `contactos-${sufijoRango(expDesde, expHasta)}.csv`)
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    }
+  }
+
+  // Detalle de cada lead del rango (fecha de recepción, estado y gestión).
+  async function exportarLeads() {
+    setError('')
+    const invalido = errorRango(expDesde, expHasta)
+    if (invalido) { setError(invalido); return }
+    try {
+      const r = await api(`/hotel/leads?${parametrosRango(expDesde, expHasta)}`)
+      if (r.estado >= 400) { setError(mensajeDeError(r.datos, r.estado)); return }
+      const filas = [['recibido', 'nombre', 'correo', 'telefono', 'huespedes', 'llegada', 'salida', 'estado', 'nota', 'mensaje']]
+        .concat(r.datos.leads.map((l) => [fechaHora(l.creado_en), l.nombre, l.correo, l.telefono, l.huespedes,
+          fechaATexto(l.check_in), fechaATexto(l.check_out), l.estado, l.nota, l.mensaje]))
+      descargar(aCsv(filas), `leads-${sufijoRango(expDesde, expHasta)}.csv`)
     } catch {
       setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
@@ -137,7 +166,15 @@ export default function Leads() {
             {corte.antiguos > 0 && <> Hay <strong>{corte.antiguos}</strong> sin gestionar más antiguos (marca «Ver todos»).</>}
           </p>
         )}
-        <button type="button" className="boton-secundario" onClick={exportarContactos}>Exportar contactos (sin duplicados)</button>
+        <fieldset className="formulario" aria-label="Exportar por fecha o rango">
+          <legend>Exportar por fecha (vacío = todo)</legend>
+          <Campo etiqueta="Desde" type="date" value={expDesde} onChange={(e) => setExpDesde(e.target.value)} />
+          <Campo etiqueta="Hasta" type="date" value={expHasta} onChange={(e) => setExpHasta(e.target.value)} />
+          <div className="filtros">
+            <button type="button" className="boton-secundario" onClick={exportarLeads}>Exportar leads (CSV)</button>
+            <button type="button" className="boton-secundario" onClick={exportarContactos}>Exportar contactos sin duplicados (CSV)</button>
+          </div>
+        </fieldset>
       </section>
 
       {error && <p role="alert" className="alerta">{error}</p>}
