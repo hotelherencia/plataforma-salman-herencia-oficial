@@ -26,7 +26,7 @@ _PATRONES = [
     # «12x350ml», «6 x 1,5 lt»: cantidad × medida
     re.compile(rf"\b(\d{{1,3}})\s*[x×]\s*\d+(?:[.,]\d+)?\s*{_MEDIDA}\b"),
     # «Bebida x 6» al final (sin medida después)
-    re.compile(r"\bx\s*(\d{{1,4}})\s*$"),
+    re.compile(r"\bx\s*(\d{1,4})\s*$"),
 ]
 
 # Nota «166und x 690» (unidades × precio): no es un envase.
