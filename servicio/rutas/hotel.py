@@ -945,6 +945,8 @@ def crear_solicitud_publica(
         solicitud.fin, solicitud.personas, solicitud.huesped_nombre,
         solicitud.huesped_contacto, clave,
     )
+    if solicitud.referencia:
+        leads_mod.consumir_referencia(conexion, empresa_id, solicitud.referencia)
     codigo = 200 if resultado.get("reintento") else 201
     conexion.commit()
     # #353: el aviso sale después de guardar; un fallo de envío no afecta la respuesta.

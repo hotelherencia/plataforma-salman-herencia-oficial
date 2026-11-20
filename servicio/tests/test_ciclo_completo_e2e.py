@@ -92,12 +92,16 @@ class CicloCompletoE2ETest(unittest.TestCase):
         ref = r_lead.json()["referencia"]
         self.assertTrue(ref)
 
-        # 2. Continuidad en /reservar?ref=... (solo nombre y correo, sin teléfono ni datos internos)
+        # 2. Continuidad en /reservar?ref=... (fechas, personas, nombre y correo desde el token opaco; sin teléfono ni mensaje)
         r_ref = self.publico.get("/publico/referencia", params={"token": ref})
         self.assertEqual(r_ref.status_code, 200, r_ref.text)
         self.assertEqual(r_ref.json()["nombre"], "Camila Viajera")
         self.assertEqual(r_ref.json()["correo"], "camila@ejemplo.cl")
+        self.assertEqual(r_ref.json()["llegada"], inicio.isoformat())
+        self.assertEqual(r_ref.json()["salida"], fin.isoformat())
+        self.assertEqual(r_ref.json()["personas"], 2)
         self.assertNotIn("telefono", r_ref.json())
+        self.assertNotIn("mensaje", r_ref.json())
 
         # 3. Disponibilidad pública (por tipo, sin revelar habitacion_id)
         r_disp = self.publico.get(
@@ -110,7 +114,7 @@ class CicloCompletoE2ETest(unittest.TestCase):
         self.assertTrue(all("habitacion_id" not in o for o in oferta))
         self.assertEqual(oferta[0]["total_clp"], 100000)
 
-        # 4. Envío de solicitud pública
+        # 4. Envío de solicitud pública (consume/revoca la referencia para que no reaparezca en consultas futuras)
         r_sol = self.publico.post(
             "/publico/solicitudes",
             headers=self.idem(),
@@ -121,11 +125,13 @@ class CicloCompletoE2ETest(unittest.TestCase):
                 "personas": 2,
                 "huesped_nombre": "Camila Viajera",
                 "huesped_contacto": "camila@ejemplo.cl",
+                "referencia": ref,
             },
         )
         self.assertEqual(r_sol.status_code, 201, r_sol.text)
         sol_id = r_sol.json()["solicitud_id"]
         self.assertNotIn("habitacion_id", r_sol.json())
+        self.assertEqual(self.publico.get("/publico/referencia", params={"token": ref}).status_code, 404)
 
         # 5. Recepción convierte la solicitud en reserva confirmada (cuenta nace vacía, reserva_noches congeladas)
         r_conv = self.staff.post(f"/hotel/solicitudes/{sol_id}/conversion", headers=self.idem(), json={})

@@ -43,7 +43,9 @@ class EntradaPublicaSeguraTest(LeadsBaseTest):
         r = self.lead(nombre="  Jose\u0301\u0000 Pérez ", correo="Ana@Example.TEST")
         self.assertEqual(r.status_code, 201, r.text)
         datos = self.anonima.get(f"/publico/referencia?token={r.json()['referencia']}").json()
-        self.assertEqual(datos, {"nombre": "José Pérez", "correo": "ana@example.test"})
+        self.assertEqual((datos["nombre"], datos["correo"]), ("José Pérez", "ana@example.test"))
+        self.assertNotIn("telefono", datos)
+        self.assertNotIn("mensaje", datos)
 
     def test_lead_rechaza_campos_ajenos_y_formatos_invalidos(self):
         for cambios in (

@@ -104,6 +104,15 @@ test('landinpage#1: el tipo del enlace se lee por lista blanca y queda en la URL
   )
 })
 
+test('limpiar=1 se detecta para descartar datos previos y desaparece de la URL canónica', () => {
+  const r = leerParametros(p('llegada=2030-01-10&salida=2030-01-12&personas=2&limpiar=1'))
+  assert.equal(r.limpiar, true)
+  assert.equal(
+    urlCanonica('https://x.cl/reservar?llegada=2030-01-10&salida=2030-01-12&personas=2&limpiar=1', r),
+    '/reservar?llegada=2030-01-10&salida=2030-01-12&personas=2',
+  )
+})
+
 test('landinpage#1: preselecciona el tipo con cupo; si no hay, lo dice y ofrece otros', () => {
   const grupos = [{ tipo: 'doble' }, { tipo: 'matrimonial' }]
   assert.deepEqual(elegirTipo(grupos, 'matrimonial'), { tipo: 'matrimonial', aviso: '' })

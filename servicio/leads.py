@@ -237,19 +237,37 @@ def _nueva_referencia(conexion: psycopg.Connection, lead_id: str) -> str:
 
 def por_referencia(conexion: psycopg.Connection, token: str) -> dict | None:
     """SOC-016: con una referencia vigente devuelve solo lo necesario para
-    precargar /reservar (nombre y correo; nunca el teléfono ni el mensaje).
-    Caducada, revocada o de un lead cerrado → None (404). El token no se
-    escribe en el resultado."""
+    precargar /reservar (nombre, correo y, si se indicaron, llegada/salida/personas;
+    nunca el teléfono, el mensaje ni el token). Caducada, revocada o de un lead
+    cerrado → None (404)."""
     if not token or not _RE_REFERENCIA.fullmatch(token):
         raise LeadInvalido("referencia inválida")
     fila = conexion.execute(
-        "SELECT nombre, correo FROM leads WHERE token_consulta = %s "
+        "SELECT nombre, correo, check_in, check_out, huespedes FROM leads WHERE token_consulta = %s "
         "AND token_expira IS NOT NULL AND token_expira > now() AND estado <> 'cerrado'",
         (token,),
     ).fetchone()
     if fila is None:
         return None
-    return {"nombre": fila[0], "correo": fila[1]}
+    salida = {"nombre": fila[0], "correo": fila[1]}
+    if fila[2] is not None and fila[3] is not None:
+        salida["llegada"] = fila[2].isoformat()
+        salida["salida"] = fila[3].isoformat()
+    if fila[4] is not None:
+        salida["personas"] = fila[4]
+    return salida
+
+
+def consumir_referencia(conexion: psycopg.Connection, empresa_id: str, token: str | None) -> None:
+    """Revoca la referencia opaca una vez que el visitante completó su solicitud en /reservar,
+    evitando que datos de una consulta anterior reaparezcan en envíos posteriores."""
+    if not token or not _RE_REFERENCIA.fullmatch(token):
+        return
+    conexion.execute(
+        "UPDATE leads SET token_consulta = NULL, token_expira = NULL "
+        "WHERE empresa_id = %s AND token_consulta = %s",
+        (empresa_id, token),
+    )
 
 
 def revocar_referencia(conexion: psycopg.Connection, lead_id: str) -> None:

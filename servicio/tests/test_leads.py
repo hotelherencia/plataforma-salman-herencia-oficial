@@ -311,7 +311,11 @@ class LeadsPublicosTest(LeadsBaseTest):
         _, token = self._crear_y_token()
         lectura = self.anonima.get("/publico/referencia", params={"token": token})
         self.assertEqual(lectura.status_code, 200, lectura.text)
-        self.assertEqual(set(lectura.json()), {"nombre", "correo"})  # sin teléfono ni mensaje
+        claves = set(lectura.json())
+        self.assertTrue({"nombre", "correo"}.issubset(claves))
+        self.assertTrue(claves.issubset({"nombre", "correo", "llegada", "salida", "personas"}))
+        self.assertNotIn("telefono", claves)
+        self.assertNotIn("mensaje", claves)
 
     def test_soc016_referencia_caduca(self):
         lead_id, token = self._crear_y_token()

@@ -45,11 +45,19 @@ function tokenRecaptcha(accion) {
   return obtenerToken(window, CLAVE_SITIO_RECAPTCHA, accion, { bloqueado: () => recaptchaBloqueado })
 }
 
-function almacenLocal() {
+function almacenSesion() {
   try {
-    return window.localStorage
+    return window.sessionStorage
   } catch {
     return null
+  }
+}
+
+function limpiarAlmacenLegacy() {
+  try {
+    window.localStorage.removeItem('herencia:consulta-ref')
+  } catch {
+    // sin almacenamiento
   }
 }
 
@@ -84,6 +92,7 @@ function Reservar() {
   const [errorSolicitud, setErrorSolicitud] = useState('')
   const [confirmada, setConfirmada] = useState(null)
   const [clave, renovarClave] = useClaveOperacion()
+  const refActiva = useRef('')
   const refNombre = useRef(null)
   const refContacto = useRef(null)
   const refErrorSolicitud = useRef(null)
@@ -121,18 +130,31 @@ function Reservar() {
     prepararRecaptcha()
   }, [])
 
-  // Una sola vez al entrar: consulta con las fechas del enlace, guarda la
-  // referencia y deja la URL canónica (llegada/salida/personas, sin ref).
+  // Una sola vez al entrar: limpia cualquier referencia heredada en localStorage,
+  // respeta ?limpiar=1 o llegada sin ref (sin arrastrar datos de otra consulta),
+  // y si viene ?ref= opaco resuelve fechas/personas/contacto desde el servidor
+  // dejando la URL completamente limpia (sin ref ni datos personales).
   useEffect(() => {
-    const { inicio: i, fin: f, personas: p, ref: refUrl } = inicial
+    const { inicio: i, fin: f, personas: p, ref: refUrl, limpiar } = inicial
+    const almacen = almacenSesion()
+    limpiarAlmacenLegacy()
     if (i && f) buscar(i, f, p || '2')
-    const almacen = almacenLocal()
+
+    if (limpiar || (!refUrl && (i || f))) {
+      olvidarReferencia(almacen)
+      refActiva.current = ''
+      const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p, tipo: inicial.tipo })
+      if (canonica) window.history.replaceState(window.history.state, '', canonica)
+      return
+    }
+
     if (refUrl) guardarReferencia(almacen, refUrl)
     const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p, tipo: inicial.tipo })
     if (canonica) window.history.replaceState(window.history.state, '', canonica)
 
     const ref = refUrl || leerReferencia(almacen)
     if (!ref) return
+    refActiva.current = ref
     let vigente = true
     setResolviendoRef(true)
     api(`/publico/referencia?token=${encodeURIComponent(ref)}`)
@@ -143,8 +165,20 @@ function Reservar() {
           setPrevio(datos)
           setNombre(datos.nombre)
           setContacto(datos.correo)
+          // Si las fechas viajaron de forma opaca dentro de `ref` (sin texto plano en la URL),
+          // se precargan y consultan disponibilidad automáticamente.
+          const llegadaSrv = r.datos.llegada || ''
+          const salidaSrv = r.datos.salida || ''
+          const personasSrv = r.datos.personas ? String(r.datos.personas) : (p || '2')
+          if (!i && !f && llegadaSrv && salidaSrv) {
+            setInicio(llegadaSrv)
+            setFin(salidaSrv)
+            setPersonas(personasSrv)
+            buscar(llegadaSrv, salidaSrv, personasSrv)
+          }
         } else if (r.estado === 404 || r.estado === 422) {
           olvidarReferencia(almacen) // vencida, revocada o ajena: no se reintenta
+          refActiva.current = ''
         }
       })
       .catch(() => {})
@@ -156,6 +190,17 @@ function Reservar() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function limpiarContactoPrevio() {
+    olvidarReferencia(almacenSesion())
+    limpiarAlmacenLegacy()
+    refActiva.current = ''
+    setPrevio(null)
+    setEditando(false)
+    setNombre('')
+    setContacto('')
+    setErroresCampo({})
+  }
 
   function enfocar(ref) {
     const el = ref.current
@@ -195,6 +240,7 @@ function Reservar() {
           cuerpo: {
             tipo: elegida, inicio, fin, personas: Number(personas),
             huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
+            ...(refActiva.current ? { referencia: refActiva.current } : {}),
           },
           claveIdempotencia: clave,
           cabeceras,
@@ -203,6 +249,7 @@ function Reservar() {
       })
       if (resultado.tipo === 'respuesta' && resultado.estado < 400) {
         setConfirmada(resultado.datos)
+        limpiarContactoPrevio()
         renovarClave() // 2xx: la clave se repone para una operación nueva
         requestAnimationFrame(() => enfocar(refConfirmada))
       } else {
@@ -265,7 +312,7 @@ function Reservar() {
 
       {error && <p role="alert" className="alerta">{error}</p>}
 
-      {oferta && (
+      {oferta && !confirmada && (
         <section className="tarjeta">
           <h2>Disponibilidad</h2>
           {grupos.length === 0 ? (
@@ -332,9 +379,14 @@ function Reservar() {
                       {previo.nombre ? <> a nombre de <strong>{previo.nombre}</strong></> : null}. Lo tomamos de la consulta
                       que ya enviaste.
                     </p>
-                    <button type="button" className="boton-secundario" onClick={() => setEditando(true)}>
-                      Editar mis datos
-                    </button>
+                    <div className="acciones-fila">
+                      <button type="button" className="boton-secundario" onClick={() => setEditando(true)}>
+                        Editar mis datos
+                      </button>
+                      <button type="button" className="boton-fantasma" onClick={limpiarContactoPrevio}>
+                        Usar otros datos
+                      </button>
+                    </div>
                   </div>
                 )}
                 {!previo && !resolviendoRef && (
@@ -405,6 +457,20 @@ function Reservar() {
           <p className="resumen">
             Tu solicitud <strong>{confirmada.solicitud_id}</strong> quedó registrada. Recepción la revisará y
             te contactará por el medio que indicaste para confirmar.
+          </p>
+          <p className="acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => {
+                setConfirmada(null)
+                setOferta(null)
+                setElegida('')
+                limpiarContactoPrevio()
+              }}
+            >
+              Hacer otra consulta
+            </button>
           </p>
         </section>
       )}

@@ -330,6 +330,7 @@ class SolicitudPublicaIn(BaseModel):
     personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
     huesped_nombre: str = Field(min_length=1, max_length=120)
     huesped_contacto: str = Field(min_length=1, max_length=120)
+    referencia: str | None = Field(default=None, min_length=20, max_length=128)
 
     @model_validator(mode="after")
     def _tipo_o_unidad(self):

@@ -93,7 +93,8 @@ export function leerParametros(params) {
   if (crudoFin && !fin) avisos.push('La salida indicada en el enlace no es válida.')
   if (crudoPersonas && !personas) avisos.push('La cantidad de personas del enlace no es válida.')
   const ref = referenciaValida(crudoRef) ? crudoRef : ''
-  return { inicio, fin, personas, ref, tipo, avisos }
+  const limpiar = params.get('limpiar') === '1'
+  return { inicio, fin, personas, ref, tipo, limpiar, avisos }
 }
 
 /**
