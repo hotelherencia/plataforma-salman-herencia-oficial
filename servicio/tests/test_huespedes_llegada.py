@@ -92,13 +92,13 @@ class HuespedesLlegadaTest(unittest.TestCase):
         self.assertEqual(r.status_code, 201, r.text)
         return r.json()["reserva_id"]
 
-    def test_migracion_0056_idempotente_y_backfill_titular(self):
+    def test_migracion_0057_idempotente_y_backfill_titular(self):
         rid = self._reservar(personas=1)
         with psycopg.connect(URL_TEST) as c:
             c.execute("DELETE FROM reserva_huespedes WHERE reserva_id = %s", (rid,))
             c.execute("UPDATE reservas SET adultos = NULL, ninos = NULL WHERE id = %s", (rid,))
             c.commit()
-            sql = Path("servicio/migraciones/0056_huespedes_y_ocupacion_llegada.sql").read_text(encoding="utf-8")
+            sql = Path("servicio/migraciones/0057_huespedes_y_ocupacion_llegada.sql").read_text(encoding="utf-8")
             c.execute(sql)
             c.execute(sql)  # segunda ejecución idempotente
             c.commit()
