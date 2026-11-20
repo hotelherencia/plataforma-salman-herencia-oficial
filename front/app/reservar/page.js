@@ -84,7 +84,9 @@ function Reservar() {
   const preferidoRef = useRef(inicial.tipo)
   const [avisoTipo, setAvisoTipo] = useState('')
   const [nombre, setNombre] = useState('')
+  const [documento, setDocumento] = useState('')
   const [contacto, setContacto] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [erroresCampo, setErroresCampo] = useState({})
   const [buscando, setBuscando] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -94,7 +96,9 @@ function Reservar() {
   const [clave, renovarClave] = useClaveOperacion()
   const refActiva = useRef('')
   const refNombre = useRef(null)
+  const refDocumento = useRef(null)
   const refContacto = useRef(null)
+  const refTelefono = useRef(null)
   const refErrorSolicitud = useRef(null)
   const refConfirmada = useRef(null)
 
@@ -198,7 +202,9 @@ function Reservar() {
     setPrevio(null)
     setEditando(false)
     setNombre('')
+    setDocumento('')
     setContacto('')
+    setTelefono('')
     setErroresCampo({})
   }
 
@@ -224,22 +230,33 @@ function Reservar() {
       requestAnimationFrame(() => enfocar(refErrorSolicitud))
       return
     }
-    const errores = erroresContacto(nombre, contacto)
+    const errores = erroresContacto(nombre, contacto, telefono, documento)
     setErroresCampo(errores)
-    if (errores.nombre || errores.contacto) {
+    if (errores.nombre || errores.documento || errores.contacto || errores.telefono) {
       setEditando(true)
-      requestAnimationFrame(() => enfocar(errores.nombre ? refNombre : refContacto))
+      requestAnimationFrame(() =>
+        enfocar(
+          errores.nombre
+            ? refNombre
+            : errores.documento
+              ? refDocumento
+              : errores.contacto
+                ? refContacto
+                : refTelefono
+        )
+      )
       return
     }
     setEnviando(true)
     try {
+      const contactoFinal = `${contacto.trim()} · Tel: ${telefono.trim()} · Doc: ${documento.trim()}`
       const resultado = await enviarSolicitud({
         token: () => tokenRecaptcha('reserva'),
         pedir: (cabeceras) => api('/publico/solicitudes', {
           metodo: 'POST',
           cuerpo: {
             tipo: elegida, inicio, fin, personas: Number(personas),
-            huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
+            huesped_nombre: nombre.trim(), huesped_contacto: contactoFinal,
             ...(refActiva.current ? { referencia: refActiva.current } : {}),
           },
           claveIdempotencia: clave,
@@ -271,7 +288,7 @@ function Reservar() {
   const politica = oferta ? politicaUnica(oferta.oferta) : null
   const tope = oferta ? oferta.capacidad_maxima_habitacion : null
   const excedeHabitacion = oferta && tope && Number(personasConsultadas) > tope
-  const mostrarCampos = !previo || editando
+  const mostrarCampos = !previo || editando || !documento.trim() || !telefono.trim()
 
   return (
     <main className="pagina pagina-publica reservar">
@@ -391,14 +408,15 @@ function Reservar() {
                 )}
                 {!previo && !resolviendoRef && (
                   <p className="estado nota-contacto" data-aviso-sin-ref>
-                    Déjanos tu nombre y un correo o teléfono para que recepción te confirme la reserva.
+                    Déjanos tu nombre completo, RUT o pasaporte, correo y teléfono para que recepción te confirme la reserva.
                   </p>
                 )}
                 {mostrarCampos && (
                   <div className="campos-contacto">
                     <div>
                       <Campo
-                        etiqueta="Nombre"
+                        etiqueta="Nombre completo *"
+                        required
                         ref={refNombre}
                         autoComplete="name"
                         maxLength={120}
@@ -414,9 +432,28 @@ function Reservar() {
                     </div>
                     <div>
                       <Campo
-                        etiqueta="Correo o teléfono"
+                        etiqueta="RUT o pasaporte *"
+                        required
+                        ref={refDocumento}
+                        maxLength={30}
+                        placeholder="12.345.678-9 o Pasaporte"
+                        value={documento}
+                        aria-invalid={erroresCampo.documento ? 'true' : undefined}
+                        aria-describedby={erroresCampo.documento ? 'error-documento' : undefined}
+                        onChange={(e) => {
+                          setDocumento(e.target.value)
+                          if (erroresCampo.documento) setErroresCampo({ ...erroresCampo, documento: undefined })
+                        }}
+                      />
+                      {erroresCampo.documento && <p id="error-documento" className="error-campo">{erroresCampo.documento}</p>}
+                    </div>
+                    <div>
+                      <Campo
+                        etiqueta="Correo *"
+                        type="email"
+                        required
                         ref={refContacto}
-                        autoComplete="on"
+                        autoComplete="email"
                         maxLength={120}
                         value={contacto}
                         aria-invalid={erroresCampo.contacto ? 'true' : undefined}
@@ -428,10 +465,29 @@ function Reservar() {
                       />
                       {erroresCampo.contacto && <p id="error-contacto" className="error-campo">{erroresCampo.contacto}</p>}
                     </div>
+                    <div>
+                      <Campo
+                        etiqueta="Teléfono *"
+                        type="tel"
+                        required
+                        ref={refTelefono}
+                        autoComplete="tel"
+                        maxLength={30}
+                        placeholder="+56 9 1234 5678"
+                        value={telefono}
+                        aria-invalid={erroresCampo.telefono ? 'true' : undefined}
+                        aria-describedby={erroresCampo.telefono ? 'error-telefono' : undefined}
+                        onChange={(e) => {
+                          setTelefono(e.target.value)
+                          if (erroresCampo.telefono) setErroresCampo({ ...erroresCampo, telefono: undefined })
+                        }}
+                      />
+                      {erroresCampo.telefono && <p id="error-telefono" className="error-campo">{erroresCampo.telefono}</p>}
+                    </div>
                   </div>
                 )}
                 <p className="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
-                  Hotel Herencia usará tu nombre, correo o teléfono y fechas para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos RUT, datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
+                  Hotel Herencia usará tu nombre, documento (RUT o pasaporte), correo, teléfono y fechas para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
                 </p>
                 {errorSolicitud && (
                   <p role="alert" className="alerta" tabIndex={-1} ref={refErrorSolicitud}>{errorSolicitud}</p>

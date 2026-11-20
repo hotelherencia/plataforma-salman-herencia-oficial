@@ -26,6 +26,7 @@ from . import seguridad
 
 MAX_PERSONAS = 30
 MAX_NOCHES = 30
+MAX_CONTACTO = 220
 TOPE_CUERPO_BYTES = 8192
 # SA-BODY-01 (auditoría 2026-11-17): el resto de las rutas también tiene tope.
 # Antes solo /publico/* lo tenía y un POST sin sesión (webhook, /sesion) se
@@ -62,14 +63,18 @@ class TopePorCliente(SinCupoOSinTarifa):
 
 
 def contacto_normalizado(contacto: str) -> str:
-    """Correo en minúsculas o teléfono como +dígitos (misma regla que la migración 0030)."""
+    """Correo en minúsculas o teléfono como +dígitos (misma regla que la migración 0030).
+    Si el contacto trae el formato estructurado `correo · Tel: ... · Doc: ...`, toma la base."""
     texto = (contacto or "").strip()
+    base = texto.split("·")[0].strip() if "·" in texto else texto
+    if "@" in base:
+        return base.lower()
     if "@" in texto:
         return texto.lower()
-    digitos = "".join(c for c in texto if c.isdigit())
+    digitos = "".join(c for c in base if c.isdigit())
     if len(digitos) == 9 and digitos.startswith("9"):
         return "+56" + digitos
-    return "+" + digitos if digitos else texto.lower()
+    return "+" + digitos if digitos else base.lower()
 
 
 def _exigir_tope(conexion: psycopg.Connection, empresa_id: str, contacto: str) -> None:
@@ -512,8 +517,8 @@ def editar(
     contacto = entrada_publica.limpiar_texto(huesped_contacto)
     if not nombre or len(nombre) > 120:
         raise SolicitudInvalida("huesped_nombre es obligatorio (máx. 120)")
-    if not contacto or len(contacto) > 120:
-        raise SolicitudInvalida("huesped_contacto es obligatorio (máx. 120)")
+    if not contacto or len(contacto) > MAX_CONTACTO:
+        raise SolicitudInvalida(f"huesped_contacto es obligatorio (máx. {MAX_CONTACTO})")
     if not 1 <= personas <= MAX_PERSONAS:
         raise SolicitudInvalida(f"personas debe estar entre 1 y {MAX_PERSONAS}")
     actual = conexion.execute(

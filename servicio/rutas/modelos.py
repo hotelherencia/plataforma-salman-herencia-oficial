@@ -358,7 +358,7 @@ class SolicitudPublicaIn(BaseModel):
     fin: date
     personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
     huesped_nombre: str = Field(min_length=1, max_length=120)
-    huesped_contacto: str = Field(min_length=1, max_length=120)
+    huesped_contacto: str = Field(min_length=1, max_length=canal_publico.MAX_CONTACTO)
     referencia: str | None = Field(default=None, min_length=20, max_length=128)
 
     @model_validator(mode="after")
@@ -393,7 +393,7 @@ class SolicitudEdicionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     huesped_nombre: str = Field(min_length=1, max_length=120)
-    huesped_contacto: str = Field(min_length=1, max_length=120)
+    huesped_contacto: str = Field(min_length=1, max_length=canal_publico.MAX_CONTACTO)
     personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
 
 
