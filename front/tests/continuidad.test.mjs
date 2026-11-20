@@ -123,3 +123,13 @@ test('landinpage#1: preselecciona el tipo con cupo; si no hay, lo dice y ofrece 
   assert.deepEqual(elegirTipo(grupos, ''), { tipo: 'doble', aviso: '' })
   assert.deepEqual(elegirTipo([], 'doble'), { tipo: '', aviso: '' })
 })
+
+test('#339: enlace desde Google Maps con UTM abre /reservar sin avisos ni datos personales', () => {
+  const href = 'https://plataforma.hotelherencia.cl/reservar?utm_source=google_maps&utm_medium=organic&utm_campaign=perfil_negocio'
+  const leido = leerParametros(new URL(href).searchParams)
+  assert.deepEqual(leido.avisos, [])
+  assert.equal(leido.inicio, '')
+  assert.equal(leido.fin, '')
+  assert.equal(leido.ref, '')
+  assert.equal(urlCanonica(href, leido), '/reservar')
+})

@@ -617,14 +617,15 @@ No hay rol nuevo. El rol es `administrador` de la empresa del núcleo.
 
 Google Maps no llama a nuestra API. El botón sale del Business Profile.
 
-URL de reserva (ajustar dominio cuando el CTA publicado apunte aquí):
+URL de reserva productiva (actualizada 2026-11-20 al dominio canónico):
 
-`https://plataforma-salman-herencia-oficial.vercel.app/reservar?utm_source=google_maps&utm_medium=organic&utm_campaign=perfil_negocio`
+`https://plataforma.hotelherencia.cl/reservar?utm_source=google_maps&utm_medium=organic&utm_campaign=perfil_negocio`
 
-Pasos: Business Profile → sitio web / enlace de reserva → pegar esa URL →
-guardar. No activar «Reserve with Google» en esta historia (exige partner y
-confirmación en línea; V1 mantiene solicitud con aprobación humana).
-Evidencia: captura de la ficha o del campo de enlace en #339 (sin
-credenciales de Google). No mandar tráfico de Maps a producción mientras el
-inventario y la empresa sigan sintéticos (#336, #314).
+Pasos en Google Business Profile (cuenta Google del propietario):
+1. Abrir **Google Business Profile** del hotel → **Editar perfil** → **Sitio web** y/o **Reservas** (enlace de reserva).
+2. Pegar la URL anterior (sin datos personales en la query; `/reservar` descarta parámetros desconocidos sin mostrar avisos y limpia la URL canónica tras la carga).
+3. Guardar y comprobar desde la ficha en Google Maps que el botón abre `/reservar`.
+4. **No activar «Reserve with Google»** en esta historia (exige partner certificado y confirmación en línea; V1 mantiene solicitud con aprobación humana, D-PUB-01).
+
+Evidencia para cerrar `#339`: captura de la ficha en Maps o del campo de enlace guardado en Business Profile (sin credenciales de Google). Tenant real (`Herencia SpA`) e inventario real ya están activos.
 
