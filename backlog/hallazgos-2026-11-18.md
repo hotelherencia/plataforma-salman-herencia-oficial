@@ -44,9 +44,9 @@ En la landing, `hotelherencia/landinpage#2` agrega «Reservar este tipo» en cad
 
 | Ítem | Estado | Qué falta |
 |---|---|---|
-| #352 (cuenta administradora nominada) | In Progress | El propietario la crea en Plataforma → Usuarios con rol Administrador y el correo de Google entregado por canal privado; la persona entra con Google y enrola el doble factor. El correo no se escribe en el repo (Ley 21.719). |
+| #352 (cuenta administradora nominada) | In Progress (bloqueado por autorización) | Código y pantalla listos (`#379`); procedimiento documentado en `docs/operacion/alta-administrador-nominado.md`. Falta autorización/ejecución del propietario para crear la cuenta real (correo entregado por canal privado, Ley 21.719). Es el único ítem abierto de la épica `#368`. |
 | #381 (front sin textos técnicos, panel con gráficas y UI/UX) | Listo | Reemplazo de JSON crudo por resumen elegante, ocultamiento de claves internas, selectores de usuario, eliminación de textos de desarrollo y panel con gráficas visuales y fórmulas en lenguaje claro (#381). |
-| #358 (stock leyendo la factura, compartido con la cafetería) | Todo (épica) | Fuera de esta ronda. |
+| #358 (stock en el core compartido con cafetería) | Listo (`3ccb18d`) | Bodegas (`hotel`/`cafeteria`), transferencias y alertas de reposición integradas en el core y UI de Productos. |
 | Catálogo de productos | Operativo, vacío | La administración crea los productos en «Productos y stock»; mientras no existan, recepción y caja no pueden asentar cargos (la administración puede usar concepto libre). |
 | Avisos por WhatsApp | Apagado | Requiere una plantilla aprobada por Meta y las variables `AVISO_WHATSAPP_*`. |
 | Buzones de correo | Sin configurar | Cargar en Configuración → «Correo» los buzones de reservas y comercial, y opcionalmente el de envío de avisos. Guía: `docs/operacion/correo.md`. |
