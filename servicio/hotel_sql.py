@@ -431,7 +431,7 @@ def reasignar(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_id: 
 
 def entrada(
     conexion: psycopg.Connection, hotel, empresa_id: str, reserva_id: str, documento: str | None, ahora,
-    documento_tipo: str | None = None, habitacion_id: str | None = None, actor: str = "sistema",
+    documento_tipo: str | None = None, habitacion_id: str | None = None, personas: int | None = None, actor: str = "sistema",
 ) -> dict:
     """Check-in por `hotel.check_in` (ADP-5): documento, llegada ≥ 15:00, mantenimiento y unidad lista
     los decide el dominio; los rechazos salen como `TransicionInvalida` (409). Asienta la primera noche
@@ -444,9 +444,17 @@ def entrada(
         with conexion.transaction():  # savepoint: un 409 no deja reasignación ni documento parcial comprometidos
             if fila[2] == "confirmada" and habitacion_id and habitacion_id != fila[1]:
                 reasignar(conexion, hotel, empresa_id, reserva_id, habitacion_id, "asignada en la entrada", actor)
-            (guardado, inicio, fin) = conexion.execute(
-                "SELECT huesped_documento, inicio, fin FROM reservas WHERE id = %s", (reserva_id,)
+            (guardado, inicio, fin, personas_actual, hab_actual) = conexion.execute(
+                "SELECT huesped_documento, inicio, fin, personas, habitacion_id FROM reservas WHERE id = %s", (reserva_id,)
             ).fetchone()
+            if personas is not None:
+                cap_row = conexion.execute("SELECT capacidad FROM habitaciones WHERE id = %s", (hab_actual,)).fetchone()
+                if cap_row is not None and cap_row[0] < personas:
+                    raise cobro.TransicionInvalida(f"la habitación {hab_actual} admite hasta {cap_row[0]} personas")
+                conexion.execute(
+                    "UPDATE reservas SET personas = %s WHERE id = %s",
+                    (personas, reserva_id),
+                )
             if not guardado and documento and documento.strip():
                 # D-ENT-01: la entrada captura el documento que la reserva aún no traía
                 conexion.execute(
@@ -479,7 +487,7 @@ def entrada(
         raise cobro.TransicionInvalida("registra el documento del huésped para pasar la entrada") from error
     except CheckInNoPermitido as error:
         raise cobro.TransicionInvalida(str(error)) from error
-    return {"reserva_id": reserva_id, "habitacion_id": reserva.unidad_id, "estado": "en_estadia"}
+    return {"reserva_id": reserva_id, "habitacion_id": reserva.unidad_id, "estado": "en_estadia", "personas": personas if personas is not None else personas_actual}
 
 
 def cancelar(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_id: str, ahora) -> dict:

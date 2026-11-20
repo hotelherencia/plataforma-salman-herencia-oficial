@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, MarcoHotel, Campo, useSesion } from '../../../lib/api'
 import { fechaATexto, fechaCorta, plural } from '../../../lib/formato'
+import { BotonExportar } from '../_componentes/boton-exportar'
 
 /**
  * Ocupación y disponibilidad (spec-hotel-operacion-v1 §5): rejilla habitación
@@ -113,6 +114,15 @@ export default function Ocupacion() {
           <Campo etiqueta="Desde (noche)" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
           <Campo etiqueta="Hasta (sin incluir)" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
           <button type="submit" className="boton-primario">Ver periodo</button>
+          {datos && datos.habitaciones && (
+            <BotonExportar
+              titulo="Ocupación y disponibilidad"
+              filtros={`${datos.periodo.desde} a ${datos.periodo.hasta}`}
+              columnas={['Habitación', 'Tipo', 'Capacidad'].concat(datos.noches)}
+              filas={datos.habitaciones.map((h) => [h.habitacion_id, h.tipo, h.capacidad].concat(h.noches.map((n) => n.reserva_id ? `${n.estado} (${n.reserva_id})` : n.estado)))}
+              nombreArchivo={`herencia-ocupacion-${datos.periodo.desde}_a_${datos.periodo.hasta}.csv`}
+            />
+          )}
         </form>
         <ul className="leyenda" aria-label="Leyenda">
           {Object.entries(LEYENDA).map(([estado, [nombre, explicacion]]) => (
@@ -169,6 +179,33 @@ export default function Ocupacion() {
                     </td>
                   ))}
                 </tr>
+                {Object.entries(
+                  datos.habitaciones.reduce((acc, h) => {
+                    const t = h.tipo || 'Otro'
+                    if (!acc[t]) acc[t] = []
+                    acc[t].push(h)
+                    return acc
+                  }, {})
+                ).map(([tipo, habsTipo]) => (
+                  <tr key={tipo} style={{ fontSize: '0.86em', opacity: 0.9 }}>
+                    <th scope="row" style={{ paddingLeft: '1rem' }}>↳ {tipo} ({habsTipo.length})</th>
+                    {datos.noches.map((fecha) => {
+                      let disp = 0
+                      let ocup = 0
+                      for (const h of habsTipo) {
+                        const n = h.noches.find((x) => x.fecha === fecha)
+                        if (!n) continue
+                        if (n.estado === 'disponible') disp += 1
+                        else if (n.estado === 'confirmada' || n.estado === 'en_estadia') ocup += 1
+                      }
+                      return (
+                        <td key={fecha} className="ocupacion-resumen">
+                          {disp}/{ocup}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
               </tfoot>
             </table>
           </div>

@@ -472,6 +472,7 @@ def check_in(
         "documento": cuerpo.documento if cuerpo else None,
         "documento_tipo": cuerpo.documento_tipo if cuerpo else None,
         "habitacion_id": cuerpo.habitacion_id if cuerpo else None,
+        "personas": cuerpo.personas if cuerpo else None,
     }
 
     def operacion() -> tuple[int, dict]:
@@ -480,6 +481,7 @@ def check_in(
                                         cuerpo.documento if cuerpo else None, hotel_sql.ahora(),
                                         documento_tipo=cuerpo.documento_tipo if cuerpo else None,
                                         habitacion_id=cuerpo.habitacion_id if cuerpo else None,
+                                        personas=cuerpo.personas if cuerpo else None,
                                         actor=sesion.nombre)
         except (cobro.HabitacionNoLista, cobro.TransicionInvalida, cobro.ReasignacionInvalida) as error:
             return 409, {"detail": str(error)}

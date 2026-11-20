@@ -9,7 +9,7 @@ import Subnav from '../_componentes/subnav'
 import FormularioEdicion from '../_componentes/formulario-edicion'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 import { fechaATexto, fechaHora } from '../../../lib/formato'
-import { aCsv, errorRango, parametrosRango, sufijoRango } from '../../../lib/exportacion'
+import { errorRango, exportarFormatoUnico, parametrosRango, sufijoRango } from '../../../lib/exportacion'
 
 /** Bandeja de leads (V1-ISSUE-20 punto 8, spec-api-v1 «Contacto y leads de la
  *  landing»): las consultas generales del formulario propio de la landing
@@ -87,9 +87,13 @@ export default function Leads() {
       if (expHasta) q.set('hasta', expHasta)
       const r = await api(`/hotel/leads/contactos?${q}`)
       if (r.estado >= 400) { setError(mensajeDeError(r.datos, r.estado)); return }
-      const filas = [['nombre', 'correo', 'telefono', 'leads', 'ultimo_lead']]
-        .concat(r.datos.contactos.map((c) => [c.nombre, c.correo, c.telefono, c.leads, fechaHora(c.ultimo_lead_en)]))
-      descargar(aCsv(filas), `contactos-${sufijoRango(expDesde, expHasta)}.csv`)
+      exportarFormatoUnico({
+        titulo: 'Contactos de leads (sin duplicados)',
+        filtros: sufijoRango(expDesde, expHasta),
+        columnas: ['Nombre', 'Correo', 'Teléfono', 'Cantidad de leads', 'Último lead'],
+        filas: r.datos.contactos.map((c) => [c.nombre, c.correo, c.telefono, c.leads, fechaHora(c.ultimo_lead_en)]),
+        nombreArchivo: `herencia-contactos-${sufijoRango(expDesde, expHasta)}.csv`,
+      })
     } catch {
       setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
@@ -103,10 +107,14 @@ export default function Leads() {
     try {
       const r = await api(`/hotel/leads?${parametrosRango(expDesde, expHasta)}`)
       if (r.estado >= 400) { setError(mensajeDeError(r.datos, r.estado)); return }
-      const filas = [['recibido', 'nombre', 'correo', 'telefono', 'huespedes', 'llegada', 'salida', 'estado', 'nota', 'mensaje']]
-        .concat(r.datos.leads.map((l) => [fechaHora(l.creado_en), l.nombre, l.correo, l.telefono, l.huespedes,
-          fechaATexto(l.check_in), fechaATexto(l.check_out), l.estado, l.nota, l.mensaje]))
-      descargar(aCsv(filas), `leads-${sufijoRango(expDesde, expHasta)}.csv`)
+      exportarFormatoUnico({
+        titulo: 'Leads recibidos',
+        filtros: sufijoRango(expDesde, expHasta),
+        columnas: ['Recibido', 'Nombre', 'Correo', 'Teléfono', 'Huéspedes', 'Llegada', 'Salida', 'Estado', 'Nota', 'Mensaje'],
+        filas: r.datos.leads.map((l) => [fechaHora(l.creado_en), l.nombre, l.correo, l.telefono, l.huespedes,
+          fechaATexto(l.check_in), fechaATexto(l.check_out), l.estado, l.nota, l.mensaje]),
+        nombreArchivo: `herencia-leads-${sufijoRango(expDesde, expHasta)}.csv`,
+      })
     } catch {
       setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }

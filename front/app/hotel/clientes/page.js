@@ -5,6 +5,7 @@ import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechaz
 import { gestionaClientes } from '../../../lib/roles'
 import { rutValido } from '../../../lib/contabilidad'
 import FormularioEdicion from '../_componentes/formulario-edicion'
+import { BotonExportar } from '../_componentes/boton-exportar'
 
 function validarRutCampo(v) {
   const texto = String(v ?? '').trim()
@@ -76,6 +77,15 @@ export default function Clientes() {
             onClick={() => { setCreando((v) => !v); setAviso('') }}>
             {creando ? 'Cerrar alta' : 'Nuevo cliente'}
           </button>
+          {lista && lista.length > 0 && (
+            <BotonExportar
+              titulo="Clientes"
+              filtros={texto.trim() ? `búsqueda: ${texto.trim()}` : 'todos'}
+              columnas={['Nombre o razón social', 'RUT', 'Tipo', 'Teléfono', 'Correo', 'Giro', 'Dirección', 'Comuna', 'Activo']}
+              filas={lista.map((c) => [c.nombre, c.rut, c.tipo, c.telefono || '', c.correo || '', c.giro || '', c.direccion || '', c.comuna || '', c.activo])}
+              nombreArchivo="herencia-clientes.csv"
+            />
+          )}
         </form>
         {creando && (
           <div style={{ marginTop: '1rem' }}>

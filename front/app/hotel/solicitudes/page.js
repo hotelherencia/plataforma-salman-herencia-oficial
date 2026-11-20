@@ -10,6 +10,7 @@ import Subnav from '../_componentes/subnav'
 import FormularioEdicion from '../_componentes/formulario-edicion'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 import { fechaATexto } from '../../../lib/formato'
+import { BotonExportar } from '../_componentes/boton-exportar'
 
 const ESTADO_SOLICITUD = { recibida: 'Recibida', convertida: 'Convertida', rechazada: 'Rechazada' }
 
@@ -124,6 +125,17 @@ export default function Solicitudes() {
             </button>
           ))}
         </div>
+        {lista && lista.length > 0 && (
+          <div className="acciones-fila" style={{ marginTop: '0.75rem' }}>
+            <BotonExportar
+              titulo="Solicitudes de reserva"
+              filtros={estado ? `estado ${estado}` : 'todas'}
+              columnas={['ID', 'Huésped', 'Contacto', 'Tipo', 'Llegada', 'Salida', 'Personas', 'Estado', 'Reserva']}
+              filas={lista.map((s) => [s.solicitud_id, s.huesped_nombre, s.huesped_contacto, nombreTipo(s.tipo_habitacion), fechaATexto(s.inicio), fechaATexto(s.fin), s.personas, ESTADO_SOLICITUD[s.estado] || s.estado, s.reserva_id || ''])}
+              nombreArchivo="herencia-solicitudes.csv"
+            />
+          </div>
+        )}
       </section>
 
       {error && <p role="alert" className="alerta">{error}</p>}

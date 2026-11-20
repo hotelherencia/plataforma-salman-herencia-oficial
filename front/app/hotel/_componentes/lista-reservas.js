@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { Fragment, useState } from 'react'
+import FormularioEdicion from './formulario-edicion'
 import { clp } from '../../../lib/api'
 import { plural } from '../../../lib/formato'
 
@@ -28,14 +30,48 @@ export function fechaChile(iso) {
   return a && m && d ? `${d}/${m}/${a}` : iso
 }
 
-export function ListaReservas({ reservas, total }) {
+export function ListaReservas({ reservas, total, alActualizar }) {
+  const [editandoId, setEditandoId] = useState(null)
+  const [aviso, setAviso] = useState('')
   return (
     <>
       <p className="reservas-total">{plural(total, 'reserva encontrada', 'reservas encontradas')}</p>
+      {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       <ul className="reservas-lista" role="table">
         <EncabezadoReservas />
         {reservas.map((r) => (
-          <FilaReserva key={r.reserva_id} reserva={r} />
+          <Fragment key={r.reserva_id}>
+            <FilaReserva
+              reserva={r}
+              editando={editandoId === r.reserva_id}
+              onToggleEditar={() => { setAviso(''); setEditandoId(editandoId === r.reserva_id ? null : r.reserva_id) }}
+            />
+            {editandoId === r.reserva_id && (
+              <li className="reserva-edicion" role="row" style={{ gridColumn: '1 / -1', padding: '0.5rem 0' }}>
+                <FormularioEdicion
+                  ruta={`/hotel/reservas/${encodeURIComponent(r.reserva_id)}/huesped`}
+                  tituloAria={`Editar huésped de ${r.reserva_id}`}
+                  inicial={{ nombre: r.huesped_nombre || '', documento: '', documento_tipo: 'rut' }}
+                  campos={[
+                    { nombre: 'nombre', etiqueta: 'Nombre del huésped', requerido: true },
+                    { nombre: 'documento_tipo', etiqueta: 'Tipo de documento', tipo: 'select', opciones: [['rut', 'RUT'], ['pasaporte', 'Pasaporte']] },
+                    { nombre: 'documento', etiqueta: 'Documento (opcional si no cambia)' },
+                  ]}
+                  armar={(v) => ({
+                    nombre: v.nombre.trim(),
+                    documento: v.documento.trim() || null,
+                    documento_tipo: v.documento.trim() ? v.documento_tipo : null,
+                  })}
+                  alGuardar={() => {
+                    setEditandoId(null)
+                    setAviso(`Reserva ${r.reserva_id} actualizada correctamente.`)
+                    if (typeof alActualizar === 'function') alActualizar()
+                  }}
+                  alCancelar={() => setEditandoId(null)}
+                />
+              </li>
+            )}
+          </Fragment>
         ))}
       </ul>
     </>
@@ -51,11 +87,12 @@ export function EncabezadoReservas() {
       <span role="columnheader">Llegada y Salida</span>
       <span role="columnheader">Estado</span>
       <span role="columnheader">Precio</span>
+      <span role="columnheader">Acciones</span>
     </li>
   )
 }
 
-export function FilaReserva({ reserva }) {
+export function FilaReserva({ reserva, editando = false, onToggleEditar }) {
   return (
     <li className="reserva-fila" role="row">
       <span role="cell" className="reserva-id">
@@ -81,6 +118,14 @@ export function FilaReserva({ reserva }) {
         </span>
       </span>
       <span role="cell" className="reserva-tarifa">{clp(reserva.tarifa_noche_aceptada_clp)}<span className="reserva-por-noche"> / noche</span></span>
+      <span role="cell" className="acciones-fila">
+        {typeof onToggleEditar === 'function' && (
+          <button type="button" className="boton-secundario" onClick={onToggleEditar}>
+            {editando ? 'Cerrar' : 'Editar'}
+          </button>
+        )}
+        <Link href={`/hotel/reservas/${reserva.reserva_id}`} className="boton-fantasma">Ficha</Link>
+      </span>
     </li>
   )
 }
