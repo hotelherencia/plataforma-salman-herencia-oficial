@@ -286,12 +286,18 @@ def _resumen(conexion: psycopg.Connection, lead_id: str) -> dict:
 
 
 def _fila_bandeja(conexion: psycopg.Connection, lead_id: str) -> dict:
+    from . import clientes as clientes_mod
+
     fila = conexion.execute(
-        "SELECT id, nombre, correo, telefono, huespedes, check_in, check_out, mensaje, "
-        "estado, origen, nota, gestion_por, gestion_en, creado_en, contacto_id, "
-        "(SELECT count(*) FROM leads x WHERE x.contacto_id = leads.contacto_id), "
-        "creado_en >= now() - make_interval(days => %s) "
-        "FROM leads WHERE id = %s",
+        "SELECT l.id, l.nombre, l.correo, l.telefono, l.huespedes, l.check_in, l.check_out, l.mensaje, "
+        "l.estado, l.origen, l.nota, l.gestion_por, l.gestion_en, l.creado_en, l.contacto_id, "
+        "(SELECT count(*) FROM leads x WHERE x.contacto_id = l.contacto_id), "
+        "l.creado_en >= now() - make_interval(days => %s), "
+        "l.cliente_id, c.nombre, c.rut, l.solicitud_id, s.estado "
+        "FROM leads l "
+        "LEFT JOIN clientes c ON c.id = l.cliente_id "
+        "LEFT JOIN solicitudes s ON s.id = l.solicitud_id "
+        "WHERE l.id = %s",
         (ventana_nuevo_dias(), lead_id),
     ).fetchone()
     if fila is None:
@@ -318,6 +324,11 @@ def _fila_bandeja(conexion: psycopg.Connection, lead_id: str) -> dict:
         "gestion_por": fila[11],
         "gestion_en": fila[12].isoformat() if fila[12] is not None else None,
         "creado_en": fila[13].isoformat(),
+        "cliente_id": fila[17],
+        "cliente_nombre": fila[18],
+        "cliente_rut": clientes_mod.rut_visible(fila[19]) if fila[19] else None,
+        "solicitud_id": fila[20],
+        "solicitud_estado": fila[21],
     }
 
 
@@ -511,3 +522,43 @@ def historial(conexion: psycopg.Connection, empresa_id: str, lead_id: str) -> di
             for f in filas
         ],
     }
+
+
+def vincular(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    lead_id: str,
+    cliente_id: str | None,
+    solicitud_id: str | None,
+    actor: str,
+) -> dict:
+    """Vincula (o desvincula con null) un lead con un cliente y/o una solicitud de la misma empresa.
+    Auditoría `lead_vinculo` solo con nombres de campos, nunca valores personales."""
+    actual = conexion.execute(
+        "SELECT cliente_id, solicitud_id FROM leads WHERE id = %s AND empresa_id = %s FOR UPDATE",
+        (lead_id, empresa_id),
+    ).fetchone()
+    if actual is None:
+        raise LeadAjenoOInexistente("acceso denegado")
+    cliente_id = (cliente_id or "").strip() or None
+    solicitud_id = (solicitud_id or "").strip() or None
+    if cliente_id is not None:
+        if conexion.execute("SELECT 1 FROM clientes WHERE id = %s", (cliente_id,)).fetchone() is None:
+            raise LeadInvalido("cliente inexistente")
+    if solicitud_id is not None:
+        if conexion.execute(
+            "SELECT 1 FROM solicitudes WHERE id = %s AND empresa_id = %s", (solicitud_id, empresa_id)
+        ).fetchone() is None:
+            raise LeadInvalido("solicitud inexistente o ajena")
+    cambiados = []
+    if cliente_id != actual[0]:
+        cambiados.append("cliente_id")
+    if solicitud_id != actual[1]:
+        cambiados.append("solicitud_id")
+    if cambiados:
+        conexion.execute(
+            "UPDATE leads SET cliente_id = %s, solicitud_id = %s WHERE id = %s",
+            (cliente_id, solicitud_id, lead_id),
+        )
+        seguridad.auditar(conexion, actor, "lead_vinculo", lead_id, ",".join(cambiados))
+    return _fila_bandeja(conexion, lead_id)

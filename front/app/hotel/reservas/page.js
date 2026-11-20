@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, useSesion } from '../../../lib/api'
 import { ListaReservas, ReservasVacias } from '../_componentes/lista-reservas'
+import { BotonExportar } from '../_componentes/boton-exportar'
+import { fechaChile } from '../_componentes/lista-reservas'
 import Subnav from '../_componentes/subnav'
 import { SUBNAV_RESERVAS } from '../../../lib/menu-hotel'
 
@@ -68,7 +70,18 @@ export default function Reservas() {
         (resultado.reservas.length === 0 ? (
           <ReservasVacias />
         ) : (
-          <ListaReservas reservas={resultado.reservas} total={resultado.total} />
+          <>
+          <div className="acciones-fila" style={{ marginBottom: '0.75rem' }}>
+            <BotonExportar
+              titulo="Reservas"
+              filtros={[filtros.desde && `desde ${filtros.desde}`, filtros.hasta && `hasta ${filtros.hasta}`, filtros.estado && `estado ${filtros.estado}`, filtros.habitacion_id && `hab ${filtros.habitacion_id}`, filtros.texto && `texto ${filtros.texto}`].filter(Boolean).join(', ')}
+              columnas={['Reserva', 'Huésped', 'Documento', 'Habitación', 'Llegada', 'Salida', 'Estado', 'Tarifa noche CLP']}
+              filas={resultado.reservas.map((r) => [r.reserva_id, r.huesped_nombre, r.huesped_documento || '', r.habitacion_id, fechaChile(r.inicio), fechaChile(r.fin), r.estado, r.tarifa_noche_aceptada_clp])}
+              nombreArchivo="herencia-reservas.csv"
+            />
+          </div>
+          <ListaReservas reservas={resultado.reservas} total={resultado.total} alActualizar={() => buscar(null)} />
+          </>
         ))}
     </MarcoHotel>
   )

@@ -354,6 +354,8 @@ class SolicitudPublicaIn(BaseModel):
     # unidad nunca se guarda ni se devuelve al visitante.
     tipo: str | None = Field(default=None, min_length=1, max_length=50)
     habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
+    # 2026-11-20 (SPEC-06): especificar al check-in si ingresan 1 o 2 personas.
+    personas: Literal[1, 2] | None = None
     inicio: date
     fin: date
     personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
@@ -415,7 +417,19 @@ class ClienteEdicionIn(BaseModel):
     direccion: str | None = Field(default=None, max_length=200)
     comuna: str | None = Field(default=None, max_length=100)
     correo: str | None = Field(default=None, max_length=320)
+    telefono: str | None = Field(default=None, max_length=30)
     activo: bool = True
+
+
+class ClienteAltaIn(ClienteEdicionIn):
+    tipo: Literal["persona", "empresa"] = "empresa"
+
+
+class LeadVinculoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cliente_id: str | None = Field(default=None, max_length=40)
+    solicitud_id: str | None = Field(default=None, max_length=40)
 
 
 class GestionLeadIn(BaseModel):
@@ -456,6 +470,8 @@ class DocumentoHuespedIn(BaseModel):
     # #360: recepción confirma la unidad al llegar; si difiere, se reasigna en
     # la misma transacción de la entrada.
     habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
+    # 2026-11-20 (SPEC-06): especificar al check-in si ingresan 1 o 2 personas.
+    personas: Literal[1, 2] | None = None
 
     @model_validator(mode="after")
     def _documento_valido(self):

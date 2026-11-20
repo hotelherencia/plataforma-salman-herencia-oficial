@@ -56,6 +56,7 @@ export default function FormularioEdicion({
   tituloAria = 'Editar registro',
   armar,
   alGuardar,
+  alErrorEstado,
   alCancelar,
 }) {
   const prefijoId = useId()
@@ -97,6 +98,7 @@ export default function FormularioEdicion({
       const r = await api(ruta, opciones)
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
+        if (typeof alErrorEstado === 'function') alErrorEstado(r.estado)
         requestAnimationFrame(() => enfocarElemento(refAlerta.current))
       } else {
         alGuardar(r.datos)
@@ -110,7 +112,9 @@ export default function FormularioEdicion({
   }
 
   return (
-    <form className="formulario" onSubmit={guardar} aria-label={tituloAria} noValidate>
+    <div className="tarjeta" style={{ marginTop: '0.5rem', marginBottom: '0.5rem', borderLeft: '3px solid var(--verde, #173326)' }}>
+      <p className="nota-clave" style={{ marginTop: 0, fontWeight: 600 }}>{tituloAria}</p>
+      <form className="formulario" onSubmit={guardar} aria-label={tituloAria} noValidate>
       {campos.map((c) => {
         const msgError = erroresCampo[c.nombre]
         const idError = `${prefijoId}-err-${c.nombre}`
@@ -141,6 +145,15 @@ export default function FormularioEdicion({
                 onChange={(e) => cambiar(c.nombre, e.target.checked)}
                 {...propsA11y}
               />
+            ) : c.tipo === 'textarea' ? (
+              <textarea
+                className="entrada"
+                rows={c.filas || 3}
+                placeholder={c.placeholder}
+                value={valores[c.nombre]}
+                onChange={(e) => cambiar(c.nombre, e.target.value)}
+                {...propsA11y}
+              />
             ) : (
               <input
                 className="entrada"
@@ -162,6 +175,7 @@ export default function FormularioEdicion({
         </button>
         <button type="button" className="boton-secundario" onClick={alCancelar}>Cancelar</button>
       </div>
-    </form>
+      </form>
+    </div>
   )
 }

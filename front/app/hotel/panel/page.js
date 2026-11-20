@@ -8,6 +8,7 @@ import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
+import { BotonExportar } from '../_componentes/boton-exportar'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -106,7 +107,7 @@ function Tarjeta({ clave, titulo, indicador, alerta, valor, detalle }) {
                 className="kpi-enlace-reserva"
                 title={`Reserva ${item.reserva_id} · ${nombre}`}
               >
-                {nombre} <small style={{ opacity: 0.72 }}>{codigoCorto}</small>
+                {nombre}
               </Link>
             )
           })}
@@ -226,6 +227,15 @@ export default function Panel() {
               ))}
             </CampoSelect>
             <button type="submit" className="boton-primario">Actualizar</button>
+            {datos && datos.serie && datos.serie.length > 0 && (
+              <BotonExportar
+                titulo="Panel operativo — Ocupación y reservas por noche"
+                filtros={`${datos.periodo.desde} a ${datos.periodo.hasta}${datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}`}
+                columnas={['Noche', 'Capacidad', 'En casa', 'Reservadas']}
+                filas={datos.serie.map((s) => [formatearFecha(s.fecha), s.unidades, s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias, s.reservadas])}
+                nombreArchivo={`herencia-panel-${datos.periodo.desde}_a_${datos.periodo.hasta}.csv`}
+              />
+            )}
           </form>
           {corte && (
             <div className="atajos">
@@ -376,9 +386,9 @@ export default function Panel() {
                       <span className="estado-pct" data-contexto-periodo>{contextoPeriodo}</span>
                     </div>
                     <div className="serie-leyenda">
-                      <span className="leyenda-item"><span className="punto punto-ocupada"></span> En casa: {totalEnCasa}</span>
-                      <span className="leyenda-item"><span className="punto punto-reservada"></span> Reservadas: {totalReservadas}</span>
-                      <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles: {totalDisponibles}</span>
+                      <span className="leyenda-item"><span className="punto punto-ocupada"></span> En casa: <strong>{totalEnCasa}</strong></span>
+                      <span className="leyenda-item"><span className="punto punto-reservada"></span> Reservadas: <strong>{totalReservadas}</strong></span>
+                      <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles: <strong>{totalDisponibles}</strong></span>
                     </div>
                   </div>
                   <div className="grafico-barras-contenedor">
@@ -396,9 +406,9 @@ export default function Panel() {
                         return (
                           <div key={s.fecha} className="columna-noche">
                             <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} en casa, ${reservadas} reservadas, ${libres} disponibles de ${max} unidades`}>
-                              {pctLibre > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%` }}>{pctLibre >= 18 ? libres : ''}</div>}
-                              {pctReservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%` }}>{pctReservadas >= 18 ? reservadas : ''}</div>}
-                              {pctOcupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%` }}>{pctOcupadas >= 18 ? ocupadas : ''}</div>}
+                              {libres > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%`, minHeight: '1.15rem' }}>{libres}</div>}
+                              {reservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%`, minHeight: '1.15rem' }}>{reservadas}</div>}
+                              {ocupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%`, minHeight: '1.15rem' }}>{ocupadas}</div>}
                             </div>
                             <div className="columna-fecha">
                               <span className="columna-dia">{dia}</span>

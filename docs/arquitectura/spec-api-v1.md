@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (147)
+## Operaciones de esta versión (149)
 
 | Operación | Efecto |
 |---|---|
@@ -623,10 +623,12 @@ los compone el servidor.
 | `POST /hotel/leads/{id}/estado` | Avanza el lead (`contactado`/`cerrado` con nota) con auditoría; transición inválida → 409, ajeno → 403. Roles recepción o administrador. |
 | `PUT /hotel/leads/{id}` | (2026-11-20) Corrige los datos del lead en cualquier estado (también cerrado): `{nombre, correo, telefono, huespedes?, check_in?, check_out?, mensaje?, nota?}`. No cambia estado ni gestión. La llegada pasada solo se rechaza si la edición toca las fechas. Si cambian correo o teléfono, el lead pasa a la ficha de contacto que corresponda (#354). Auditoría `lead_edicion` con los nombres de campo. Ajeno o inexistente → 403; datos inválidos → 422. Roles recepción o administrador. |
 | `GET /hotel/leads/{id}/historial` | (2026-11-20) Historial auditable del lead desde `auditoria` (`lead_edicion`, `lead_gestion`, `lead_vinculo`): actor, acción, campos modificados o transición y marca de tiempo, nunca valores personales. Ajeno o inexistente → 403. Roles recepción o administrador. |
+| `PUT /hotel/leads/{id}/vinculo` | (2026-11-20) Vincula (o desvincula con `null`) el lead con `{cliente_id?, solicitud_id?}` verificando existencia y pertenencia a la empresa. Auditoría `lead_vinculo` solo con nombres de campo. Ajeno o inexistente → 403; vínculo inválido → 422. Roles recepción o administrador. |
 | `PUT /hotel/solicitudes/{id}` | (2026-11-20) Corrige `{huesped_nombre, huesped_contacto, personas}` de la solicitud. Nombre y contacto en cualquier estado; las personas solo mientras `recibida` (otro estado con personas distintas → 409). Tipo, unidad y fechas no se editan. Auditoría `solicitud_edicion`. Roles recepción o administrador. |
 | `PUT /hotel/reservas/{id}/huesped` | (2026-11-20) Corrige `{nombre, documento?, documento_tipo?}` del huésped en cualquier estado de la reserva. El documento exige tipo (`rut`/`pasaporte`), se normaliza como en la entrada y no se borra (sin documento = no cambia). Un RUT de otro cliente registrado con otro nombre → 409. No toca fechas, unidad ni cuenta. Auditoría `reserva_edicion_huesped` sin el documento. Recepción o administración del hotel. |
-| `GET /hotel/clientes?q` | (2026-11-20) Clientes por nombre, RUT o correo (máx. 200, `truncado`). Recepción, caja o administración del hotel. |
-| `PUT /hotel/clientes/{id}` | (2026-11-20) Corrige la ficha `{rut, nombre, tipo, giro?, direccion?, comuna?, correo?, activo}`. El RUT se valida y no puede ser de otro cliente (409); las imputaciones y movimientos asentados apuntan por id y no cambian. Nada se borra: se desactiva. Auditoría `cliente_edicion`. Recepción, caja o administración del hotel. |
+| `GET /hotel/clientes?q` | (2026-11-20) Clientes por nombre, RUT, correo o teléfono (máx. 200, `truncado`). Recepción, caja o administración del hotel. |
+| `POST /hotel/clientes` | (2026-11-20) Alta manual de cliente `{rut, nombre, tipo?, giro?, direccion?, comuna?, correo?, telefono?, activo?}` con `Idempotency-Key`. Mismas validaciones de RUT, correo y teléfono; RUT duplicado → 409. Auditoría `cliente_alta` sin valores personales. Recepción, caja o administración del hotel. |
+| `PUT /hotel/clientes/{id}` | (2026-11-20) Corrige la ficha `{rut, nombre, tipo, giro?, direccion?, comuna?, correo?, telefono?, activo}`. El RUT se valida y no puede ser de otro cliente (409); las imputaciones y movimientos asentados apuntan por id y no cambian. Nada se borra: se desactiva. Auditoría `cliente_edicion`. Recepción, caja o administración del hotel. |
 | `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |
 | `GET /hotel/agente/consultas?estado=` | Bandeja del agente por estado, sin texto completo. Roles recepción o administrador. |
 | `GET /hotel/agente/consultas/{id}` | Consulta con borradores y traza resumida; ajena → 403. Roles recepción o administrador. |

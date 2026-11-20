@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion, useSesion } from '../../../lib/api'
+import { api, alRechazar, clp, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { SelectorReserva } from '../_componentes/selector-reserva'
 import { BuscadorEstadias } from '../_componentes/buscador-estadias'
 import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
@@ -36,6 +36,8 @@ export default function Estadia() {
   const [cargoFijo, setCargoFijo] = useState(false)
   // #360/#367: unidad confirmada al llegar y documento validado si falta.
   const [unidadLlegada, setUnidadLlegada] = useState('')
+  // SPEC-06: al check-in se especifica si ingresan 1 o 2 personas.
+  const [personasEntrada, setPersonasEntrada] = useState('1')
   const [docEntrada, setDocEntrada] = useState({ tipo: 'rut', numero: '' })
   const [enviando, setEnviando] = useState(false)
   const enVueloRef = useRef(false)
@@ -73,7 +75,10 @@ export default function Estadia() {
     api(`/hotel/reservas/${encodeURIComponent(limpio)}`)
       .then((r) => {
         if (cancelado) return
-        if (r.estado === 200) setDetalleReserva(r.datos)
+        if (r.estado === 200) {
+          setDetalleReserva(r.datos)
+          setPersonasEntrada(String(r.datos.personas === 2 ? 2 : 1))
+        }
         else setDetalleReserva(null)
       })
       .catch(() => {
@@ -116,6 +121,7 @@ export default function Estadia() {
       cuerpo.documento_tipo = docEntrada.tipo
     }
     if (detalleActivo && unidadLlegada && unidadLlegada !== detalleActivo.habitacion_id) cuerpo.habitacion_id = unidadLlegada
+    if (detalleActivo) cuerpo.personas = personasEntrada === '2' ? 2 : 1
     enVueloRef.current = true
     setEnviando(true)
     try {
@@ -262,6 +268,16 @@ export default function Estadia() {
               valor={unidadLlegada || detalleActivo.habitacion_id}
               alCambiar={setUnidadLlegada}
             />
+          )}
+          {detalleActivo && detalleActivo.estado === 'confirmada' && (
+            <CampoSelect
+              etiqueta="Personas que ingresan"
+              value={personasEntrada}
+              onChange={(e) => setPersonasEntrada(e.target.value)}
+            >
+              <option value="1">1 persona</option>
+              <option value="2">2 personas</option>
+            </CampoSelect>
           )}
           {detalleActivo && detalleActivo.estado === 'confirmada' && !detalleActivo.huesped_documento && (
             <CampoDocumento tipo={docEntrada.tipo} numero={docEntrada.numero} alCambiar={setDocEntrada} />
