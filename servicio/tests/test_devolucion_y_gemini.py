@@ -16,6 +16,7 @@ from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 from servicio.modelo_http import ModeloHttp
 from servicio.tests.aislamiento import exigir_base_libre
+from servicio.tests.apoyo_huespedes import registrar_acompanantes
 from servicio.tests.reloj import a_las
 
 URL_TEST = os.environ.get(
@@ -75,6 +76,7 @@ class DevolucionSaldoTest(unittest.TestCase):
         self.assertEqual(r.status_code, 201, r.text)
         res_id = r.json()["reserva_id"]
 
+        registrar_acompanantes(self.cliente, res_id, 1, self.idem)
         # Llegada (asienta 1 noche = $50.000).
         with a_las(HOY, time(15, 30)):
             ent = self.cliente.post(f"/hotel/reservas/{res_id}/entrada", headers=self.idem())

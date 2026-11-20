@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from servicio import seguridad
 from servicio.tests.aislamiento import exigir_base_libre
+from servicio.tests.apoyo_huespedes import registrar_acompanantes
 from servicio.tests.reloj import a_las
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
@@ -125,6 +126,7 @@ class RecepcionHallazgosTest(unittest.TestCase):
     @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (15:00 del día de inicio)
     def test_361_en_estadia_destino_ocupada_y_origen_queda_sucia_con_tarea(self):
         rid = self.reservar()
+        registrar_acompanantes(self.cliente, rid, 1, self.idem)
         e = self.cliente.post(f"/hotel/reservas/{rid}/entrada", json={}, headers=self.idem())
         self.assertEqual(e.status_code, 200, e.text)
         r = self.mover(rid, "HAB-REC-2", motivo="ruido en la habitación")
@@ -148,6 +150,7 @@ class RecepcionHallazgosTest(unittest.TestCase):
     @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (15:00 del día de inicio)
     def test_360_entrada_con_otra_unidad_reasigna_y_ocupa_la_nueva(self):
         rid = self.reservar()
+        registrar_acompanantes(self.cliente, rid, 1, self.idem)
         e = self.cliente.post(f"/hotel/reservas/{rid}/entrada", json={"habitacion_id": "HAB-REC-2"}, headers=self.idem())
         self.assertEqual(e.status_code, 200, e.text)
         self.assertEqual(e.json()["habitacion_id"], "HAB-REC-2")
@@ -157,6 +160,7 @@ class RecepcionHallazgosTest(unittest.TestCase):
     @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (15:00 del día de inicio)
     def test_360_entrada_captura_documento_validado(self):
         rid = self.reservar(huesped={"nombre": "Sin doc"})
+        registrar_acompanantes(self.cliente, rid, 1, self.idem)
         malo = self.cliente.post(f"/hotel/reservas/{rid}/entrada",
                                  json={"documento": "12.345.678-9", "documento_tipo": "rut"}, headers=self.idem())
         self.assertEqual(malo.status_code, 422, malo.text)

@@ -14,6 +14,7 @@ from servicio.aplicacion import crear_app
 from servicio.canal_publico import FrenoDeSolicitudes
 from servicio.configuracion import Configuracion
 from servicio.tests.aislamiento import exigir_base_libre
+from servicio.tests.apoyo_huespedes import registrar_acompanantes
 from hotel_inventario.servicio import ServicioHotelInventario
 
 URL_TEST = os.environ.get(
@@ -106,6 +107,7 @@ class ConversionDominioTest(unittest.TestCase):
         with psycopg.connect(URL_TEST) as c:  # la reserva ya empezó: la entrada no depende de la hora del día
             c.execute("UPDATE reservas SET inicio=%s, fin=%s, huesped_documento='D-1' WHERE id=%s",
                       (HOY - timedelta(days=2), HOY, rid))
+        registrar_acompanantes(self.cli, rid, 3, self.clave)  # la solicitud declaró 4 personas
         self.assertEqual(self.cli.post(f"/hotel/reservas/{rid}/entrada", json={}, headers=self.clave()).status_code, 200)
         self.assertEqual(self.sql("SELECT concepto, monto_clp FROM cargos WHERE reserva_id=%s", rid),
                          [("Noche", 70000), ("Noche", 70000)])
