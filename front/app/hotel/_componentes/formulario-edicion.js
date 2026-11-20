@@ -56,6 +56,7 @@ export default function FormularioEdicion({
   tituloAria = 'Editar registro',
   armar,
   alGuardar,
+  alErrorEstado,
   alCancelar,
 }) {
   const prefijoId = useId()
@@ -97,6 +98,7 @@ export default function FormularioEdicion({
       const r = await api(ruta, opciones)
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
+        if (typeof alErrorEstado === 'function') alErrorEstado(r.estado)
         requestAnimationFrame(() => enfocarElemento(refAlerta.current))
       } else {
         alGuardar(r.datos)

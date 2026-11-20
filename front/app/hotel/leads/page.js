@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Fragment, useEffect, useState } from 'react'
 import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson, Campo } from '../../../lib/api'
@@ -26,6 +27,11 @@ export default function Leads() {
   const [salida, setSalida] = useState(null)
   const [notas, setNotas] = useState({})
   const [editando, setEditando] = useState(null)
+  const [vinculando, setVinculando] = useState(null)
+  const [vinculoForm, setVinculoForm] = useState({ cliente_id: '', solicitud_id: '' })
+  const [opcionesClientes, setOpcionesClientes] = useState([])
+  const [opcionesSolicitudes, setOpcionesSolicitudes] = useState([])
+  const [filtroCliente, setFiltroCliente] = useState('')
   const [historialId, setHistorialId] = useState(null)
   const [historialItems, setHistorialItems] = useState({})
   const [cargandoHistorial, setCargandoHistorial] = useState(false)
@@ -101,6 +107,57 @@ export default function Leads() {
         .concat(r.datos.leads.map((l) => [fechaHora(l.creado_en), l.nombre, l.correo, l.telefono, l.huespedes,
           fechaATexto(l.check_in), fechaATexto(l.check_out), l.estado, l.nota, l.mensaje]))
       descargar(aCsv(filas), `leads-${sufijoRango(expDesde, expHasta)}.csv`)
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    }
+  }
+
+  async function abrirVinculo(lead) {
+    if (vinculando === lead.id) {
+      setVinculando(null)
+      return
+    }
+    setVinculando(lead.id)
+    setVinculoForm({ cliente_id: lead.cliente_id || '', solicitud_id: lead.solicitud_id || '' })
+    setFiltroCliente('')
+    setError('')
+    try {
+      const [rc, rs] = await Promise.all([api('/hotel/clientes'), api('/hotel/solicitudes')])
+      if (rc.estado === 200) setOpcionesClientes(rc.datos.clientes || [])
+      if (rs.estado === 200) setOpcionesSolicitudes(rs.datos.solicitudes || [])
+    } catch {
+      // mantiene opciones previas
+    }
+  }
+
+  async function buscarClientesVinculo(q) {
+    setFiltroCliente(q)
+    try {
+      const r = await api(`/hotel/clientes${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)
+      if (r.estado === 200) setOpcionesClientes(r.datos.clientes || [])
+    } catch {
+      // ignora corte transitorio de búsqueda
+    }
+  }
+
+  async function guardarVinculo(e, leadId) {
+    e.preventDefault()
+    setError('')
+    try {
+      const r = await api(`/hotel/leads/${encodeURIComponent(leadId)}/vinculo`, {
+        metodo: 'PUT',
+        cuerpo: {
+          cliente_id: vinculoForm.cliente_id || null,
+          solicitud_id: vinculoForm.solicitud_id || null,
+        },
+      })
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+      } else {
+        setVinculando(null)
+        setHistorialItems((prev) => { const copia = { ...prev }; delete copia[leadId]; return copia })
+        cargar(estado)
+      }
     } catch {
       setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
     }
@@ -220,6 +277,7 @@ export default function Leads() {
                   <th>Salida</th>
                   <th>Mensaje</th>
                   <th>Estado</th>
+                  <th>Vínculos</th>
                   <th>Nota</th>
                   <th>Gestión</th>
                   <th>Acciones</th>
@@ -240,12 +298,34 @@ export default function Leads() {
                       {l.situacion === 'sin_gestionar_antiguo' ? 'sin gestionar (antiguo)' : l.estado}
                       {l.leads_del_contacto > 1 && <span className="nota-clave"> · {l.leads_del_contacto} leads del mismo contacto</span>}
                     </td>
+                    <td>
+                      {!l.cliente_id && !l.solicitud_id ? '—' : (
+                        <>
+                          {l.cliente_id && (
+                            <div>
+                              <Link href="/hotel/clientes">{l.cliente_nombre || l.cliente_id}</Link>
+                              {l.cliente_rut ? ` (${l.cliente_rut})` : ''}
+                            </div>
+                          )}
+                          {l.solicitud_id && (
+                            <div>
+                              <Link href={`/hotel/solicitudes?id=${encodeURIComponent(l.solicitud_id)}`}>{l.solicitud_id}</Link>
+                              {l.solicitud_estado ? ` · ${l.solicitud_estado}` : ''}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </td>
                     <td>{l.nota ?? '—'}</td>
                     <td>{l.gestion_por ? `${l.gestion_por === 'auto:correo' ? 'automático (correo)' : l.gestion_por} · ${fechaHora(l.gestion_en)}` : '—'}</td>
                     <td>
                       <button type="button" className="boton-fantasma" aria-expanded={editando === l.id}
                         onClick={() => setEditando(editando === l.id ? null : l.id)}>
                         Editar
+                      </button>
+                      <button type="button" className="boton-fantasma" aria-expanded={vinculando === l.id}
+                        onClick={() => abrirVinculo(l)}>
+                        Vincular
                       </button>
                       <button type="button" className="boton-fantasma" aria-expanded={historialId === l.id}
                         onClick={() => alternarHistorial(l.id)}>
@@ -281,7 +361,7 @@ export default function Leads() {
                   </tr>
                   {editando === l.id && (
                     <tr>
-                      <td colSpan={11}>
+                      <td colSpan={12}>
                         <FormularioEdicion
                           ruta={`/hotel/leads/${l.id}`}
                           inicial={l}
@@ -302,9 +382,45 @@ export default function Leads() {
                       </td>
                     </tr>
                   )}
+                  {vinculando === l.id && (
+                    <tr>
+                      <td colSpan={12}>
+                        <form className="formulario" onSubmit={(e) => guardarVinculo(e, l.id)} aria-label="Vincular lead con cliente o solicitud">
+                          <label className="campo">
+                            <span className="campo-etiqueta">Filtrar cliente (nombre, RUT o teléfono)</span>
+                            <input className="entrada" value={filtroCliente} onChange={(e) => buscarClientesVinculo(e.target.value)} placeholder="Escribe para filtrar…" />
+                          </label>
+                          <label className="campo">
+                            <span className="campo-etiqueta">Cliente vinculado</span>
+                            <select className="entrada" value={vinculoForm.cliente_id} onChange={(e) => setVinculoForm({ ...vinculoForm, cliente_id: e.target.value })}>
+                              <option value="">(Sin cliente vinculado)</option>
+                              {opcionesClientes.map((c) => (
+                                <option key={c.id} value={c.id}>{c.nombre} ({c.rut})</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="campo">
+                            <span className="campo-etiqueta">Solicitud vinculada</span>
+                            <select className="entrada" value={vinculoForm.solicitud_id} onChange={(e) => setVinculoForm({ ...vinculoForm, solicitud_id: e.target.value })}>
+                              <option value="">(Sin solicitud vinculada)</option>
+                              {opcionesSolicitudes.map((s) => (
+                                <option key={s.solicitud_id} value={s.solicitud_id}>
+                                  {s.solicitud_id} · {s.huesped_nombre} ({s.estado})
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="acciones-fila">
+                            <button type="submit" className="boton-primario">Guardar vínculos</button>
+                            <button type="button" className="boton-secundario" onClick={() => setVinculando(null)}>Cancelar</button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
+                  )}
                   {historialId === l.id && (
                     <tr>
-                      <td colSpan={11}>
+                      <td colSpan={12}>
                         <strong>Historial de ediciones y gestión</strong>
                         {cargandoHistorial && !historialItems[l.id] ? (
                           <p className="nota-clave" role="status" aria-busy="true">Cargando historial…</p>

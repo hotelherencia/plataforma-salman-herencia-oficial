@@ -34,7 +34,7 @@ from .. import seguridad
 from . import comun
 from .modelos import (
     CargoIn, DevolucionSaldoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, HuespedEdicionIn, LeadEdicionIn,
-    LeadPublicoIn, MantenimientoIn, SolicitudEdicionIn,
+    LeadPublicoIn, LeadVinculoIn, MantenimientoIn, SolicitudEdicionIn,
     ObservacionIn, PagoIn, PATRON_ID_HABITACION, ReasignacionIn, VerificacionAseoIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
@@ -1211,6 +1211,29 @@ def historial_lead(
         return leads_mod.historial(conexion, sesion.empresa_id, lead_id)
     except leads_mod.LeadAjenoOInexistente:
         raise HTTPException(status_code=403, detail="acceso denegado")
+
+
+@router.put("/hotel/leads/{lead_id}/vinculo")
+def vincular_lead(
+    lead_id: str,
+    datos: LeadVinculoIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Vincula (o desvincula) un lead con un cliente y/o una solicitud de la misma empresa."""
+    comun.exigir_rol(sesion, leads_mod.ROLES_GESTION)
+    try:
+        resultado = leads_mod.vincular(
+            conexion, sesion.empresa_id, lead_id, datos.cliente_id, datos.solicitud_id, sesion.nombre
+        )
+    except leads_mod.LeadAjenoOInexistente:
+        conexion.rollback()
+        raise HTTPException(status_code=403, detail="acceso denegado")
+    except leads_mod.LeadInvalido as error:
+        conexion.rollback()
+        raise HTTPException(status_code=422, detail=error.detalle)
+    conexion.commit()
+    return resultado
 
 
 @router.put("/hotel/solicitudes/{solicitud_id}")

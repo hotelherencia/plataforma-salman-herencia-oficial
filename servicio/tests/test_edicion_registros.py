@@ -110,6 +110,40 @@ class EdicionLeadsTest(_Base):
         self.assertEqual(self.anonima.get(f"/hotel/leads/{lead_id}/historial").status_code, 401)
         self.assertEqual(self.cliente.get("/hotel/leads/LEAD-NOEXISTE/historial").status_code, 403)
 
+    def test_ed08_vincular_lead_a_cliente_y_solicitud_con_auditoria(self):
+        lead_id = self.crear_lead()
+        self.ejecutar("INSERT INTO clientes (id, rut, nombre, nombre_clave, creado_por) "
+                      "VALUES ('CLI-V1', '123456785', 'Empresa Vinculada', 'empresa vinculada', 'test')")
+        sid = f"SOL-{uuid.uuid4().hex[:10]}"
+        self.ejecutar(
+            "INSERT INTO solicitudes (id, empresa_id, tipo, inicio, fin, personas, huesped_nombre, huesped_contacto, "
+            "estado, idempotency_key, cuerpo_hash) VALUES (%s,%s,'doble',%s,%s,2,'Huésped','h@example.test',"
+            "'recibida',%s,'x')", (sid, EMPRESA, MANANA, EN_3, sid))
+        r = self.cliente.put(f"/hotel/leads/{lead_id}/vinculo", json={"cliente_id": "CLI-V1", "solicitud_id": sid})
+        self.assertEqual(r.status_code, 200, r.text)
+        datos = r.json()
+        self.assertEqual((datos["cliente_id"], datos["cliente_nombre"], datos["cliente_rut"]),
+                         ("CLI-V1", "Empresa Vinculada", "12.345.678-5"))
+        self.assertEqual((datos["solicitud_id"], datos["solicitud_estado"]), (sid, "recibida"))
+        # Historial refleja el vínculo sin valores personales
+        hist = self.cliente.get(f"/hotel/leads/{lead_id}/historial").json()["historial"]
+        self.assertEqual(hist[0]["accion"], "lead_vinculo")
+        self.assertEqual(hist[0]["detalle"], "cliente_id,solicitud_id")
+        # Desvincular solicitud dejando cliente
+        r2 = self.cliente.put(f"/hotel/leads/{lead_id}/vinculo", json={"cliente_id": "CLI-V1", "solicitud_id": None})
+        self.assertEqual(r2.status_code, 200)
+        self.assertIsNone(r2.json()["solicitud_id"])
+        # Validaciones y permisos
+        self.assertEqual(self.cliente.put(f"/hotel/leads/{lead_id}/vinculo",
+                                          json={"cliente_id": "CLI-NO", "solicitud_id": None}).status_code, 422)
+        self.assertEqual(self.cliente.put(f"/hotel/leads/{lead_id}/vinculo",
+                                          json={"cliente_id": None, "solicitud_id": "SOL-NO"}).status_code, 422)
+        self.assertEqual(self.cliente.put("/hotel/leads/LEAD-NO/vinculo",
+                                          json={"cliente_id": None, "solicitud_id": None}).status_code, 403)
+        self.crear_usuario("caja1", "caja")
+        self.assertEqual(self.login("caja1", "clave-usuario-1").put(
+            f"/hotel/leads/{lead_id}/vinculo", json={"cliente_id": None, "solicitud_id": None}).status_code, 403)
+
 
 class EdicionSolicitudYReservaTest(_Base):
     def solicitud(self, estado="recibida"):
@@ -235,7 +269,38 @@ class EdicionClientesTest(_Base):
         otro = self.login("aseo1", "clave-usuario-1")
         self.assertEqual(otro.get("/hotel/clientes").status_code, 403)
         self.assertEqual(otro.put("/hotel/clientes/CLI-1", json=self.cuerpo()).status_code, 403)
+        self.assertEqual(otro.post("/hotel/clientes", json=self.cuerpo(), headers={"Idempotency-Key": self.clave()}).status_code, 403)
         self.assertEqual(self.cliente.put("/hotel/clientes/CLI-NO", json=self.cuerpo()).status_code, 403)
+
+    def test_ed34_alta_manual_cliente_valida_rut_duplicado_y_telefono(self):
+        r = self.cliente.post("/hotel/clientes", json={
+            "rut": "12.345.678-5", "nombre": "Comercial Nueva SpA", "tipo": "empresa",
+            "telefono": "+56 9 8765 4321", "correo": "ventas@nueva.test", "comuna": "Chillán",
+        }, headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r.status_code, 201, r.text)
+        creado = r.json()
+        self.assertEqual((creado["rut"], creado["telefono"], creado["correo"]),
+                         ("12.345.678-5", "+56 9 8765 4321", "ventas@nueva.test"))
+        self.assertEqual(self.select("SELECT resultado FROM auditoria WHERE accion = 'cliente_alta' AND recurso = %s",
+                                     (creado["id"],)), [("creado",)])
+        # Duplicado → 409; RUT inválido / teléfono inválido → 422
+        self.assertEqual(self.cliente.post("/hotel/clientes", json={
+            "rut": "12345678-5", "nombre": "Otro Nombre", "tipo": "empresa",
+        }, headers={"Idempotency-Key": self.clave()}).status_code, 409)
+        self.assertEqual(self.cliente.post("/hotel/clientes", json={
+            "rut": "12.345.678-9", "nombre": "Mal RUT", "tipo": "empresa",
+        }, headers={"Idempotency-Key": self.clave()}).status_code, 422)
+        self.assertEqual(self.cliente.post("/hotel/clientes", json={
+            "rut": "22.222.222-2", "nombre": "Mal Tel", "tipo": "persona", "telefono": "123",
+        }, headers={"Idempotency-Key": self.clave()}).status_code, 422)
+
+    def test_ed35_busqueda_clientes_por_telefono_con_o_sin_formato(self):
+        self.cliente.post("/hotel/clientes", json={
+            "rut": "12.345.678-5", "nombre": "Ana Teléfono", "tipo": "persona", "telefono": "+56 9 8765 4321",
+        }, headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(len(self.cliente.get("/hotel/clientes", params={"q": "987654321"}).json()["clientes"]), 1)
+        self.assertEqual(len(self.cliente.get("/hotel/clientes", params={"q": "+56 9 8765"}).json()["clientes"]), 1)
+        self.assertEqual(self.cliente.get("/hotel/clientes", params={"q": "900000000"}).json()["clientes"], [])
 
 
 if __name__ == "__main__":

@@ -415,7 +415,19 @@ class ClienteEdicionIn(BaseModel):
     direccion: str | None = Field(default=None, max_length=200)
     comuna: str | None = Field(default=None, max_length=100)
     correo: str | None = Field(default=None, max_length=320)
+    telefono: str | None = Field(default=None, max_length=30)
     activo: bool = True
+
+
+class ClienteAltaIn(ClienteEdicionIn):
+    tipo: Literal["persona", "empresa"] = "empresa"
+
+
+class LeadVinculoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cliente_id: str | None = Field(default=None, max_length=40)
+    solicitud_id: str | None = Field(default=None, max_length=40)
 
 
 class GestionLeadIn(BaseModel):
