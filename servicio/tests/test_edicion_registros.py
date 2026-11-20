@@ -91,6 +91,25 @@ class EdicionLeadsTest(_Base):
         self.cliente.put(f"/hotel/leads/{lead_id}", json=self.cuerpo_edicion(nombre="Corregido Ref"))
         self.assertEqual(self.select("SELECT nombre FROM leads WHERE token_consulta = %s", (token,))[0][0], "Corregido Ref")
 
+    def test_ed07_historial_de_ediciones_y_gestion_sin_valores_personales(self):
+        lead_id = self.crear_lead()
+        self.cliente.post(f"/hotel/leads/{lead_id}/estado", json={"estado": "contactado", "nota": "llamado"},
+                          headers={"Idempotency-Key": self.clave()})
+        self.cliente.put(f"/hotel/leads/{lead_id}", json=self.cuerpo_edicion(
+            nombre="Nombre Secreto Nuevo", telefono="+56 9 7777 8888", nota="llamado"))
+        r = self.cliente.get(f"/hotel/leads/{lead_id}/historial")
+        self.assertEqual(r.status_code, 200, r.text)
+        eventos = r.json()["historial"]
+        self.assertEqual([e["accion"] for e in eventos], ["lead_edicion", "lead_gestion"])
+        self.assertEqual(eventos[0]["detalle"], "nombre,telefono")
+        self.assertNotIn("Secreto", r.text)
+        self.assertNotIn("7777", r.text)
+        # Roles y aislamiento por empresa
+        self.crear_usuario("caja1", "caja")
+        self.assertEqual(self.login("caja1", "clave-usuario-1").get(f"/hotel/leads/{lead_id}/historial").status_code, 403)
+        self.assertEqual(self.anonima.get(f"/hotel/leads/{lead_id}/historial").status_code, 401)
+        self.assertEqual(self.cliente.get("/hotel/leads/LEAD-NOEXISTE/historial").status_code, 403)
+
 
 class EdicionSolicitudYReservaTest(_Base):
     def solicitud(self, estado="recibida"):

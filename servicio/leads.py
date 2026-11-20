@@ -481,3 +481,33 @@ def editar(
     )
     seguridad.auditar(conexion, actor, "lead_edicion", lead_id, ",".join(cambiados))
     return _fila_bandeja(conexion, lead_id)
+
+
+def historial(conexion: psycopg.Connection, empresa_id: str, lead_id: str) -> dict:
+    """Historial auditable del lead (ediciones, gestión de estado y vínculos).
+    Lee de `auditoria`: solo actor, acción, nombres de campo o transición y fecha;
+    jamás expone valores personales."""
+    existe = conexion.execute(
+        "SELECT 1 FROM leads WHERE id = %s AND empresa_id = %s", (lead_id, empresa_id)
+    ).fetchone()
+    if existe is None:
+        raise LeadAjenoOInexistente("acceso denegado")
+    filas = conexion.execute(
+        "SELECT id, actor, accion, resultado, creado_en FROM auditoria "
+        "WHERE recurso = %s AND accion IN ('lead_edicion', 'lead_gestion', 'lead_vinculo') "
+        "ORDER BY creado_en DESC, id DESC LIMIT 100",
+        (lead_id,),
+    ).fetchall()
+    return {
+        "lead_id": lead_id,
+        "historial": [
+            {
+                "auditoria_id": f[0],
+                "actor": f[1],
+                "accion": f[2],
+                "detalle": f[3],
+                "creado_en": f[4].isoformat(),
+            }
+            for f in filas
+        ],
+    }
