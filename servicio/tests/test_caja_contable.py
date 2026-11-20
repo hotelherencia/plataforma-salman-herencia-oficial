@@ -14,6 +14,7 @@ from servicio import contabilidad, seguridad
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
 from servicio.tests.aislamiento import exigir_base_libre
+from servicio.tests.reloj import a_las
 
 URL_TEST = os.environ.get(
     "DATABASE_URL_TEST", "postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma_test"
@@ -225,7 +226,8 @@ class CajaContableTest(unittest.TestCase):
     def test_cierre_diario_bloquea_el_dia_y_mueve_lo_nuevo_al_siguiente(self):
         turno = self.abrir(0).json()["turno_id"]
         rid = self.reservar(con_cargo=False)  # la entrada asienta el alojamiento (100.000)
-        self.assertEqual(self.admin.post(f"/hotel/reservas/{rid}/entrada", headers=self.idem()).status_code, 200)
+        with a_las(HOY):
+            self.assertEqual(self.admin.post(f"/hotel/reservas/{rid}/entrada", headers=self.idem()).status_code, 200)
         self.pagar(rid, 50000, medio="efectivo", documento_tipo="boleta")
         cuerpo = {"fecha": HOY.isoformat(), "confirmar_alertas": True}
         r = self.caja.post("/hotel/caja/cierres", headers=self.idem(), json=cuerpo)
@@ -264,7 +266,8 @@ class CajaContableTest(unittest.TestCase):
 
     def test_cierre_con_alertas_exige_confirmar(self):
         rid = self.reservar(hab="HAB-CONT-2")
-        self.assertEqual(self.admin.post(f"/hotel/reservas/{rid}/entrada", headers=self.idem()).status_code, 200)
+        with a_las(HOY):
+            self.assertEqual(self.admin.post(f"/hotel/reservas/{rid}/entrada", headers=self.idem()).status_code, 200)
         r = self.caja.post("/hotel/caja/cierres", headers=self.idem(), json={"fecha": HOY.isoformat()})
         self.assertEqual(r.status_code, 409)
         con = self.caja.get("/hotel/caja/conciliacion").json()
