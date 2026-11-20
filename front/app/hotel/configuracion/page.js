@@ -327,7 +327,9 @@ function BloquesVarios({ cuerpo, setRuta, puedeEditar }) {
         <legend>Niños y cama adicional <BadgeConfirmacion valor={n.confirmacion} /></legend>
         {n.nota_confirmacion && <p className="nota">{n.nota_confirmacion}</p>}
         <div className="politicas-fila">
-          <Campo id="edad-nino" etiqueta="Edad de niño hasta (años)" type="number" min="0" value={n.edad_nino_hasta ?? ''} disabled={ro} onChange={(e) => setRuta('ninos_cama.edad_nino_hasta', e.target.value === '' ? null : Number(e.target.value))} />
+          <Campo id="recargo-extra" etiqueta="Recargo por persona extra (CLP/noche)" type="number" min="0" value={n.recargo_persona_extra_clp ?? ''} disabled={ro} onChange={(e) => setRuta('ninos_cama.recargo_persona_extra_clp', e.target.value === '' ? null : Number(e.target.value))} />
+          <Campo id="edad-nino" etiqueta="Edad de niño hasta (años)" type="number" min="0" max="17" value={n.edad_nino_hasta ?? ''} disabled={ro} onChange={(e) => setRuta('ninos_cama.edad_nino_hasta', e.target.value === '' ? null : Number(e.target.value))} />
+          <Campo id="recargo-nino" etiqueta="Recargo por niño (CLP/noche)" type="number" min="0" value={n.recargo_nino?.valor ?? ''} disabled={ro} onChange={(e) => setRuta('ninos_cama.recargo_nino', e.target.value === '' ? null : { modo: n.recargo_nino?.modo || 'monto_clp', valor: Number(e.target.value), por: n.recargo_nino?.por || 'noche' })} />
           <CampoSelect id="cama-perm" etiqueta="¿Cama adicional?" value={n.cama_adicional_permitida === true ? 'si' : n.cama_adicional_permitida === false ? 'no' : ''} disabled={ro} onChange={(e) => setRuta('ninos_cama.cama_adicional_permitida', e.target.value === '' ? null : e.target.value === 'si')}>
             <option value="">Sin definir</option>
             <option value="si">Sí</option>

@@ -713,3 +713,37 @@ class EquivalenciaCambioIn(BaseModel):
     producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
     unidades_por_paquete: int | None = Field(default=None, ge=1, le=10_000)
     nota: str | None = Field(default=None, max_length=120)
+
+
+class OcupacionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    adultos: int = Field(ge=1, le=30)
+    ninos: int = Field(default=0, ge=0, le=30)
+
+
+class ReservaHuespedIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    huesped_id: str | None = Field(default=None, max_length=40)
+    rol: Literal["titular", "acompanante"] = "acompanante"
+    es_nino: bool = False
+    nombre: str | None = Field(default=None, min_length=1, max_length=200)
+    documento_tipo: Literal["rut", "pasaporte"] | None = None
+    documento: str | None = Field(default=None, max_length=50)
+    nacionalidad: str | None = Field(default=None, max_length=80)
+    fecha_nacimiento: date | None = None
+    telefono: str | None = Field(default=None, max_length=40)
+    correo: str | None = Field(default=None, max_length=120)
+    notas: str | None = Field(default=None, max_length=400)
+
+
+class ReservaHuespedEdicionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    es_nino: bool | None = None
+    nombre: str | None = Field(default=None, min_length=1, max_length=200)
+    documento_tipo: Literal["rut", "pasaporte"] | None = None
+    documento: str | None = Field(default=None, max_length=50)
+    nacionalidad: str | None = Field(default=None, max_length=80)
+    fecha_nacimiento: date | None = None
+    telefono: str | None = Field(default=None, max_length=40)
+    correo: str | None = Field(default=None, max_length=120)
+    notas: str | None = Field(default=None, max_length=400)

@@ -166,7 +166,13 @@ class CicloCompletoE2ETest(unittest.TestCase):
         det_post_409 = self.staff.get(f"/hotel/reservas/{rid}").json()
         self.assertIsNone(det_post_409.get("huesped_documento"))
 
-        # 8. Llegada válida (15:30) con documento: congela noches a $50.000 (NO $80.000) y aplica anticipo de $40.000
+        # 8. Registrar al segundo huésped (la reserva es para 2 personas) y luego Llegada válida (15:30)
+        r_acomp = self.staff.post(
+            f"/hotel/reservas/{rid}/huespedes",
+            headers=self.idem(),
+            json={"rol": "acompanante", "nombre": "Diego Acompañante", "documento": "11.111.111-1", "documento_tipo": "rut"},
+        )
+        self.assertEqual(r_acomp.status_code, 201, r_acomp.text)
         with a_las(inicio, hora=time(15, 30)):
             r_ent = self.staff.post(
                 f"/hotel/reservas/{rid}/entrada",

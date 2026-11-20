@@ -220,7 +220,7 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
     _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     r = conexion.execute(
         "SELECT r.id, r.habitacion_id, h.tipo, r.inicio, r.fin, r.huesped_nombre, r.huesped_documento, r.estado, "
-        "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas, r.total_aceptado_clp, r.canal "
+        "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas, r.total_aceptado_clp, r.canal, r.adultos, r.ninos "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
         "WHERE r.id = %s",
         (reserva_id,),
@@ -243,6 +243,8 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
         "canal": r[12],
         "tarifa_noche_aceptada_clp": r[8],
         "personas": r[10],
+        "adultos": r[13] if r[13] is not None else (r[10] or 1),
+        "ninos": r[14] if r[14] is not None else 0,
         "creada_en": r[9].isoformat(),
         # Entrega 1A: total y precio congelado por noche (null/vacío en
         # reservas anteriores a la migración 0021).
