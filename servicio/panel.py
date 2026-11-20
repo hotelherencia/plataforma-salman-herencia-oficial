@@ -11,7 +11,8 @@ from datetime import date, timedelta
 
 import psycopg
 
-from .reservas import ESTADOS_NO_VENDIBLES, ESTADOS_QUE_OCUPAN_CUPO, tarifas_por_noche
+from . import precios
+from .reservas import ESTADOS_NO_VENDIBLES, ESTADOS_QUE_OCUPAN_CUPO
 
 MAX_NOCHES_OCUPACION = 62
 MAX_NOCHES_INDICADORES = 92
@@ -43,7 +44,8 @@ def _habitaciones(
     solo_inventario_real: bool = False,
 ) -> list[dict]:
     consulta = (
-        "SELECT id, tipo, capacidad, estado_operativo, estado_preparacion, mantenimiento, creado_en "
+        "SELECT id, tipo, capacidad, estado_operativo, estado_preparacion, mantenimiento, creado_en, "
+        "mantenimiento_desde, mantenimiento_hasta "
         "FROM habitaciones"
     )
     parametros: list = []
@@ -52,8 +54,9 @@ def _habitaciones(
         filtros.append("tipo = %s")
         parametros.append(tipo)
     if solo_inventario_real:
-        # HAB-01..17 únicamente (titular). Coincide con inventario_documental._RE_HAB_REAL.
-        filtros.append("id ~ '^HAB-(0[1-9]|1[0-7])$'")
+        # Titular: HAB-01..17 (coincide con inventario_documental._RE_HAB_REAL)
+        # más las altas por lote de la administración (en_inventario, 1A).
+        filtros.append("(id ~ '^HAB-(0[1-9]|1[0-7])$' OR en_inventario)")
     if filtros:
         consulta += " WHERE " + " AND ".join(filtros)
     return [
@@ -66,6 +69,8 @@ def _habitaciones(
             "mantenimiento": f[5],
             "en_servicio": f[3] != "fuera_de_servicio",
             "registrada_el": _fecha_local(f[6]),
+            "mantenimiento_desde": f[7],
+            "mantenimiento_hasta": f[8],
         }
         for f in conexion.execute(consulta + " ORDER BY id", parametros).fetchall()
     ]
@@ -107,8 +112,19 @@ def _contiene(reserva: dict, noche: date) -> bool:
     return reserva["inicio"] <= noche < reserva["fin_efectivo"]
 
 
-def _motivo_no_vendible(habitacion: dict) -> str | None:
-    if habitacion["mantenimiento"]:
+def _mantenimiento_en(habitacion: dict, noche: date, hoy: date) -> bool:
+    """#349: misma regla que reservas.SQL_MANTENIMIENTO_SOLAPA, por noche."""
+    if not habitacion["mantenimiento"]:
+        return False
+    desde = habitacion.get("mantenimiento_desde")
+    if desde is None:
+        return True
+    hasta = habitacion.get("mantenimiento_hasta") or (max(hoy, desde) + timedelta(days=1))
+    return desde <= noche < hasta
+
+
+def _motivo_no_vendible(habitacion: dict, noche: date | None = None, hoy: date | None = None) -> str | None:
+    if habitacion["mantenimiento"] and (noche is None or _mantenimiento_en(habitacion, noche, hoy or noche)):
         return "mantenimiento"
     if habitacion["estado_operativo"] in ESTADOS_NO_VENDIBLES:
         return habitacion["estado_operativo"]
@@ -128,12 +144,11 @@ def ocupacion(
     noches = validar_periodo(desde, hasta, MAX_NOCHES_OCUPACION)
     habitaciones = _habitaciones(conexion, None, solo_inventario_real=solo_inventario_real)
     reservas = _reservas_del_periodo(conexion, empresa_id, desde, hasta, [h["habitacion_id"] for h in habitaciones])
-    tarifas = tarifas_por_noche(conexion, desde, hasta)
+    tarifas = precios.precio_por_noche(conexion, desde, hasta)
     resumen = {n: {"fecha": n.isoformat(), "disponibles": 0, "ocupadas_cupo": 0, "no_vendibles": 0} for n in noches}
     salida = []
     for h in habitaciones:
         propias = [r for r in reservas if r["habitacion_id"] == h["habitacion_id"]]
-        motivo = _motivo_no_vendible(h)
         celdas = []
         for noche in noches:
             celda: dict = {"fecha": noche.isoformat()}
@@ -149,8 +164,8 @@ def ocupacion(
                     celda.update(estado="finalizada", reserva_id=finalizada["reserva_id"])
                 else:
                     celda["estado"] = "sin_ocupar"
-            elif motivo:
-                celda.update(estado="no_vendible", motivo=motivo)
+            elif (motivo_noche := _motivo_no_vendible(h, noche, hoy)):
+                celda.update(estado="no_vendible", motivo=motivo_noche)
                 resumen[noche]["no_vendibles"] += 1
             elif (h["habitacion_id"], noche) not in tarifas:
                 celda["estado"] = "sin_tarifa"
@@ -193,25 +208,8 @@ def _indicador(valor, unidad: str, formula: str, fuente: str, limitaciones: str 
     return {"valor": valor, "unidad": unidad, "formula": formula, "fuente": fuente, "limitaciones": limitaciones}
 
 
-def _conteo_reservas(
-    registros: list[tuple[str, str | None]] | list[str],
-    unidad_formula: str,
-    fuente: str = "reservas",
-) -> dict:
-    if registros and isinstance(registros[0], tuple):
-        ids = [r[0] for r in registros]
-        detalle = [
-            {"reserva_id": r[0], "huesped_nombre": (r[1] or "").strip() or "Sin nombre"}
-            for r in registros
-        ]
-    else:
-        ids = list(registros)  # type: ignore[arg-type]
-        detalle = [{"reserva_id": rid, "huesped_nombre": "Sin nombre"} for rid in ids]
-    return {
-        **_indicador(len(ids), "reservas", unidad_formula, fuente),
-        "reservas": ids,
-        "reservas_detalle": detalle,
-    }
+def _conteo_reservas(ids: list[str], unidad_formula: str, fuente: str = "reservas") -> dict:
+    return {**_indicador(len(ids), "reservas", unidad_formula, fuente), "reservas": ids}
 
 
 NO_DISPONIBLES = [
@@ -220,7 +218,6 @@ NO_DISPONIBLES = [
         "motivo": "requieren el reconocimiento de ingreso por noche; el precio noche a noche quedó resuelto "
                   "(#305, 2026-11-06) pero la fórmula de ingreso reconocido sigue sin decidir (D-IND-02).",
     },
-    {"indicador": "ingresos por canal", "motivo": "el modelo no registra canal de origen (dominio)."},
     {
         "indicador": "pagos del periodo",
         "motivo": "DECISIÓN PENDIENTE D-IND-02; los pagos del día están en Caja (caja y administrador), sin conciliar.",
@@ -243,11 +240,11 @@ def indicadores(
     ids = [h["habitacion_id"] for h in habitaciones]
 
     # --- Situación de hoy (§4.2) ---
-    def reservas_donde(condicion: str, *parametros) -> list[tuple[str, str | None]]:
+    def reservas_donde(condicion: str, *parametros) -> list[str]:
         return [
-            (f[0], f[1])
+            f[0]
             for f in conexion.execute(
-                f"SELECT id, huesped_nombre FROM reservas WHERE empresa_id = %s AND habitacion_id = ANY(%s) AND {condicion} "
+                f"SELECT id FROM reservas WHERE empresa_id = %s AND habitacion_id = ANY(%s) AND {condicion} "
                 "ORDER BY inicio, id",
                 (empresa_id, ids, *parametros),
             ).fetchall()
@@ -276,13 +273,14 @@ def indicadores(
         "habitaciones_total": _indicador(len(habitaciones), "unidades", "habitaciones registradas", hab),
         "habitaciones_ocupadas": _indicador(contar(lambda h: h["estado_operativo"] == "ocupada"), "unidades",
                                             "estado_operativo = ocupada", hab),
-        "habitaciones_vendibles": _indicador(contar(lambda h: _motivo_no_vendible(h) is None), "unidades",
-                                             "sin mantenimiento y fuera de bloqueada/fuera_de_servicio", hab),
+        "habitaciones_vendibles": _indicador(contar(lambda h: _motivo_no_vendible(h, hoy, hoy) is None), "unidades",
+                                             "sin mantenimiento hoy y fuera de bloqueada/fuera_de_servicio", hab),
         "habitaciones_sucias": _indicador(contar(lambda h: h["estado_preparacion"] == "sucia"), "unidades",
                                           "estado_preparacion = sucia", hab),
         "limpiezas_pendientes": _indicador(limpiezas, "tareas", "tareas de limpieza pendientes",
                                            "tareas_operativas"),
-        "en_mantenimiento": _indicador(contar(lambda h: h["mantenimiento"]), "unidades", "mantenimiento = true", hab),
+        "en_mantenimiento": _indicador(contar(lambda h: _mantenimiento_en(h, hoy, hoy)), "unidades",
+                                       "mantenimiento vigente hoy (#349)", hab),
         "fuera_de_servicio": _indicador(contar(lambda h: h["estado_operativo"] == "fuera_de_servicio"), "unidades",
                                         "estado_operativo = fuera_de_servicio", hab),
     }
@@ -309,37 +307,8 @@ def indicadores(
             ocupadas_total += ocupadas_estadias
         unidades_total += len(activas)
         reservadas_total += reservadas
-        tipos_noche = sorted({h["tipo"] for h in habitaciones if h["habitacion_id"] in activas})
-        detalle_por_tipo = []
-        for t in tipos_noche:
-            ids_tipo = {h["habitacion_id"] for h in habitaciones if h["tipo"] == t and h["habitacion_id"] in activas}
-            en_casa_tipo = (
-                len({r["habitacion_id"] for r in con_noche if r["habitacion_id"] in ids_tipo and r["estado"] in ("en_estadia", "finalizada")})
-                if noche <= hoy
-                else 0
-            )
-            reservadas_tipo = len(
-                {r["habitacion_id"] for r in con_noche if r["habitacion_id"] in ids_tipo and r["estado"] == "confirmada"}
-            )
-            disponibles_tipo = max(0, len(ids_tipo) - en_casa_tipo - reservadas_tipo)
-            detalle_por_tipo.append(
-                {
-                    "tipo_habitacion": t,
-                    "en_casa": en_casa_tipo,
-                    "reservadas": reservadas_tipo,
-                    "disponibles": disponibles_tipo,
-                    "capacidad_total": len(ids_tipo),
-                }
-            )
-        serie.append(
-            {
-                "fecha": noche.isoformat(),
-                "unidades": len(activas),
-                "ocupadas_estadias": ocupadas_estadias,
-                "reservadas": reservadas,
-                "detalle_por_tipo": detalle_por_tipo,
-            }
-        )
+        serie.append({"fecha": noche.isoformat(), "unidades": len(activas), "ocupadas_estadias": ocupadas_estadias,
+                      "reservadas": reservadas})
 
     canceladas = [r for r in reservas if r["estado"] == "cancelada"]
     noches_canceladas = sum(
@@ -393,7 +362,8 @@ def indicadores(
         # D-IND-01/#297 (DECISIÓN 2026-11-06): ingresos del periodo = pagos
         # confirmados por fecha de pago (lo cobrado, no lo reservado).
         (ingresos,) = conexion.execute(
-            "SELECT COALESCE(SUM(p.monto_clp), 0) FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+            "SELECT COALESCE(SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END), 0) "
+            "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
             "WHERE r.empresa_id = %s AND p.estado = 'confirmado' "
             "AND p.creado_en::date >= %s AND p.creado_en::date < %s",
             (empresa_id, desde, hasta),
@@ -401,6 +371,37 @@ def indicadores(
         periodo["ingresos_periodo_clp"] = _indicador(
             ingresos, "CLP", "pagos confirmados por fecha de pago dentro del periodo",
             "pagos (join reservas)", "lo cobrado, no lo reservado; fuente veraz")
+        # #324: ingresos por canal (misma base de pagos confirmados que ingresos_periodo_clp).
+        filas_canal = conexion.execute(
+            "SELECT COALESCE(r.canal, 'recepcion') AS canal, "
+            "COALESCE(SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END), 0) AS total_clp, "
+            "COUNT(DISTINCT r.id) AS reservas "
+            "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' "
+            "AND p.creado_en::date >= %s AND p.creado_en::date < %s "
+            "GROUP BY COALESCE(r.canal, 'recepcion') "
+            "ORDER BY total_clp DESC, canal",
+            (empresa_id, desde, hasta),
+        ).fetchall()
+        por_canal = [
+            {
+                "canal": f[0],
+                "ingresos_clp": int(f[1]),
+                "reservas": int(f[2]),
+                "participacion": (int(f[1]) / ingresos) if ingresos > 0 else None,
+            }
+            for f in filas_canal
+            if int(f[1]) != 0 or int(f[2]) > 0
+        ]
+        periodo["ingresos_por_canal"] = {
+            **_indicador(
+                ingresos, "CLP",
+                "pagos confirmados del periodo agrupados por canal de origen de la reserva",
+                "pagos (join reservas.canal)",
+                "misma base percibida que la recaudación del periodo",
+            ),
+            "por_canal": por_canal,
+        }
     return {
         "fecha_corte": hoy.isoformat(),
         "periodo": {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "noches": len(noches)},
