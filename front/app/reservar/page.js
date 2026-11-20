@@ -9,6 +9,7 @@ import {
   agruparOferta, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
   leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
 } from './continuidad'
+import { enviarSolicitud, mensajeSolicitud, obtenerToken } from './envio'
 
 /** Fecha local de hoy (AAAA-MM-DD): toISOString es UTC y adelanta un día tras
  *  las 21:00 en Chile, vetando llegadas válidas. */
@@ -19,45 +20,44 @@ function hoyLocal() {
 const CLAVE_SITIO_RECAPTCHA = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LcKehguAAAAAG07HWp0QQOHJyMxQeWfQl3epp7n'
 const SITIO = 'https://www.hotelherencia.cl'
 
+// Si el script de Google no carga (bloqueador, Firefox estricto, red) se sabe al
+// instante por su evento error y se avisa eso, no un error genérico.
+let recaptchaBloqueado = false
+
 function prepararRecaptcha() {
   if (document.querySelector('script[data-recaptcha]')) return
+  recaptchaBloqueado = false
   const script = document.createElement('script')
   script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(CLAVE_SITIO_RECAPTCHA)}&hl=es-419`
   script.async = true
   script.referrerPolicy = 'origin'
   script.dataset.recaptcha = 'v3'
+  script.onerror = () => {
+    recaptchaBloqueado = true
+    script.remove() // un intento posterior lo vuelve a pedir (p. ej. tras desactivar el bloqueador)
+  }
   document.head.append(script)
 }
 
+/** Token nuevo al momento de enviar; nunca se reutiliza (cada uno sirve una vez). */
 function tokenRecaptcha(accion) {
-  return new Promise((resolve) => {
-    const inicio = Date.now()
-    const ejecutar = () => {
-      window.grecaptcha.ready(() => {
-        window.grecaptcha.execute(CLAVE_SITIO_RECAPTCHA, { action: accion }).then(resolve).catch(() => resolve(''))
-      })
-    }
-    if (window.grecaptcha) {
-      ejecutar()
-      return
-    }
-    const reloj = window.setInterval(() => {
-      if (window.grecaptcha) {
-        window.clearInterval(reloj)
-        ejecutar()
-      } else if (Date.now() - inicio > 8000) {
-        window.clearInterval(reloj)
-        resolve('')
-      }
-    }, 50)
-  })
+  prepararRecaptcha()
+  return obtenerToken(window, CLAVE_SITIO_RECAPTCHA, accion, { bloqueado: () => recaptchaBloqueado })
 }
 
-function almacenLocal() {
+function almacenSesion() {
   try {
-    return window.localStorage
+    return window.sessionStorage
   } catch {
     return null
+  }
+}
+
+function limpiarAlmacenLegacy() {
+  try {
+    window.localStorage.removeItem('herencia:consulta-ref')
+  } catch {
+    // sin almacenamiento
   }
 }
 
@@ -84,9 +84,7 @@ function Reservar() {
   const preferidoRef = useRef(inicial.tipo)
   const [avisoTipo, setAvisoTipo] = useState('')
   const [nombre, setNombre] = useState('')
-  const [documento, setDocumento] = useState('')
   const [contacto, setContacto] = useState('')
-  const [telefono, setTelefono] = useState('')
   const [erroresCampo, setErroresCampo] = useState({})
   const [buscando, setBuscando] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -94,10 +92,9 @@ function Reservar() {
   const [errorSolicitud, setErrorSolicitud] = useState('')
   const [confirmada, setConfirmada] = useState(null)
   const [clave, renovarClave] = useClaveOperacion()
+  const refActiva = useRef('')
   const refNombre = useRef(null)
-  const refDocumento = useRef(null)
   const refContacto = useRef(null)
-  const refTelefono = useRef(null)
   const refErrorSolicitud = useRef(null)
   const refConfirmada = useRef(null)
 
@@ -133,18 +130,31 @@ function Reservar() {
     prepararRecaptcha()
   }, [])
 
-  // Una sola vez al entrar: consulta con las fechas del enlace, guarda la
-  // referencia y deja la URL canónica (llegada/salida/personas, sin ref).
+  // Una sola vez al entrar: limpia cualquier referencia heredada en localStorage,
+  // respeta ?limpiar=1 o llegada sin ref (sin arrastrar datos de otra consulta),
+  // y si viene ?ref= opaco resuelve fechas/personas/contacto desde el servidor
+  // dejando la URL completamente limpia (sin ref ni datos personales).
   useEffect(() => {
-    const { inicio: i, fin: f, personas: p, ref: refUrl } = inicial
+    const { inicio: i, fin: f, personas: p, ref: refUrl, limpiar } = inicial
+    const almacen = almacenSesion()
+    limpiarAlmacenLegacy()
     if (i && f) buscar(i, f, p || '2')
-    const almacen = almacenLocal()
+
+    if (limpiar || (!refUrl && (i || f))) {
+      olvidarReferencia(almacen)
+      refActiva.current = ''
+      const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p, tipo: inicial.tipo })
+      if (canonica) window.history.replaceState(window.history.state, '', canonica)
+      return
+    }
+
     if (refUrl) guardarReferencia(almacen, refUrl)
     const canonica = urlCanonica(window.location.href, { inicio: i, fin: f, personas: p, tipo: inicial.tipo })
     if (canonica) window.history.replaceState(window.history.state, '', canonica)
 
     const ref = refUrl || leerReferencia(almacen)
     if (!ref) return
+    refActiva.current = ref
     let vigente = true
     setResolviendoRef(true)
     api(`/publico/referencia?token=${encodeURIComponent(ref)}`)
@@ -155,8 +165,20 @@ function Reservar() {
           setPrevio(datos)
           setNombre(datos.nombre)
           setContacto(datos.correo)
+          // Si las fechas viajaron de forma opaca dentro de `ref` (sin texto plano en la URL),
+          // se precargan y consultan disponibilidad automáticamente.
+          const llegadaSrv = r.datos.llegada || ''
+          const salidaSrv = r.datos.salida || ''
+          const personasSrv = r.datos.personas ? String(r.datos.personas) : (p || '2')
+          if (!i && !f && llegadaSrv && salidaSrv) {
+            setInicio(llegadaSrv)
+            setFin(salidaSrv)
+            setPersonas(personasSrv)
+            buscar(llegadaSrv, salidaSrv, personasSrv)
+          }
         } else if (r.estado === 404 || r.estado === 422) {
           olvidarReferencia(almacen) // vencida, revocada o ajena: no se reintenta
+          refActiva.current = ''
         }
       })
       .catch(() => {})
@@ -168,6 +190,17 @@ function Reservar() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function limpiarContactoPrevio() {
+    olvidarReferencia(almacenSesion())
+    limpiarAlmacenLegacy()
+    refActiva.current = ''
+    setPrevio(null)
+    setEditando(false)
+    setNombre('')
+    setContacto('')
+    setErroresCampo({})
+  }
 
   function enfocar(ref) {
     const el = ref.current
@@ -191,56 +224,43 @@ function Reservar() {
       requestAnimationFrame(() => enfocar(refErrorSolicitud))
       return
     }
-    const errores = erroresContacto(nombre, contacto, telefono, documento)
+    const errores = erroresContacto(nombre, contacto)
     setErroresCampo(errores)
-    if (errores.nombre || errores.documento || errores.contacto || errores.telefono) {
+    if (errores.nombre || errores.contacto) {
       setEditando(true)
-      requestAnimationFrame(() =>
-        enfocar(
-          errores.nombre
-            ? refNombre
-            : errores.documento
-              ? refDocumento
-              : errores.telefono
-                ? refTelefono
-                : refContacto
-        )
-      )
+      requestAnimationFrame(() => enfocar(errores.nombre ? refNombre : refContacto))
       return
     }
     setEnviando(true)
     try {
-      const cabeceras = {}
-      const token = await tokenRecaptcha('reserva')
-      if (token) cabeceras['X-Recaptcha-Token'] = token
-      const contactoFinal = `${contacto.trim()} · Tel: ${telefono.trim()} · Doc: ${documento.trim()}`
-      const r = await api('/publico/solicitudes', {
-        metodo: 'POST',
-        cuerpo: {
-          tipo: elegida,
-          inicio,
-          fin,
-          personas: Number(personas),
-          huesped_nombre: nombre.trim(),
-          huesped_contacto: contactoFinal,
-          huesped_correo: contacto.trim(),
-          huesped_telefono: telefono.trim(),
-          huesped_documento: documento.trim(),
-        },
-        claveIdempotencia: clave,
-        cabeceras,
+      const resultado = await enviarSolicitud({
+        token: () => tokenRecaptcha('reserva'),
+        pedir: (cabeceras) => api('/publico/solicitudes', {
+          metodo: 'POST',
+          cuerpo: {
+            tipo: elegida, inicio, fin, personas: Number(personas),
+            huesped_nombre: nombre.trim(), huesped_contacto: contacto.trim(),
+            ...(refActiva.current ? { referencia: refActiva.current } : {}),
+          },
+          claveIdempotencia: clave,
+          cabeceras,
+          timeoutMs: 30000,
+        }),
       })
-      if (r.estado >= 400) {
-        setErrorSolicitud(mensajeDeError(r.datos, r.estado))
-        alRechazar(r.estado, renovarClave)
-        requestAnimationFrame(() => enfocar(refErrorSolicitud))
-      } else {
-        setConfirmada(r.datos)
+      if (resultado.tipo === 'respuesta' && resultado.estado < 400) {
+        setConfirmada(resultado.datos)
+        limpiarContactoPrevio()
         renovarClave() // 2xx: la clave se repone para una operación nueva
         requestAnimationFrame(() => enfocar(refConfirmada))
+      } else {
+        setErrorSolicitud(mensajeSolicitud(resultado, mensajeDeError))
+        // 4xx definitivo: clave nueva. Red caída o 5xx: se conserva para que
+        // reintentar no duplique la solicitud.
+        if (resultado.tipo === 'respuesta') alRechazar(resultado.estado, renovarClave)
+        requestAnimationFrame(() => enfocar(refErrorSolicitud))
       }
     } catch {
-      setErrorSolicitud('No se pudo conectar con el servidor. Tu solicitud no se envió. Intenta de nuevo en unos minutos.')
+      setErrorSolicitud('No pudimos enviar tu solicitud. Inténtalo de nuevo o escríbenos por WhatsApp al +56 9 5649 1501. (código JS)')
       requestAnimationFrame(() => enfocar(refErrorSolicitud))
     } finally {
       setEnviando(false)
@@ -259,7 +279,7 @@ function Reservar() {
         <a href={SITIO}>← Volver a hotelherencia.cl</a>
       </p>
       <header className="pagina-cabecera pagina-cabecera-marca">
-        <img className="cabecera-logo" src={LOGO.h64} srcSet={`${LOGO.h64} 1x, ${LOGO.h128} 2x`} alt={NOMBRE_COMERCIAL} width="80" height="64" />
+        <img className="cabecera-logo" src={LOGO.hojaSvg} alt="" width="68" height="60" />
         <div>
           <h1>Reserva · {NOMBRE_COMERCIAL}</h1>
           <p className="operador">Consulta disponibilidad y deja tu solicitud: recepción la confirma contigo.</p>
@@ -274,15 +294,15 @@ function Reservar() {
             buscar(inicio, fin, personas)
           }}
         >
-          <Campo etiqueta="Llegada" type="date" min={hoyLocal()} value={inicio} onChange={(e) => setInicio(e.target.value)} />
-          <Campo etiqueta="Salida" type="date" min={inicio || hoyLocal()} value={fin} onChange={(e) => setFin(e.target.value)} />
+          <Campo etiqueta="Llegada" type="date" min={hoyLocal()} value={inicio} onChange={(e) => { setInicio(e.target.value); setOferta(null); setElegida('') }} />
+          <Campo etiqueta="Salida" type="date" min={inicio || hoyLocal()} value={fin} onChange={(e) => { setFin(e.target.value); setOferta(null); setElegida('') }} />
           <Campo
             etiqueta="Personas"
             type="number"
             min="1"
             max="30"
             value={personas}
-            onChange={(e) => setPersonas(e.target.value)}
+            onChange={(e) => { setPersonas(e.target.value); setOferta(null); setElegida('') }}
           />
           <button type="submit" className="boton-primario" disabled={buscando}>
             {buscando ? 'Consultando…' : 'Ver disponibilidad'}
@@ -292,7 +312,7 @@ function Reservar() {
 
       {error && <p role="alert" className="alerta">{error}</p>}
 
-      {oferta && (
+      {oferta && !confirmada && (
         <section className="tarjeta">
           <h2>Disponibilidad</h2>
           {grupos.length === 0 ? (
@@ -359,22 +379,26 @@ function Reservar() {
                       {previo.nombre ? <> a nombre de <strong>{previo.nombre}</strong></> : null}. Lo tomamos de la consulta
                       que ya enviaste.
                     </p>
-                    <button type="button" className="boton-secundario" onClick={() => setEditando(true)}>
-                      Editar mis datos
-                    </button>
+                    <div className="acciones-fila">
+                      <button type="button" className="boton-secundario" onClick={() => setEditando(true)}>
+                        Editar mis datos
+                      </button>
+                      <button type="button" className="boton-fantasma" onClick={limpiarContactoPrevio}>
+                        Usar otros datos
+                      </button>
+                    </div>
                   </div>
                 )}
                 {!previo && !resolviendoRef && (
                   <p className="estado nota-contacto" data-aviso-sin-ref>
-                    Déjanos tu nombre completo, RUT o pasaporte, teléfono y correo para que recepción te confirme la reserva.
+                    Déjanos tu nombre y un correo o teléfono para que recepción te confirme la reserva.
                   </p>
                 )}
                 {mostrarCampos && (
                   <div className="campos-contacto">
                     <div>
                       <Campo
-                        etiqueta="Nombre completo *"
-                        required
+                        etiqueta="Nombre"
                         ref={refNombre}
                         autoComplete="name"
                         maxLength={120}
@@ -390,28 +414,9 @@ function Reservar() {
                     </div>
                     <div>
                       <Campo
-                        etiqueta="RUT o pasaporte *"
-                        required
-                        ref={refDocumento}
-                        maxLength={30}
-                        placeholder="12.345.678-9 o Pasaporte"
-                        value={documento}
-                        aria-invalid={erroresCampo.documento ? 'true' : undefined}
-                        aria-describedby={erroresCampo.documento ? 'error-documento' : undefined}
-                        onChange={(e) => {
-                          setDocumento(e.target.value)
-                          if (erroresCampo.documento) setErroresCampo({ ...erroresCampo, documento: undefined })
-                        }}
-                      />
-                      {erroresCampo.documento && <p id="error-documento" className="error-campo">{erroresCampo.documento}</p>}
-                    </div>
-                    <div>
-                      <Campo
-                        etiqueta="Correo *"
-                        type="email"
-                        required
+                        etiqueta="Correo o teléfono"
                         ref={refContacto}
-                        autoComplete="email"
+                        autoComplete="on"
                         maxLength={120}
                         value={contacto}
                         aria-invalid={erroresCampo.contacto ? 'true' : undefined}
@@ -423,29 +428,10 @@ function Reservar() {
                       />
                       {erroresCampo.contacto && <p id="error-contacto" className="error-campo">{erroresCampo.contacto}</p>}
                     </div>
-                    <div>
-                      <Campo
-                        etiqueta="Teléfono *"
-                        type="tel"
-                        required
-                        ref={refTelefono}
-                        autoComplete="tel"
-                        maxLength={30}
-                        placeholder="+56 9 1234 5678"
-                        value={telefono}
-                        aria-invalid={erroresCampo.telefono ? 'true' : undefined}
-                        aria-describedby={erroresCampo.telefono ? 'error-telefono' : undefined}
-                        onChange={(e) => {
-                          setTelefono(e.target.value)
-                          if (erroresCampo.telefono) setErroresCampo({ ...erroresCampo, telefono: undefined })
-                        }}
-                      />
-                      {erroresCampo.telefono && <p id="error-telefono" className="error-campo">{erroresCampo.telefono}</p>}
-                    </div>
                   </div>
                 )}
                 <p className="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
-                  Hotel Herencia usará tu nombre, correo, teléfono, fechas y mensaje para responder esta consulta y, si sigues, para dejar la solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos RUT, datos de salud ni tarjeta; no los escribas en el mensaje. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
+                  Hotel Herencia usará tu nombre, correo o teléfono y fechas para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos RUT, datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
                 </p>
                 {errorSolicitud && (
                   <p role="alert" className="alerta" tabIndex={-1} ref={refErrorSolicitud}>{errorSolicitud}</p>
@@ -453,6 +439,12 @@ function Reservar() {
                 <button type="submit" className="boton-primario boton-enviar" disabled={enviando || grupos.length === 0}>
                   {enviando ? 'Enviando…' : 'Enviar solicitud'}
                 </button>
+                {/* El sello flotante de reCAPTCHA se oculta (tapaba la página); Google lo permite con este aviso visible junto al envío. */}
+                <p className="recaptcha-aviso">
+                  Este sitio está protegido por reCAPTCHA y se aplican la{' '}
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad</a> y las{' '}
+                  <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Condiciones del servicio</a> de Google.
+                </p>
               </form>
             </>
           )}
@@ -466,6 +458,20 @@ function Reservar() {
             Tu solicitud <strong>{confirmada.solicitud_id}</strong> quedó registrada. Recepción la revisará y
             te contactará por el medio que indicaste para confirmar.
           </p>
+          <p className="acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => {
+                setConfirmada(null)
+                setOferta(null)
+                setElegida('')
+                limpiarContactoPrevio()
+              }}
+            >
+              Hacer otra consulta
+            </button>
+          </p>
         </section>
       )}
     </main>
@@ -474,7 +480,7 @@ function Reservar() {
 
 export default function ReservarEnvuelta() {
   return (
-    <Suspense fallback={<main className="pagina pagina-publica"><p className="estado">Cargando…</p></main>}>
+    <Suspense fallback={<main className="pagina pagina-publica"><p className="estado" role="status" aria-busy="true">Cargando…</p></main>}>
       <Reservar />
     </Suspense>
   )
