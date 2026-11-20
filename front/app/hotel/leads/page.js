@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson, Campo } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import Subnav from '../_componentes/subnav'
+import FormularioEdicion from '../_componentes/formulario-edicion'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 import { fechaATexto, fechaHora } from '../../../lib/formato'
 import { aCsv, errorRango, parametrosRango, sufijoRango } from '../../../lib/exportacion'
@@ -24,6 +25,7 @@ export default function Leads() {
   const [error, setError] = useState('')
   const [salida, setSalida] = useState(null)
   const [notas, setNotas] = useState({})
+  const [editando, setEditando] = useState(null)
   const [claveGestion, renovarGestion] = useClaveOperacion()
   // Exportación por fecha o rango (2026-11-19): vacío = sin límite.
   const [expDesde, setExpDesde] = useState('')
@@ -203,7 +205,8 @@ export default function Leads() {
               </thead>
               <tbody>
                 {lista.map((l) => (
-                  <tr key={l.id} {...destacada.props(l.id)}>
+                  <Fragment key={l.id}>
+                  <tr {...destacada.props(l.id)}>
                     <td>{l.nombre}</td>
                     <td>{l.correo}</td>
                     <td>{l.telefono}</td>
@@ -218,6 +221,10 @@ export default function Leads() {
                     <td>{l.nota ?? '—'}</td>
                     <td>{l.gestion_por ? `${l.gestion_por === 'auto:correo' ? 'automático (correo)' : l.gestion_por} · ${fechaHora(l.gestion_en)}` : '—'}</td>
                     <td>
+                      <button type="button" className="boton-fantasma" aria-expanded={editando === l.id}
+                        onClick={() => setEditando(editando === l.id ? null : l.id)}>
+                        Editar
+                      </button>
                       {l.estado !== 'cerrado' ? (
                         <div className="acciones-fila">
                           <input
@@ -246,6 +253,30 @@ export default function Leads() {
                       )}
                     </td>
                   </tr>
+                  {editando === l.id && (
+                    <tr>
+                      <td colSpan={11}>
+                        <FormularioEdicion
+                          ruta={`/hotel/leads/${l.id}`}
+                          inicial={l}
+                          campos={[
+                            { nombre: 'nombre', etiqueta: 'Nombre', requerido: true },
+                            { nombre: 'correo', etiqueta: 'Correo', tipo: 'email', requerido: true },
+                            { nombre: 'telefono', etiqueta: 'Teléfono', requerido: true },
+                            { nombre: 'huespedes', etiqueta: 'Huéspedes', tipo: 'number' },
+                            { nombre: 'check_in', etiqueta: 'Llegada', tipo: 'date' },
+                            { nombre: 'check_out', etiqueta: 'Salida', tipo: 'date' },
+                            { nombre: 'mensaje', etiqueta: 'Mensaje' },
+                            { nombre: 'nota', etiqueta: 'Nota' },
+                          ]}
+                          alGuardar={() => { setEditando(null); cargar(estado) }}
+                          alCancelar={() => setEditando(null)}
+                        />
+                        <p className="nota-clave">Corregir datos no cambia el estado del lead.</p>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

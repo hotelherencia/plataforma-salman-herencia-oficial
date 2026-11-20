@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { api, useSesion } from '../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
-import { esAdminPlataforma, esAseo, gestionaRecepcion, veAseo } from '../lib/roles'
+import { esAdminPlataforma, esAseo, gestionaClientes, gestionaRecepcion, veAseo } from '../lib/roles'
 import { hayOperacionActiva, itemActivo, seccionesVisibles } from '../lib/menu-hotel'
 import { Insignia, useContadorSolicitudes } from './hotel/_componentes/contador-solicitudes'
 
@@ -44,6 +44,7 @@ export default function BarraNav() {
     puedeVerAgente: sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol),
     puedeVerUsuarios: sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol),
     puedeVerAseo: sesion.fase === 'ok' && veAseo(sesion.usuario.rol),
+    puedeVerClientes: sesion.fase === 'ok' && gestionaClientes(sesion.usuario.rol),
     soloAseo: sesion.fase === 'ok' && esAseo(sesion.usuario.rol),
   }
   const secciones = enHotel ? seccionesVisibles(visibilidad) : []

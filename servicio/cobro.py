@@ -15,9 +15,12 @@ from psycopg.errors import ExclusionViolation
 
 from nucleo.servicio import AccesoDenegado as AccesoNucleo
 
+from . import clientes
+from . import documento as documento_mod
 from . import hotel_sql
 from . import reservas as reservas_db
 from . import roles
+from . import seguridad
 
 ROLES_PAGO_MANUAL = roles.con_admin_hotel("recepcion", "caja")
 ROLES_CAJA = roles.con_admin_hotel("caja")
@@ -447,3 +450,49 @@ def atender_observacion(conexion: psycopg.Connection, habitacion_id: str, observ
     return {"observacion_id": observacion_id, "habitacion_id": habitacion_id, "atendida_por": actor}
 
 
+
+
+class HuespedInvalido(ValueError):
+    """422: nombre o documento del huésped inválidos."""
+
+
+def editar_huesped(
+    conexion: psycopg.Connection, empresa_id: str, reserva_id: str, nombre: str,
+    documento: str | None, documento_tipo: str | None, actor: str,
+) -> dict:
+    """Corrige nombre y documento del huésped en cualquier estado de la reserva (también finalizada o
+    cancelada). No toca fechas, unidad, tarifa ni cuenta. Un RUT es una sola persona: si ya pertenece a
+    un cliente registrado con otro nombre, se rechaza (409 por `ClienteConflicto`, igual que al reservar).
+    El documento se corrige pero no se borra. Auditoría: nombres de campo, nunca el documento."""
+    nombre = " ".join((nombre or "").split())
+    if not nombre or len(nombre) > 120:
+        raise HuespedInvalido("nombre es obligatorio (máx. 120)")
+    documento = (documento or "").strip() or None
+    if documento is not None:
+        if documento_tipo is None:
+            raise HuespedInvalido("indica si el documento es rut o pasaporte")
+        try:
+            documento = documento_mod.normalizar(documento_tipo, documento)
+        except documento_mod.DocumentoInvalido as error:
+            raise HuespedInvalido(str(error)) from error
+    _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
+    actual = conexion.execute(
+        "SELECT huesped_nombre, huesped_documento, huesped_documento_tipo FROM reservas WHERE id = %s",
+        (reserva_id,),
+    ).fetchone()
+    doc_final, tipo_final = (documento, documento_tipo) if documento is not None else (actual[1], actual[2])
+    if doc_final and tipo_final == "rut":
+        clientes.exigir_nombre_coherente(conexion, clientes.rut_clave(doc_final), nombre)
+    cambiados = []
+    if nombre != actual[0]:
+        cambiados.append("huesped_nombre")
+    if documento is not None and (documento, documento_tipo) != (actual[1], actual[2]):
+        cambiados.append("huesped_documento")
+    if cambiados:
+        conexion.execute(
+            "UPDATE reservas SET huesped_nombre = %s, huesped_documento = %s, huesped_documento_tipo = %s "
+            "WHERE id = %s",
+            (nombre, doc_final, tipo_final, reserva_id),
+        )
+        seguridad.auditar(conexion, actor, "reserva_edicion_huesped", reserva_id, ",".join(cambiados))
+    return {"reserva_id": reserva_id, "huesped_nombre": nombre, "cambiados": cambiados}

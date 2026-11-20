@@ -120,7 +120,7 @@ class TransicionInvalida(Exception):
     """409: el lead no admite la operación en su estado actual."""
 
 
-def _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje) -> None:
+def _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje, exigir_futuro: bool = True) -> None:
     if not nombre or len(nombre) > MAX_NOMBRE:
         raise LeadInvalido(f"nombre es obligatorio (máx. {MAX_NOMBRE})")
     if not correo or len(correo) > MAX_CORREO or not _RE_CORREO.match(correo):
@@ -140,7 +140,7 @@ def _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje) 
         raise LeadInvalido("check_out debe ser mayor que check_in")
     from . import contabilidad
 
-    if check_in is not None and check_in < contabilidad.hoy_chile():
+    if exigir_futuro and check_in is not None and check_in < contabilidad.hoy_chile():
         raise LeadInvalido("check_in debe ser hoy o una fecha futura")
     if check_in is not None and (check_out - check_in).days > MAX_NOCHES:
         raise LeadInvalido(f"el rango supera las {MAX_NOCHES} noches")
@@ -423,4 +423,61 @@ def gestionar(
     if estado == "cerrado":
         revocar_referencia(conexion, lead_id)  # SOC-016
     seguridad.auditar(conexion, actor, "lead_gestion", lead_id, f"{actual}:{estado}")
+    return _fila_bandeja(conexion, lead_id)
+
+
+def editar(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    lead_id: str,
+    nombre: str,
+    correo: str,
+    telefono: str,
+    huespedes: int | None,
+    check_in: date | None,
+    check_out: date | None,
+    mensaje: str | None,
+    nota: str | None,
+    actor: str,
+) -> dict:
+    """Corrige los datos de un lead en cualquier estado (también cerrado). No cambia el estado ni la
+    gestión, y no borra nada. La llegada ya pasada solo se rechaza si la edición toca las fechas: un
+    lead antiguo se corrige sin reescribirlas. Si cambian correo o teléfono, el lead pasa a la ficha de
+    contacto que corresponda (#354); la ficha anterior conserva sus otros leads. La auditoría guarda
+    los nombres de los campos cambiados, nunca sus valores."""
+    nombre = entrada_publica.limpiar_texto(nombre)
+    correo = entrada_publica.limpiar_texto(correo).lower()
+    telefono = entrada_publica.limpiar_texto(telefono)
+    mensaje = entrada_publica.limpiar_texto(mensaje, multilinea=True) or None
+    nota = entrada_publica.limpiar_texto(nota, multilinea=True) or None
+    actual = conexion.execute(
+        "SELECT nombre, correo, telefono, huespedes, check_in, check_out, mensaje, nota, contacto_id "
+        "FROM leads WHERE id = %s AND empresa_id = %s FOR UPDATE",
+        (lead_id, empresa_id),
+    ).fetchone()
+    if actual is None:
+        raise LeadAjenoOInexistente("acceso denegado")
+    _validar(nombre, correo, telefono, huespedes, check_in, check_out, mensaje,
+             exigir_futuro=(check_in, check_out) != (actual[4], actual[5]))
+    nuevo = (nombre, correo, telefono, huespedes, check_in, check_out, mensaje, nota)
+    campos = ("nombre", "correo", "telefono", "huespedes", "check_in", "check_out", "mensaje", "nota")
+    cambiados = [c for c, a, n in zip(campos, actual, nuevo) if a != n]
+    if not cambiados:
+        return _fila_bandeja(conexion, lead_id)
+    contacto_id = actual[8]
+    if {"nombre", "correo", "telefono"} & set(cambiados):
+        contacto_id = _contacto_para(conexion, empresa_id, nombre, correo, telefono)
+        if contacto_id == actual[8] and "telefono" in cambiados:
+            otros = conexion.execute(
+                "SELECT count(*) FROM leads WHERE contacto_id = %s AND id <> %s", (contacto_id, lead_id)
+            ).fetchone()[0]
+            if otros == 0:  # ficha de un solo lead: el teléfono corregido es el de la ficha
+                conexion.execute("UPDATE contactos SET telefono_normalizado = %s WHERE id = %s",
+                                 (normalizar_telefono(telefono), contacto_id))
+    conexion.execute(
+        "UPDATE leads SET nombre = %s, correo = %s, telefono = %s, huespedes = %s, check_in = %s, "
+        "check_out = %s, mensaje = %s, nota = %s, contacto_id = %s WHERE id = %s",
+        (*nuevo, contacto_id, lead_id),
+    )
+    seguridad.auditar(conexion, actor, "lead_edicion", lead_id, ",".join(cambiados))
     return _fila_bandeja(conexion, lead_id)

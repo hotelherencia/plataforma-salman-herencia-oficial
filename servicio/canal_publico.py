@@ -499,3 +499,39 @@ def rechazar(
     )
     seguridad.auditar(conexion, actor, "solicitud_rechazo", solicitud_id, "rechazada")
     return _fila_publica(conexion, solicitud_id)
+
+
+def editar(
+    conexion: psycopg.Connection, empresa_id: str, solicitud_id: str, huesped_nombre: str,
+    huesped_contacto: str, personas: int, actor: str,
+) -> dict:
+    """Corrige nombre, contacto y personas de la solicitud. Nombre y contacto se corrigen en cualquier
+    estado; las personas solo mientras está «recibida» (después la reserva ya las tiene y se cambian
+    ahí). Unidad, tipo y fechas no se editan: mueven cupo y tarifa, y se rehacen con otra solicitud."""
+    nombre = entrada_publica.limpiar_texto(huesped_nombre)
+    contacto = entrada_publica.limpiar_texto(huesped_contacto)
+    if not nombre or len(nombre) > 120:
+        raise SolicitudInvalida("huesped_nombre es obligatorio (máx. 120)")
+    if not contacto or len(contacto) > 120:
+        raise SolicitudInvalida("huesped_contacto es obligatorio (máx. 120)")
+    if not 1 <= personas <= MAX_PERSONAS:
+        raise SolicitudInvalida(f"personas debe estar entre 1 y {MAX_PERSONAS}")
+    actual = conexion.execute(
+        "SELECT estado, huesped_nombre, huesped_contacto, personas FROM solicitudes "
+        "WHERE id = %s AND empresa_id = %s FOR UPDATE",
+        (solicitud_id, empresa_id),
+    ).fetchone()
+    if actual is None:
+        raise SolicitudAjenaOInexistente("acceso denegado")
+    if actual[0] != "recibida" and personas != actual[3]:
+        raise TransicionInvalida(f"la solicitud está {actual[0]}: ya no se cambian las personas")
+    cambiados = [c for c, a, n in zip(("huesped_nombre", "huesped_contacto", "personas"), actual[1:],
+                                      (nombre, contacto, personas)) if a != n]
+    if cambiados:
+        conexion.execute(
+            "UPDATE solicitudes SET huesped_nombre = %s, huesped_contacto = %s, personas = %s, "
+            "contacto_normalizado = %s WHERE id = %s",
+            (nombre, contacto, personas, contacto_normalizado(contacto), solicitud_id),
+        )
+        seguridad.auditar(conexion, actor, "solicitud_edicion", solicitud_id, ",".join(cambiados))
+    return _fila_publica(conexion, solicitud_id)
