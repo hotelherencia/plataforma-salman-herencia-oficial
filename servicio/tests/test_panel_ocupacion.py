@@ -384,3 +384,15 @@ class PanelReconciliacionTest(ReconciliacionBaseTest):
                 if date.fromisoformat(noche) <= H:
                     self.assertEqual(serie[noche]["ocupadas_estadias"],
                                      estados.get("en_estadia", 0) + estados.get("finalizada", 0))
+
+    def test_reservas_detalle_y_detalle_por_tipo_en_panel(self):
+        p = self.panel(H, H + timedelta(days=3))
+        en_casa = p["hoy"]["en_casa"]
+        self.assertEqual(en_casa["valor"], 1)
+        self.assertEqual(en_casa["reservas_detalle"], [{"reserva_id": self.r1, "huesped_nombre": "En Casa"}])
+        for dia in p["serie"]:
+            tipos = dia["detalle_por_tipo"]
+            self.assertGreater(len(tipos), 0)
+            self.assertEqual(sum(t["capacidad_total"] for t in tipos), dia["unidades"])
+            for t in tipos:
+                self.assertEqual(t["en_casa"] + t["reservadas"] + t["disponibles"], t["capacidad_total"])

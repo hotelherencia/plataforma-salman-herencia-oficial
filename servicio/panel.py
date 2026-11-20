@@ -208,8 +208,21 @@ def _indicador(valor, unidad: str, formula: str, fuente: str, limitaciones: str 
     return {"valor": valor, "unidad": unidad, "formula": formula, "fuente": fuente, "limitaciones": limitaciones}
 
 
-def _conteo_reservas(ids: list[str], unidad_formula: str, fuente: str = "reservas") -> dict:
-    return {**_indicador(len(ids), "reservas", unidad_formula, fuente), "reservas": ids}
+def _conteo_reservas(registros: list[tuple[str, str | None]] | list[str], unidad_formula: str, fuente: str = "reservas") -> dict:
+    if registros and isinstance(registros[0], tuple):
+        ids = [r[0] for r in registros]
+        detalle = [
+            {"reserva_id": r[0], "huesped_nombre": (r[1] or "").strip() or "Sin nombre"}
+            for r in registros
+        ]
+    else:
+        ids = list(registros)  # type: ignore[arg-type]
+        detalle = [{"reserva_id": rid, "huesped_nombre": "Sin nombre"} for rid in ids]
+    return {
+        **_indicador(len(ids), "reservas", unidad_formula, fuente),
+        "reservas": ids,
+        "reservas_detalle": detalle,
+    }
 
 
 NO_DISPONIBLES = [
@@ -240,11 +253,11 @@ def indicadores(
     ids = [h["habitacion_id"] for h in habitaciones]
 
     # --- Situación de hoy (§4.2) ---
-    def reservas_donde(condicion: str, *parametros) -> list[str]:
+    def reservas_donde(condicion: str, *parametros) -> list[tuple[str, str | None]]:
         return [
-            f[0]
+            (f[0], f[1])
             for f in conexion.execute(
-                f"SELECT id FROM reservas WHERE empresa_id = %s AND habitacion_id = ANY(%s) AND {condicion} "
+                f"SELECT id, huesped_nombre FROM reservas WHERE empresa_id = %s AND habitacion_id = ANY(%s) AND {condicion} "
                 "ORDER BY inicio, id",
                 (empresa_id, ids, *parametros),
             ).fetchall()
@@ -307,8 +320,37 @@ def indicadores(
             ocupadas_total += ocupadas_estadias
         unidades_total += len(activas)
         reservadas_total += reservadas
-        serie.append({"fecha": noche.isoformat(), "unidades": len(activas), "ocupadas_estadias": ocupadas_estadias,
-                      "reservadas": reservadas})
+        tipos_noche = sorted({h["tipo"] for h in habitaciones if h["habitacion_id"] in activas})
+        detalle_por_tipo = []
+        for t in tipos_noche:
+            ids_tipo = {h["habitacion_id"] for h in habitaciones if h["tipo"] == t and h["habitacion_id"] in activas}
+            en_casa_tipo = (
+                len({r["habitacion_id"] for r in con_noche if r["habitacion_id"] in ids_tipo and r["estado"] in ("en_estadia", "finalizada")})
+                if noche <= hoy
+                else 0
+            )
+            reservadas_tipo = len(
+                {r["habitacion_id"] for r in con_noche if r["habitacion_id"] in ids_tipo and r["estado"] == "confirmada"}
+            )
+            disponibles_tipo = max(0, len(ids_tipo) - en_casa_tipo - reservadas_tipo)
+            detalle_por_tipo.append(
+                {
+                    "tipo_habitacion": t,
+                    "en_casa": en_casa_tipo,
+                    "reservadas": reservadas_tipo,
+                    "disponibles": disponibles_tipo,
+                    "capacidad_total": len(ids_tipo),
+                }
+            )
+        serie.append(
+            {
+                "fecha": noche.isoformat(),
+                "unidades": len(activas),
+                "ocupadas_estadias": ocupadas_estadias,
+                "reservadas": reservadas,
+                "detalle_por_tipo": detalle_por_tipo,
+            }
+        )
 
     canceladas = [r for r in reservas if r["estado"] == "cancelada"]
     noches_canceladas = sum(

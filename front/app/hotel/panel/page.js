@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
 import { Explicacion } from '../_componentes/explicacion'
 import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
@@ -84,18 +84,32 @@ const ETIQUETAS_CANAL = {
 function Tarjeta({ clave, titulo, indicador, alerta, valor, detalle }) {
   if (!indicador) return null
   const mostrar = valor !== undefined ? valor : indicador.valor
+  const reservasDetalle = Array.isArray(indicador.reservas_detalle) && indicador.reservas_detalle.length > 0
+    ? indicador.reservas_detalle
+    : Array.isArray(indicador.reservas)
+      ? indicador.reservas.map((id) => ({ reserva_id: id, huesped_nombre: '' }))
+      : []
   return (
     <div className={`kpi${alerta && indicador.valor > 0 ? ' kpi-alerta' : ''}`}>
       <span className="kpi-titulo">{titulo}</span>
       <span className="kpi-valor">{mostrar}</span>
       {detalle && <span className="kpi-detalle">{detalle}</span>}
-      {Array.isArray(indicador.reservas) && indicador.reservas.length > 0 && (
+      {reservasDetalle.length > 0 && (
         <span className="kpi-reservas">
-          {indicador.reservas.map((id) => (
-            <Link key={id} href={`/hotel/reservas/${id}`} className="kpi-enlace-reserva" title={`Ver detalle de reserva ${id}`}>
-              #{id.replace(/^RSV-/, '').slice(0, 8)}
-            </Link>
-          ))}
+          {reservasDetalle.map((item) => {
+            const nombre = item.huesped_nombre && item.huesped_nombre.trim() ? item.huesped_nombre.trim() : 'Sin nombre'
+            const codigoCorto = `#${item.reserva_id.replace(/^RSV-/, '').slice(0, 8)}`
+            return (
+              <Link
+                key={item.reserva_id}
+                href={`/hotel/reservas/${item.reserva_id}`}
+                className="kpi-enlace-reserva"
+                title={`Reserva ${item.reserva_id} · ${nombre}`}
+              >
+                {nombre} <small style={{ opacity: 0.72 }}>{codigoCorto}</small>
+              </Link>
+            )
+          })}
         </span>
       )}
       {EXPLICACIONES[clave] ? <Explicacion clave={clave} titulo={titulo} /> : <Definicion indicador={indicador} />}
@@ -331,45 +345,73 @@ export default function Panel() {
               </div>
             )}
 
-            {datos.serie && datos.serie.length > 0 && (
-              <div className="grafico-serie-bloque">
-                <div className="serie-cabecera">
-                  <h3 className="subtitulo">Ocupación y reservas por noche</h3>
-                  <div className="serie-leyenda">
-                    <span className="leyenda-item"><span className="punto punto-ocupada"></span> En casa</span>
-                    <span className="leyenda-item"><span className="punto punto-reservada"></span> Reservadas</span>
-                    <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles</span>
+            {datos.serie && datos.serie.length > 0 && (() => {
+              const noches = datos.periodo?.noches || datos.serie.length
+              const esHoy = datos.periodo?.desde === datos.fecha_corte && noches === 1
+              const contextoPeriodo = esHoy
+                ? `Distribución actual (${formatearFecha(datos.fecha_corte)})`
+                : noches === 1
+                  ? `Vista: Día (${formatearFecha(datos.periodo.desde)})`
+                  : noches === 7
+                    ? `Vista: Semana (${formatearFecha(datos.periodo.desde)} → ${formatearFecha(datos.periodo.hasta)})`
+                    : noches >= 28 && noches <= 31
+                      ? `Vista: Mes (${formatearFecha(datos.periodo.desde)} → ${formatearFecha(datos.periodo.hasta)})`
+                      : `Vista: Periodo (${plural(noches, 'noche')})`
+              const totalEnCasa = datos.serie.reduce((acc, s) => acc + (s.ocupadas_estadias ?? 0), 0)
+              const totalReservadas = datos.serie.reduce((acc, s) => {
+                const oc = s.ocupadas_estadias ?? 0
+                return acc + Math.max(0, (s.reservadas || 0) - oc)
+              }, 0)
+              const totalDisponibles = datos.serie.reduce((acc, s) => {
+                const max = s.unidades || 0
+                const oc = s.ocupadas_estadias ?? 0
+                const res = Math.max(0, (s.reservadas || 0) - oc)
+                return acc + Math.max(0, max - oc - res)
+              }, 0)
+              return (
+                <div className="grafico-serie-bloque">
+                  <div className="serie-cabecera">
+                    <div>
+                      <h3 className="subtitulo">Ocupación y reservas por noche</h3>
+                      <span className="estado-pct" data-contexto-periodo>{contextoPeriodo}</span>
+                    </div>
+                    <div className="serie-leyenda">
+                      <span className="leyenda-item"><span className="punto punto-ocupada"></span> En casa: {totalEnCasa}</span>
+                      <span className="leyenda-item"><span className="punto punto-reservada"></span> Reservadas: {totalReservadas}</span>
+                      <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles: {totalDisponibles}</span>
+                    </div>
+                  </div>
+                  <div className="grafico-barras-contenedor">
+                    <div className="grafico-barras">
+                      {datos.serie.map((s) => {
+                        const max = s.unidades || 1
+                        const ocupadas = s.ocupadas_estadias ?? 0
+                        const reservadas = Math.max(0, (s.reservadas || 0) - ocupadas)
+                        const libres = Math.max(0, max - ocupadas - reservadas)
+                        const pctOcupadas = Math.min(100, (ocupadas / max) * 100)
+                        const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
+                        const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
+                        const dia = diaSemana(s.fecha)
+                        const fechaCortaNoche = fechaCorta(s.fecha)
+                        return (
+                          <div key={s.fecha} className="columna-noche">
+                            <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} en casa, ${reservadas} reservadas, ${libres} disponibles de ${max} unidades`}>
+                              {pctLibre > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%` }}>{pctLibre >= 18 ? libres : ''}</div>}
+                              {pctReservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%` }}>{pctReservadas >= 18 ? reservadas : ''}</div>}
+                              {pctOcupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%` }}>{pctOcupadas >= 18 ? ocupadas : ''}</div>}
+                            </div>
+                            <div className="columna-fecha">
+                              <span className="columna-dia">{dia}</span>
+                              <span className="columna-dia-num">{fechaCortaNoche}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div className="grafico-barras-contenedor">
-                  <div className="grafico-barras">
-                    {datos.serie.map((s) => {
-                      const max = s.unidades || 1
-                      const ocupadas = s.ocupadas_estadias ?? 0
-                      const reservadas = s.reservadas || 0
-                      const pctOcupadas = Math.min(100, (ocupadas / max) * 100)
-                      const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
-                      const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
-                      const dia = diaSemana(s.fecha)
-                      const fechaCortaNoche = fechaCorta(s.fecha)
-                      return (
-                        <div key={s.fecha} className="columna-noche">
-                          <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} ocupadas, ${reservadas} reservadas de ${max} unidades`}>
-                            {pctLibre > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%` }}></div>}
-                            {pctReservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%` }}></div>}
-                            {pctOcupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%` }}></div>}
-                          </div>
-                          <div className="columna-fecha">
-                            <span className="columna-dia">{dia}</span>
-                            <span className="columna-dia-num">{fechaCortaNoche}</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
+              )
+            })()}
 
             <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla serie">
@@ -383,12 +425,22 @@ export default function Panel() {
               </thead>
               <tbody>
                 {datos.serie.map((s) => (
-                  <tr key={s.fecha}>
-                    <td><strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span></td>
-                    <td>{s.unidades}</td>
-                    <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
-                    <td>{s.reservadas}</td>
-                  </tr>
+                  <Fragment key={s.fecha}>
+                    <tr>
+                      <td><strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span></td>
+                      <td>{s.unidades}</td>
+                      <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
+                      <td>{s.reservadas}</td>
+                    </tr>
+                    {Array.isArray(s.detalle_por_tipo) && s.detalle_por_tipo.map((d) => (
+                      <tr key={`${s.fecha}-${d.tipo_habitacion}`} style={{ fontSize: '0.88em', opacity: 0.85 }}>
+                        <td style={{ paddingLeft: '1.5rem' }}>↳ {d.tipo_habitacion}</td>
+                        <td>{d.capacidad_total}</td>
+                        <td>{d.en_casa}</td>
+                        <td>{d.reservadas} (disp: {d.disponibles})</td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
