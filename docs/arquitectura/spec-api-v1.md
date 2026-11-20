@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (146)
+## Operaciones de esta versión (147)
 
 | Operación | Efecto |
 |---|---|
@@ -622,6 +622,7 @@ los compone el servidor.
 | `GET /hotel/leads/contactos` | (#354) Contactos deduplicados (correo en minúsculas o teléfono normalizado) con cantidad de leads y último contacto: base para fidelización, un envío por persona y nunca por lead. Roles recepción o administrador. (2026-11-19) `?desde&hasta` (fecha de Chile, inclusive) acota la exportación a contactos con algún lead en ese rango. |
 | `POST /hotel/leads/{id}/estado` | Avanza el lead (`contactado`/`cerrado` con nota) con auditoría; transición inválida → 409, ajeno → 403. Roles recepción o administrador. |
 | `PUT /hotel/leads/{id}` | (2026-11-20) Corrige los datos del lead en cualquier estado (también cerrado): `{nombre, correo, telefono, huespedes?, check_in?, check_out?, mensaje?, nota?}`. No cambia estado ni gestión. La llegada pasada solo se rechaza si la edición toca las fechas. Si cambian correo o teléfono, el lead pasa a la ficha de contacto que corresponda (#354). Auditoría `lead_edicion` con los nombres de campo. Ajeno o inexistente → 403; datos inválidos → 422. Roles recepción o administrador. |
+| `GET /hotel/leads/{id}/historial` | (2026-11-20) Historial auditable del lead desde `auditoria` (`lead_edicion`, `lead_gestion`, `lead_vinculo`): actor, acción, campos modificados o transición y marca de tiempo, nunca valores personales. Ajeno o inexistente → 403. Roles recepción o administrador. |
 | `PUT /hotel/solicitudes/{id}` | (2026-11-20) Corrige `{huesped_nombre, huesped_contacto, personas}` de la solicitud. Nombre y contacto en cualquier estado; las personas solo mientras `recibida` (otro estado con personas distintas → 409). Tipo, unidad y fechas no se editan. Auditoría `solicitud_edicion`. Roles recepción o administrador. |
 | `PUT /hotel/reservas/{id}/huesped` | (2026-11-20) Corrige `{nombre, documento?, documento_tipo?}` del huésped en cualquier estado de la reserva. El documento exige tipo (`rut`/`pasaporte`), se normaliza como en la entrada y no se borra (sin documento = no cambia). Un RUT de otro cliente registrado con otro nombre → 409. No toca fechas, unidad ni cuenta. Auditoría `reserva_edicion_huesped` sin el documento. Recepción o administración del hotel. |
 | `GET /hotel/clientes?q` | (2026-11-20) Clientes por nombre, RUT o correo (máx. 200, `truncado`). Recepción, caja o administración del hotel. |

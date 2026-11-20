@@ -102,6 +102,28 @@ export default function DetalleReserva() {
     }
   }
 
+  // Cancelación por operación de dominio (POST /hotel/reservas/{id}/cancelacion; política 48 h).
+  async function cancelarReserva() {
+    if (!window.confirm(`¿Cancelar la reserva ${reservaId} de ${reserva.huesped_nombre}? Se aplica la política de cancelación vigente (gratuita hasta 48 h antes de la llegada; después se carga la primera noche).`)) return
+    setError('')
+    setAviso('')
+    try {
+      const r = await api(`/hotel/reservas/${encodeURIComponent(reservaId)}/cancelacion`, {
+        metodo: 'POST',
+        claveIdempotencia: `can-${crypto.randomUUID().slice(0, 12)}`,
+        cuerpo: {},
+      })
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else {
+        const penalidad = r.datos.penalidad_clp ? ` Penalidad aplicada: ${clp(r.datos.penalidad_clp)}.` : ' Sin penalidad.'
+        setAviso(`Reserva cancelada.${penalidad}`)
+        setVersion((v) => v + 1)
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    }
+  }
+
   // #359: anular un cargo = asentar su reverso (movimiento contrario), nunca borrar.
   async function reversar(cargo) {
     const motivo = window.prompt(`Motivo del reverso de «${cargo.concepto}» (${clp(cargo.monto_clp)}):`)
@@ -279,6 +301,18 @@ export default function DetalleReserva() {
                 <button type="submit" className="boton-secundario">Cambiar habitación</button>
                 <p className="nota-clave">Se conserva la tarifa pactada. En estadía, la habitación de origen queda para limpieza.</p>
               </form>
+            )}
+            {puedeMover && reserva.estado === 'confirmada' && (
+              <div className="cambio-habitacion" aria-label="Cancelar reserva o cambiar fechas">
+                <h3 className="subtitulo">Cancelación y cambio de fechas</h3>
+                <p className="nota-clave">
+                  Las fechas no se editan directamente porque afectan cupo y tarifa noche a noche. Para cambiar fechas en V1,
+                  cancela esta reserva y registra una <Link href="/hotel/reserva">nueva reserva</Link>.
+                </p>
+                <button type="button" className="boton-secundario" onClick={cancelarReserva}>
+                  Cancelar reserva
+                </button>
+              </div>
             )}
             {reserva.reasignaciones?.length > 0 && (
               <>

@@ -26,6 +26,9 @@ export default function Leads() {
   const [salida, setSalida] = useState(null)
   const [notas, setNotas] = useState({})
   const [editando, setEditando] = useState(null)
+  const [historialId, setHistorialId] = useState(null)
+  const [historialItems, setHistorialItems] = useState({})
+  const [cargandoHistorial, setCargandoHistorial] = useState(false)
   const [claveGestion, renovarGestion] = useClaveOperacion()
   // Exportación por fecha o rango (2026-11-19): vacío = sin límite.
   const [expDesde, setExpDesde] = useState('')
@@ -100,6 +103,25 @@ export default function Leads() {
       descargar(aCsv(filas), `leads-${sufijoRango(expDesde, expHasta)}.csv`)
     } catch {
       setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    }
+  }
+
+  async function alternarHistorial(leadId) {
+    if (historialId === leadId) {
+      setHistorialId(null)
+      return
+    }
+    setHistorialId(leadId)
+    setCargandoHistorial(true)
+    setError('')
+    try {
+      const r = await api(`/hotel/leads/${encodeURIComponent(leadId)}/historial`)
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else setHistorialItems((prev) => ({ ...prev, [leadId]: r.datos.historial || [] }))
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    } finally {
+      setCargandoHistorial(false)
     }
   }
 
@@ -225,6 +247,10 @@ export default function Leads() {
                         onClick={() => setEditando(editando === l.id ? null : l.id)}>
                         Editar
                       </button>
+                      <button type="button" className="boton-fantasma" aria-expanded={historialId === l.id}
+                        onClick={() => alternarHistorial(l.id)}>
+                        Historial
+                      </button>
                       {l.estado !== 'cerrado' ? (
                         <div className="acciones-fila">
                           <input
@@ -269,10 +295,38 @@ export default function Leads() {
                             { nombre: 'mensaje', etiqueta: 'Mensaje' },
                             { nombre: 'nota', etiqueta: 'Nota' },
                           ]}
-                          alGuardar={() => { setEditando(null); cargar(estado) }}
+                          alGuardar={() => { setEditando(null); setHistorialItems((prev) => { const copia = { ...prev }; delete copia[l.id]; return copia }); cargar(estado) }}
                           alCancelar={() => setEditando(null)}
                         />
                         <p className="nota-clave">Corregir datos no cambia el estado del lead.</p>
+                      </td>
+                    </tr>
+                  )}
+                  {historialId === l.id && (
+                    <tr>
+                      <td colSpan={11}>
+                        <strong>Historial de ediciones y gestión</strong>
+                        {cargandoHistorial && !historialItems[l.id] ? (
+                          <p className="nota-clave" role="status" aria-busy="true">Cargando historial…</p>
+                        ) : (historialItems[l.id] || []).length === 0 ? (
+                          <p className="nota-clave">Sin ediciones ni cambios de estado registrados.</p>
+                        ) : (
+                          <ul className="lista-simple">
+                            {(historialItems[l.id] || []).map((ev) => (
+                              <li key={ev.auditoria_id}>
+                                {fechaHora(ev.creado_en)} ·{' '}
+                                <strong>
+                                  {ev.accion === 'lead_edicion'
+                                    ? 'Edición de campos'
+                                    : ev.accion === 'lead_vinculo'
+                                      ? 'Vínculo actualizado'
+                                      : 'Cambio de estado'}
+                                </strong>{' '}
+                                · {ev.detalle} ({ev.actor})
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </td>
                     </tr>
                   )}

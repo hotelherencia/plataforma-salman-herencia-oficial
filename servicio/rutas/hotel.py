@@ -1199,6 +1199,20 @@ def editar_lead(
     return resultado
 
 
+@router.get("/hotel/leads/{lead_id}/historial")
+def historial_lead(
+    lead_id: str,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Historial auditable del lead (nombres de campo y transiciones, nunca valores personales)."""
+    comun.exigir_rol(sesion, leads_mod.ROLES_GESTION)
+    try:
+        return leads_mod.historial(conexion, sesion.empresa_id, lead_id)
+    except leads_mod.LeadAjenoOInexistente:
+        raise HTTPException(status_code=403, detail="acceso denegado")
+
+
 @router.put("/hotel/solicitudes/{solicitud_id}")
 def editar_solicitud(
     solicitud_id: str,
