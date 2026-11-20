@@ -182,15 +182,22 @@ class FacturasHttpTest(ImportacionHttpBase):
         with psycopg.connect(URL_TEST) as conexion:
             conexion.execute("TRUNCATE documentos_proveedor, equivalencias_proveedor, archivos_documentos, buzones_correo CASCADE")
             conexion.commit()
-        self.sin_ia = mock.patch.object(vision, "proveedor_configurado", return_value=None)
+        self.sin_ia = None
+        self.addCleanup(self._detener_parche_ia)
+        self._fijar_ia(None)
+
+    def _detener_parche_ia(self):
+        if self.sin_ia is not None:
+            self.sin_ia.stop()
+            self.sin_ia = None
+
+    def _fijar_ia(self, proveedor):
+        self._detener_parche_ia()
+        self.sin_ia = mock.patch.object(vision, "proveedor_configurado", return_value=proveedor)
         self.sin_ia.start()
-        self.addCleanup(self.sin_ia.stop)
 
     def con_ia(self, respuesta):
-        self.sin_ia.stop()
-        p = vision.ProveedorGemini("k", post=GeminiFalso([respuesta] * 5))
-        self.sin_ia = mock.patch.object(vision, "proveedor_configurado", return_value=p)
-        self.sin_ia.start()
+        self._fijar_ia(vision.ProveedorGemini("k", post=GeminiFalso([respuesta] * 5)))
 
     def subir(self, contenido, tipo="image/jpeg", cliente=None):
         return (cliente or self.admin).post("/hotel/productos/documentos/archivo", content=contenido,
@@ -286,10 +293,7 @@ class FacturasHttpTest(ImportacionHttpBase):
         self.assertIn("timbre_total", {x["codigo"] for x in d["discrepancias"]})
 
     def test_ia_caida_no_impide_la_carga_manual(self):
-        self.sin_ia.stop()
-        p = vision.ProveedorGemini("k", post=GeminiFalso([vision.VisionFallida("504")]))
-        self.sin_ia = mock.patch.object(vision, "proveedor_configurado", return_value=p)
-        self.sin_ia.start()
+        self._fijar_ia(vision.ProveedorGemini("k", post=GeminiFalso([vision.VisionFallida("504")])))
         d = self.subir(fs.jpeg(fs.pagina(folio="4405"))).json()
         self.assertEqual(d["folio"], "4405")
         self.assertIn("ia_fallo", {x["codigo"] for x in d["discrepancias"]})
