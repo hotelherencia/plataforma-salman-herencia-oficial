@@ -51,6 +51,11 @@ class Configuracion:
     modelo_base_url: str | None = None
     modelo_api_key: str | None = None
     modelo_nombre: str | None = None
+    # D-AGT-02 (2026-11-20): permite reutilizar GEMINI_API_KEY sin duplicar secretos
+    # fijando MODELO_PROVEEDOR=gemini.
+    modelo_proveedor: str | None = None
+    gemini_api_key: str | None = None
+    gemini_modelo: str | None = None
     # Puerto WhatsApp (spec 006, #324). Las tres juntas encienden el webhook;
     # falta una y el puerto sigue apagado (503, sin persistir).
     whatsapp_app_secret: str | None = None
@@ -128,6 +133,9 @@ def cargar_desde_entorno() -> Configuracion:
         modelo_base_url=os.environ.get("MODELO_BASE_URL"),
         modelo_api_key=os.environ.get("MODELO_API_KEY"),
         modelo_nombre=os.environ.get("MODELO_NOMBRE"),
+        modelo_proveedor=(os.environ.get("MODELO_PROVEEDOR") or "").strip().lower() or None,
+        gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
+        gemini_modelo=os.environ.get("GEMINI_MODELO") or None,
         whatsapp_app_secret=os.environ.get("WHATSAPP_APP_SECRET"),
         whatsapp_verify_token=os.environ.get("WHATSAPP_VERIFY_TOKEN"),
         whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID"),

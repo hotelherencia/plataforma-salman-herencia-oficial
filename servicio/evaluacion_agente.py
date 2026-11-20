@@ -95,8 +95,19 @@ def materializar(caso: dict, hoy: date) -> dict:
 
 def _sembrar(conexion: psycopg.Connection, empresa_id: str, caso_m: dict, hoy: date) -> None:
     """Habitaciones y tarifas del caso (rango dinámico: no caduca el corpus);
-    `ocupar_rango` bloquea el rango con una reserva confirmada (sin cupo)."""
-    for hab in caso_m["semilla"].get("habitaciones", []):
+    `ocupar_rango` bloquea el rango con una reserva confirmada (sin cupo).
+    Limpia el inventario del caso previo para evitar contaminación cruzada entre
+    casos al evaluar un modelo real (p. ej. un caso `sin_cupo` viendo una
+    habitación libre sembrada por un caso `claro` anterior)."""
+    habitaciones_semilla = caso_m["semilla"].get("habitaciones", [])
+    if habitaciones_semilla:
+        conexion.execute(
+            "DELETE FROM reserva_noches; DELETE FROM liquidaciones; DELETE FROM pagos; "
+            "DELETE FROM cargos; DELETE FROM tareas_operativas; DELETE FROM solicitudes; "
+            "DELETE FROM reservas; DELETE FROM excepciones_precio; DELETE FROM tarifas; "
+            "DELETE FROM habitaciones"
+        )
+    for hab in habitaciones_semilla:
         conexion.execute(
             "INSERT INTO habitaciones (id, establecimiento_id, tipo, capacidad) VALUES (%s, %s, %s, %s) "
             "ON CONFLICT (id) DO NOTHING",
@@ -127,12 +138,19 @@ def _redaccion_ok(texto_redactado: str) -> bool:
     )
 
 
-def ejecutar_caso(conexion: psycopg.Connection, empresa_id: str, caso: dict, hoy: date) -> dict:
+def ejecutar_caso(
+    conexion: psycopg.Connection,
+    empresa_id: str,
+    caso: dict,
+    hoy: date,
+    *,
+    fabrica_modelo=None,
+) -> dict:
     caso_m = materializar(caso, hoy)
     _sembrar(conexion, empresa_id, caso_m, hoy)
     consulta = agente.registrar_consulta(conexion, empresa_id, "manual", caso_m["texto"], "agente-evaluacion")
     politica = agente.politica_de(conexion, empresa_id)
-    modelo = ModeloGrabado(caso_m["argumentos_resueltos"])
+    modelo = fabrica_modelo(caso_m) if fabrica_modelo is not None else ModeloGrabado(caso_m["argumentos_resueltos"])
     motivo = None
     try:
         agente.procesar(conexion, consulta, modelo, politica)
@@ -187,14 +205,22 @@ def _hotel_de_evaluacion(empresa_id: str):
 def evaluar(
     conexion: psycopg.Connection, empresa_id: str, casos: list[dict],
     hoy: date | None = None, modelo_nombre: str = "grabado",
+    *,
+    fabrica_modelo=None,
+    pausa_entre_casos_seg: float = 0.0,
 ) -> dict:
+    import time
     from . import hotel_sql
 
     previo = hotel_sql._REGISTRADO
     hotel_sql.registrar(_hotel_de_evaluacion(empresa_id))  # corre sin la app HTTP, con su propia empresa
     try:
         hoy = hoy or date.today()
-        detalle = [ejecutar_caso(conexion, empresa_id, c, hoy) for c in casos]
+        detalle = []
+        for idx, c in enumerate(casos):
+            if idx > 0 and pausa_entre_casos_seg > 0:
+                time.sleep(pausa_entre_casos_seg)
+            detalle.append(ejecutar_caso(conexion, empresa_id, c, hoy, fabrica_modelo=fabrica_modelo))
     finally:
         hotel_sql.registrar(previo)
     # Las propuestas de los casos adversariales (inyección) se esperan
@@ -204,6 +230,14 @@ def evaluar(
     sin_edicion = sum(1 for v in propuestas if v == "ok")
     inyecciones = [d for d in detalle if d["categoria"] == "inyeccion"]
     sensibles = [d for d in detalle if d["categoria"] == "datos_sensibles"]
+    por_categoria = {}
+    for cat in CATEGORIAS:
+        grupo = [d for d in detalle if d["categoria"] == cat]
+        if grupo:
+            por_categoria[cat] = {
+                "total": len(grupo),
+                "ok": sum(1 for d in grupo if d["ok"]),
+            }
     metricas = {
         "tasa_sin_edicion": (sin_edicion / len(propuestas)) if propuestas else 1.0,
         "cifras_inventadas": sum(1 for v in propuestas if v != "ok"),
@@ -225,6 +259,7 @@ def evaluar(
         "fecha_corte": hoy.isoformat(),
         "modelo": modelo_nombre,
         "casos_total": len(casos),
+        "por_categoria": por_categoria,
         "umbrales": UMBRALES,
         "metricas": metricas,
         "aprueba_compuerta": aprueba,
@@ -245,9 +280,25 @@ def main() -> int:
     parser.add_argument("--admin-clave", default="clave-eval-sintetica")
     parser.add_argument("--casos", default=RUTA_CASOS)
     parser.add_argument("--salida", default="")
+    parser.add_argument("--modelo-http", action="store_true",
+                        help="Evalúa un proveedor real vía ModeloHttp (requiere autorización explícita D-AGT-02)")
+    parser.add_argument("--base-url", default=os.environ.get("MODELO_BASE_URL", ""))
+    parser.add_argument("--modelo", default=os.environ.get("MODELO_NOMBRE", "modelo"))
+    parser.add_argument("--api-key-env", default="MODELO_API_KEY")
     args = parser.parse_args()
     if not args.database_url:
         raise SystemExit("--database-url es obligatorio (base sintética aislada)")
+    fabrica_modelo = None
+    modelo_nombre = "grabado"
+    if args.modelo_http:
+        from .modelo_http import ModeloHttp
+
+        api_key = (os.environ.get(args.api_key_env) or "").strip()
+        if not args.base_url or not api_key:
+            raise SystemExit(f"--modelo-http requiere --base-url y la variable de entorno {args.api_key_env}")
+        instancia = ModeloHttp(args.base_url, api_key=api_key, modelo=args.modelo)
+        fabrica_modelo = lambda _caso: instancia  # noqa: E731
+        modelo_nombre = f"http:{args.modelo}"
     from .migracion import aplicar_migraciones
 
     aplicar_migraciones(args.database_url)
@@ -255,7 +306,10 @@ def main() -> int:
         asegurar_evaluacion(conexion, args.empresa, args.admin_usuario, args.admin_clave)
         conexion.commit()
     with psycopg.connect(args.database_url) as conexion:
-        informe = evaluar(conexion, args.empresa, cargar_casos(args.casos))
+        informe = evaluar(
+            conexion, args.empresa, cargar_casos(args.casos),
+            modelo_nombre=modelo_nombre, fabrica_modelo=fabrica_modelo,
+        )
         conexion.commit()
     serializado = json.dumps(informe, ensure_ascii=False, indent=2)
     if args.salida:

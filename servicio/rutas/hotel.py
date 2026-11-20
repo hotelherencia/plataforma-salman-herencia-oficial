@@ -33,7 +33,7 @@ from .. import reservas as reservas_db
 from .. import seguridad
 from . import comun
 from .modelos import (
-    CargoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
+    CargoIn, DevolucionSaldoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
     ObservacionIn, PagoIn, PATRON_ID_HABITACION, ReasignacionIn, VerificacionAseoIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
@@ -408,6 +408,38 @@ def registrar_pago(
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "pago", f"{reserva_id}:{pago.clave}", "confirmado")
         return 201, registrado
+
+    return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+
+
+@router.post("/hotel/reservas/{reserva_id}/devolucion")
+def devolver_saldo_reserva(
+    request: Request,
+    reserva_id: str,
+    datos: DevolucionSaldoIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Devolución formal de saldo a favor del huésped (#91 / Q-HOT-04)."""
+    comun.exigir_admin_hotel(sesion)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    cuerpo = {"operacion": "devolucion_saldo", "reserva_id": reserva_id, **json.loads(datos.model_dump_json())}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = contabilidad.devolver_saldo_a_favor(
+                conexion, request.app.state.aplicacion.hotel, sesion.empresa_id,
+                reserva_id, datos.monto_clp, datos.medio, datos.motivo, sesion.nombre,
+            )
+        except contabilidad.TurnoAjenoOInexistente as error:
+            raise seguridad.ErrorPermiso(str(error)) from error
+        except contabilidad.DatosCajaInvalidos as error:
+            return 422, {"detail": str(error)}
+        except contabilidad.OperacionCajaInvalida as error:
+            return 409, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, "devolucion_saldo", reserva_id, f"{datos.monto_clp}:{datos.medio}")
+        return 201, resultado
 
     return _ejecutar_exclusivo(conexion, sesion.empresa_id, clave, cuerpo, operacion)
 

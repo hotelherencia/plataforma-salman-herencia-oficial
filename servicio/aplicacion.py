@@ -238,6 +238,15 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
             )
         except ValueError as error:  # SA-MH-01: URL del modelo no https
             raise ErrorArranque(str(error))
+    elif configuracion is not None and configuracion.modelo_proveedor == "gemini" and configuracion.gemini_api_key:
+        # D-AGT-02 (2026-11-20): reutiliza GEMINI_API_KEY de Railway vía endpoint OpenAI-compatible.
+        from .modelo_http import GEMINI_MODELO_DEFECTO, GEMINI_OPENAI_BASE_URL, ModeloHttp
+        app.state.modelo_agente = ModeloHttp(
+            base_url=GEMINI_OPENAI_BASE_URL,
+            api_key=configuracion.gemini_api_key,
+            modelo=configuracion.modelo_nombre or configuracion.gemini_modelo or GEMINI_MODELO_DEFECTO,
+            reintentos_429=2,
+        )
     else:
         app.state.modelo_agente = SinAdaptador()
     from .canal_salida import SinCanal

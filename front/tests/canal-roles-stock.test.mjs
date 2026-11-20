@@ -42,3 +42,10 @@ test('BarraNav usa visibilidad.soloAseo (sin ReferenceError al autenticar) y Pan
   const pantalla = leer('app/login/pantalla.jsx')
   assert.match(pantalla, /if \(sesion\.fase === 'ok' && despues\) despues\(\)/)
 })
+
+test('#91 / Q-HOT-04: ficha de reserva ofrece devolución formal cuando hay saldo a favor', () => {
+  const ficha = leer('app/hotel/reservas/[id]/page.js')
+  assert.match(ficha, /\/devolucion/)
+  assert.match(ficha, /Devolver saldo a favor/)
+  assert.match(ficha, /reserva\.cuenta\.saldo_clp < 0/)
+})

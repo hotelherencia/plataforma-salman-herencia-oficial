@@ -338,6 +338,13 @@ class ReversoCargoIn(BaseModel):
     motivo: str = Field(min_length=3, max_length=150)
 
 
+class DevolucionSaldoIn(BaseModel):
+    """Q-HOT-03/04 (#91): devolución formal de saldo a favor (solo administración)."""
+    monto_clp: int = Field(gt=0, le=1_000_000_000)
+    medio: Literal["efectivo", "transferencia"] = "transferencia"
+    motivo: str = Field(min_length=10, max_length=300)
+
+
 class SolicitudPublicaIn(BaseModel):
     # Lista blanca: un campo no declarado es 422, no se ignora en silencio.
     model_config = ConfigDict(extra="forbid")

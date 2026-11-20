@@ -583,6 +583,71 @@ def reversar_pago(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_
             "medio": fila[2], "fecha_contable": preparado["fecha_contable"].isoformat(), "saldo_clp": neto - pagado}
 
 
+def devolver_saldo_a_favor(
+    conexion: psycopg.Connection,
+    hotel,
+    empresa_id: str,
+    reserva_id: str,
+    monto_clp: int,
+    medio: str,
+    motivo: str,
+    actor: str,
+) -> dict:
+    """Devolución formal de saldo a favor del huésped (Q-HOT-03/04, #91).
+
+    Solo administración del hotel. Registra una fila inmutable de tipo «reverso»
+    (sin referencia_pago_id) por el monto devuelto y su egreso en caja_movimientos,
+    reduciendo el saldo a favor hasta $0 para poder cerrar la salida.
+    """
+    motivo = _texto(motivo, "el motivo", 300, True)
+    if len(motivo) < MIN_JUSTIFICACION:
+        raise DatosCajaInvalidos("explica el motivo de la devolución (mínimo 10 caracteres)")
+    if medio not in ("efectivo", "transferencia"):
+        raise DatosCajaInvalidos("la devolución debe registrarse en efectivo o transferencia")
+    if monto_clp <= 0:
+        raise DatosCajaInvalidos("el monto a devolver debe ser mayor que 0")
+    fila = conexion.execute(
+        "SELECT id, estado FROM reservas WHERE id = %s AND empresa_id = %s FOR UPDATE",
+        (reserva_id, empresa_id),
+    ).fetchone()
+    if fila is None:
+        raise TurnoAjenoOInexistente("reserva inexistente")
+    if fila[1] == "finalizada":
+        raise OperacionCajaInvalida("la reserva ya está finalizada: no admite devolución")
+    from . import hotel_sql
+
+    neto_antes, pagado_antes = hotel_sql.cuenta(conexion, hotel, empresa_id, reserva_id)
+    saldo_antes = neto_antes - pagado_antes
+    if saldo_antes >= 0:
+        raise OperacionCajaInvalida("la reserva no tiene saldo a favor para devolver")
+    a_favor = -saldo_antes
+    if monto_clp > a_favor:
+        raise OperacionCajaInvalida(
+            f"el monto ({monto_clp} CLP) supera el saldo a favor del huésped ({a_favor} CLP)"
+        )
+    preparado = preparar_pago(conexion, empresa_id, fila[1], {"medio": medio})
+    devolucion_id = f"PAG-{uuid.uuid4().hex[:12]}"
+    conexion.execute(
+        "INSERT INTO pagos (id, reserva_id, monto_clp, clave, modo, estado, tipo, referencia_pago_id, medio, "
+        "fecha_contable, turno_id, documento_tipo, actor, motivo, es_anticipo) "
+        "VALUES (%s, %s, %s, %s, 'manual', 'confirmado', 'reverso', NULL, %s, %s, %s, 'sin_documento', %s, %s, false)",
+        (devolucion_id, reserva_id, monto_clp, f"devolucion:{devolucion_id}", medio,
+         preparado["fecha_contable"], preparado["turno_id"], actor, motivo),
+    )
+    asentar_movimiento_pago(conexion, empresa_id, devolucion_id, preparado, medio, -monto_clp, actor, "reverso_cobro")
+    neto_despues, pagado_despues = hotel_sql.cuenta(conexion, hotel, empresa_id, reserva_id)
+    return {
+        "devolucion_id": devolucion_id,
+        "reserva_id": reserva_id,
+        "monto_clp": monto_clp,
+        "medio": medio,
+        "motivo": motivo,
+        "fecha_contable": preparado["fecha_contable"].isoformat(),
+        "saldo_antes_clp": saldo_antes,
+        "saldo_clp": neto_despues - pagado_despues,
+    }
+
+
 # --- Movimientos directos (sin habitación ni reserva) --------------------------
 
 def _mov_directo_dict(f) -> dict:

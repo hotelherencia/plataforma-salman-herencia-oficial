@@ -688,6 +688,9 @@ def procesar(
                 "proponer", veredicto, modelo.nombre)
         if veredicto != "ok":
             return _escalar(conexion, consulta_id, f"verificacion: {veredicto}")
+        if propuesta["plantilla"] == "escalar":
+            motivo_esc = str((propuesta["campos"] or {}).get("motivo") or "derivado a recepción por el agente")[:200]
+            return _escalar(conexion, consulta_id, motivo_esc)
         texto = componer(propuesta["plantilla"], propuesta["campos"], propuesta["saludo"], resultados)
         oferta_res = resultados.get("consultar_disponibilidad") or {}
         items = oferta_res.get("oferta") or []

@@ -46,6 +46,33 @@ export default function DetalleReserva() {
   const puedeMover = sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
   const [destino, setDestino] = useState('')
   const [motivoCambio, setMotivoCambio] = useState('')
+  const [devolucion, setDevolucion] = useState({ monto_clp: '', medio: 'transferencia', motivo: '' })
+
+  // #91 / Q-HOT-04: devolución formal de saldo a favor del huésped (solo administración).
+  async function registrarDevolucion(e) {
+    e.preventDefault()
+    setError('')
+    setAviso('')
+    const monto = Number(devolucion.monto_clp || Math.abs(reserva?.cuenta?.saldo_clp || 0))
+    if (!(monto > 0)) { setError('Indica un monto válido mayor que 0.'); return }
+    if (devolucion.motivo.trim().length < 10) { setError('Indica el motivo de la devolución (mínimo 10 caracteres).'); return }
+    if (!window.confirm(`¿Registrar devolución de ${clp(monto)} por ${devolucion.medio} a ${reserva.huesped_nombre}?`)) return
+    try {
+      const r = await api(`/hotel/reservas/${encodeURIComponent(reservaId)}/devolucion`, {
+        metodo: 'POST',
+        claveIdempotencia: `dev-${crypto.randomUUID().slice(0, 12)}`,
+        cuerpo: { monto_clp: monto, medio: devolucion.medio, motivo: devolucion.motivo.trim() },
+      })
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else {
+        setAviso(`Devolución registrada por ${clp(r.datos.monto_clp)} (${r.datos.medio}). Saldo actual: ${clp(r.datos.saldo_clp)}.`)
+        setDevolucion({ monto_clp: '', medio: 'transferencia', motivo: '' })
+        setVersion((v) => v + 1)
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    }
+  }
 
   // #361: mover al huésped a otra habitación (conserva la tarifa pactada).
   async function cambiarHabitacion(e) {
@@ -174,6 +201,40 @@ export default function DetalleReserva() {
             <p className="nota-clave">
               Saldo = cargos − reversos − pagos confirmados, calculado por el servidor. La salida solo procede con saldo 0.
             </p>
+            {puedeReversar && reserva.cuenta.saldo_clp < 0 && reserva.estado !== 'finalizada' && (
+              <form className="formulario cambio-habitacion" onSubmit={registrarDevolucion} aria-label="Registrar devolución de saldo a favor">
+                <h3 className="subtitulo">Devolver saldo a favor ({clp(Math.abs(reserva.cuenta.saldo_clp))})</h3>
+                <label className="campo">
+                  <span className="campo-etiqueta">Monto a devolver (CLP)</span>
+                  <input
+                    className="entrada"
+                    type="number"
+                    min="1"
+                    max={Math.abs(reserva.cuenta.saldo_clp)}
+                    placeholder={String(Math.abs(reserva.cuenta.saldo_clp))}
+                    value={devolucion.monto_clp}
+                    onChange={(e) => setDevolucion({ ...devolucion, monto_clp: e.target.value })}
+                  />
+                </label>
+                <label className="campo">
+                  <span className="campo-etiqueta">Medio de devolución</span>
+                  <select className="entrada" value={devolucion.medio} onChange={(e) => setDevolucion({ ...devolucion, medio: e.target.value })}>
+                    <option value="transferencia">Transferencia bancaria</option>
+                    <option value="efectivo">Efectivo (requiere turno de caja abierto)</option>
+                  </select>
+                </label>
+                <label className="campo">
+                  <span className="campo-etiqueta">Motivo (mínimo 10 caracteres)</span>
+                  <input
+                    className="entrada"
+                    value={devolucion.motivo}
+                    onChange={(e) => setDevolucion({ ...devolucion, motivo: e.target.value })}
+                    placeholder="Ej.: devolución de anticipo por salida anticipada"
+                  />
+                </label>
+                <button type="submit" className="boton-secundario">Registrar devolución</button>
+              </form>
+            )}
             {puedeMover && ['confirmada', 'en_estadia'].includes(reserva.estado) && (
               <form className="formulario cambio-habitacion" onSubmit={cambiarHabitacion} aria-label="Cambiar habitación">
                 <h3 className="subtitulo">Cambiar habitación</h3>

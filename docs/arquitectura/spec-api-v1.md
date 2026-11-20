@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (140)
+## Operaciones de esta versión (141)
 
 | Operación | Efecto |
 |---|---|
@@ -643,6 +643,7 @@ los compone el servidor.
 | `GET /hotel/productos/reposicion` | Alias hotel de `GET /core/stock/reposicion`. |
 | `POST /core/stock/transferencias` | (#358) Transfiere stock entre bodegas del core sin alterar el total. Solo administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/productos/{producto_id}/transferencia` | Alias hotel de transferencia entre bodegas para un producto específico. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/reservas/{reserva_id}/devolucion` | (#91 / Q-HOT-04) Registra la devolución formal (efectivo con turno abierto o transferencia) de saldo a favor del huésped (`saldo_clp < 0`) hasta dejar la cuenta en $0. Solo administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 

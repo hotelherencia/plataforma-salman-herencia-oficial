@@ -188,12 +188,16 @@ def recargar(conexion: psycopg.Connection, hotel, empresa_id: str, rango: tuple[
     pagos = tuple(
         Pago(pid, rid, monto, clave)
         for pid, rid, monto, clave in conexion.execute(
-            "SELECT p.id, p.reserva_id, p.monto_clp, p.clave FROM pagos p "
+            "SELECT p.id, p.reserva_id, "
+            "CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END, "
+            "p.clave FROM pagos p "
             "JOIN reservas r ON r.id = p.reserva_id "
-            # Fase 1 contable: un pago anulado (fila «reverso» que lo referencia) no existe para el dominio.
-            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' AND p.tipo = 'pago' "
-            "AND NOT EXISTS (SELECT 1 FROM pagos v WHERE v.referencia_pago_id = p.id AND v.tipo = 'reverso') "
-            "ORDER BY p.creado_en, p.id",
+            # Fase 1 contable: un pago anulado (fila «reverso» que lo referencia) no existe para el dominio;
+            # una devolución formal de saldo a favor (reverso sin referencia_pago_id) resta del pagado.
+            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' AND ("
+            "  (p.tipo = 'pago' AND NOT EXISTS (SELECT 1 FROM pagos v WHERE v.referencia_pago_id = p.id AND v.tipo = 'reverso')) "
+            "  OR (p.tipo = 'reverso' AND p.referencia_pago_id IS NULL)"
+            ") ORDER BY p.creado_en, p.id",
             (empresa_id,),
         ).fetchall()
     )
@@ -273,6 +277,8 @@ def persistir(conexion: psycopg.Connection, hotel, empresa_id: str) -> None:
             (c.id, c.reserva_id, c.concepto, c.monto_clp, c.tipo.value, c.referencia),
         )
     for p in hotel._pagos:
+        if p.monto_clp <= 0:
+            continue  # devolución formal ya persistida en SQL con tipo='reverso' y monto_clp > 0
         conexion.execute(
             "INSERT INTO pagos (id, reserva_id, monto_clp, clave, modo) VALUES (%s,%s,%s,%s,'manual') "
             "ON CONFLICT (reserva_id, clave) DO NOTHING",
