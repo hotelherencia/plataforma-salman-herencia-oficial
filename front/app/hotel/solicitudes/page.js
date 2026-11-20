@@ -1,12 +1,17 @@
 'use client'
 
+import Link from 'next/link'
 import { Fragment, useEffect, useState } from 'react'
+import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
 import Subnav from '../_componentes/subnav'
 import FormularioEdicion from '../_componentes/formulario-edicion'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
+import { fechaATexto } from '../../../lib/formato'
+
+const ESTADO_SOLICITUD = { recibida: 'Recibida', convertida: 'Convertida', rechazada: 'Rechazada' }
 
 /** Bandeja de solicitudes públicas (V1-ISSUE-24): recepción o administrador
  *  ven las solicitudes de la landing, las convierten en reserva por la misma
@@ -23,6 +28,8 @@ export default function Solicitudes() {
   const [claveConversion, renovarConversion] = useClaveOperacion()
   const [claveRechazo, renovarRechazo] = useClaveOperacion()
 
+  // Enlace directo desde un aviso por correo (?id=…): la fila queda marcada.
+  const destacada = useDestacada(lista)
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
   const puedeGestionar = gestionaRecepcion(rol)
 
@@ -124,9 +131,9 @@ export default function Solicitudes() {
 
       {lista && (
         lista.length === 0 ? (
-          <p className="estado">No hay solicitudes en este estado.</p>
+          <p className="estado estado-vacio">No hay solicitudes en este estado.</p>
         ) : (
-          <div className="tabla-contenedor">
+          <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
             <table className="tabla">
               <thead>
                 <tr>
@@ -157,22 +164,26 @@ export default function Solicitudes() {
                   const documento = s.huesped_documento || (mDoc ? mDoc[1].trim() : '—')
                   return (
                   <Fragment key={s.solicitud_id}>
-                  <tr>
+                  <tr {...destacada.props(s.solicitud_id)}>
                     <td>{s.solicitud_id}</td>
                     <td>{nombreTipo(s.tipo)}</td>
                     <td>{s.habitacion_id || 'al convertir'}</td>
-                    <td>{s.inicio}</td>
-                    <td>{s.fin}</td>
+                    <td className="celda-fecha">{fechaATexto(s.inicio) || s.inicio}</td>
+                    <td className="celda-fecha">{fechaATexto(s.fin) || s.fin}</td>
                     <td>{s.personas}</td>
                     <td>{s.huesped_nombre}</td>
                     <td>{documento}</td>
                     <td>{telefono}</td>
                     <td>{correo}</td>
                     <td>{s.origen || '—'}</td>
-                    <td>{s.estado}</td>
-                    <td>{s.reserva_id || '—'}</td>
+                    <td><span className={`reserva-estado solicitud-${s.estado}`}>{ESTADO_SOLICITUD[s.estado] || s.estado}</span></td>
                     <td>
-                      <button type="button" className="boton-fantasma"
+                      {s.reserva_id
+                        ? <Link href={`/hotel/reservas/${s.reserva_id}`}>{s.reserva_id}</Link>
+                        : '—'}
+                    </td>
+                    <td>
+                      <button type="button" className="boton-fantasma" aria-expanded={editando === s.solicitud_id}
                         onClick={() => setEditando(editando === s.solicitud_id ? null : s.solicitud_id)}>
                         Editar
                       </button>
@@ -192,27 +203,31 @@ export default function Solicitudes() {
                           </button>
                         </div>
                       ) : (
-                        <span className="estado">{s.estado}</span>
+                        <span className="nota-clave">Sin acciones pendientes</span>
                       )}
                     </td>
                   </tr>
                   {editando === s.solicitud_id && (
                     <tr>
-                      <td colSpan={12}>
+                      <td colSpan={14}>
                         <FormularioEdicion
                           ruta={`/hotel/solicitudes/${s.solicitud_id}`}
                           inicial={s}
                           campos={[
                             { nombre: 'huesped_nombre', etiqueta: 'Huésped', requerido: true },
-                            { nombre: 'huesped_contacto', etiqueta: 'Contacto', requerido: true },
+                            { nombre: 'huesped_contacto', etiqueta: 'Contacto (correo o teléfono)', requerido: true },
                             ...(s.estado === 'recibida'
                               ? [{ nombre: 'personas', etiqueta: 'Personas', tipo: 'number', requerido: true }] : []),
                           ]}
-                          armar={(v) => ({ ...v, personas: Number(v.personas ?? s.personas) })}
+                          armar={(v) => ({
+                            huesped_nombre: v.huesped_nombre.trim(),
+                            huesped_contacto: v.huesped_contacto.trim(),
+                            personas: Number(v.personas ?? s.personas),
+                          })}
                           alGuardar={() => { setEditando(null); cargar(estado) }}
                           alCancelar={() => setEditando(null)}
                         />
-                        <p className="nota-clave">Habitación y fechas no se editan aquí: cambian cupo y tarifa.</p>
+                        <p className="nota-clave">Tipo, habitación y fechas no se editan aquí: cambian cupo y tarifa.</p>
                       </td>
                     </tr>
                   )}
