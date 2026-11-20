@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (149)
+## Operaciones de esta versión (155)
 
 | Operación | Efecto |
 |---|---|
@@ -629,6 +629,12 @@ los compone el servidor.
 | `GET /hotel/clientes?q` | (2026-11-20) Clientes por nombre, RUT, correo o teléfono (máx. 200, `truncado`). Recepción, caja o administración del hotel. |
 | `POST /hotel/clientes` | (2026-11-20) Alta manual de cliente `{rut, nombre, tipo?, giro?, direccion?, comuna?, correo?, telefono?, activo?}` con `Idempotency-Key`. Mismas validaciones de RUT, correo y teléfono; RUT duplicado → 409. Auditoría `cliente_alta` sin valores personales. Recepción, caja o administración del hotel. |
 | `PUT /hotel/clientes/{id}` | (2026-11-20) Corrige la ficha `{rut, nombre, tipo, giro?, direccion?, comuna?, correo?, telefono?, activo}`. El RUT se valida y no puede ser de otro cliente (409); las imputaciones y movimientos asentados apuntan por id y no cambian. Nada se borra: se desactiva. Auditoría `cliente_edicion`. Recepción, caja o administración del hotel. |
+| `GET /hotel/huespedes/busqueda` | Busca huéspedes registrados de la empresa por documento (solo recepción y administración del hotel). |
+| `GET /hotel/reservas/{id}/huespedes` | Lista los huéspedes vinculados a la reserva y el estado de ocupación (`adultos`, `ninos`, `faltantes`). |
+| `PUT /hotel/reservas/{id}/ocupacion` | Actualiza ocupación real (`adultos`, `ninos`) validando capacidad y asentando ajuste append-only si aplica. |
+| `POST /hotel/reservas/{id}/huespedes` | Registra o vincula un huésped a la reserva (`titular` o `acompanante`). |
+| `PUT /hotel/reservas/{id}/huespedes/{huesped_id}` | Edita datos de un huésped vinculado a la reserva (sincroniza el titular). |
+| `DELETE /hotel/reservas/{id}/huespedes/{huesped_id}` | Desvincula un acompañante de la reserva (no permite quitar al titular). |
 | `POST /hotel/agente/consultas` | Registra una consulta para el agente (N0): 201 con borrador `pendiente_aprobacion`/`escalado`; sin adaptador → 503 y la consulta queda `pendiente`. Roles recepción o administrador. Ver «Agente de reservas». |
 | `GET /hotel/agente/consultas?estado=` | Bandeja del agente por estado, sin texto completo. Roles recepción o administrador. |
 | `GET /hotel/agente/consultas/{id}` | Consulta con borradores y traza resumida; ajena → 403. Roles recepción o administrador. |
