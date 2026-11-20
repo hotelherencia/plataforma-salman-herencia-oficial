@@ -1,13 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, Campo, CampoSelect, Definicion, useSesion, clp } from '../../../lib/api'
-import { Explicacion } from '../_componentes/explicacion'
-import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import { gestionaRecepcion } from '../../../lib/roles'
-import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -24,12 +21,16 @@ function sumarDias(isoFecha, dias) {
   return d.toISOString().slice(0, 10)
 }
 
+function porcentaje(valor) {
+  return valor === null || valor === undefined ? 'sin muestra' : `${(valor * 100).toFixed(1)} %`
+}
+
 const SITUACION = [
   ['llegadas_hoy', 'Llegadas de hoy'],
   ['salidas_hoy', 'Salidas de hoy'],
   ['en_casa', 'Huéspedes en casa'],
-  ['llegadas_vencidas', 'Llegadas atrasadas sin registrar', true],
-  ['salidas_vencidas', 'Salidas atrasadas sin cerrar', true],
+  ['llegadas_vencidas', 'Llegadas vencidas sin check-in', true],
+  ['salidas_vencidas', 'Salidas vencidas sin check-out', true],
 ]
 
 const HABITACIONES = [
@@ -64,41 +65,41 @@ function diaSemana(isoFecha) {
 const ETIQUETAS_ESTADO = {
   confirmada: { label: 'Confirmadas', color: '#9d5d3f', bg: '#fdf8f5' },
   en_casa: { label: 'En estadía (alojados)', color: '#173326', bg: '#eef4ef' },
-  terminada: { label: 'Finalizadas (Salida registrada)', color: '#4b5563', bg: '#f3f4f6' },
-  finalizada: { label: 'Finalizadas (Salida registrada)', color: '#4b5563', bg: '#f3f4f6' },
-  en_estadia: { label: 'En estadía (alojados)', color: '#173326', bg: '#eef4ef' },
+  terminada: { label: 'Finalizadas (check-out)', color: '#4b5563', bg: '#f3f4f6' },
   cancelada: { label: 'Canceladas', color: '#b91c1c', bg: '#fef2f2' },
 }
 
-const ETIQUETAS_CANAL = {
-  recepcion: { label: 'Recepción', color: '#173326' },
-  landing: { label: 'Sitio web', color: '#9d5d3f' },
-  directo: { label: 'Directo', color: '#2b5b44' },
-  google: { label: 'Google', color: '#1d4ed8' },
-  ota: { label: 'Agencia externa (OTA)', color: '#7c3aed' },
-  telefono: { label: 'Teléfono', color: '#b45309' },
-  whatsapp: { label: 'WhatsApp', color: '#15803d' },
-  otro: { label: 'Otro', color: '#5f6158' },
-}
-
-function Tarjeta({ clave, titulo, indicador, alerta, valor, detalle }) {
+function Tarjeta({ titulo, indicador, alerta, valor }) {
   if (!indicador) return null
   const mostrar = valor !== undefined ? valor : indicador.valor
+  const detalle = Array.isArray(indicador.reservas_detalle) && indicador.reservas_detalle.length > 0
+    ? indicador.reservas_detalle
+    : Array.isArray(indicador.reservas)
+      ? indicador.reservas.map((id) => ({ reserva_id: id, huesped_nombre: '' }))
+      : []
   return (
     <div className={`kpi${alerta && indicador.valor > 0 ? ' kpi-alerta' : ''}`}>
       <span className="kpi-titulo">{titulo}</span>
       <span className="kpi-valor">{mostrar}</span>
-      {detalle && <span className="kpi-detalle">{detalle}</span>}
-      {Array.isArray(indicador.reservas) && indicador.reservas.length > 0 && (
+      {detalle.length > 0 && (
         <span className="kpi-reservas">
-          {indicador.reservas.map((id) => (
-            <Link key={id} href={`/hotel/reservas/${id}`} className="kpi-enlace-reserva" title={`Ver detalle de reserva ${id}`}>
-              #{id.replace(/^RSV-/, '').slice(0, 8)}
-            </Link>
-          ))}
+          {detalle.map((item) => {
+            const nombre = item.huesped_nombre && item.huesped_nombre.trim() ? item.huesped_nombre.trim() : 'Sin nombre'
+            const codigoCorto = `#${item.reserva_id.replace(/^RSV-/, '').slice(0, 8)}`
+            return (
+              <Link
+                key={item.reserva_id}
+                href={`/hotel/reservas/${item.reserva_id}`}
+                className="kpi-enlace-reserva"
+                title={`Reserva ${item.reserva_id} · ${nombre}`}
+              >
+                {nombre} <small style={{ opacity: 0.72 }}>{codigoCorto}</small>
+              </Link>
+            )
+          })}
         </span>
       )}
-      {EXPLICACIONES[clave] ? <Explicacion clave={clave} titulo={titulo} /> : <Definicion indicador={indicador} />}
+      <Definicion indicador={indicador} />
     </div>
   )
 }
@@ -151,18 +152,49 @@ export default function Panel() {
 
   return (
     <MarcoHotel titulo="Panel operativo">
+      <section className="tarjeta">
+        <form
+          className="formulario"
+          onSubmit={(e) => {
+            e.preventDefault()
+            cargar(filtros)
+          }}
+        >
+          <Campo etiqueta="Desde (noche)" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
+          <Campo etiqueta="Hasta (sin incluir)" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
+          <CampoSelect etiqueta="Tipo de habitación" value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
+            <option value="">(todos)</option>
+            {tipos.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </CampoSelect>
+          <button type="submit" className="boton-primario">Actualizar</button>
+        </form>
+        {corte && (
+          <div className="atajos">
+            <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 1))}>Hoy</button>
+            <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -7), sumarDias(corte, 1))}>Últimos 7 días</button>
+            <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -30), sumarDias(corte, 1))}>Últimos 30 días</button>
+            <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 14))}>Próximos 14 días</button>
+          </div>
+        )}
+      </section>
+
       {error && <p role="alert" className="alerta">{error}</p>}
-      {cargando && <p className="estado" role="status" aria-busy="true">Calculando…</p>}
+      {cargando && <p className="estado">Calculando…</p>}
 
       {datos && (
         <>
-          <p className="panel-corte">
-            Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong>
+          <p className="nota-clave">
+            Fecha de corte del servidor: <strong>{datos.fecha_corte}</strong> · periodo {datos.periodo.desde} → {datos.periodo.hasta} ({datos.periodo.noches} noche(s))
+            {datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}
           </p>
 
           {solicitudesPendientes > 0 && (
             <p className="estado" role="status" data-solicitudes-pendientes>
-              <Link href="/hotel/solicitudes">{plural(solicitudesPendientes, 'solicitud', 'solicitudes')} de reserva por responder</Link>
+              <a href="/hotel/solicitudes">{solicitudesPendientes} solicitud(es) de reserva por responder</a>
               <Insignia valor={solicitudesPendientes} />
             </p>
           )}
@@ -170,144 +202,49 @@ export default function Panel() {
             <h2>Situación de hoy</h2>
             <div className="kpi-rejilla">
               {SITUACION.map(([clave, titulo, alerta]) => (
-                <Tarjeta key={clave} clave={clave} titulo={titulo} indicador={datos.hoy[clave]} alerta={alerta} />
+                <Tarjeta key={clave} titulo={titulo} indicador={datos.hoy[clave]} alerta={alerta} />
               ))}
             </div>
             <h3 className="subtitulo">Habitaciones</h3>
             <div className="kpi-rejilla">
               {HABITACIONES.map(([clave, titulo]) => (
-                <Tarjeta key={clave} clave={clave} titulo={titulo} indicador={datos.hoy[clave]} />
+                <Tarjeta key={clave} titulo={titulo} indicador={datos.hoy[clave]} />
               ))}
             </div>
           </section>
-        </>
-      )}
 
-      <section className="tarjeta" aria-label="Indicadores del periodo">
-        <div className="tarjeta-cabecera">
-          <h2>Indicadores del periodo</h2>
-          {datos && (
-            <p className="nota-clave" data-periodo>
-              Del {formatearFecha(datos.periodo.desde)} al {formatearFecha(datos.periodo.hasta)} ({plural(datos.periodo.noches, 'noche')})
-              {datos.filtros.tipo ? ` · tipo ${datos.filtros.tipo}` : ''}
-            </p>
-          )}
-        </div>
-        <div className="panel-filtros">
-          <form
-            className="formulario"
-            onSubmit={(e) => {
-              e.preventDefault()
-              cargar(filtros)
-            }}
-          >
-            <Campo etiqueta="Desde (noche)" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
-            <Campo etiqueta="Hasta (sin incluir)" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
-            <CampoSelect etiqueta="Tipo de habitación" value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
-              <option value="">(todos)</option>
-              {tipos.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </CampoSelect>
-            <button type="submit" className="boton-primario">Actualizar</button>
-          </form>
-          {corte && (
-            <div className="atajos">
-              <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 1))}>Hoy</button>
-              <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -7), sumarDias(corte, 1))}>Últimos 7 días</button>
-              <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -30), sumarDias(corte, 1))}>Últimos 30 días</button>
-              <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 14))}>Próximos 14 días</button>
-            </div>
-          )}
-        </div>
-        {datos && (
-        <>
+          <section className="tarjeta" aria-label="Indicadores del periodo">
+            <h2>Indicadores del periodo</h2>
             <div className="kpi-rejilla">
-              <Tarjeta titulo="Ocupación (estadías reales)" clave="ocupacion" indicador={p.ocupacion} valor={porcentaje(p.ocupacion.valor)} />
-              <Tarjeta titulo="Ocupación reservada" clave="ocupacion_reservada" indicador={p.ocupacion_reservada} valor={porcentaje(p.ocupacion_reservada.valor)} />
-              <Tarjeta titulo="Noches ocupadas" clave="noches_ocupadas" indicador={p.noches_ocupadas} />
-              <Tarjeta titulo="Noches reservadas" clave="noches_reservadas" indicador={p.noches_reservadas} />
+              <Tarjeta titulo="Ocupación (estadías reales)" indicador={p.ocupacion} valor={porcentaje(p.ocupacion.valor)} />
+              <Tarjeta titulo="Ocupación reservada" indicador={p.ocupacion_reservada} valor={porcentaje(p.ocupacion_reservada.valor)} />
+              <Tarjeta titulo="Noches ocupadas" indicador={p.noches_ocupadas} />
+              <Tarjeta titulo="Noches reservadas" indicador={p.noches_reservadas} />
               {p.ingresos_periodo_clp && (
-                <Tarjeta titulo="Recaudación del periodo (cobros)" clave="ingresos_periodo_clp" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
+                <Tarjeta titulo="Ingresos del periodo" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
               )}
-              <Tarjeta titulo="Unidades-noche" clave="unidades_noche" indicador={p.unidades_noche} />
+              <Tarjeta titulo="Unidades-noche" indicador={p.unidades_noche} />
               <Tarjeta
                 titulo="Reservas canceladas"
-                clave="reservas_canceladas" indicador={p.reservas_canceladas}
-                detalle={plural(p.reservas_canceladas.noches, 'noche')}
+                indicador={p.reservas_canceladas}
+                valor={`${p.reservas_canceladas.valor} (${p.reservas_canceladas.noches} noches)`}
               />
-              <Tarjeta titulo="Reservas registradas" clave="reservas_registradas" indicador={p.reservas_registradas} />
+              <Tarjeta titulo="Reservas registradas" indicador={p.reservas_registradas} />
             </div>
-            <details className="aun-no-disponibles">
-              <summary>Indicadores que todavía no se calculan (tarifa promedio, RevPAR y otros)</summary>
-              <ul>
-                {AUN_NO_DISPONIBLES.map((i) => (
-                  <li key={i.nombre}><strong>{i.nombre}.</strong> {i.texto}</li>
-                ))}
-              </ul>
-            </details>
-            {p.ingresos_por_canal && (
-              <div className="grafico-estados-bloque" data-ingresos-por-canal>
-                <div className="serie-cabecera">
-                  <h3 className="subtitulo">Recaudación por canal</h3>
-                  <Explicacion clave="ingresos_por_canal" titulo="Recaudación por canal" />
-                </div>
-                {p.ingresos_por_canal.por_canal?.length > 0 ? (
-                  <>
-                    <div className="barra-proporcion">
-                      {p.ingresos_por_canal.por_canal.map((item) => {
-                        const cfg = ETIQUETAS_CANAL[item.canal] || { label: item.canal, color: '#5f6158' }
-                        const peso = Math.max(0, item.ingresos_clp)
-                        if (peso === 0) return null
-                        return (
-                          <div
-                            key={item.canal}
-                            className="segmento-proporcion"
-                            style={{ flex: peso, backgroundColor: cfg.color }}
-                            title={`${cfg.label}: ${clp(item.ingresos_clp)} (${porcentaje(item.participacion)})`}
-                          />
-                        )
-                      })}
-                    </div>
-                    <div className="grid-estados">
-                      {p.ingresos_por_canal.por_canal.map((item) => {
-                        const cfg = ETIQUETAS_CANAL[item.canal] || { label: item.canal, color: '#5f6158' }
-                        return (
-                          <div key={item.canal} className="tarjeta-estado" style={{ borderLeftColor: cfg.color }}>
-                            <span className="estado-nombre">{cfg.label}</span>
-                            <div className="estado-conteo">
-                              <span className="estado-cantidad">{clp(item.ingresos_clp)}</span>
-                              <span className="estado-pct">
-                                {plural(item.reservas, 'reserva')} · {porcentaje(item.participacion)}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <p className="nota-chica">Sin cobros confirmados en el periodo seleccionado.</p>
-                )}
-              </div>
-            )}
-
             {Object.keys(p.reservas_registradas.por_estado).length > 0 && (
               <div className="grafico-estados-bloque">
                 <h3 className="subtitulo">Distribución de reservas por estado</h3>
                 <div className="barra-proporcion">
                   {Object.entries(p.reservas_registradas.por_estado).map(([estado, n]) => {
                     const total = p.reservas_registradas.valor || 1
-                    const pct = porcentaje((n / total) * 100)
+                    const pct = Math.max(3, Math.round((n / total) * 100))
                     const cfg = ETIQUETAS_ESTADO[estado] || { label: estado, color: '#5f6158' }
                     return (
                       <div
                         key={estado}
                         className="segmento-proporcion"
-                        style={{ flex: n, backgroundColor: cfg.color }}
-                        title={`${cfg.label}: ${n} (${pct})`}
+                        style={{ width: `${pct}%`, backgroundColor: cfg.color }}
+                        title={`${cfg.label}: ${n} (${pct}%)`}
                       />
                     )
                   })}
@@ -322,7 +259,7 @@ export default function Panel() {
                         <span className="estado-nombre">{cfg.label}</span>
                         <div className="estado-conteo">
                           <span className="estado-cantidad">{n}</span>
-                          <span className="estado-pct">{pct} %</span>
+                          <span className="estado-pct">{pct}%</span>
                         </div>
                       </div>
                     )
@@ -331,47 +268,81 @@ export default function Panel() {
               </div>
             )}
 
-            {datos.serie && datos.serie.length > 0 && (
-              <div className="grafico-serie-bloque">
-                <div className="serie-cabecera">
-                  <h3 className="subtitulo">Ocupación y reservas por noche</h3>
-                  <div className="serie-leyenda">
-                    <span className="leyenda-item"><span className="punto punto-ocupada"></span> En casa</span>
-                    <span className="leyenda-item"><span className="punto punto-reservada"></span> Reservadas</span>
-                    <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles</span>
+            {datos.serie && datos.serie.length > 0 && (() => {
+              const noches = datos.periodo?.noches || datos.serie.length
+              const esHoy = datos.periodo?.desde === datos.fecha_corte && noches === 1
+              const contextoPeriodo = esHoy
+                ? `Distribución actual (${formatearFecha(datos.fecha_corte)})`
+                : noches === 1
+                  ? `Vista: Día (${formatearFecha(datos.periodo.desde)})`
+                  : noches === 7
+                    ? `Vista: Semana (${formatearFecha(datos.periodo.desde)} → ${formatearFecha(datos.periodo.hasta)})`
+                    : noches >= 28 && noches <= 31
+                      ? `Vista: Mes (${formatearFecha(datos.periodo.desde)} → ${formatearFecha(datos.periodo.hasta)})`
+                      : `Vista: Periodo (${noches} noches)`
+              const totalEnCasa = datos.serie.reduce((acc, s) => acc + (s.ocupadas_estadias ?? 0), 0)
+              const totalReservadas = datos.serie.reduce((acc, s) => {
+                const oc = s.ocupadas_estadias ?? 0
+                return acc + Math.max(0, (s.reservadas || 0) - oc)
+              }, 0)
+              const totalDisponibles = datos.serie.reduce((acc, s) => {
+                const max = s.unidades || 0
+                const oc = s.ocupadas_estadias ?? 0
+                const res = Math.max(0, (s.reservadas || 0) - oc)
+                return acc + Math.max(0, max - oc - res)
+              }, 0)
+              return (
+                <div className="grafico-serie-bloque">
+                  <div className="serie-cabecera">
+                    <div>
+                      <h3 className="subtitulo">Ocupación y reservas por noche</h3>
+                      <span className="estado-pct" data-contexto-periodo>{contextoPeriodo}</span>
+                    </div>
+                    <div className="serie-leyenda">
+                      <span className="leyenda-item" style={{ backgroundColor: '#173326', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                        En casa: {totalEnCasa}
+                      </span>
+                      <span className="leyenda-item" style={{ backgroundColor: '#9d5d3f', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                        Reservadas: {totalReservadas}
+                      </span>
+                      <span className="leyenda-item" style={{ backgroundColor: '#e5e7eb', color: '#1f2937', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                        Disponibles: {totalDisponibles}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grafico-barras-contenedor">
+                    <div className="grafico-barras">
+                      {datos.serie.map((s) => {
+                        const max = s.unidades || 1
+                        const ocupadas = s.ocupadas_estadias ?? 0
+                        const reservadas = s.reservadas || 0
+                        const libres = Math.max(0, max - ocupadas - reservadas)
+                        const pctOcupadas = Math.min(100, (ocupadas / max) * 100)
+                        const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
+                        const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
+                        const dia = diaSemana(s.fecha)
+                        const fechaCorta = s.fecha.slice(5).replace('-', '/')
+                        return (
+                          <div key={s.fecha} className="columna-noche">
+                            <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} en casa, ${reservadas} reservadas, ${libres} disponibles de ${max} unidades`}>
+                              {pctLibre > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%` }}>{pctLibre >= 18 ? libres : ''}</div>}
+                              {pctReservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%` }}>{pctReservadas >= 18 ? reservadas : ''}</div>}
+                              {pctOcupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%` }}>{pctOcupadas >= 18 ? ocupadas : ''}</div>}
+                            </div>
+                            <div className="columna-fecha">
+                              <span className="columna-dia">{dia}</span>
+                              <span className="columna-dia-num">{fechaCorta}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div className="grafico-barras-contenedor">
-                  <div className="grafico-barras">
-                    {datos.serie.map((s) => {
-                      const max = s.unidades || 1
-                      const ocupadas = s.ocupadas_estadias ?? 0
-                      const reservadas = s.reservadas || 0
-                      const pctOcupadas = Math.min(100, (ocupadas / max) * 100)
-                      const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
-                      const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
-                      const dia = diaSemana(s.fecha)
-                      const fechaCortaNoche = fechaCorta(s.fecha)
-                      return (
-                        <div key={s.fecha} className="columna-noche">
-                          <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} ocupadas, ${reservadas} reservadas de ${max} unidades`}>
-                            {pctLibre > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%` }}></div>}
-                            {pctReservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%` }}></div>}
-                            {pctOcupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%` }}></div>}
-                          </div>
-                          <div className="columna-fecha">
-                            <span className="columna-dia">{dia}</span>
-                            <span className="columna-dia-num">{fechaCortaNoche}</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
+              )
+            })()}
 
-            <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
+            <div className="tabla-contenedor">
             <table className="tabla serie">
               <thead>
                 <tr>
@@ -383,19 +354,29 @@ export default function Panel() {
               </thead>
               <tbody>
                 {datos.serie.map((s) => (
-                  <tr key={s.fecha}>
-                    <td><strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span></td>
-                    <td>{s.unidades}</td>
-                    <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
-                    <td>{s.reservadas}</td>
-                  </tr>
+                  <Fragment key={s.fecha}>
+                    <tr>
+                      <td><strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span></td>
+                      <td>{s.unidades}</td>
+                      <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
+                      <td>{s.reservadas}</td>
+                    </tr>
+                    {Array.isArray(s.detalle_por_tipo) && s.detalle_por_tipo.map((d) => (
+                      <tr key={`${s.fecha}-${d.tipo_habitacion}`} style={{ fontSize: '0.88em', opacity: 0.85 }}>
+                        <td style={{ paddingLeft: '1.5rem' }}>↳ {d.tipo_habitacion}</td>
+                        <td>{d.capacidad_total}</td>
+                        <td>{d.en_casa}</td>
+                        <td>{d.reservadas} (disp: {d.disponibles})</td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
             </div>
+          </section>
         </>
-        )}
-      </section>
+      )}
     </MarcoHotel>
   )
 }

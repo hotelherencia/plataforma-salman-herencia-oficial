@@ -93,8 +93,7 @@ export function leerParametros(params) {
   if (crudoFin && !fin) avisos.push('La salida indicada en el enlace no es válida.')
   if (crudoPersonas && !personas) avisos.push('La cantidad de personas del enlace no es válida.')
   const ref = referenciaValida(crudoRef) ? crudoRef : ''
-  const limpiar = params.get('limpiar') === '1'
-  return { inicio, fin, personas, ref, tipo, limpiar, avisos }
+  return { inicio, fin, personas, ref, tipo, avisos }
 }
 
 /**
@@ -155,21 +154,61 @@ export function olvidarReferencia(almacen) {
   }
 }
 
+/** Valida que el teléfono sea obligatorio y tenga entre 8 y 15 dígitos. */
+export function errorTelefono(telefono) {
+  const t = String(telefono || '').trim()
+  if (!t) return 'Escribe tu número de teléfono.'
+  if (t.length > 30) return 'El teléfono admite hasta 30 caracteres.'
+  const digitos = t.replace(/\D/g, '')
+  if (!PATRON_TELEFONO.test(t) || digitos.length < 8 || digitos.length > 15) {
+    return 'Escribe un teléfono válido de 8 a 15 dígitos.'
+  }
+  return undefined
+}
+
+/** Valida que el correo sea obligatorio y tenga formato válido. */
+export function errorCorreo(correo) {
+  const c = String(correo || '').trim()
+  if (!c) return 'Escribe tu correo electrónico.'
+  if (c.length > 120) return 'El correo admite hasta 120 caracteres.'
+  if (!PATRON_CORREO.test(c)) return 'Revisa el correo: parece incompleto.'
+  return undefined
+}
+
+/** Valida que el RUT o pasaporte sea obligatorio. */
+export function errorDocumento(documento) {
+  const d = String(documento || '').trim()
+  if (!d) return 'Escribe tu RUT o pasaporte.'
+  if (d.length < 5 || d.length > 30) return 'Escribe un RUT o pasaporte válido.'
+  return undefined
+}
+
 /** Errores por campo del formulario de solicitud (textos fijos). */
-export function erroresContacto(nombre, contacto) {
+export function erroresContacto(nombre, contacto, telefono, documento) {
   const errores = {}
   const n = String(nombre || '').trim()
   const c = String(contacto || '').trim()
   if (!n) errores.nombre = 'Escribe tu nombre.'
   else if (n.length > 120) errores.nombre = 'El nombre admite hasta 120 caracteres.'
-  if (!c) errores.contacto = 'Escribe un correo o un teléfono.'
-  else if (c.length > 120) errores.contacto = 'El contacto admite hasta 120 caracteres.'
-  else if (c.includes('@')) {
-    if (!PATRON_CORREO.test(c)) errores.contacto = 'Revisa el correo: parece incompleto.'
+  if (telefono !== undefined || documento !== undefined) {
+    const errCorreo = errorCorreo(c)
+    if (errCorreo) errores.contacto = errCorreo
+    const errTel = errorTelefono(telefono)
+    if (errTel) errores.telefono = errTel
+    if (documento !== undefined) {
+      const errDoc = errorDocumento(documento)
+      if (errDoc) errores.documento = errDoc
+    }
   } else {
-    const digitos = c.replace(/\D/g, '')
-    if (!PATRON_TELEFONO.test(c) || digitos.length < 8 || digitos.length > 15)
-      errores.contacto = 'Escribe un correo o un teléfono de 8 a 15 dígitos.'
+    if (!c) errores.contacto = 'Escribe un correo o un teléfono.'
+    else if (c.length > 120) errores.contacto = 'El contacto admite hasta 120 caracteres.'
+    else if (c.includes('@')) {
+      if (!PATRON_CORREO.test(c)) errores.contacto = 'Revisa el correo: parece incompleto.'
+    } else {
+      const digitos = c.replace(/\D/g, '')
+      if (!PATRON_TELEFONO.test(c) || digitos.length < 8 || digitos.length > 15)
+        errores.contacto = 'Escribe un correo o un teléfono de 8 a 15 dígitos.'
+    }
   }
   return errores
 }
