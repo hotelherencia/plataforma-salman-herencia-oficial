@@ -499,7 +499,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (130)
+## Operaciones de esta versión (140)
 
 | Operación | Efecto |
 |---|---|
@@ -633,6 +633,16 @@ los compone el servidor.
 | `GET /hotel/politicas` | Políticas completas (incluye registro de llegada/salida y FAQ internas), lista de pendientes y `puede_editar`. Cualquier rol de la sesión. |
 | `PUT /hotel/politicas` | Reemplaza el cuerpo de las políticas (`{cuerpo}`). Solo administración del hotel. Validación 400; auditado; `Idempotency-Key`. |
 | `POST /hotel/politicas/simulacion` | Calculadora: fechas, horas de llegada/salida y recargos opcionales → total con desglose neto/IVA. Con `habitacion_id` usa el precio real; si no, un `precio_noche_clp` de ejemplo. Cualquier rol de la sesión. |
+| `GET /roles` | (#323) Catálogo transversal de roles desde el core filtrado por los módulos activos de la empresa. Cualquier sesión activa. |
+| `POST /hotel/contabilidad/movimientos-directos` | Registra un ingreso o egreso directo sin habitación ni reserva (funciona con caja abierta o cerrada, devengando de inmediato en contabilidad). Roles caja, recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/contabilidad/movimientos-directos/{movimiento_id}/cobrar` | Cobra un movimiento directo pendiente (efectivo con turno abierto o tarjeta/transferencia). Roles caja o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/contabilidad/movimientos-directos/{movimiento_id}/reverso` | Asienta el reverso inmutable de un movimiento directo (y devuelve stock si corresponde). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /core/stock/bodegas` | (#358) Lista bodegas compartidas del core (`bodega_principal`, `minibar`, `cafeteria`). Roles de lectura de productos. |
+| `GET /hotel/productos/bodegas` | Alias hotel de `GET /core/stock/bodegas`. |
+| `GET /core/stock/reposicion` | (#358) Reporte transversal de stock por bodega, alertas de bajo mínimo/sin stock y sugerido a reponer. Solo administración del hotel. |
+| `GET /hotel/productos/reposicion` | Alias hotel de `GET /core/stock/reposicion`. |
+| `POST /core/stock/transferencias` | (#358) Transfiere stock entre bodegas del core sin alterar el total. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/productos/{producto_id}/transferencia` | Alias hotel de transferencia entre bodegas para un producto específico. Solo administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
