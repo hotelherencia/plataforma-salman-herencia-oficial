@@ -101,7 +101,7 @@ export default function BarraNav() {
             Inicio
           </Link>
           <Link
-            href={soloAseo ? '/hotel/aseo' : '/hotel/panel'}
+            href={visibilidad.soloAseo ? '/hotel/aseo' : '/hotel/panel'}
             className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}
           >
             Hotel
@@ -166,7 +166,7 @@ export default function BarraNav() {
             <Link href="/" onClick={cerrar} className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
               Inicio
             </Link>
-            <Link href={soloAseo ? '/hotel/aseo' : '/hotel/panel'} onClick={cerrar} className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
+            <Link href={visibilidad.soloAseo ? '/hotel/aseo' : '/hotel/panel'} onClick={cerrar} className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
               Hotel
             </Link>
             {enHotel && secciones.map((seccion) => (

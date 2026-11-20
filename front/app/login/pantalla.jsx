@@ -40,6 +40,12 @@ export default function PantallaAcceso({ despues } = {}) {
     }
   }, [])
 
+  // Si ya hay sesión activa (p. ej. tras volver con Atrás desde / hacia /login?paso=totp_google),
+  // redirige al destino en vez de reenviar un TOTP ya consumido (401).
+  useEffect(() => {
+    if (sesion.fase === 'ok' && despues) despues()
+  }, [sesion.fase, despues])
+
   // Cookie presente pero rechazada (p. ej. tras Google o redeploy titular):
   // no dejar al usuario adivinando por un 401 silencioso en la consola.
   useEffect(() => {

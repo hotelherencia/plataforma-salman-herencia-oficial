@@ -33,3 +33,12 @@ test('#358: productos incluye pestaña Stock y reposición conectada al core com
   assert.match(repo, /\/core\/stock\/reposicion/)
   assert.match(repo, /\/core\/stock\/transferencias/)
 })
+
+test('BarraNav usa visibilidad.soloAseo (sin ReferenceError al autenticar) y PantallaAcceso redirige si ya hay sesión', () => {
+  const barra = leer('app/barra.jsx')
+  assert.doesNotMatch(barra, /href=\{soloAseo\s*\?/)
+  assert.match(barra, /href=\{visibilidad\.soloAseo\s*\?/)
+
+  const pantalla = leer('app/login/pantalla.jsx')
+  assert.match(pantalla, /if \(sesion\.fase === 'ok' && despues\) despues\(\)/)
+})
