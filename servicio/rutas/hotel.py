@@ -357,6 +357,7 @@ def confirmar_reserva(
                 huesped_documento=reserva.huesped.documento,
                 huesped_documento_tipo=reserva.huesped.documento_tipo,
                 personas=reserva.personas,
+                canal=reserva.canal,
                 extras=_extras_consulta(
                     reserva.hora_llegada, reserva.hora_salida,
                     reserva.cama_adicional, reserva.ninos, reserva.mascotas,

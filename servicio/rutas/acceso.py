@@ -380,6 +380,15 @@ def desactivar_2fa(
     return {"estado": "desactivado"}
 
 
+@router.get("/roles")
+def listar_roles_catalogo(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Catálogo transversal de roles habilitados para la empresa (#323)."""
+    return roles.listar_catalogo(conexion, sesion.empresa_id)
+
+
 @router.get("/usuarios")
 def listar_usuarios(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),

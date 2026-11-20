@@ -217,7 +217,8 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
     _reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     r = conexion.execute(
         "SELECT r.id, r.habitacion_id, h.tipo, r.inicio, r.fin, r.huesped_nombre, r.huesped_documento, r.estado, "
-        "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas, r.total_aceptado_clp FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
+        "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas, r.total_aceptado_clp, r.canal "
+        "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
         "WHERE r.id = %s",
         (reserva_id,),
     ).fetchone()
@@ -236,6 +237,7 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
         "noches": (r[4] - r[3]).days,
         "huesped_nombre": r[5],
         "estado": r[7],
+        "canal": r[12],
         "tarifa_noche_aceptada_clp": r[8],
         "personas": r[10],
         "creada_en": r[9].isoformat(),

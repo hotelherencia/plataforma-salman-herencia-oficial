@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, useClaveOperacion } from '../../../lib/api'
+import { api, alRechazar, mensajeDeError, camposFaltantes, MarcoHotel, SalidaJson, Campo, CampoSelect, useClaveOperacion } from '../../../lib/api'
 import Subnav from '../_componentes/subnav'
 import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
 import { validarDocumento } from '../../../lib/documento'
@@ -20,6 +20,7 @@ export default function Reserva() {
     personas: '2',
     documento_tipo: 'rut',
     documento: '',
+    canal: 'recepcion',
   })
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function Reserva() {
           inicio: campos.inicio,
           fin: campos.fin,
           personas: Number(campos.personas) || undefined,
+          canal: campos.canal || 'recepcion',
           huesped: { nombre: campos.nombre, documento: doc.valor, documento_tipo: campos.documento_tipo },
           ...(campos.hora_llegada ? { hora_llegada: campos.hora_llegada } : {}),
           ...(campos.hora_salida ? { hora_salida: campos.hora_salida } : {}),
@@ -97,6 +99,15 @@ export default function Reserva() {
           <Campo etiqueta="Hora de llegada" type="time" value={campos.hora_llegada} onChange={(e) => setCampos({ ...campos, hora_llegada: e.target.value })} />
           <Campo etiqueta="Hora de salida" type="time" value={campos.hora_salida} onChange={(e) => setCampos({ ...campos, hora_salida: e.target.value })} />
           <Campo etiqueta="Huésped" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
+          <CampoSelect etiqueta="Canal de origen" value={campos.canal} onChange={(e) => setCampos({ ...campos, canal: e.target.value })}>
+            <option value="recepcion">Recepción (presencial)</option>
+            <option value="telefono">Teléfono</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="directo">Directo / correo</option>
+            <option value="google">Google</option>
+            <option value="ota">Agencia externa (OTA)</option>
+            <option value="otro">Otro</option>
+          </CampoSelect>
           <CampoDocumento
             tipo={campos.documento_tipo}
             numero={campos.documento}

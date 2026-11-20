@@ -87,6 +87,8 @@ class ReservaIn(BaseModel):
     cama_adicional: bool | None = None
     ninos: int | None = Field(default=None, ge=1, le=30)
     mascotas: bool | None = None
+    # #324: canal de origen para calcular ingresos por canal en el panel.
+    canal: Literal["recepcion", "landing", "directo", "google", "ota", "telefono", "whatsapp", "otro"] = "recepcion"
 
 
 class ReceptorFacturaIn(BaseModel):
@@ -289,6 +291,7 @@ class ProductoIn(BaseModel):
     precio_clp: int = Field(gt=0, le=100_000_000)
     controla_stock: bool = False
     stock: int = Field(default=0, ge=0, le=1_000_000)
+    stock_minimo: int = Field(default=0, ge=0, le=1_000_000)
     codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
 
 
@@ -298,18 +301,37 @@ class ProductoCambioIn(BaseModel):
     precio_clp: int | None = Field(default=None, gt=0, le=100_000_000)
     activo: bool | None = None
     controla_stock: bool | None = None
+    stock_minimo: int | None = Field(default=None, ge=0, le=1_000_000)
     codigo: str | None = Field(default=None, pattern=PATRON_CODIGO_PRODUCTO)
 
 
 class AjusteStockIn(BaseModel):
     delta: int = Field(ge=-100_000, le=100_000)
     motivo: str = Field(min_length=3, max_length=200)
+    bodega_codigo: Literal["bodega_principal", "minibar", "cafeteria"] | None = None
 
     @model_validator(mode="after")
     def _no_cero(self):
         if self.delta == 0:
             raise ValueError("el ajuste no puede ser 0")
         return self
+
+
+class TransferenciaStockIn(BaseModel):
+    origen: Literal["bodega_principal", "minibar", "cafeteria"]
+    destino: Literal["bodega_principal", "minibar", "cafeteria"]
+    cantidad: int = Field(gt=0, le=100_000)
+    motivo: str = Field(default="reposición interna", min_length=3, max_length=200)
+
+    @model_validator(mode="after")
+    def _bodegas_distintas(self):
+        if self.origen == self.destino:
+            raise ValueError("la bodega de origen y destino deben ser distintas")
+        return self
+
+
+class TransferenciaStockCoreIn(TransferenciaStockIn):
+    producto_id: str = Field(min_length=3, max_length=60)
 
 
 class ReversoCargoIn(BaseModel):

@@ -433,7 +433,7 @@ def _solicitud_de_la_empresa(
 ):
     clausula = " FOR UPDATE" if bloqueo else ""
     fila = conexion.execute(
-        f"SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas, tipo "
+        f"SELECT id, estado, habitacion_id, inicio, fin, huesped_nombre, personas, tipo, origen "
         f"FROM solicitudes WHERE id = %s AND empresa_id = %s{clausula}",
         (solicitud_id, empresa_id),
     ).fetchone()
@@ -452,7 +452,10 @@ def convertir(
     solicitud = _solicitud_de_la_empresa(conexion, solicitud_id, empresa_id, bloqueo=True)
     if solicitud[1] != "recibida":
         raise TransicionInvalida(f"la solicitud está {solicitud[1]}")
-    preferida, inicio, fin, nombre, personas, tipo = solicitud[2], solicitud[3], solicitud[4], solicitud[5], solicitud[6], solicitud[7]
+    preferida, inicio, fin, nombre, personas, tipo, origen = (
+        solicitud[2], solicitud[3], solicitud[4], solicitud[5], solicitud[6], solicitud[7], solicitud[8],
+    )
+    canal_reserva = origen if origen in reservas_db.CANALES_RESERVA else "landing"
     oferta = reservas_db.oferta(conexion, inicio, fin, personas, datetime.now(), empresa_id=empresa_id)
     candidatas = [i["habitacion_id"] for i in sorted(
         (i for i in oferta["oferta"] if i["tipo"] == tipo),
@@ -463,7 +466,8 @@ def convertir(
     for habitacion_id in candidatas:
         try:
             reserva = reservas_db.crear_reserva(
-                conexion, empresa_id, habitacion_id, inicio, fin, nombre, None, personas=personas,
+                conexion, empresa_id, habitacion_id, inicio, fin, nombre, None,
+                personas=personas, canal=canal_reserva,
             )
             break
         except (reservas_db.SinCupo, reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:

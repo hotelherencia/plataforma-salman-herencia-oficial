@@ -20,6 +20,7 @@ ESTADOS_QUE_OCUPAN_CUPO = ("confirmada", "en_estadia")
 # HECHO DOCUMENTADO (dominio, ESTADOS_VENDIBLES): bloqueada y fuera de servicio
 # no entran al cupo para ninguna fecha; el mantenimiento tampoco.
 ESTADOS_NO_VENDIBLES = ("bloqueada", "fuera_de_servicio")
+CANALES_RESERVA = ("recepcion", "landing", "directo", "google", "ota", "telefono", "whatsapp", "otro")
 # #349 (2026-11-18, pedido del propietario): el mantenimiento solo saca la
 # unidad del cupo en su rango de fechas. Sin fecha de término, bloquea desde
 # que se abrió hasta hoy inclusive (rango móvil): las fechas futuras siguen
@@ -373,7 +374,7 @@ def buscar_reservas(
     `desde`/`hasta` (2026-11-03): la reserva toca el periodo [desde, hasta)."""
     consulta = (
         "SELECT id, habitacion_id, inicio, fin, huesped_nombre, estado, "
-        "tarifa_noche_aceptada_clp, huesped_documento FROM reservas WHERE empresa_id = %s"
+        "tarifa_noche_aceptada_clp, huesped_documento, canal FROM reservas WHERE empresa_id = %s"
     )
     parametros: list = [empresa_id]
     if fecha is not None:
@@ -406,6 +407,7 @@ def buscar_reservas(
             "fin": fila[3].isoformat(),
             "huesped_nombre": fila[4],
             "estado": fila[5],
+            "canal": fila[8],
             "tarifa_noche_aceptada_clp": fila[6],
             "noches": (fila[3] - fila[2]).days,
         }
@@ -426,7 +428,9 @@ def crear_reserva(
     personas: int | None = None,
     extras: dict | None = None,
     huesped_documento_tipo: str | None = None,
+    canal: str = "recepcion",
 ) -> dict:
+    canal_normalizado = canal if canal in CANALES_RESERVA else "recepcion"
     # Un RUT es una sola persona o empresa: si ya es de un cliente registrado con otro nombre, no se acepta.
     if huesped_documento and huesped_documento_tipo == "rut":
         clientes.exigir_nombre_coherente(conexion, clientes.rut_clave(huesped_documento), huesped_nombre)
@@ -456,6 +460,7 @@ def crear_reserva(
             "total_aceptado_clp": total,
             "politica_snapshot": psycopg.types.json.Json(snapshot),
             "recargos": psycopg.types.json.Json(item.get("recargos") or []),
+            "canal": canal_normalizado,
         },
         noches=cotizacion.noches,
         recargos=item.get("recargos") or [],
@@ -466,13 +471,14 @@ def crear_reserva(
 
     avisos.registrar_evento(conexion, "reserva_confirmada", reserva_id, {
         "habitacion_id": habitacion_id, "inicio": inicio.isoformat(), "fin": fin.isoformat(),
-        "personas": personas, "total_clp": total}, empresa_id)
+        "personas": personas, "total_clp": total, "canal": canal_normalizado}, empresa_id)
     return {
         "reserva_id": reserva_id,
         "habitacion_id": habitacion_id,
         "inicio": inicio.isoformat(),
         "fin": fin.isoformat(),
         "estado": "confirmada",
+        "canal": canal_normalizado,
         "tarifa_noche_aceptada_clp": tarifa,
         "total_clp": total,
         "subtotal_noches_clp": item["subtotal_noches_clp"],

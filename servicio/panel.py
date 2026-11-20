@@ -218,7 +218,6 @@ NO_DISPONIBLES = [
         "motivo": "requieren el reconocimiento de ingreso por noche; el precio noche a noche quedó resuelto "
                   "(#305, 2026-11-06) pero la fórmula de ingreso reconocido sigue sin decidir (D-IND-02).",
     },
-    {"indicador": "ingresos por canal", "motivo": "el modelo no registra canal de origen (dominio)."},
     {
         "indicador": "pagos del periodo",
         "motivo": "DECISIÓN PENDIENTE D-IND-02; los pagos del día están en Caja (caja y administrador), sin conciliar.",
@@ -372,6 +371,37 @@ def indicadores(
         periodo["ingresos_periodo_clp"] = _indicador(
             ingresos, "CLP", "pagos confirmados por fecha de pago dentro del periodo",
             "pagos (join reservas)", "lo cobrado, no lo reservado; fuente veraz")
+        # #324: ingresos por canal (misma base de pagos confirmados que ingresos_periodo_clp).
+        filas_canal = conexion.execute(
+            "SELECT COALESCE(r.canal, 'recepcion') AS canal, "
+            "COALESCE(SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END), 0) AS total_clp, "
+            "COUNT(DISTINCT r.id) AS reservas "
+            "FROM pagos p JOIN reservas r ON r.id = p.reserva_id "
+            "WHERE r.empresa_id = %s AND p.estado = 'confirmado' "
+            "AND p.creado_en::date >= %s AND p.creado_en::date < %s "
+            "GROUP BY COALESCE(r.canal, 'recepcion') "
+            "ORDER BY total_clp DESC, canal",
+            (empresa_id, desde, hasta),
+        ).fetchall()
+        por_canal = [
+            {
+                "canal": f[0],
+                "ingresos_clp": int(f[1]),
+                "reservas": int(f[2]),
+                "participacion": (int(f[1]) / ingresos) if ingresos > 0 else None,
+            }
+            for f in filas_canal
+            if int(f[1]) != 0 or int(f[2]) > 0
+        ]
+        periodo["ingresos_por_canal"] = {
+            **_indicador(
+                ingresos, "CLP",
+                "pagos confirmados del periodo agrupados por canal de origen de la reserva",
+                "pagos (join reservas.canal)",
+                "misma base percibida que la recaudación del periodo",
+            ),
+            "por_canal": por_canal,
+        }
     return {
         "fecha_corte": hoy.isoformat(),
         "periodo": {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "noches": len(noches)},

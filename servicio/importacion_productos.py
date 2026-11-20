@@ -420,8 +420,11 @@ def confirmar(conexion: psycopg.Connection, origen: str, documento: dict | None,
                             ) from error
                         nuevos_por_nombre[clave_nombre] = producto_id
                         if controla and cantidad:
+                            from core.incremento1.nucleo import stock as stock_core
+                            bodega = stock_core.bodega_por_categoria(linea["categoria"])
+                            productos_db.registrar_stock_bodega(conexion, producto_id, bodega, cantidad)
                             productos_db._movimiento(conexion, producto_id, cantidad, motivo, actor,
-                                                     importacion_id=importacion_id)
+                                                     importacion_id=importacion_id, bodega_codigo=bodega, tipo="entrada")
                             unidades += cantidad
                         elif not controla:
                             sin_stock += 1
@@ -453,8 +456,11 @@ def confirmar(conexion: psycopg.Connection, origen: str, documento: dict | None,
                     valores.append(suma)
                 conexion.execute(f"UPDATE productos SET {', '.join(cambios)} WHERE id = %s", (*valores, producto_id))
                 if suma:
+                    from core.incremento1.nucleo import stock as stock_core
+                    bodega = stock_core.bodega_por_categoria(producto["categoria"])
+                    productos_db.registrar_stock_bodega(conexion, producto_id, bodega, suma)
                     productos_db._movimiento(conexion, producto_id, suma, motivo, actor,
-                                             importacion_id=importacion_id)
+                                             importacion_id=importacion_id, bodega_codigo=bodega, tipo="entrada")
                     unidades += suma
                 elif cantidad:
                     sin_stock += 1

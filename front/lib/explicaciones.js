@@ -131,6 +131,13 @@ export const EXPLICACIONES = {
     noCuenta: 'Lo reservado y aún no pagado, cobros no confirmados ni ingresos devengados por noche vendida (eso vive en Cierre diario).',
     ejemplo: 'Un anticipo de $50.000 el día 3 y un cobro de $415.000 el día 9 = $465.000.',
   },
+  ingresos_por_canal: {
+    mide: 'Cuánto se recaudó en el periodo separado según el canal por donde llegó cada reserva.',
+    formula: 'Recaudación por canal = suma de cobros confirmados del periodo agrupados por el origen de la reserva.',
+    cuenta: 'Cobros confirmados de reservas creadas en recepción, sitio web, teléfono, WhatsApp, Google o agencias externas.',
+    noCuenta: 'Reservas sin cobros en el periodo, cobros anulados ni movimientos directos sin reserva.',
+    ejemplo: 'Sitio web $280.000 (2 reservas) + Recepción $185.000 (1 reserva) = $465.000.',
+  },
   reservas_canceladas: {
     mide: 'Cuántas reservas canceladas tenían noches dentro del periodo.',
     formula: 'Reservas canceladas = reservas canceladas cuyas fechas de estadía tocan el periodo; debajo, cuántas de sus noches caían en él.',
@@ -156,10 +163,6 @@ export const AUN_NO_DISPONIBLES = [
   {
     nombre: 'Ingreso por habitación disponible acumulado del periodo (RevPAR)',
     texto: 'Ya se calcula por día en Caja y pagos → Cierre diario. El acumulado multi-día con comparación de periodos llega en la fase de reportería ejecutiva.',
-  },
-  {
-    nombre: 'Ingresos por canal de venta',
-    texto: 'La reserva aún no guarda por qué canal llegó (web, teléfono, agencia).',
   },
   {
     nombre: 'No se presentó',

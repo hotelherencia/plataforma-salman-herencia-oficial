@@ -12,7 +12,15 @@ from .. import productos as productos_db
 from .. import roles
 from .. import seguridad
 from . import comun
-from .modelos import AjusteStockIn, ImportacionIn, ProductoCambioIn, ProductoIn, VistaPreviaImportacionIn
+from .modelos import (
+    AjusteStockIn,
+    ImportacionIn,
+    ProductoCambioIn,
+    ProductoIn,
+    TransferenciaStockCoreIn,
+    TransferenciaStockIn,
+    VistaPreviaImportacionIn,
+)
 
 router = APIRouter()
 
@@ -67,7 +75,8 @@ def crear_producto(
     return _mutar(
         conexion, sesion, idempotency_key, cuerpo,
         lambda: productos_db.crear(conexion, producto.nombre, producto.categoria, producto.precio_clp,
-                                   producto.controla_stock, producto.stock, sesion.nombre, codigo=producto.codigo),
+                                   producto.controla_stock, producto.stock, sesion.nombre,
+                                   codigo=producto.codigo, stock_minimo=producto.stock_minimo),
         201, "producto_alta", producto.nombre,
     )
 
@@ -105,8 +114,78 @@ def ajustar_stock(
     cuerpo = {"operacion": "stock", "producto_id": producto_id, **json.loads(ajuste.model_dump_json())}
     return _mutar(
         conexion, sesion, idempotency_key, cuerpo,
-        lambda: productos_db.ajustar_stock(conexion, producto_id, ajuste.delta, ajuste.motivo, sesion.nombre),
+        lambda: productos_db.ajustar_stock(
+            conexion, producto_id, ajuste.delta, ajuste.motivo, sesion.nombre,
+            bodega_codigo=ajuste.bodega_codigo,
+        ),
         200, "stock_ajuste", producto_id,
+    )
+
+
+@router.get("/hotel/productos/bodegas")
+@router.get("/core/stock/bodegas")
+def listar_bodegas_stock(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Bodegas compartidas del core (#358): bodega_principal, minibar y cafetería."""
+    comun.exigir_rol(sesion, ROLES_LECTURA)
+    return {"bodegas": productos_db.listar_bodegas(conexion)}
+
+
+@router.get("/hotel/productos/reposicion")
+@router.get("/core/stock/reposicion")
+def reporte_stock_reposicion(
+    bodega: str | None = Query(default=None, pattern="^(bodega_principal|minibar|cafeteria)$"),
+    categoria: str | None = Query(default=None, pattern="^(minibar|cafeteria|servicio|extra)$"),
+    solo_alertas: bool = False,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Reporte transversal de stock y sugerencias de reposición (#358)."""
+    comun.exigir_rol(sesion, ROLES_MANTENEDOR)
+    try:
+        return productos_db.reporte_reposicion(conexion, bodega=bodega, categoria=categoria, solo_alertas=solo_alertas)
+    except productos_db.ProductoInvalido as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+
+@router.post("/hotel/productos/{producto_id}/transferencia")
+def transferir_stock_producto(
+    producto_id: str,
+    datos: TransferenciaStockIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Transfiere unidades entre bodegas (ej. bodega_principal → minibar o cafetería)."""
+    comun.exigir_rol(sesion, ROLES_MANTENEDOR)
+    cuerpo = {"operacion": "stock_transferencia", "producto_id": producto_id, **json.loads(datos.model_dump_json())}
+    return _mutar(
+        conexion, sesion, idempotency_key, cuerpo,
+        lambda: productos_db.transferir_bodega(
+            conexion, producto_id, datos.origen, datos.destino, datos.cantidad, datos.motivo, sesion.nombre
+        ),
+        200, "stock_transferencia", producto_id,
+    )
+
+
+@router.post("/core/stock/transferencias")
+def transferir_stock_core(
+    datos: TransferenciaStockCoreIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Endpoint core de transferencia entre bodegas compartido por hotel y cafetería (#358)."""
+    comun.exigir_rol(sesion, ROLES_MANTENEDOR)
+    cuerpo = {"operacion": "stock_transferencia_core", **json.loads(datos.model_dump_json())}
+    return _mutar(
+        conexion, sesion, idempotency_key, cuerpo,
+        lambda: productos_db.transferir_bodega(
+            conexion, datos.producto_id, datos.origen, datos.destino, datos.cantidad, datos.motivo, sesion.nombre
+        ),
+        200, "stock_transferencia", datos.producto_id,
     )
 
 

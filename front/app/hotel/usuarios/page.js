@@ -17,6 +17,7 @@ export default function Usuarios() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [usuarios, setUsuarios] = useState(null)
+  const [catalogoRoles, setCatalogoRoles] = useState(null)
   const [claveAlta, renovarClaveAlta] = useClaveOperacion()
   const [claveCambioOp, renovarClaveCambio] = useClaveOperacion()
   const [claveRevocacion, renovarClaveRevocacion] = useClaveOperacion()
@@ -36,7 +37,13 @@ export default function Usuarios() {
   }
 
   useEffect(() => {
-    if (esAdmin) cargarUsuarios()
+    if (!esAdmin) return
+    cargarUsuarios()
+    api('/roles')
+      .then((r) => {
+        if (r.estado === 200 && Array.isArray(r.datos?.roles)) setCatalogoRoles(r.datos.roles)
+      })
+      .catch(() => {})
   }, [esAdmin])
 
   async function postear(ruta, cuerpo, clave, alExito, e) {
@@ -94,7 +101,11 @@ export default function Usuarios() {
         <form className="formulario" onSubmit={(e) => postear('/usuarios', { nombre: alta.nombre, rol: alta.rol, clave: alta.clave, ...(alta.email.trim() ? { email: alta.email.trim() } : {}) }, claveAlta, renovarClaveAlta, e)}>
           <Campo etiqueta="Nombre" value={alta.nombre} onChange={(e) => setAlta({ ...alta, nombre: e.target.value })} />
           <CampoSelect etiqueta="Rol" value={alta.rol} onChange={(e) => setAlta({ ...alta, rol: e.target.value })}>
-            {ROLES.map((rol) => <option key={rol} value={rol}>{ETIQUETAS_ROL[rol]}</option>)}
+            {(catalogoRoles || ROLES.map((codigo) => ({ codigo, etiqueta: ETIQUETAS_ROL[codigo] || codigo, modulo: codigo === 'administrador' || codigo === 'admin_plataforma' ? 'core' : 'hotel' }))).map((item) => (
+              <option key={item.codigo} value={item.codigo}>
+                {item.etiqueta} ({item.modulo === 'core' ? 'Plataforma' : item.modulo === 'hotel' ? 'Hotel' : item.modulo})
+              </option>
+            ))}
           </CampoSelect>
           <p className="nota-chica">
             Administrador del hotel: precios, tipos, habitaciones, reservas, caja y reportes. Administrador de plataforma:

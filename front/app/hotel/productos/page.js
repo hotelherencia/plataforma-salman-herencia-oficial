@@ -5,11 +5,13 @@ import { api, clp, mensajeDeError, MarcoHotel, Campo, CampoSelect, useSesion } f
 import { esAdminHotel } from '../../../lib/roles'
 import { CATEGORIAS_PRODUCTO } from '../_componentes/selector-producto'
 import { ImportarProductos } from '../_componentes/importar-productos'
+import { ReposicionStock } from '../_componentes/reposicion-stock'
 import css from '../_componentes/operacion.module.css'
 
-// Pestañas internas (no agregan entradas al menú): catálogo y tres formas de cargar.
+// Pestañas internas (no agregan entradas al menú): catálogo, reposición y tres formas de cargar.
 const PESTANAS = [
   ['catalogo', 'Catálogo'],
+  ['reposicion', 'Stock y reposición'],
   ['factura', 'Cargar desde factura'],
   ['planilla', 'Pegar planilla'],
   ['lector', 'Lector de códigos'],
@@ -30,7 +32,7 @@ export default function Productos() {
   const esAdmin = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
   const [lista, setLista] = useState(null)
   const [pestana, setPestana] = useState('catalogo')
-  const [alta, setAlta] = useState({ nombre: '', categoria: 'minibar', precio_clp: '', controla_stock: false, stock: '0', codigo: '' })
+  const [alta, setAlta] = useState({ nombre: '', categoria: 'minibar', precio_clp: '', controla_stock: false, stock: '0', stock_minimo: '0', codigo: '' })
   const [ajustes, setAjustes] = useState({})
   const [precios, setPrecios] = useState({})
   const [error, setError] = useState('')
@@ -77,9 +79,10 @@ export default function Productos() {
     const ok = await enviar('/hotel/productos', 'POST', {
       nombre: alta.nombre.trim(), categoria: alta.categoria, precio_clp: Number(alta.precio_clp),
       controla_stock: alta.controla_stock, stock: alta.controla_stock ? Number(alta.stock) || 0 : 0,
+      stock_minimo: alta.controla_stock ? Number(alta.stock_minimo) || 0 : 0,
       ...(alta.codigo.trim() ? { codigo: alta.codigo.trim() } : {}),
     }, `Producto «${alta.nombre.trim()}» creado.`)
-    if (ok) setAlta({ nombre: '', categoria: alta.categoria, precio_clp: '', controla_stock: false, stock: '0', codigo: '' })
+    if (ok) setAlta({ nombre: '', categoria: alta.categoria, precio_clp: '', controla_stock: false, stock: '0', stock_minimo: '0', codigo: '' })
   }
 
   function ajustar(p) {
@@ -116,7 +119,12 @@ export default function Productos() {
           </button>
         ))}
       </div>
-      {pestana !== 'catalogo' && (
+      {pestana === 'reposicion' && (
+        <div role="tabpanel" id="panel-reposicion" aria-labelledby="pestana-reposicion">
+          <ReposicionStock alCambiar={cargar} />
+        </div>
+      )}
+      {pestana !== 'catalogo' && pestana !== 'reposicion' && (
         <div role="tabpanel" id={`panel-${pestana}`} aria-labelledby={`pestana-${pestana}`}>
           <ImportarProductos fuente={pestana} alCargar={cargar} />
         </div>
@@ -138,7 +146,10 @@ export default function Productos() {
             Controla stock (minibar)
           </label>
           {alta.controla_stock && (
-            <Campo etiqueta="Stock inicial" type="number" min="0" value={alta.stock} onChange={(e) => setAlta({ ...alta, stock: e.target.value })} />
+            <>
+              <Campo etiqueta="Stock inicial" type="number" min="0" value={alta.stock} onChange={(e) => setAlta({ ...alta, stock: e.target.value })} />
+              <Campo etiqueta="Stock mínimo (alerta)" type="number" min="0" value={alta.stock_minimo} onChange={(e) => setAlta({ ...alta, stock_minimo: e.target.value })} />
+            </>
           )}
           <button type="submit" className="boton-primario">Crear producto</button>
         </form>

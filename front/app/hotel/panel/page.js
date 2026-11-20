@@ -70,6 +70,17 @@ const ETIQUETAS_ESTADO = {
   cancelada: { label: 'Canceladas', color: '#b91c1c', bg: '#fef2f2' },
 }
 
+const ETIQUETAS_CANAL = {
+  recepcion: { label: 'Recepción', color: '#173326' },
+  landing: { label: 'Sitio web', color: '#9d5d3f' },
+  directo: { label: 'Directo', color: '#2b5b44' },
+  google: { label: 'Google', color: '#1d4ed8' },
+  ota: { label: 'Agencia externa (OTA)', color: '#7c3aed' },
+  telefono: { label: 'Teléfono', color: '#b45309' },
+  whatsapp: { label: 'WhatsApp', color: '#15803d' },
+  otro: { label: 'Otro', color: '#5f6158' },
+}
+
 function Tarjeta({ clave, titulo, indicador, alerta, valor, detalle }) {
   if (!indicador) return null
   const mostrar = valor !== undefined ? valor : indicador.valor
@@ -237,6 +248,52 @@ export default function Panel() {
                 ))}
               </ul>
             </details>
+            {p.ingresos_por_canal && (
+              <div className="grafico-estados-bloque" data-ingresos-por-canal>
+                <div className="serie-cabecera">
+                  <h3 className="subtitulo">Recaudación por canal</h3>
+                  <Explicacion clave="ingresos_por_canal" titulo="Recaudación por canal" />
+                </div>
+                {p.ingresos_por_canal.por_canal?.length > 0 ? (
+                  <>
+                    <div className="barra-proporcion">
+                      {p.ingresos_por_canal.por_canal.map((item) => {
+                        const cfg = ETIQUETAS_CANAL[item.canal] || { label: item.canal, color: '#5f6158' }
+                        const peso = Math.max(0, item.ingresos_clp)
+                        if (peso === 0) return null
+                        return (
+                          <div
+                            key={item.canal}
+                            className="segmento-proporcion"
+                            style={{ flex: peso, backgroundColor: cfg.color }}
+                            title={`${cfg.label}: ${clp(item.ingresos_clp)} (${porcentaje(item.participacion)})`}
+                          />
+                        )
+                      })}
+                    </div>
+                    <div className="grid-estados">
+                      {p.ingresos_por_canal.por_canal.map((item) => {
+                        const cfg = ETIQUETAS_CANAL[item.canal] || { label: item.canal, color: '#5f6158' }
+                        return (
+                          <div key={item.canal} className="tarjeta-estado" style={{ borderLeftColor: cfg.color }}>
+                            <span className="estado-nombre">{cfg.label}</span>
+                            <div className="estado-conteo">
+                              <span className="estado-cantidad">{clp(item.ingresos_clp)}</span>
+                              <span className="estado-pct">
+                                {plural(item.reservas, 'reserva')} · {porcentaje(item.participacion)}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="nota-chica">Sin cobros confirmados en el periodo seleccionado.</p>
+                )}
+              </div>
+            )}
+
             {Object.keys(p.reservas_registradas.por_estado).length > 0 && (
               <div className="grafico-estados-bloque">
                 <h3 className="subtitulo">Distribución de reservas por estado</h3>
