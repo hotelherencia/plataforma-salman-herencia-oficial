@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
 import Subnav from '../_componentes/subnav'
+import FormularioEdicion from '../_componentes/formulario-edicion'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 import { fechaATexto } from '../../../lib/formato'
 
@@ -23,6 +24,7 @@ export default function Solicitudes() {
   const [error, setError] = useState('')
   const [salida, setSalida] = useState(null)
   const [motivos, setMotivos] = useState({})
+  const [editando, setEditando] = useState(null)
   const [claveConversion, renovarConversion] = useClaveOperacion()
   const [claveRechazo, renovarRechazo] = useClaveOperacion()
 
@@ -151,7 +153,8 @@ export default function Solicitudes() {
               </thead>
               <tbody>
                 {lista.map((s) => (
-                  <tr key={s.solicitud_id} {...destacada.props(s.solicitud_id)}>
+                  <Fragment key={s.solicitud_id}>
+                  <tr {...destacada.props(s.solicitud_id)}>
                     <td>{s.solicitud_id}</td>
                     <td>{nombreTipo(s.tipo)}</td>
                     <td>{s.habitacion_id || 'al convertir'}</td>
@@ -168,6 +171,10 @@ export default function Solicitudes() {
                         : '—'}
                     </td>
                     <td>
+                      <button type="button" className="boton-fantasma" aria-expanded={editando === s.solicitud_id}
+                        onClick={() => setEditando(editando === s.solicitud_id ? null : s.solicitud_id)}>
+                        Editar
+                      </button>
                       {s.estado === 'recibida' ? (
                         <div className="acciones-fila">
                           <button type="button" className="boton-primario" onClick={() => convertir(s.solicitud_id)}>
@@ -188,6 +195,31 @@ export default function Solicitudes() {
                       )}
                     </td>
                   </tr>
+                  {editando === s.solicitud_id && (
+                    <tr>
+                      <td colSpan={12}>
+                        <FormularioEdicion
+                          ruta={`/hotel/solicitudes/${s.solicitud_id}`}
+                          inicial={s}
+                          campos={[
+                            { nombre: 'huesped_nombre', etiqueta: 'Huésped', requerido: true },
+                            { nombre: 'huesped_contacto', etiqueta: 'Contacto (correo o teléfono)', requerido: true },
+                            ...(s.estado === 'recibida'
+                              ? [{ nombre: 'personas', etiqueta: 'Personas', tipo: 'number', requerido: true }] : []),
+                          ]}
+                          armar={(v) => ({
+                            huesped_nombre: v.huesped_nombre.trim(),
+                            huesped_contacto: v.huesped_contacto.trim(),
+                            personas: Number(v.personas ?? s.personas),
+                          })}
+                          alGuardar={() => { setEditando(null); cargar(estado) }}
+                          alCancelar={() => setEditando(null)}
+                        />
+                        <p className="nota-clave">Tipo, habitación y fechas no se editan aquí: cambian cupo y tarifa.</p>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

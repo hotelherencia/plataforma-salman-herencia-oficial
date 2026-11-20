@@ -7,6 +7,7 @@ import { api, clp, mensajeDeError, MarcoHotel, useSesion } from '../../../../lib
 import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
 import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
+import FormularioEdicion from '../../_componentes/formulario-edicion'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 import { nombreDocumento, nombreMedio } from '../../../../lib/caja'
@@ -43,6 +44,7 @@ export default function DetalleReserva() {
   const [aviso, setAviso] = useState('')
   const [version, setVersion] = useState(0)
   const puedeReversar = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
+  const [editandoHuesped, setEditandoHuesped] = useState(false)
   const puedeMover = sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
   const [destino, setDestino] = useState('')
   const [motivoCambio, setMotivoCambio] = useState('')
@@ -169,6 +171,30 @@ export default function DetalleReserva() {
               <dt>Registrada</dt>
               <dd>{reserva.creada_en.slice(0, 16).replace('T', ' ')}</dd>
             </dl>
+            {puedeMover && (
+              editandoHuesped ? (
+                <FormularioEdicion
+                  ruta={`/hotel/reservas/${encodeURIComponent(reservaId)}/huesped`}
+                  inicial={{ nombre: reserva.huesped_nombre, documento: '', documento_tipo: 'rut' }}
+                  campos={[
+                    { nombre: 'nombre', etiqueta: 'Nombre del huésped', requerido: true },
+                    { nombre: 'documento_tipo', etiqueta: 'Tipo de documento', tipo: 'select',
+                      opciones: [['rut', 'RUT'], ['pasaporte', 'Pasaporte']] },
+                    { nombre: 'documento', etiqueta: 'Documento nuevo (vacío = no cambiar)' },
+                  ]}
+                  armar={(v) => {
+                    const documento = v.documento.trim()
+                    return { nombre: v.nombre.trim(), documento: documento || null, documento_tipo: documento ? v.documento_tipo : null }
+                  }}
+                  alGuardar={() => { setEditandoHuesped(false); setAviso('Datos del huésped actualizados.'); setVersion((n) => n + 1) }}
+                  alCancelar={() => setEditandoHuesped(false)}
+                />
+              ) : (
+                <button type="button" className="boton-secundario" onClick={() => setEditandoHuesped(true)}>
+                  Editar datos del huésped
+                </button>
+              )
+            )}
             {SIGUIENTE_PASO[reserva.estado] && (
               <p className="nota-clave">
                 Siguiente paso:{' '}

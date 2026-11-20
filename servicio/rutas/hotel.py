@@ -33,7 +33,8 @@ from .. import reservas as reservas_db
 from .. import seguridad
 from . import comun
 from .modelos import (
-    CargoIn, DevolucionSaldoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, LeadPublicoIn, MantenimientoIn,
+    CargoIn, DevolucionSaldoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, HuespedEdicionIn, LeadEdicionIn,
+    LeadPublicoIn, MantenimientoIn, SolicitudEdicionIn,
     ObservacionIn, PagoIn, PATRON_ID_HABITACION, ReasignacionIn, VerificacionAseoIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
@@ -1173,6 +1174,84 @@ def gestionar_lead(
     codigo, cuerpo_respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
     conexion.commit()
     return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+@router.put("/hotel/leads/{lead_id}")
+def editar_lead(
+    lead_id: str,
+    datos: LeadEdicionIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Corrige los datos del lead en cualquier estado. PUT es idempotente: repetirlo no cambia nada."""
+    comun.exigir_rol(sesion, leads_mod.ROLES_GESTION)
+    try:
+        resultado = leads_mod.editar(
+            conexion, sesion.empresa_id, lead_id, datos.nombre, datos.correo, datos.telefono,
+            datos.huespedes, datos.check_in, datos.check_out, datos.mensaje, datos.nota, sesion.nombre,
+        )
+    except leads_mod.LeadAjenoOInexistente:
+        conexion.rollback()
+        raise HTTPException(status_code=403, detail="acceso denegado")
+    except leads_mod.LeadInvalido as error:
+        conexion.rollback()
+        raise HTTPException(status_code=422, detail=error.detalle)
+    conexion.commit()
+    return resultado
+
+
+@router.put("/hotel/solicitudes/{solicitud_id}")
+def editar_solicitud(
+    solicitud_id: str,
+    datos: SolicitudEdicionIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, canal_publico.ROLES_GESTION)
+    try:
+        resultado = canal_publico.editar(
+            conexion, sesion.empresa_id, solicitud_id, datos.huesped_nombre, datos.huesped_contacto,
+            datos.personas, sesion.nombre,
+        )
+    except canal_publico.SolicitudAjenaOInexistente:
+        conexion.rollback()
+        raise HTTPException(status_code=403, detail="acceso denegado")
+    except canal_publico.SolicitudInvalida as error:
+        conexion.rollback()
+        raise HTTPException(status_code=422, detail=error.detalle)
+    except canal_publico.TransicionInvalida as error:
+        conexion.rollback()
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return resultado
+
+
+@router.put("/hotel/reservas/{reserva_id}/huesped")
+def editar_huesped_reserva(
+    reserva_id: str,
+    datos: HuespedEdicionIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Corrige nombre y documento del huésped (recepción o admin del hotel; el documento es dato sensible)."""
+    comun.exigir_rol(sesion, ROLES_DOCUMENTO_HUESPED)
+    with hotel_sql.EXCLUSIVO:  # el dominio recarga reservas desde la base en cada operación
+        hotel_sql.bloquear(conexion)
+        try:
+            resultado = cobro.editar_huesped(
+                conexion, sesion.empresa_id, reserva_id, datos.nombre, datos.documento,
+                datos.documento_tipo, sesion.nombre,
+            )
+        except cobro.RecursoAjenoOInexistente:
+            conexion.rollback()
+            raise HTTPException(status_code=403, detail="acceso denegado")
+        except cobro.HuespedInvalido as error:
+            conexion.rollback()
+            raise HTTPException(status_code=422, detail=str(error))
+        except clientes.ClienteConflicto as error:
+            conexion.rollback()
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+    return resultado
 
 # ------------------------------------------------------------------
 # Agente de reservas N0 (spec 005 / spec-api-v1 «Agente de reservas»)

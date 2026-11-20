@@ -385,6 +385,39 @@ class LeadPublicoIn(BaseModel):
     mensaje: str | None = Field(default=None, max_length=leads_mod.MAX_MENSAJE)
 
 
+class LeadEdicionIn(LeadPublicoIn):
+    nota: str | None = Field(default=None, max_length=500)
+
+
+class SolicitudEdicionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    huesped_nombre: str = Field(min_length=1, max_length=120)
+    huesped_contacto: str = Field(min_length=1, max_length=120)
+    personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
+
+
+class HuespedEdicionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: str = Field(min_length=1, max_length=120)
+    documento: str | None = Field(default=None, max_length=50)
+    documento_tipo: Literal["rut", "pasaporte"] | None = None
+
+
+class ClienteEdicionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rut: str = Field(min_length=1, max_length=20)
+    nombre: str = Field(min_length=1, max_length=200)
+    tipo: Literal["persona", "empresa"]
+    giro: str | None = Field(default=None, max_length=200)
+    direccion: str | None = Field(default=None, max_length=200)
+    comuna: str | None = Field(default=None, max_length=100)
+    correo: str | None = Field(default=None, max_length=320)
+    activo: bool = True
+
+
 class GestionLeadIn(BaseModel):
     estado: str = Field(min_length=1, max_length=20)
     nota: str | None = Field(default=None, max_length=500)

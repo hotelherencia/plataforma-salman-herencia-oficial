@@ -11,6 +11,14 @@ import uuid
 
 import psycopg
 
+from . import roles
+from . import seguridad
+
+ROLES_GESTION = roles.con_admin_hotel("recepcion", "caja")
+TIPOS = ("persona", "empresa")
+MAX_LISTA = 200
+_RE_CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
 
 class RutInvalido(ValueError):
     """422: el RUT no cumple el formato o el dígito verificador."""
@@ -84,3 +92,76 @@ def asegurar(conexion: psycopg.Connection, rut: str, nombre: str, actor: str, *,
          correo or None, actor),
     )
     return cliente_id
+
+
+class ClienteInexistente(Exception):
+    """403/404: el cliente no existe."""
+
+
+class ClienteInvalido(ValueError):
+    """422: datos del cliente inválidos."""
+
+
+def _ficha(f: tuple) -> dict:
+    return {"id": f[0], "tipo": f[1], "rut": rut_visible(f[2]), "nombre": f[3], "giro": f[4],
+            "direccion": f[5], "comuna": f[6], "correo": f[7], "activo": f[8], "creado_en": f[9].isoformat()}
+
+
+_COLUMNAS = "id, tipo, rut, nombre, giro, direccion, comuna, correo, activo, creado_en"
+
+
+def listar(conexion: psycopg.Connection, texto: str | None = None, incluir_inactivos: bool = True) -> dict:
+    """Clientes por nombre, RUT o correo; tope fijo (la lista no se pagina: son pocos)."""
+    texto = " ".join((texto or "").split())
+    condiciones, parametros = [], []
+    if texto:
+        patron = f"%{texto}%"
+        solo_rut = re.sub(r"[.\s-]", "", texto).upper()
+        condiciones.append("(nombre ILIKE %s OR correo ILIKE %s OR rut LIKE %s)")
+        parametros += [patron, patron, f"%{solo_rut}%" if solo_rut else patron]
+    if not incluir_inactivos:
+        condiciones.append("activo")
+    donde = f" WHERE {' AND '.join(condiciones)}" if condiciones else ""
+    filas = conexion.execute(
+        f"SELECT {_COLUMNAS} FROM clientes{donde} ORDER BY nombre_clave, id LIMIT {MAX_LISTA + 1}", parametros
+    ).fetchall()
+    return {"clientes": [_ficha(f) for f in filas[:MAX_LISTA]], "truncado": len(filas) > MAX_LISTA}
+
+
+def editar(conexion: psycopg.Connection, cliente_id: str, *, rut: str, nombre: str, tipo: str,
+           giro: str | None, direccion: str | None, comuna: str | None, correo: str | None,
+           activo: bool, actor: str) -> dict:
+    """Corrige la ficha del cliente. El RUT es la identidad: se puede corregir si el nuevo es válido y no
+    es de otro cliente (409). Las imputaciones y movimientos ya asentados apuntan por id, así que no
+    cambian. Auditoría: campos modificados, nunca valores."""
+    nombre = " ".join((nombre or "").split())
+    if not nombre or len(nombre) > 200:
+        raise ClienteInvalido("nombre es obligatorio (máx. 200)")
+    if tipo not in TIPOS:
+        raise ClienteInvalido("tipo debe ser persona o empresa")
+    giro, direccion, comuna = ((v or "").strip() or None for v in (giro, direccion, comuna))
+    correo = (correo or "").strip().lower() or None
+    if correo and (len(correo) > 320 or not _RE_CORREO.match(correo)):
+        raise ClienteInvalido("correo debe tener formato de correo")
+    clave = rut_clave(rut)  # RutInvalido (422)
+    actual = conexion.execute(
+        f"SELECT {_COLUMNAS}, rut FROM clientes WHERE id = %s FOR UPDATE", (cliente_id,)
+    ).fetchone()
+    if actual is None:
+        raise ClienteInexistente("cliente inexistente")
+    otro = conexion.execute("SELECT nombre FROM clientes WHERE rut = %s AND id <> %s", (clave, cliente_id)).fetchone()
+    if otro is not None:
+        raise ClienteConflicto(f"el RUT {rut_visible(clave)} ya está registrado a nombre de «{otro[0]}»")
+    previo = dict(zip(("tipo", "rut", "nombre", "giro", "direccion", "comuna", "correo", "activo"),
+                      (actual[1], actual[2], actual[3], actual[4], actual[5], actual[6], actual[7], actual[8])))
+    nuevo = {"tipo": tipo, "rut": clave, "nombre": nombre, "giro": giro, "direccion": direccion,
+             "comuna": comuna, "correo": correo, "activo": activo}
+    cambiados = [c for c in nuevo if nuevo[c] != previo[c]]
+    if cambiados:
+        conexion.execute(
+            "UPDATE clientes SET tipo = %s, rut = %s, nombre = %s, nombre_clave = %s, giro = %s, direccion = %s, "
+            "comuna = %s, correo = %s, activo = %s WHERE id = %s",
+            (tipo, clave, nombre, nombre_clave(nombre), giro, direccion, comuna, correo, activo, cliente_id),
+        )
+        seguridad.auditar(conexion, actor, "cliente_edicion", cliente_id, ",".join(cambiados))
+    return _ficha(conexion.execute(f"SELECT {_COLUMNAS} FROM clientes WHERE id = %s", (cliente_id,)).fetchone())

@@ -36,6 +36,11 @@ export function gestionaRecepcion(rol) {
   return rol === 'recepcion' || esAdminHotel(rol)
 }
 
+/** Clientes (RUT): recepción, caja o administración del hotel. */
+export function gestionaClientes(rol) {
+  return rol === 'caja' || gestionaRecepcion(rol)
+}
+
 /** #362: personal de aseo; solo ve /hotel/aseo. */
 export function esAseo(rol) {
   return rol === 'aseo'

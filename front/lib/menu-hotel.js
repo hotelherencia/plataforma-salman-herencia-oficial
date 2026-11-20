@@ -57,6 +57,7 @@ export const SECCIONES = [
       { href: '/hotel/reservas', nombre: 'Reservas', tambien: ['/hotel/reserva', '/hotel/oferta'] },
       { href: '/hotel/solicitudes', nombre: 'Solicitudes y leads', tambien: ['/hotel/leads'] },
       { href: '/hotel/agente', nombre: 'Agente', si: 'agente' },
+      { href: '/hotel/clientes', nombre: 'Clientes', si: 'clientes' },
       { href: '/hotel/estadia', nombre: 'Llegada' },
       { href: '/hotel/salida', nombre: 'Salida' },
       { href: '/hotel/caja', nombre: 'Caja y pagos', tambien: ['/hotel/pago'] },
@@ -88,13 +89,14 @@ export function itemActivo(ruta, item) {
   return esRutaActiva(ruta, item.href, item.tambien || [])
 }
 
-export function seccionesVisibles({ puedeVerAgente, puedeVerUsuarios, puedeVerAseo = true, soloAseo = false }) {
+export function seccionesVisibles({ puedeVerAgente, puedeVerUsuarios, puedeVerAseo = true, puedeVerClientes = true, soloAseo = false }) {
   return SECCIONES.map((seccion) => ({
     ...seccion,
     items: seccion.items.filter((item) => {
       // #362: el rol aseo solo ve su lista.
       if (soloAseo) return item.si === 'aseo'
       if (item.si === 'aseo') return puedeVerAseo
+      if (item.si === 'clientes') return puedeVerClientes
       if (item.si === 'agente') return puedeVerAgente
       if (item.si === 'usuarios') return puedeVerUsuarios
       return true
