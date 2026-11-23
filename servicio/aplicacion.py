@@ -221,7 +221,8 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     )
     app.state.freno_logins = seguridad.FrenoDeLogins()
     app.state.freno_solicitudes = canal_publico.FrenoDeSolicitudes(
-        max_por_minuto=configuracion.publico_max_por_minuto if configuracion else 6
+        max_por_minuto=configuracion.publico_max_por_minuto if configuracion else 6,
+        database_url=configuracion.database_url if configuracion else None,
     )
     if configuracion is not None and configuracion.agente_guion_json:
         app.state.modelo_agente = ModeloGuionado(json.loads(configuracion.agente_guion_json))

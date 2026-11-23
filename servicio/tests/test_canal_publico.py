@@ -48,8 +48,8 @@ class CanalPublicoBaseTest(unittest.TestCase):
             exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
-                "solicitudes, reservas, tarifas, tareas_operativas, sesiones, usuarios, habitaciones "
-                "RESTART IDENTITY CASCADE"
+                "solicitudes, reservas, tarifas, tareas_operativas, sesiones, usuarios, habitaciones, "
+                "freno_solicitudes_eventos RESTART IDENTITY CASCADE"
             )
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, ADMIN[0], ADMIN[1])
             from servicio.reservas import sembrar_habitaciones
@@ -317,6 +317,28 @@ class SolicitudesPublicasTest(CanalPublicoBaseTest):
         ]
         self.assertEqual(estados[:2], [201, 201])
         self.assertEqual(estados[2], 429)
+        # OBS-01 (#414): una nueva instancia (reinicio o segunda réplica) hereda el límite en PG
+        otra_app = crear_app(configuracion=config)
+        otra_app.state.freno_solicitudes.max_por_minuto = 2
+        otra_anonima = TestClient(otra_app)
+        self.assertEqual(
+            otra_anonima.post("/publico/solicitudes", json=self.cuerpo_solicitud(),
+                              headers={"Idempotency-Key": self.clave()}).status_code,
+            429,
+        )
+
+    def test_cp28b_flujo_unico_sin_documento_en_solicitud_publica(self):
+        """#414: la solicitud pública se acepta con correo y teléfono sin RUT/pasaporte."""
+        cuerpo = {
+            **self.cuerpo_solicitud(),
+            "huesped_nombre": "Visitante Flujo Único",
+            "huesped_contacto": "unico@example.test · Tel: +56 9 8765 4321",
+        }
+        r = self.anonima.post("/publico/solicitudes", json=cuerpo, headers={"Idempotency-Key": self.clave()})
+        self.assertEqual(r.status_code, 201, r.text)
+        datos = r.json()
+        self.assertEqual(datos["estado"], "recibida")
+        self.assertEqual(datos["huesped_contacto"], "unico@example.test · Tel: +56 9 8765 4321")
 
 
     def test_cp29_reintento_con_misma_clave_no_reexige_captcha(self):

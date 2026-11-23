@@ -111,5 +111,41 @@ class RecaptchaJuzgarTest(unittest.TestCase):
                 juzgar(cuerpo, "consulta")
 
 
+class FrenoPersistentePostgresTest(unittest.TestCase):
+    """OBS-01 / #414: el freno persiste en PostgreSQL entre instancias sin guardar PII."""
+
+    URL_TEST = os.environ.get(
+        "DATABASE_URL_TEST", "postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma_test"
+    )
+
+    def setUp(self):
+        import psycopg
+        from servicio import migracion
+
+        migracion.aplicar_migraciones(self.URL_TEST)
+        with psycopg.connect(self.URL_TEST) as conn:
+            conn.execute("DELETE FROM freno_solicitudes_eventos")
+            conn.commit()
+
+    def test_ventana_persiste_entre_instancias_y_no_guarda_pii(self):
+        import psycopg
+
+        instancia_a = FrenoDeSolicitudes(max_por_minuto=2, database_url=self.URL_TEST)
+        instancia_b = FrenoDeSolicitudes(max_por_minuto=2, database_url=self.URL_TEST)
+        self.assertTrue(instancia_a.permite("ip:203.0.113.9", "correo:ana@hotelherencia.test", ambito="solicitudes"))
+        self.assertTrue(instancia_b.permite("ip:203.0.113.9", "correo:ana@hotelherencia.test", ambito="solicitudes"))
+        # Tercera llamada en otra instancia dentro de 60 s debe bloquearse
+        self.assertFalse(instancia_a.permite("ip:203.0.113.9", "correo:ana@hotelherencia.test", ambito="solicitudes"))
+        # Ámbito distinto no queda agotado
+        self.assertTrue(instancia_b.permite("ip:203.0.113.9", ambito="disponibilidad"))
+        # Ningún dato en claro (ni IP ni correo) en la tabla
+        with psycopg.connect(self.URL_TEST) as conn:
+            valores = [r[0] for r in conn.execute("SELECT clave_hash FROM freno_solicitudes_eventos").fetchall()]
+        self.assertTrue(len(valores) > 0)
+        for v in valores:
+            self.assertNotIn("203.0.113.9", v)
+            self.assertNotIn("ana@hotelherencia.test", v)
+
+
 if __name__ == "__main__":
     unittest.main()

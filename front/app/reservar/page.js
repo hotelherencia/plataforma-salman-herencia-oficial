@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { api, clp, mensajeDeError, Campo, useClaveOperacion, alRechazar } from '../../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
 import {
-  agruparOferta, contactoEstructurado, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
+  agruparOferta, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
   leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
 } from './continuidad'
 import { enviarSolicitud, mensajeSolicitud, obtenerToken } from './envio'
@@ -249,7 +249,10 @@ function Reservar() {
     }
     setEnviando(true)
     try {
-      const contactoFinal = contactoEstructurado(contacto, telefono, documento)
+      const docLimpio = documento.trim()
+      const contactoFinal = docLimpio
+        ? `${contacto.trim()} · Tel: ${telefono.trim()} · Doc: ${docLimpio}`
+        : `${contacto.trim()} · Tel: ${telefono.trim()}`
       const resultado = await enviarSolicitud({
         token: () => tokenRecaptcha('reserva'),
         pedir: (cabeceras) => api('/publico/solicitudes', {
@@ -408,7 +411,7 @@ function Reservar() {
                 )}
                 {!previo && !resolviendoRef && (
                   <p className="estado nota-contacto" data-aviso-sin-ref>
-                    Déjanos tu nombre completo, correo y teléfono para que recepción te confirme la reserva.
+                    Déjanos tu nombre completo, correo y teléfono para que recepción te confirme la reserva. El RUT o pasaporte es opcional ahora (se solicita al confirmar o en la Llegada).
                   </p>
                 )}
                 {mostrarCampos && (
@@ -429,23 +432,6 @@ function Reservar() {
                         }}
                       />
                       {erroresCampo.nombre && <p id="error-nombre" className="error-campo">{erroresCampo.nombre}</p>}
-                    </div>
-                    <div>
-                      <Campo
-                        etiqueta="RUT o pasaporte (opcional)"
-                        required
-                        ref={refDocumento}
-                        maxLength={30}
-                        placeholder="12.345.678-9 o Pasaporte"
-                        value={documento}
-                        aria-invalid={erroresCampo.documento ? 'true' : undefined}
-                        aria-describedby={erroresCampo.documento ? 'error-documento' : undefined}
-                        onChange={(e) => {
-                          setDocumento(e.target.value)
-                          if (erroresCampo.documento) setErroresCampo({ ...erroresCampo, documento: undefined })
-                        }}
-                      />
-                      {erroresCampo.documento && <p id="error-documento" className="error-campo">{erroresCampo.documento}</p>}
                     </div>
                     <div>
                       <Campo
@@ -484,10 +470,26 @@ function Reservar() {
                       />
                       {erroresCampo.telefono && <p id="error-telefono" className="error-campo">{erroresCampo.telefono}</p>}
                     </div>
+                    <div>
+                      <Campo
+                        etiqueta="RUT o pasaporte (opcional)"
+                        ref={refDocumento}
+                        maxLength={30}
+                        placeholder="Opcional (se solicita al confirmar o en la Llegada)"
+                        value={documento}
+                        aria-invalid={erroresCampo.documento ? 'true' : undefined}
+                        aria-describedby={erroresCampo.documento ? 'error-documento' : undefined}
+                        onChange={(e) => {
+                          setDocumento(e.target.value)
+                          if (erroresCampo.documento) setErroresCampo({ ...erroresCampo, documento: undefined })
+                        }}
+                      />
+                      {erroresCampo.documento && <p id="error-documento" className="error-campo">{erroresCampo.documento}</p>}
+                    </div>
                   </div>
                 )}
                 <p className="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
-                  Hotel Herencia usará tu nombre, correo, teléfono, fechas y, si decides escribirlo, tu documento (RUT o pasaporte) para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
+                  Hotel Herencia usará tu nombre, correo, teléfono, fechas y documento (si decides indicarlo) para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
                 </p>
                 {errorSolicitud && (
                   <p role="alert" className="alerta" tabIndex={-1} ref={refErrorSolicitud}>{errorSolicitud}</p>

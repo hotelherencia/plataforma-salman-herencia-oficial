@@ -48,7 +48,7 @@ class LeadsBaseTest(unittest.TestCase):
             exigir_base_libre(conexion)
             conexion.execute(
                 "TRUNCATE auditoria, claves_idempotencia, leads, solicitudes, reservas, tarifas, "
-                "sesiones, usuarios, habitaciones RESTART IDENTITY CASCADE"
+                "sesiones, usuarios, habitaciones, freno_solicitudes_eventos RESTART IDENTITY CASCADE"
             )
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, ADMIN[0], ADMIN[1])
             from servicio.reservas import sembrar_habitaciones
