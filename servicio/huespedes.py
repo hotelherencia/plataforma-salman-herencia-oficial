@@ -174,7 +174,7 @@ def obtener_huespedes_reserva(
 ) -> dict:
     cobro._reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     r = conexion.execute(
-        "SELECT r.adultos, r.ninos, r.personas, h.capacidad, r.estado, r.habitacion_id "
+        "SELECT r.adultos, r.ninos, r.personas, h.capacidad, r.estado, r.habitacion_id, r.grupo_id, r.titular_aloja "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id WHERE r.id = %s",
         (reserva_id,),
     ).fetchone()
@@ -200,6 +200,8 @@ def obtener_huespedes_reserva(
         "reserva_id": reserva_id,
         "estado": r[4],
         "habitacion_id": r[5],
+        "grupo_id": r[6],
+        "titular_aloja": bool(r[7]) if r[7] is not None else True,
         "capacidad_habitacion": r[3],
         "adultos": adultos,
         "ninos": ninos,
@@ -494,20 +496,22 @@ def quitar_huesped_de_reserva(
 def verificar_huespedes_para_entrada(conexion: psycopg.Connection, reserva_id: str) -> None:
     """Exige que estén registrados todos los huéspedes según `adultos + ninos` antes de la Llegada.
     Mantiene compatibilidad con reservas antiguas/1 titular auto-asegurando el titular si falta la
-    fila en `reserva_huespedes` (#413)."""
+    fila en `reserva_huespedes` (#413). Si `titular_aloja` es `false` (habitación de grupo donde
+    el titular no duerme), nunca auto-inserta al titular: exige registrar a los ocupantes reales."""
     r = conexion.execute(
-        "SELECT empresa_id, adultos, ninos, personas, huesped_nombre, huesped_documento, huesped_documento_tipo "
-        "FROM reservas WHERE id = %s",
+        "SELECT empresa_id, adultos, ninos, personas, huesped_nombre, huesped_documento, "
+        "huesped_documento_tipo, titular_aloja FROM reservas WHERE id = %s",
         (reserva_id,),
     ).fetchone()
     if not r:
         return
-    empresa_id, adultos, ninos, personas, nombre, documento, documento_tipo = r
+    empresa_id, adultos, ninos, personas, nombre, documento, documento_tipo, aloja = r
+    titular_aloja = True if aloja is None else bool(aloja)
     esperado = (adultos if adultos is not None else (personas or 1)) + (ninos if ninos is not None else 0)
     registrados = conexion.execute(
         "SELECT COUNT(*) FROM reserva_huespedes WHERE reserva_id = %s", (reserva_id,),
     ).fetchone()[0]
-    if registrados == 0 and nombre:
+    if registrados == 0 and titular_aloja and nombre:
         asegurar_titular_reserva(conexion, empresa_id, reserva_id, nombre, documento, documento_tipo)
         registrados = conexion.execute(
             "SELECT COUNT(*) FROM reserva_huespedes WHERE reserva_id = %s", (reserva_id,),

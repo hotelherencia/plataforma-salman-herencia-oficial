@@ -774,3 +774,82 @@ class ReservaHuespedEdicionIn(BaseModel):
     telefono: str | None = Field(default=None, max_length=40)
     correo: str | None = Field(default=None, max_length=120)
     notas: str | None = Field(default=None, max_length=400)
+
+
+class GrupoHabitacionIn(BaseModel):
+    """Habitación individual dentro de una reserva de grupo (PR B / RES-007)."""
+    model_config = ConfigDict(extra="forbid")
+    habitacion_id: str = Field(min_length=1, max_length=50)
+    inicio: date
+    fin: date
+    adultos: int = Field(default=1, ge=1, le=30)
+    ninos: int = Field(default=0, ge=0, le=30)
+    titular_aloja: bool = True
+    hora_llegada: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    hora_salida: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    cama_adicional: bool | None = None
+    mascotas: bool | None = None
+    huespedes: list[ReservaHuespedIn] | None = Field(default=None, max_length=30)
+
+    @model_validator(mode="after")
+    def _fechas_validas(self):
+        if self.fin <= self.inicio:
+            raise ValueError("la fecha de Salida debe ser posterior a la Llegada")
+        return self
+
+
+class GrupoIn(BaseModel):
+    """Cabecera y habitaciones de un grupo bajo un titular (PR B / RES-007)."""
+    model_config = ConfigDict(extra="forbid")
+    titular: HuespedIn
+    habitaciones: list[GrupoHabitacionIn] = Field(min_length=1, max_length=20)
+    canal: Literal["recepcion", "landing", "directo", "google", "ota", "telefono", "whatsapp", "otro"] = "recepcion"
+    notas: str | None = Field(default=None, max_length=500)
+
+
+class GrupoReservaIn(BaseModel):
+    """Alta de una habitación nueva o vínculo de una reserva existente en un grupo."""
+    model_config = ConfigDict(extra="forbid")
+    reserva_id: str | None = Field(default=None, max_length=50)
+    habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
+    inicio: date | None = None
+    fin: date | None = None
+    adultos: int = Field(default=1, ge=1, le=30)
+    ninos: int = Field(default=0, ge=0, le=30)
+    titular_aloja: bool | None = None
+    hora_llegada: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    hora_salida: str | None = Field(default=None, pattern=r"^\d{1,2}:\d{2}$")
+    cama_adicional: bool | None = None
+    mascotas: bool | None = None
+    huespedes: list[ReservaHuespedIn] | None = Field(default=None, max_length=30)
+
+    @model_validator(mode="after")
+    def _modo_valido(self):
+        if self.reserva_id:
+            if self.habitacion_id or self.inicio or self.fin:
+                raise ValueError("indica reserva_id para vincular, o habitacion_id con fechas para crear")
+            return self
+        if not self.habitacion_id or not self.inicio or not self.fin:
+            raise ValueError("indica habitacion_id, inicio y fin (o reserva_id para vincular una existente)")
+        if self.fin <= self.inicio:
+            raise ValueError("la fecha de Salida debe ser posterior a la Llegada")
+        if self.titular_aloja is None:
+            self.titular_aloja = False
+        return self
+
+
+class GrupoEntradaIn(BaseModel):
+    """Llegada en lote de habitaciones del grupo (PR B / RES-007)."""
+    model_config = ConfigDict(extra="forbid")
+    documento: str | None = Field(default=None, max_length=50)
+    documento_tipo: Literal["rut", "pasaporte"] | None = None
+    reserva_ids: list[str] | None = Field(default=None, max_length=20)
+
+    @model_validator(mode="after")
+    def _doc_valido(self):
+        if self.documento_tipo is not None:
+            try:
+                self.documento = documento_mod.normalizar(self.documento_tipo, self.documento or "")
+            except documento_mod.DocumentoInvalido as error:
+                raise ValueError(str(error)) from error
+        return self

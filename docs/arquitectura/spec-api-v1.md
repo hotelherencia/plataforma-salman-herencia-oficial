@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (174)
+## Operaciones de esta versión (178)
 
 | Operación | Efecto |
 |---|---|
@@ -678,6 +678,10 @@ los compone el servidor.
 | `POST /hotel/productos/documentos/{documento_id}/aplicar-nota-credito` | (#402 / `PUR-004`) Vincula una nota de crédito de proveedor (`nota_credito`, DTE 61) a su factura cargada (`factura_id`), rebajando stock en bodegas (`0055`, movimiento `reverso`) y saldo en cuenta por pagar (`cxp_movimientos` append-only e idempotente). Solo administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/productos/cuentas-por-pagar?estado&emisor_rut` | (#402 / `PUR-004`) Lista cuentas por pagar de facturas de proveedor con notas de crédito, pagos, saldo pendiente y movimientos append-only. Solo administración del hotel. |
 | `POST /hotel/productos/cuentas-por-pagar/{cxp_id}/pagos` | (#402 / `PUR-004`) Registra abono o pago total a proveedor sobre una cuenta por pagar de forma append-only e idempotente (sin superar el saldo). Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/grupos` | (PR B / `RES-007`) Crea un grupo bajo un titular con 1 o más habitaciones (`reservas_grupo` + reservas individuales 1:1) en una transacción atómica (sin cupo/tarifa/capacidad en cualquier habitación → 409 con rollback total). Soporta `titular_aloja` por habitación. Recepción o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/grupos/{grupo_id}` | (PR B / `RES-007`) Cabecera del grupo, lista de habitaciones con estado de huéspedes y cuentas individuales, más resumen consolidado sin duplicación. Documento solo para `ROLES_DOCUMENTO`. Ajeno o inexistente → 403. |
+| `POST /hotel/grupos/{grupo_id}/reservas` | (PR B / `RES-007`) Agrega una nueva habitación al grupo (o vincula una reserva existente de la empresa) en transacción atómica. Recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/grupos/{grupo_id}/entrada` | (PR B / `RES-007`) Llegada en lote atómica de las habitaciones confirmadas del grupo, exigiendo huéspedes completos en cada habitación; si falla cualquier habitación → 409 con rollback total. Recepción o administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
