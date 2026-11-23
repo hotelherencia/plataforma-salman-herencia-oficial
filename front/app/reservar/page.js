@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { api, clp, mensajeDeError, Campo, useClaveOperacion, alRechazar } from '../../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../../lib/marca'
 import {
-  agruparOferta, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
+  agruparOferta, contactoEstructurado, elegirTipo, enlaceWhatsapp, erroresContacto, guardarReferencia, isoLocal, leerParametros,
   leerReferencia, olvidarReferencia, politicaUnica, urlCanonica, validarRango,
 } from './continuidad'
 import { enviarSolicitud, mensajeSolicitud, obtenerToken } from './envio'
@@ -249,7 +249,7 @@ function Reservar() {
     }
     setEnviando(true)
     try {
-      const contactoFinal = `${contacto.trim()} · Tel: ${telefono.trim()} · Doc: ${documento.trim()}`
+      const contactoFinal = contactoEstructurado(contacto, telefono, documento)
       const resultado = await enviarSolicitud({
         token: () => tokenRecaptcha('reserva'),
         pedir: (cabeceras) => api('/publico/solicitudes', {
@@ -288,7 +288,7 @@ function Reservar() {
   const politica = oferta ? politicaUnica(oferta.oferta) : null
   const tope = oferta ? oferta.capacidad_maxima_habitacion : null
   const excedeHabitacion = oferta && tope && Number(personasConsultadas) > tope
-  const mostrarCampos = !previo || editando || !documento.trim() || !telefono.trim()
+  const mostrarCampos = !previo || editando || !telefono.trim()
 
   return (
     <main className="pagina pagina-publica reservar">
@@ -408,7 +408,7 @@ function Reservar() {
                 )}
                 {!previo && !resolviendoRef && (
                   <p className="estado nota-contacto" data-aviso-sin-ref>
-                    Déjanos tu nombre completo, RUT o pasaporte, correo y teléfono para que recepción te confirme la reserva.
+                    Déjanos tu nombre completo, correo y teléfono para que recepción te confirme la reserva.
                   </p>
                 )}
                 {mostrarCampos && (
@@ -432,7 +432,7 @@ function Reservar() {
                     </div>
                     <div>
                       <Campo
-                        etiqueta="RUT o pasaporte *"
+                        etiqueta="RUT o pasaporte (opcional)"
                         required
                         ref={refDocumento}
                         maxLength={30}
@@ -487,7 +487,7 @@ function Reservar() {
                   </div>
                 )}
                 <p className="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
-                  Hotel Herencia usará tu nombre, documento (RUT o pasaporte), correo, teléfono y fechas para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
+                  Hotel Herencia usará tu nombre, correo, teléfono, fechas y, si decides escribirlo, tu documento (RUT o pasaporte) para responder esta consulta y registrar tu solicitud de alojamiento. Recepción la revisa: enviar no confirma la estadía. No pedimos datos de salud ni tarjeta; no los escribas en la solicitud. Google reCAPTCHA puntúa el envío. Lee quién trata tus datos, por cuánto tiempo y cómo pedir acceso o supresión en la <Link href="/privacidad">política de tratamiento</Link> (versión 2026-11-10-aviso-02).
                 </p>
                 {errorSolicitud && (
                   <p role="alert" className="alerta" tabIndex={-1} ref={refErrorSolicitud}>{errorSolicitud}</p>

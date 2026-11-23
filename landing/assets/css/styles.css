@@ -932,3 +932,14 @@ button {
         padding: 1.15rem;
     }
 }
+
+/* Barra rápida de reserva (#414): 3 campos y navegación directa a /reservar */
+.reserva-rapida {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+    margin: 1.25rem 0;
+}
+.reserva-rapida .field { flex: 1 1 130px; }
+.reserva-rapida .form-status { flex: 1 1 100%; margin: 0; }

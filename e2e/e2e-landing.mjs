@@ -117,13 +117,13 @@ try {
   const page = await ctx.newPage()
 
   // ---------- PUB-07: el CTA abre /reservar con las fechas elegidas (CA-PUB-12) ----------
-  await caso('PUB-07', '/', 'desde la landing, elegir fechas y huéspedes y pulsar «Ver disponibilidad» abre /reservar con inicio, fin y personas', 'visitante', `navega a /reservar?inicio=${MANANA}&fin=${EN_4}&personas=3 y el formulario llega precargado`, async () => {
+  await caso('PUB-07', '/', 'desde la landing, elegir fechas y huéspedes y pulsar «Reservar» en la barra rápida abre /reservar con inicio, fin y personas', 'visitante', `navega a /reservar?inicio=${MANANA}&fin=${EN_4}&personas=3 y el formulario llega precargado`, async () => {
     await page.goto(LANDING)
-    const formulario = page.locator('[data-formulario-contacto]')
-    await formulario.locator('#checkin').fill(MANANA)
-    await formulario.locator('#checkout').fill(EN_4)
-    await formulario.locator('#guests').fill('3')
-    await formulario.getByRole('button', { name: 'Ver disponibilidad' }).click()
+    const formulario = page.locator('[data-widget-reserva]')
+    await formulario.locator('[name="inicio"]').fill(MANANA)
+    await formulario.locator('[name="fin"]').fill(EN_4)
+    await formulario.locator('[name="personas"]').fill('3')
+    await formulario.getByRole('button', { name: 'Reservar' }).click()
     await page.waitForURL(`**/reservar?inicio=${MANANA}&fin=${EN_4}&personas=3`, { timeout: 15000 })
     esperar(page.url().startsWith(`${FRONT}/reservar`), `destino inesperado: ${page.url()}`)
     const llegada = await page.getByLabel('Llegada').inputValue()
@@ -139,10 +139,10 @@ try {
   // ---------- PUB-08: rango inválido se rechaza en la landing ----------
   await caso('PUB-08', '/', 'salida anterior a la llegada: mensaje local y sin navegación', 'visitante', 'alerta «salida posterior» y la URL sigue en la landing', async () => {
     await page.goto(LANDING)
-    const formulario = page.locator('[data-formulario-contacto]')
-    await formulario.locator('#checkin').fill(EN_4)
-    await formulario.locator('#checkout').fill(MANANA)
-    await formulario.getByRole('button', { name: 'Ver disponibilidad' }).click()
+    const formulario = page.locator('[data-widget-reserva]')
+    await formulario.locator('[name="inicio"]').fill(EN_4)
+    await formulario.locator('[name="fin"]').fill(MANANA)
+    await formulario.getByRole('button', { name: 'Reservar' }).click()
     const alerta = page.getByRole('alert')
     await alerta.waitFor({ state: 'visible', timeout: 5000 })
     const texto = await alerta.textContent()
@@ -155,8 +155,8 @@ try {
   // ---------- PUB-09: fechas vacías se rechazan en la landing ----------
   await caso('PUB-09', '/', 'fechas sin completar: mensaje local y sin navegación', 'visitante', 'alerta «indica las fechas» y la URL sigue en la landing', async () => {
     await page.goto(LANDING)
-    const formulario = page.locator('[data-formulario-contacto]')
-    await formulario.getByRole('button', { name: 'Ver disponibilidad' }).click()
+    const formulario = page.locator('[data-widget-reserva]')
+    await formulario.getByRole('button', { name: 'Reservar' }).click()
     const alerta = page.getByRole('alert')
     await alerta.waitFor({ state: 'visible', timeout: 5000 })
     const texto = await alerta.textContent()
