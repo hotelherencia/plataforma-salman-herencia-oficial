@@ -726,6 +726,9 @@ los compone el servidor.
 | `POST /hotel/activos/{id}/plan` | (#418) `{descripcion, cada_dias, proxima?}`: mantención preventiva periódica (por defecto la primera es hoy + `cada_dias`); no sobre activos de baja (409). Recepción o administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/mantenciones?dentro_de_dias` | (#418) Mantenciones vencidas y las que vencen en los próximos N días (14 por defecto), con `vencida`. Recepción, aseo y administración del hotel. |
 | `POST /hotel/mantenciones/{plan_id}/realizada` | (#418) `{fecha?, nota?}`: registra la mantención hecha en el historial (solo se agrega) y corre la próxima a `fecha + cada_dias`. Fecha futura o ya registrada → 409. Recepción, aseo o administración; `Idempotency-Key`. |
+| `GET /hotel/convenios?solo_vigentes&fecha` | (`SPEC-CONV-01`) Lista convenios tarifarios por empresa, evento o delegación (`solo_vigentes=true` filtra activos vigentes para la fecha). Roles recepción, caja o administración del hotel. |
+| `POST /hotel/convenios` | (`SPEC-CONV-01`) Crea un convenio tarifario `{nombre, tipo, cliente_id?, vigencia_desde, vigencia_hasta, reglas_precio, requiere_abono_pct?, notas?, activo?}` con auditoría sin PII. Solo administración del hotel; `Idempotency-Key`. |
+| `PUT /hotel/convenios/{convenio_id}` | (`SPEC-CONV-01`) Actualiza vigencia, reglas de precio, vínculo con cliente o estado activo de un convenio. Solo administración del hotel. |
 
 ## Criterio de aceptación
 

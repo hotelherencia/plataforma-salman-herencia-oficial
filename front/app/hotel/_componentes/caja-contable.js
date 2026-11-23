@@ -541,6 +541,40 @@ export function PestanaCierreDiario({ esAdmin }) {
               </table>
             </div>
           </section>
+          {Array.isArray(datos.convenios_aplicados) && datos.convenios_aplicados.length > 0 && (
+            <section className="tarjeta" aria-label="Convenios aplicados y diferencia de tarifa">
+              <h2>Convenios aplicados y diferencia de tarifa</h2>
+              <p className="nota-clave">
+                Desglose diario de instituciones, delegaciones o eventos con tarifa especial frente a la tarifa lista.
+              </p>
+              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Convenios aplicados en el cierre diario (desliza para ver todas las columnas)">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th>Institución / convenio</th>
+                      <th>Tipo</th>
+                      <th>Reservas</th>
+                      <th>Tarifa lista</th>
+                      <th>Tarifa aplicada</th>
+                      <th>Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datos.convenios_aplicados.map((conv) => (
+                      <tr key={conv.convenio_id}>
+                        <td><strong>{conv.convenio_nombre}</strong>{conv.cliente_nombre ? ` · ${conv.cliente_nombre}` : ''}</td>
+                        <td>{conv.convenio_tipo}</td>
+                        <td>{conv.reservas}</td>
+                        <td>{clp(conv.tarifa_lista_total_clp)}</td>
+                        <td>{clp(conv.tarifa_aplicada_total_clp)}</td>
+                        <td><strong>{clp(conv.diferencia_convenio_clp)}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
           {datos.turnos.length > 0 && (
             <section className="tarjeta">
               <h2>Turnos del día</h2>

@@ -8,6 +8,7 @@ import FormularioEdicion from '../_componentes/formulario-edicion'
 import { BarraContextual, SelectorFila } from '../_componentes/barra-contextual'
 import { BotonExportar } from '../_componentes/boton-exportar'
 import CuentasPorCobrar, { ETIQUETA_POLITICA } from '../_componentes/cuentas-por-cobrar'
+import ConveniosPanel from '../_componentes/convenios-panel'
 
 function validarRutCampo(v) {
   const texto = String(v ?? '').trim()
@@ -343,6 +344,7 @@ export default function Clientes() {
       )}
       {truncado && <p className="nota-clave">Se muestran los primeros resultados: afina la búsqueda.</p>}
       <CuentasPorCobrar puedeCobrar={puedeVerCxc} />
+      <ConveniosPanel esAdmin={esAdmin} clientes={lista || []} />
     </MarcoHotel>
   )
 }
