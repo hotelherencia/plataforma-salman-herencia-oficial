@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
 from fastapi.responses import JSONResponse
 
-from .. import roles
+from .. import mensajes_huesped, roles
 from .. import avisos
 from .. import busqueda_estadias
 from .. import canal_publico
@@ -373,6 +373,8 @@ def confirmar_reserva(
                     reserva.cama_adicional, reserva.ninos, reserva.mascotas,
                 ),
                 upgrade_a_single=reserva.upgrade_a_single,
+                huesped_correo=reserva.huesped.correo,
+                huesped_telefono=reserva.huesped.telefono,
             )
         except reservas_db.SinCupo as error:
             return 409, {"detail": str(error)}
@@ -667,9 +669,13 @@ def detalle_reserva_hotel(
     conexion=Depends(comun.conexion),
 ) -> dict:
     """Detalle con cuenta (spec-hotel-operacion-v1 §3.2); ajena → 403."""
-    return cobro.detalle_reserva(
+    detalle = cobro.detalle_reserva(
         conexion, request.app.state.aplicacion.hotel, sesion.empresa_id, reserva_id, ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED
     )
+    if sesion.rol in ROLES_DOCUMENTO_HUESPED:
+        # #454: qué falta para contratar y recibir al huésped (vacío = datos completos).
+        detalle["datos_faltantes"] = mensajes_huesped.datos_faltantes(conexion, reserva_id)
+    return detalle
 
 @router.post("/hotel/habitaciones/{habitacion_id}/limpieza")
 def completar_limpieza_habitacion(

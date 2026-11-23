@@ -34,6 +34,8 @@ export default function Reserva() {
     personas: '2',
     documento_tipo: 'rut',
     documento: '',
+    correo: '',
+    telefono: '',
     canal: 'recepcion',
     notas_grupo: '',
     upgrade_a_single: false,
@@ -92,6 +94,12 @@ export default function Reserva() {
     // #367: el documento es obligatorio y se valida antes de enviar.
     const doc = validarDocumento(campos.documento_tipo, campos.documento)
     if (!doc.ok) { setError(doc.error); return }
+    // #454: contacto opcional, pero si se escribe debe ser válido.
+    const correo = campos.correo.trim()
+    if (correo && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(correo)) { setError('Revisa el correo: parece incompleto.'); return }
+    const telefono = campos.telefono.trim()
+    const digitos = telefono.replace(/\D/g, '')
+    if (telefono && (digitos.length < 8 || digitos.length > 15)) { setError('El teléfono debe tener entre 8 y 15 dígitos.'); return }
     try {
       const r = await api('/hotel/reservas', {
         metodo: 'POST',
@@ -102,7 +110,7 @@ export default function Reserva() {
           fin: campos.fin,
           personas: Number(campos.personas) || undefined,
           canal: campos.canal || 'recepcion',
-          huesped: { nombre: campos.nombre, documento: doc.valor, documento_tipo: campos.documento_tipo },
+          huesped: { nombre: campos.nombre, documento: doc.valor, documento_tipo: campos.documento_tipo, ...(correo ? { correo } : {}), ...(telefono ? { telefono } : {}) },
           ...(campos.upgrade_a_single && Number(campos.personas) === 1 ? { upgrade_a_single: true } : {}),
           ...(campos.hora_llegada ? { hora_llegada: campos.hora_llegada } : {}),
           ...(campos.hora_salida ? { hora_salida: campos.hora_salida } : {}),
@@ -224,6 +232,8 @@ export default function Reserva() {
             <Campo etiqueta="Hora de llegada" type="time" value={campos.hora_llegada} onChange={(e) => setCampos({ ...campos, hora_llegada: e.target.value })} />
             <Campo etiqueta="Hora de salida" type="time" value={campos.hora_salida} onChange={(e) => setCampos({ ...campos, hora_salida: e.target.value })} />
             <Campo etiqueta="Huésped" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
+            <Campo etiqueta="Correo del huésped (para confirmar)" type="email" inputMode="email" autoComplete="email" value={campos.correo} onChange={(e) => setCampos({ ...campos, correo: e.target.value })} />
+            <Campo etiqueta="Teléfono / WhatsApp" type="tel" inputMode="tel" autoComplete="tel" value={campos.telefono} onChange={(e) => setCampos({ ...campos, telefono: e.target.value })} />
             <CampoSelect etiqueta="Canal de origen" value={campos.canal} onChange={(e) => setCampos({ ...campos, canal: e.target.value })}>
               <option value="recepcion">Recepción (presencial)</option>
               <option value="telefono">Teléfono</option>

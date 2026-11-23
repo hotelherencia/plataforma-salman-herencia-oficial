@@ -45,29 +45,43 @@ export const SUBNAV_CAJA = [
   ['/hotel/pago', 'Registrar pago'],
 ]
 
+// #455: qué rol ve cada entrada. Espejo de lo que la API deja usar (servicio/roles.py, cobro.py):
+// recepción y administración del hotel operan Llegada, Salida, solicitudes y habitaciones; caja solo
+// consulta reservas y ocupación y trabaja en Caja y pagos. Sin `roles` la entrada es para todos.
+const ADMIN_HOTEL = ['administrador', 'admin_hotel']
+const ROLES_RECEPCION = [...ADMIN_HOTEL, 'recepcion']
+const ROLES_FRENTE = [...ROLES_RECEPCION, 'caja']
+
+/** Primera pantalla de cada rol (logo y enlace de inicio). */
+export function rutaInicio(rol) {
+  if (rol === 'aseo') return '/hotel/aseo'
+  if (rol === 'caja') return '/hotel/caja'
+  return '/hotel/panel'
+}
+
 export const SECCIONES = [
   {
     id: 'operacion',
     rotulo: 'Hotel · operación diaria',
     items: [
       { href: '/hotel/panel', nombre: 'Panel' },
-      { href: '/hotel/ocupacion', nombre: 'Ocupación' },
-      { href: '/hotel/habitaciones', nombre: 'Estado de habitaciones' },
+      { href: '/hotel/ocupacion', nombre: 'Ocupación', roles: ROLES_FRENTE },
+      { href: '/hotel/habitaciones', nombre: 'Estado de habitaciones', roles: ROLES_RECEPCION },
       { href: '/hotel/aseo', nombre: 'Aseo', si: 'aseo' },
-      { href: '/hotel/reservas', nombre: 'Reservas', tambien: ['/hotel/reserva', '/hotel/oferta'] },
-      { href: '/hotel/solicitudes', nombre: 'Solicitudes y leads', tambien: ['/hotel/leads'] },
+      { href: '/hotel/reservas', nombre: 'Reservas', tambien: ['/hotel/reserva', '/hotel/oferta'], roles: ROLES_FRENTE },
+      { href: '/hotel/solicitudes', nombre: 'Solicitudes y leads', tambien: ['/hotel/leads'], roles: ROLES_RECEPCION },
       { href: '/hotel/agente', nombre: 'Agente', si: 'agente' },
       { href: '/hotel/clientes', nombre: 'Clientes', si: 'clientes' },
-      { href: '/hotel/estadia', nombre: 'Llegada' },
-      { href: '/hotel/salida', nombre: 'Salida' },
-      { href: '/hotel/caja', nombre: 'Caja y pagos', tambien: ['/hotel/pago'] },
+      { href: '/hotel/estadia', nombre: 'Llegada', roles: ROLES_RECEPCION },
+      { href: '/hotel/salida', nombre: 'Salida', roles: ROLES_RECEPCION },
+      { href: '/hotel/caja', nombre: 'Caja y pagos', tambien: ['/hotel/pago'], roles: ROLES_FRENTE },
     ],
   },
   {
     id: 'configuracion',
     rotulo: 'Hotel · configuración',
     items: [
-      { href: '/hotel/configuracion', nombre: 'Configuración', tambien: ['/hotel/tipos'] },
+      { href: '/hotel/configuracion', nombre: 'Configuración', tambien: ['/hotel/tipos'], roles: ROLES_RECEPCION },
       { href: '/hotel/productos', nombre: 'Productos y stock' },
     ],
   },
@@ -89,12 +103,13 @@ export function itemActivo(ruta, item) {
   return esRutaActiva(ruta, item.href, item.tambien || [])
 }
 
-export function seccionesVisibles({ puedeVerAgente, puedeVerUsuarios, puedeVerAseo = true, puedeVerClientes = true, soloAseo = false }) {
+export function seccionesVisibles({ puedeVerAgente, puedeVerUsuarios, puedeVerAseo = true, puedeVerClientes = true, soloAseo = false, rol = null }) {
   return SECCIONES.map((seccion) => ({
     ...seccion,
     items: seccion.items.filter((item) => {
       // #362: el rol aseo solo ve su lista.
       if (soloAseo) return item.si === 'aseo'
+      if (rol && item.roles && !item.roles.includes(rol)) return false
       if (item.si === 'aseo') return puedeVerAseo
       if (item.si === 'clientes') return puedeVerClientes
       if (item.si === 'agente') return puedeVerAgente

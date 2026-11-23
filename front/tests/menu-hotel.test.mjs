@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  SECCIONES, PESTANAS_CONFIGURACION, itemActivo, seccionesVisibles, hayOperacionActiva,
+  SECCIONES, PESTANAS_CONFIGURACION, itemActivo, seccionesVisibles, rutaInicio, hayOperacionActiva,
 } from '../lib/menu-hotel.js'
 
 describe('menú del hotel (entrega 1A.3)', () => {
@@ -45,5 +45,32 @@ describe('menú del hotel (entrega 1A.3)', () => {
     assert.deepEqual(aseo.flatMap((s) => s.items.map((i) => i.href)), ['/hotel/aseo'])
     const caja = seccionesVisibles({ puedeVerAgente: false, puedeVerUsuarios: false, puedeVerAseo: false })
     assert.ok(!caja.some((s) => s.items.some((i) => i.href === '/hotel/aseo')))
+  })
+
+  it('#455: lista exacta de enlaces por rol', () => {
+    const enlaces = (rol, extra = {}) => seccionesVisibles({
+      puedeVerAgente: ['administrador', 'admin_hotel', 'recepcion'].includes(rol),
+      puedeVerUsuarios: ['administrador', 'admin_plataforma'].includes(rol),
+      puedeVerAseo: ['administrador', 'admin_hotel', 'recepcion', 'aseo'].includes(rol),
+      puedeVerClientes: ['administrador', 'admin_hotel', 'recepcion', 'caja'].includes(rol),
+      soloAseo: rol === 'aseo', rol, ...extra,
+    }).flatMap((s) => s.items.map((i) => i.href))
+    const base = ['/hotel/panel', '/hotel/ocupacion', '/hotel/habitaciones', '/hotel/aseo', '/hotel/reservas',
+      '/hotel/solicitudes', '/hotel/agente', '/hotel/clientes', '/hotel/estadia', '/hotel/salida', '/hotel/caja',
+      '/hotel/configuracion', '/hotel/productos']
+    assert.deepEqual(enlaces('admin_hotel'), base)
+    assert.deepEqual(enlaces('administrador'), [...base, '/hotel/usuarios'])
+    assert.deepEqual(enlaces('recepcion'), base)
+    assert.deepEqual(enlaces('caja'), ['/hotel/panel', '/hotel/ocupacion', '/hotel/reservas', '/hotel/clientes', '/hotel/caja', '/hotel/productos'])
+    assert.deepEqual(enlaces('aseo'), ['/hotel/aseo'])
+    assert.deepEqual(enlaces('admin_plataforma'), ['/hotel/panel', '/hotel/productos', '/hotel/usuarios'])
+  })
+
+  it('#455: pantalla de inicio por rol', () => {
+    assert.equal(rutaInicio('aseo'), '/hotel/aseo')
+    assert.equal(rutaInicio('caja'), '/hotel/caja')
+    assert.equal(rutaInicio('recepcion'), '/hotel/panel')
+    assert.equal(rutaInicio('admin_hotel'), '/hotel/panel')
+    assert.equal(rutaInicio(null), '/hotel/panel')
   })
 })

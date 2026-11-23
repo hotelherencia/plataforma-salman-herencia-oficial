@@ -461,6 +461,8 @@ def crear_reserva(
     adultos: int | None = None,
     ninos_ocupacion: int = 0,
     upgrade_a_single: bool = False,
+    huesped_correo: str | None = None,
+    huesped_telefono: str | None = None,
 ) -> dict:
     canal_normalizado = canal if canal in CANALES_RESERVA else "recepcion"
     # Un RUT es una sola persona o empresa: si ya es de un cliente registrado con otro nombre, no se acepta.
@@ -521,9 +523,14 @@ def crear_reserva(
     reserva_id = creada["reserva_id"]
     if titular_aloja:
         from . import huespedes as huespedes_db
-        huespedes_db.asegurar_titular_reserva(
+        titular_id = huespedes_db.asegurar_titular_reserva(
             conexion, empresa_id, reserva_id, huesped_nombre, huesped_documento, huesped_documento_tipo,
         )
+        if huesped_correo or huesped_telefono:
+            conexion.execute(
+                "UPDATE huespedes SET correo = COALESCE(%s, correo), telefono = COALESCE(%s, telefono), "
+                "actualizado_en = now() WHERE id = %s", (huesped_correo, huesped_telefono, titular_id),
+            )
     # Aviso «reserva confirmada» en la misma transacción (sin datos del huésped).
     from . import avisos
 
