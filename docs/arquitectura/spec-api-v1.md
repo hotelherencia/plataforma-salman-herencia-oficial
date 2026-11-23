@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (184)
+## Operaciones de esta versión (189)
 
 | Operación | Efecto |
 |---|---|
@@ -688,6 +688,11 @@ los compone el servidor.
 | `POST /hotel/contabilidad/cierre-mensual` | (Contable 2.4 / `#394`) Congela el cierre mensual `{anio, mes, nota?, confirmar_alertas}` en `cierres_mensuales`. Roles caja o administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/contabilidad/cierre-mensual/{anio}/{mes}/reapertura` | (Contable 2.4 / `#394`) Reabre un mes cerrado con `{motivo}` (mín. 10 caracteres), auditado. Solo administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/contabilidad/indicadores-ejecutivos?desde&hasta&tipo` | (Contable 2.5 / `#395` / `KPI-002`) Indicadores ejecutivos reales calculados en el servidor (ocupación, ADR, RevPAR con IVA y neto; `null` = sin muestra, nunca cero inventado). Solo administración del hotel. |
+| `GET /hotel/comunicados?archivados` | (#418) Comunicados dirigidos al rol de la sesión (o a todos), con `leido` por usuario y `sin_leer`. `archivados` solo lo respeta la administración. Todos los roles, incluido aseo. |
+| `POST /hotel/comunicados` | (#418) `{titulo, cuerpo, roles[]}` (roles vacío = todo el personal). Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/comunicados/{id}/lectura` | (#418) Confirma la lectura del usuario de la sesión; una sola vez (solo se agrega, repetir no cambia nada). Comunicado ajeno al rol → 404. `Idempotency-Key`. |
+| `POST /hotel/comunicados/{id}/archivo` | (#418) Archiva el comunicado (deja de mostrarse). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/comunicados/{id}/lecturas` | (#418) Quién leyó (con hora) y quién falta entre los destinatarios. Solo administración del hotel. |
 
 ## Criterio de aceptación
 

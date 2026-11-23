@@ -7,7 +7,8 @@ import { Explicacion } from '../_componentes/explicacion'
 import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import Atencion from '../_componentes/atencion'
-import { gestionaRecepcion } from '../../../lib/roles'
+import Comunicados from '../_componentes/comunicados'
+import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 import { BotonExportar } from '../_componentes/boton-exportar'
 import { rangoSemana, rangoMes, resumenSerie, puntosLinea } from '../../../lib/panel-serie'
@@ -175,6 +176,7 @@ export default function Panel() {
       {datos && (
         <>
           <Atencion atencion={datos.atencion} />
+          <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
           <p className="panel-corte">
             Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong>
           </p>
