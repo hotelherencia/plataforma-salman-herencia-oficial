@@ -629,3 +629,47 @@ Pasos en Google Business Profile (cuenta Google del propietario):
 
 Evidencia para cerrar `#339`: captura de la ficha en Maps o del campo de enlace guardado en Business Profile (sin credenciales de Google). Tenant real (`Herencia SpA`) e inventario real ya están activos.
 
+
+## Runbook: alta de la cuenta administradora nominada (V1-ISSUE-43 / #338, V1-ISSUE-51 / #352)
+
+Qué es: una cuenta con rol `administrador` a nombre de la dueña o encargada, distinta de la cuenta
+inicial del operador, para que nadie comparta la clave inicial. No se crea un rol nuevo.
+
+Roles que existen (`servicio/roles.py`): `administrador` (administración del hotel y de la plataforma),
+`admin_hotel` (solo el negocio: precios, habitaciones, reservas, cobros, caja, reportes),
+`admin_plataforma` (usuarios, seguridad, ajustes), `recepcion`, `caja` y `aseo`.
+Los tres administrativos exigen doble factor.
+
+Pasos (los hace un administrador existente, en producción, con autorización del propietario):
+
+1. Entrar a `/hotel/usuarios` y crear la usuaria con rol `administrador` (o `admin_hotel` si no
+   debe gestionar usuarios). Anotar solo el nombre de usuario; la clave inicial se entrega por un
+   canal privado y se cambia en el primer ingreso.
+2. Para el ingreso con Google (#352): vincular el correo de la persona a `usuarios.email`. El correo
+   **no** se escribe en issues ni en este repositorio (Ley 21.719); queda en el acta privada.
+3. La usuaria inicia sesión, cambia su clave en `/cuenta` (pide la clave actual) y activa el segundo
+   factor (`POST /cuenta/2fa` + activación con el código). Sin 2FA activo el panel avisa el enrolamiento.
+4. Verificar: lista y edita habitaciones y tarifas, ve reservas y documento, registra Llegada y Salida,
+   ve leads y solicitudes y crea cuentas de recepción y caja.
+5. Evidencia en el issue (sin claves ni códigos TOTP): nombre de usuario y fecha de alta. La alta
+   queda en la auditoría de la plataforma.
+
+Qué no puede hacer cada rol: `recepcion` y `caja` no crean usuarios ni cambian precios; `aseo` solo
+ve Aseo, incidencias, tareas, comunicados, turnos, biblioteca y mantenciones; `admin_hotel` no gestiona
+usuarios ni seguridad; `admin_plataforma` no opera el negocio.
+
+## Runbook: enlace de Google Business Profile hacia la reserva (V1-ISSUE-44 / #339)
+
+Google Maps no llama a nuestra API: el enlace sale de la ficha del hotel (Google Business Profile).
+V1 no usa «Reserve with Google»; la reserva sigue siendo una solicitud con aprobación humana.
+
+1. En la ficha, campo «Sitio web» y «Enlace de reservas», poner la URL pública de reserva con UTM:
+   `https://plataforma.hotelherencia.cl/reservar?utm_source=google_maps&utm_medium=perfil&utm_campaign=ficha`
+   (o la landing con su botón hacia `/reservar`). La URL no lleva datos personales.
+2. `/reservar` ignora los parámetros `utm_*`; sirven para medir el origen en las analíticas del dominio.
+3. Probar desde un celular: abrir la ficha en Maps, tocar el enlace y llegar al formulario con la
+   barra de Llegada, Salida y huéspedes.
+4. Bloqueo vigente: hace falta el control de la ficha. La solicitud de administración del 16-11-2026
+   sigue activa en la cuenta de gestión del hotel y el método de verificación no se ha iniciado.
+   Eso lo ejecuta el propietario; no se publican correos ni credenciales de Google.
+5. Evidencia: captura de la ficha con el enlace configurado, sin credenciales.
