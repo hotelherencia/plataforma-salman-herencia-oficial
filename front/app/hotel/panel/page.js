@@ -178,7 +178,8 @@ export default function Panel() {
           <Atencion atencion={datos.atencion} />
           <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
           <p className="panel-corte">
-            Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong>
+            Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong> ·{' '}
+            <Link href="/hotel/equipo">Equipo: turnos, biblioteca, buzón y activos preventivos</Link>
           </p>
 
           {solicitudesPendientes > 0 && (

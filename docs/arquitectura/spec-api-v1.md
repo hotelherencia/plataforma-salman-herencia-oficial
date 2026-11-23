@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (194)
+## Operaciones de esta versión (206)
 
 | Operación | Efecto |
 |---|---|
@@ -698,6 +698,18 @@ los compone el servidor.
 | `POST /hotel/reservas/{reserva_id}/salida-credito` | (Contable 2.2 / `#392` / `REC-003`) Registra Salida física dejando cuenta por cobrar trazable si el cliente tiene política de crédito/garantía habilitada; exceso de cupo → 409 salvo confirmación de administración. Recepción o administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/contabilidad/cuentas-por-cobrar?estado&cliente_id` | (Contable 2.2 / `#392` / `FIN-002`) Listado de cuentas por cobrar agrupado por tramos de antigüedad (`0-30`, `31-60`, `61-90`, `mas_90` días) con totales y alertas de vencimiento. Roles caja o administración del hotel. |
 | `POST /hotel/contabilidad/cuentas-por-cobrar/{cxc_id}/abonos` | (Contable 2.2 / `#392`) Registra abono append-only e idempotente sobre una cuenta por cobrar (sin superar saldo pendiente). Roles caja o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/equipo/turnos?desde&hasta&area` | (#418 Corte 2) Vista semanal de turnos por área (`recepcion`, `aseo`, `desayunos`, `mantencion`) y solicitudes de cambio asociadas. Todos los roles del hotel, incluido aseo. |
+| `POST /hotel/equipo/turnos` | (#418 Corte 2) Programa un turno semanal para un integrante del equipo. Solo administración del hotel. |
+| `POST /hotel/equipo/turnos/{turno_id}/cambios` | (#418 Corte 2) Solicita un cambio de turno proponiendo reemplazo y motivo. Todos los roles del hotel, incluido aseo. |
+| `POST /hotel/equipo/cambios-turno/{cambio_id}/decision` | (#418 Corte 2) Aprueba o rechaza una solicitud de cambio de turno (al aprobar reasigna el turno). Solo administración del hotel. |
+| `GET /hotel/equipo/biblioteca?categoria` | (#418 Corte 2) Lista manuales, instructivos, políticas y protocolos visibles para el rol autenticado. Todos los roles del hotel, incluido aseo. |
+| `POST /hotel/equipo/biblioteca` | (#418 Corte 2) Publica un documento en la biblioteca operativa por rol. Solo administración del hotel. |
+| `GET /hotel/equipo/sugerencias` | (#418 Corte 2) Buzón de sugerencias (administración ve todas respetando anonimato; resto del personal solo sus propias sugerencias identificadas). Todos los roles del hotel, incluido aseo. |
+| `POST /hotel/equipo/sugerencias` | (#418 Corte 2) Envía una sugerencia operativa (con opción anónima real donde no se persiste autor). Todos los roles del hotel, incluido aseo. |
+| `POST /hotel/equipo/sugerencias/{sugerencia_id}/estado` | (#418 Corte 2) Actualiza estado y respuesta administrativa de una sugerencia. Solo administración del hotel. |
+| `GET /hotel/activos?habitacion_id&estado&solo_vencidos` | (#418 Corte 2) Inventario de activos por habitación o área con estado de mantenimiento preventivo (`al_dia`, `por_vencer`, `vencido`). Todos los roles del hotel, incluido aseo. |
+| `POST /hotel/activos` | (#418 Corte 2) Registra un activo físico con ubicación y periodicidad preventiva en días. Solo administración del hotel. |
+| `POST /hotel/activos/{activo_id}/mantenciones` | (#418 Corte 2) Registra mantención preventiva o correctiva (append-only) y recalcula automáticamente la próxima fecha preventiva. Roles recepción, aseo o administración del hotel. |
 
 ## Criterio de aceptación
 

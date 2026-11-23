@@ -52,6 +52,9 @@ RUTAS_ASEO = tuple(re.compile(p) for p in (
     r"^/hotel/checklists/plantillas$",
     # Comunicados (#418): el personal de aseo los lee y confirma lectura.
     r"^/hotel/comunicados(/[^/]+/lectura)?$",
+    # Corte 2 (#418 parte 2): turnos, biblioteca, buzón y mantención preventiva de activos.
+    r"^/hotel/equipo/(turnos(/[^/]+/cambios)?|biblioteca|sugerencias)$",
+    r"^/hotel/activos(/[^/]+/mantenciones)?$",
 ))
 
 
