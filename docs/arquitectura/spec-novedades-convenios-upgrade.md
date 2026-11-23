@@ -88,3 +88,26 @@ Cuando no queden habitaciones **Single** disponibles para las fechas solicitadas
 - [ ] Con todas las `single` ocupadas y una `doble`/`matrimonial` libre, recepción puede crear una reserva de 1 persona con «Upgrade a tarifa Single» cobrando `$47.000`/noche.
 - [ ] Si hay al menos una `single` libre, el endpoint rechaza (`409`) el upgrade a precio Single.
 - [ ] Si al hacer la Llegada pasan a ser 2 personas, se ajusta el cargo a tarifa Doble/Matrimonial (`$55.000`/noche).
+
+---
+
+## 4. SPEC-PROV-01: Reserva Provisoria a Nombre de Empresa o Institución (Bloqueo Multi-Huésped)
+
+### 4.1 Objetivo
+Permitir crear una reserva (individual o de grupo para N huéspedes, por ejemplo 5 huéspedes de *"Institución Arauco"*) con **nombre provisorio a nombre de la empresa/institución**, sin conocer aún los nombres ni RUTs definitivos de los pasajeros al momento de bloquear las habitaciones, y cargar los datos reales de cada cliente recién en la **Llegada**.
+
+### 4.2 Modelo de datos y reglas de negocio
+- En `reservas` (y `reservas_grupo` de PR B):
+  - `es_huesped_provisorio BOOLEAN NOT NULL DEFAULT FALSE`: marca que el titular actual (`huesped_nombre`) corresponde a un nombre provisorio de empresa/institución (ej. `"Institución Arauco"`).
+  - `cliente_id TEXT REFERENCES clientes(id)` / `convenio_id`: mantiene el vínculo con la empresa/institución pagadora para facturación y cierre de caja, incluso después de actualizar los nombres reales de los huéspedes.
+- **Al reservar (estado `confirmada`):**
+  - Se permite crear la reserva (o el bloque de habitaciones para 5 huéspedes) indicando la empresa/institución como nombre provisorio (`es_huesped_provisorio = TRUE`) sin exigir documento de los pasajeros finales.
+- **Al momento de la Llegada (`POST /hotel/reservas/{id}/entrada`):**
+  - Recepción carga los nombres reales y documentos (RUT/pasaporte) de los clientes que ingresan en cada habitación (vía pestaña «Huéspedes» / `0060_huespedes_y_ocupacion_llegada.sql` + `PUT /hotel/reservas/{id}/huesped`), pasando `es_huesped_provisorio = FALSE`.
+  - **Bloqueo en Llegada:** no se puede pasar la reserva a `en_estadia` mientras `es_huesped_provisorio = TRUE` o falten huéspedes por registrar respecto a la ocupación real declarada (`409` en castellano).
+  - La empresa/institución pagadora (`cliente_id` / `convenio_id`) permanece intacta en la reserva y en la imputación contable (`0051`).
+
+### 4.3 Criterios de aceptación
+- [ ] Recepción puede crear una reserva/grupo de 5 huéspedes a nombre provisorio de `"Institución Arauco"` sin cargar los 5 RUTs al reservar.
+- [ ] Al intentar registrar la Llegada sin reemplazar el nombre provisorio por huéspedes reales, la API responde `409`.
+- [ ] Al cargar los nombres y documentos reales en la Llegada, la reserva pasa a `en_estadia` manteniendo a `"Institución Arauco"` como empresa/convenio pagador para facturación y cierre de caja.
