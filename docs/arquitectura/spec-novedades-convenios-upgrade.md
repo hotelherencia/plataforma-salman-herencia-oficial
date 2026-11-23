@@ -111,3 +111,23 @@ Permitir crear una reserva (individual o de grupo para N huéspedes, por ejemplo
 - [ ] Recepción puede crear una reserva/grupo de 5 huéspedes a nombre provisorio de `"Institución Arauco"` sin cargar los 5 RUTs al reservar.
 - [ ] Al intentar registrar la Llegada sin reemplazar el nombre provisorio por huéspedes reales, la API responde `409`.
 - [ ] Al cargar los nombres y documentos reales en la Llegada, la reserva pasa a `en_estadia` manteniendo a `"Institución Arauco"` como empresa/convenio pagador para facturación y cierre de caja.
+
+---
+
+## 5. SPEC-ADM-01: Alta de Cuenta Administradora Adicional del Hotel
+
+### 5.1 Objetivo y regla de seguridad
+Incorporar una cuenta administradora adicional del hotel sin hardcodear correos, contraseñas ni secretos en el repositorio (ver `docs/operacion/alta-administrador-nominado.md`).
+
+### 5.2 Implementación y flujo operativo (ya disponible en `main`)
+1. **Endpoint y pantalla:** usar `POST /usuarios` o la pantalla `https://plataforma.hotelherencia.cl/hotel/usuarios` con sesión de `administrador` / `admin_plataforma`.
+2. **Parámetros de alta:**
+   - `nombre`: identificador nominado (ej. `admin_hotel_01`).
+   - `rol`: `administrador` (acceso completo) o `admin_hotel` (gestión del hotel sin gestión de usuarios).
+   - `email`: correo Google autorizado (ingresado solo en ejecución, nunca en el repo).
+   - `clave`: clave temporal robusta (`>= 12` caracteres, entregada por canal privado).
+3. **Primer ingreso y endurecimiento obligatorio:**
+   - Al ingresar por primera vez (usuario/clave o Google), la persona debe **cambiar la clave temporal** en `/cuenta` y **activar el segundo factor TOTP (2FA)** (`POST /cuenta/2fa` + `POST /cuenta/2fa/activar`).
+4. **Criterios de aceptación:**
+   - [ ] La cuenta queda activa en `usuarios` con `google_vinculado = true` y 2FA activado.
+   - [ ] Ninguna credencial ni correo real queda registrado en Git ni en logs de `auditoria`.
