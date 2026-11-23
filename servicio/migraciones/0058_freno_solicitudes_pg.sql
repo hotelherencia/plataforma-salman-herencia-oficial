@@ -1,4 +1,4 @@
--- 0057: Persistencia del freno de solicitudes del canal público en PostgreSQL (OBS-01 / #414).
+-- 0058: Persistencia del freno de solicitudes del canal público en PostgreSQL (OBS-01 / #414).
 -- Evita reinicios de ventana en despliegues serverless o con múltiples instancias.
 -- Almacena únicamente hashes SHA-256 de claves (sin IP ni datos personales en texto plano).
 
