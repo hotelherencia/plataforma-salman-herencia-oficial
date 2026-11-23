@@ -7,6 +7,7 @@ import { CATEGORIAS_DIRECTAS, DOCUMENTOS, MEDIOS, esTarjeta, nombreMedio, valida
 import { formatearRut, rotuloMovimiento } from '../../../lib/contabilidad'
 import { fechaHora } from '../../../lib/formato'
 import { SelectorProducto } from './selector-producto'
+import { BarraContextual, SelectorFila } from './barra-contextual'
 import ConciliacionBancariaTributaria from './conciliacion-bancaria-tributaria'
 import css from './operacion.module.css'
 
@@ -27,6 +28,7 @@ export default function MovimientosContables({ hoy, esAdmin = false }) {
   const [ok, setOk] = useState('')
   const [cargando, setCargando] = useState(false)
   const [mostrarForm, setMostrarForm] = useState(false)
+  const [seleccionadoKey, setSeleccionadoKey] = useState(null)
   const [cobrando, setCobrando] = useState(null)
   const [reversando, setReversando] = useState(null)
 
@@ -155,75 +157,107 @@ export default function MovimientosContables({ hoy, esAdmin = false }) {
       <section className="tarjeta" aria-label="Detalle de movimientos contables">
         {cargando && !datos && <p className="estado" role="status" aria-busy="true">Cargando el libro contable…</p>}
         {datos && datos.length === 0 && <p className="estado estado-vacio">Sin movimientos en estas fechas.</p>}
-        {datos && datos.length > 0 && (
-          <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Libro contable (desliza para ver todas las columnas)">
-            <table className="tabla">
-              <thead>
-                <tr>
-                  <th>Fecha y hora</th>
-                  <th>Movimiento</th>
-                  <th>Detalle</th>
-                  <th>Huésped / Origen</th>
-                  <th>Habitación</th>
-                  <th>Monto (IVA incl.)</th>
-                  <th>Medio / Estado</th>
-                  <th>Documento</th>
-                  <th>Registrado por</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {datos.map((m, i) => (
-                  <tr key={`${m.movimiento_directo_id || m.fecha_hora}-${i}`}>
-                    <td>{fechaHora(m.fecha_hora)}</td>
-                    <td>{rotuloMovimiento(m.tipo)}</td>
-                    <td>{m.concepto}{m.cantidad ? ` × ${m.cantidad}` : ''}</td>
-                    <td>
-                      {m.reserva_id
-                        ? <Link href={`/hotel/reservas/${m.reserva_id}`}>{m.huesped_nombre || m.reserva_id}</Link>
-                        : 'Sin habitación (directo)'}
-                    </td>
-                    <td>{m.habitacion_id || '—'}</td>
-                    <td>{clp(m.monto_clp)}</td>
-                    <td>
-                      {m.medio
-                        ? nombreMedio(m.medio)
-                        : m.estado_cobro === 'pendiente'
-                          ? 'Pendiente de cobro'
-                          : '—'}
-                    </td>
-                    <td>
-                      {m.documento_tipo && m.documento_tipo !== 'pendiente'
-                        ? `${ROTULO_DOC[m.documento_tipo] || 'Documento'}${m.documento_folio ? ` N° ${m.documento_folio}` : ''}`
-                        : m.estado_cobro === 'cobrado'
-                          ? 'Por indicar'
-                          : '—'}
-                    </td>
-                    <td>{m.actor || '—'}</td>
-                    <td>
-                      {m.movimiento_directo_id && m.tipo !== 'reverso_directo' && !m.reversado && (
-                        <div className="acciones-fila">
-                          {m.estado_cobro === 'pendiente' && (
-                            <button type="button" className="boton-secundario" onClick={() => setCobrando(m)}>
-                              Cobrar
-                            </button>
-                          )}
-                          {esAdmin && (
-                            <button type="button" className="boton-fantasma" onClick={() => setReversando(m)}>
-                              Reversar
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {m.reversado && 'Reversado'}
-                      {!m.movimiento_directo_id && '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {datos && datos.length > 0 && (() => {
+          const claveFila = (m, i) => `${m.movimiento_directo_id || m.fecha_hora}-${i}`
+          const activo = datos.find((m, i) => claveFila(m, i) === seleccionadoKey) || null
+          const operable = activo && activo.movimiento_directo_id && activo.tipo !== 'reverso_directo' && !activo.reversado
+          return (
+            <>
+              <BarraContextual
+                titulo="Acciones de movimiento contable"
+                seleccionado={Boolean(activo)}
+                resumen={activo ? `${rotuloMovimiento(activo.tipo)} · ${activo.concepto} · ${clp(activo.monto_clp)}` : ''}
+                detalle={activo ? (operable ? 'Movimiento directo operable' : (activo.reversado ? 'Movimiento ya reversado' : 'Movimiento de reserva (gestionar desde la ficha de reserva)')) : ''}
+                placeholder="Selecciona un movimiento directo de la tabla para cobrarlo o reversarlo."
+                alLimpiar={() => setSeleccionadoKey(null)}
+              >
+                {activo && operable && (
+                  <>
+                    {activo.estado_cobro === 'pendiente' && (
+                      <button type="button" className="boton-primario" onClick={() => setCobrando(activo)}>
+                        Cobrar movimiento
+                      </button>
+                    )}
+                    {esAdmin && (
+                      <button type="button" className="boton-secundario boton-peligro" onClick={() => setReversando(activo)}>
+                        Reversar movimiento
+                      </button>
+                    )}
+                  </>
+                )}
+              </BarraContextual>
+
+              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Libro contable (desliza para ver todas las columnas)">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th className="celda-selector"><span className="sr-only">Elegir</span></th>
+                      <th>Fecha y hora</th>
+                      <th>Movimiento</th>
+                      <th>Detalle</th>
+                      <th>Huésped / Origen</th>
+                      <th>Habitación</th>
+                      <th>Monto (IVA incl.)</th>
+                      <th>Medio / Estado</th>
+                      <th>Documento</th>
+                      <th>Registrado por</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datos.map((m, i) => {
+                      const k = claveFila(m, i)
+                      const elegida = seleccionadoKey === k
+                      return (
+                        <tr
+                          key={k}
+                          className="fila-seleccionable"
+                          data-seleccionada={elegida ? 'true' : 'false'}
+                          onClick={() => setSeleccionadoKey(k)}
+                        >
+                          <td className="celda-selector">
+                            <SelectorFila
+                              nombreGrupo="mov-contable-activo"
+                              elegido={elegida}
+                              etiqueta={`Seleccionar movimiento ${m.concepto} de ${clp(m.monto_clp)}`}
+                              alElegir={() => setSeleccionadoKey(k)}
+                            />
+                          </td>
+                          <td className="celda-fecha">{fechaHora(m.fecha_hora)}</td>
+                          <td>{rotuloMovimiento(m.tipo)}</td>
+                          <td>{m.concepto}{m.cantidad ? ` × ${m.cantidad}` : ''}</td>
+                          <td>
+                            {m.reserva_id
+                              ? <Link href={`/hotel/reservas/${m.reserva_id}`} onClick={(e) => e.stopPropagation()}>{m.huesped_nombre || m.reserva_id}</Link>
+                              : 'Sin habitación (directo)'}
+                          </td>
+                          <td>{m.habitacion_id || '—'}</td>
+                          <td>{clp(m.monto_clp)}</td>
+                          <td>
+                            {m.reversado
+                              ? 'Reversado'
+                              : m.medio
+                                ? nombreMedio(m.medio)
+                                : m.estado_cobro === 'pendiente'
+                                  ? 'Pendiente de cobro'
+                                  : '—'}
+                          </td>
+                          <td>
+                            {m.documento_tipo && m.documento_tipo !== 'pendiente'
+                              ? `${ROTULO_DOC[m.documento_tipo] || 'Documento'}${m.documento_folio ? ` N° ${m.documento_folio}` : ''}`
+                              : m.estado_cobro === 'cobrado'
+                                ? 'Por indicar'
+                                : '—'}
+                          </td>
+                          <td>{m.actor || '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )
+        })()}
       </section>
       <ConciliacionBancariaTributaria esAdmin={esAdmin} />
     </>

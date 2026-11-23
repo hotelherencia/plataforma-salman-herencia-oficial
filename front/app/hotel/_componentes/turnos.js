@@ -69,7 +69,8 @@ export default function Turnos({ usuario, puedeAdministrar = false }) {
   }
 
   if (!datos) return null
-  const hayAlgo = datos.dias.some((d) => d.turnos.length > 0)
+  const dias = Array.isArray(datos.dias) ? datos.dias : []
+  const hayAlgo = dias.some((d) => (d.turnos || []).length > 0)
   if (!hayAlgo && !puedeAdministrar) return null
 
   return (

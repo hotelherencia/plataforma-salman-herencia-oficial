@@ -175,8 +175,13 @@ export default function Agente() {
           <label className="campo">
             <span className="campo-etiqueta">Canal</span>
             <select className="entrada" value={canal} onChange={(e) => setCanal(e.target.value)}>
-              {['manual', 'landing', 'correo', 'whatsapp'].map((c) => (
-                <option key={c} value={c}>{c}</option>
+              {[
+                ['manual', 'Manual (recepción)'],
+                ['landing', 'Sitio web'],
+                ['correo', 'Correo electrónico'],
+                ['whatsapp', 'WhatsApp'],
+              ].map(([c, etiqueta]) => (
+                <option key={c} value={c}>{etiqueta}</option>
               ))}
             </select>
           </label>

@@ -50,11 +50,11 @@ export default function Reservas() {
           <Campo etiqueta="Fecha (la noche contiene ese día)" type="date" value={filtros.fecha} onChange={(e) => setFiltros({ ...filtros, fecha: e.target.value })} />
           <Campo etiqueta="Habitación (exacta)" value={filtros.habitacion_id} onChange={(e) => setFiltros({ ...filtros, habitacion_id: e.target.value })} />
           <CampoSelect etiqueta="Estado" value={filtros.estado} onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}>
-            <option value="">(cualquiera)</option>
-            <option value="confirmada">confirmada</option>
-            <option value="en_estadia">en_estadia</option>
-            <option value="finalizada">finalizada</option>
-            <option value="cancelada">cancelada</option>
+            <option value="">Todos los estados</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="en_estadia">En estadía</option>
+            <option value="finalizada">Finalizada</option>
+            <option value="cancelada">Cancelada</option>
           </CampoSelect>
           <Campo etiqueta="Texto (id, huésped, documento o habitación)" value={filtros.texto} onChange={(e) => setFiltros({ ...filtros, texto: e.target.value })} />
           <button type="submit" className="boton-primario">Buscar</button>

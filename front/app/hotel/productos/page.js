@@ -6,6 +6,7 @@ import { esAdminHotel } from '../../../lib/roles'
 import { CATEGORIAS_PRODUCTO } from '../_componentes/selector-producto'
 import { ImportarProductos } from '../_componentes/importar-productos'
 import { ReposicionStock } from '../_componentes/reposicion-stock'
+import { BarraContextual, SelectorFila } from '../_componentes/barra-contextual'
 import css from '../_componentes/operacion.module.css'
 
 // Pestañas internas (no agregan entradas al menú): catálogo, reposición y tres formas de cargar.
@@ -24,8 +25,8 @@ function clave() {
 }
 
 /**
- * Productos y stock (#357): mantenedor del catálogo de cargos para la
- * administración del hotel. Precio con IVA; el cargo lo copia al asentarse.
+ * Productos y stock (#357): mantenedor del catálogo con selección de producto
+ * activo + barra contextual única (sin repetir inputs/botones por cada producto).
  */
 export default function Productos() {
   const sesion = useSesion()
@@ -33,10 +34,14 @@ export default function Productos() {
   const [lista, setLista] = useState(null)
   const [pestana, setPestana] = useState('catalogo')
   const [alta, setAlta] = useState({ nombre: '', categoria: 'minibar', precio_clp: '', controla_stock: false, stock: '0', stock_minimo: '0', codigo: '' })
-  const [ajustes, setAjustes] = useState({})
-  const [precios, setPrecios] = useState({})
+  const [seleccionadoId, setSeleccionadoId] = useState(null)
+  const [panelAccion, setPanelAccion] = useState(null) // 'precio' | 'stock' | null
+  const [nuevoPrecio, setNuevoPrecio] = useState('')
+  const [ajusteStock, setAjusteStock] = useState({ delta: '', motivo: '' })
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
+
+  const activo = (lista || []).find((p) => p.producto_id === seleccionadoId) || null
 
   const cargar = useCallback(async () => {
     try {
@@ -51,6 +56,14 @@ export default function Productos() {
   useEffect(() => {
     if (sesion.fase === 'ok') cargar()
   }, [sesion.fase, cargar])
+
+  function elegirProducto(p) {
+    setSeleccionadoId(p.producto_id)
+    setPanelAccion(null)
+    setNuevoPrecio(String(p.precio_clp || ''))
+    setAjusteStock({ delta: '', motivo: '' })
+    setError('')
+  }
 
   async function enviar(ruta, metodo, cuerpo, ok) {
     setError('')
@@ -85,20 +98,40 @@ export default function Productos() {
     if (ok) setAlta({ nombre: '', categoria: alta.categoria, precio_clp: '', controla_stock: false, stock: '0', stock_minimo: '0', codigo: '' })
   }
 
-  function ajustar(p) {
-    const a = ajustes[p.producto_id] || {}
-    const delta = Number(a.delta)
-    if (!Number.isInteger(delta) || delta === 0) { setError('El ajuste debe ser un entero distinto de 0 (negativo para merma).'); return }
-    if (!a.motivo || a.motivo.trim().length < 3) { setError('Indica el motivo del ajuste (mínimo 3 caracteres).'); return }
-    enviar(`/hotel/productos/${p.producto_id}/stock`, 'POST', { delta, motivo: a.motivo.trim() }, `Stock de «${p.nombre}» ajustado.`)
-      .then((ok) => ok && setAjustes((x) => ({ ...x, [p.producto_id]: {} })))
+  async function guardarPrecio(e, p) {
+    e.preventDefault()
+    const precio = Number(nuevoPrecio)
+    if (!(precio > 0)) { setError('El precio debe ser mayor que 0.'); return }
+    const ok = await enviar(
+      `/hotel/productos/${p.producto_id}`,
+      'PUT',
+      { precio_clp: precio },
+      `Precio de «${p.nombre}» actualizado (los cargos ya asentados no cambian).`,
+    )
+    if (ok) setPanelAccion(null)
   }
 
-  function cambiarPrecio(p) {
-    const precio = Number(precios[p.producto_id])
-    if (!(precio > 0)) { setError('El precio debe ser mayor que 0.'); return }
-    enviar(`/hotel/productos/${p.producto_id}`, 'PUT', { precio_clp: precio }, `Precio de «${p.nombre}» actualizado (los cargos ya asentados no cambian).`)
-      .then((ok) => ok && setPrecios((x) => ({ ...x, [p.producto_id]: '' })))
+  async function guardarAjusteStock(e, p) {
+    e.preventDefault()
+    const delta = Number(ajusteStock.delta)
+    if (!Number.isInteger(delta) || delta === 0) {
+      setError('El ajuste debe ser un entero distinto de 0 (negativo para merma).')
+      return
+    }
+    if (!ajusteStock.motivo || ajusteStock.motivo.trim().length < 3) {
+      setError('Indica el motivo del ajuste (mínimo 3 caracteres).')
+      return
+    }
+    const ok = await enviar(
+      `/hotel/productos/${p.producto_id}/stock`,
+      'POST',
+      { delta, motivo: ajusteStock.motivo.trim() },
+      `Stock de «${p.nombre}» ajustado.`,
+    )
+    if (ok) {
+      setPanelAccion(null)
+      setAjusteStock({ delta: '', motivo: '' })
+    }
   }
 
   if (sesion.fase === 'ok' && !esAdmin) {
@@ -113,8 +146,16 @@ export default function Productos() {
     <MarcoHotel titulo="Productos y stock">
       <div className={css.pestanas} role="tablist" aria-label="Secciones de productos">
         {PESTANAS.map(([id, nombre]) => (
-          <button key={id} type="button" role="tab" id={`pestana-${id}`} aria-controls={`panel-${id}`}
-            aria-selected={pestana === id} className={css.pestana} onClick={() => setPestana(id)}>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`pestana-${id}`}
+            aria-controls={`panel-${id}`}
+            aria-selected={pestana === id}
+            className={css.pestana}
+            onClick={() => setPestana(id)}
+          >
             {nombre}
           </button>
         ))}
@@ -130,76 +171,191 @@ export default function Productos() {
         </div>
       )}
       {pestana === 'catalogo' && (
-      <div role="tabpanel" id="panel-catalogo" aria-labelledby="pestana-catalogo">
-      <section className="tarjeta">
-        <h2>Nuevo producto</h2>
-        <form className="formulario" onSubmit={crear}>
-          <Campo etiqueta="Nombre" value={alta.nombre} onChange={(e) => setAlta({ ...alta, nombre: e.target.value })} />
-          <CampoSelect etiqueta="Categoría" value={alta.categoria} onChange={(e) => setAlta({ ...alta, categoria: e.target.value })}>
-            {CATEGORIAS_PRODUCTO.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-          </CampoSelect>
-          <Campo etiqueta="Precio con IVA (CLP)" type="number" min="1" value={alta.precio_clp} onChange={(e) => setAlta({ ...alta, precio_clp: e.target.value })} />
-          <Campo etiqueta="Código (opcional)" value={alta.codigo} placeholder="Escanea o escribe" autoComplete="off"
-            onChange={(e) => setAlta({ ...alta, codigo: e.target.value.replace(/\s+/g, '') })} />
-          <label className="campo-check">
-            <input type="checkbox" checked={alta.controla_stock} onChange={(e) => setAlta({ ...alta, controla_stock: e.target.checked })} />
-            Controla stock (minibar)
-          </label>
-          {alta.controla_stock && (
-            <>
-              <Campo etiqueta="Stock inicial" type="number" min="0" value={alta.stock} onChange={(e) => setAlta({ ...alta, stock: e.target.value })} />
-              <Campo etiqueta="Stock mínimo (alerta)" type="number" min="0" value={alta.stock_minimo} onChange={(e) => setAlta({ ...alta, stock_minimo: e.target.value })} />
-            </>
-          )}
-          <button type="submit" className="boton-primario">Crear producto</button>
-        </form>
-      </section>
-      {error && <p role="alert" className="alerta">{error}</p>}
-      {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
-      <section className="tarjeta">
-        <h2>Catálogo {lista ? `(${lista.length})` : ''}</h2>
-        {!lista && <p className="estado" role="status" aria-busy="true">Cargando…</p>}
-        {lista && lista.length === 0 && <p className="estado estado-vacio">Aún no hay productos. Crea el primero arriba.</p>}
-        <ul className="lista-aseo">
-          {(lista || []).map((p) => (
-            <li key={p.producto_id} className="tarjeta" data-producto={p.producto_id}>
-              <div className="aseo-cabecera">
-                <strong>{p.nombre}</strong>
-                <span>{NOMBRE_CATEGORIA[p.categoria] || p.categoria}</span>
-                <span>{clp(p.precio_clp)}</span>
-                {p.codigo && <span className="nota-clave">Cód. {p.codigo}</span>}
-                {p.costo_clp !== null && p.costo_clp !== undefined && <span className="nota-clave">Costo neto {clp(p.costo_clp)}</span>}
-                {p.controla_stock && (
-                  <span className={`reserva-estado ${p.stock > 0 ? 'estado-finalizada' : 'estado-cancelada'}`}>stock {p.stock}</span>
-                )}
-                {!p.activo && <span className="reserva-estado estado-cancelada">inactivo</span>}
-              </div>
-              <div className="acciones-aseo">
-                <input className="entrada" type="number" min="1" aria-label={`Nuevo precio de ${p.nombre}`} placeholder="Nuevo precio"
-                  value={precios[p.producto_id] || ''} onChange={(e) => setPrecios((x) => ({ ...x, [p.producto_id]: e.target.value }))} />
-                <button type="button" className="boton-secundario" onClick={() => cambiarPrecio(p)}>Cambiar precio</button>
-                <button type="button" className="boton-fantasma"
-                  onClick={() => enviar(`/hotel/productos/${p.producto_id}`, 'PUT', { activo: !p.activo }, p.activo ? `«${p.nombre}» desactivado.` : `«${p.nombre}» activado.`)}>
-                  {p.activo ? 'Desactivar' : 'Activar'}
-                </button>
-              </div>
-              {p.controla_stock && (
-                <div className="acciones-aseo">
-                  <input className="entrada" type="number" aria-label={`Ajuste de stock de ${p.nombre}`} placeholder="+ reposición / − merma"
-                    value={ajustes[p.producto_id]?.delta || ''} onChange={(e) => setAjustes((x) => ({ ...x, [p.producto_id]: { ...x[p.producto_id], delta: e.target.value } }))} />
-                  <input className="entrada" aria-label={`Motivo del ajuste de ${p.nombre}`} placeholder="Motivo"
-                    value={ajustes[p.producto_id]?.motivo || ''} onChange={(e) => setAjustes((x) => ({ ...x, [p.producto_id]: { ...x[p.producto_id], motivo: e.target.value } }))} />
-                  <button type="button" className="boton-secundario" onClick={() => ajustar(p)}>Ajustar stock</button>
-                </div>
+        <div role="tabpanel" id="panel-catalogo" aria-labelledby="pestana-catalogo">
+          <section className="tarjeta">
+            <h2>Nuevo producto</h2>
+            <form className="formulario" onSubmit={crear}>
+              <Campo etiqueta="Nombre" value={alta.nombre} onChange={(e) => setAlta({ ...alta, nombre: e.target.value })} />
+              <CampoSelect etiqueta="Categoría" value={alta.categoria} onChange={(e) => setAlta({ ...alta, categoria: e.target.value })}>
+                {CATEGORIAS_PRODUCTO.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+              </CampoSelect>
+              <Campo etiqueta="Precio con IVA (CLP)" type="number" min="1" value={alta.precio_clp} onChange={(e) => setAlta({ ...alta, precio_clp: e.target.value })} />
+              <Campo
+                etiqueta="Código (opcional)"
+                value={alta.codigo}
+                placeholder="Escanea o escribe"
+                autoComplete="off"
+                onChange={(e) => setAlta({ ...alta, codigo: e.target.value.replace(/\s+/g, '') })}
+              />
+              <label className="campo-check">
+                <input type="checkbox" checked={alta.controla_stock} onChange={(e) => setAlta({ ...alta, controla_stock: e.target.checked })} />
+                Controla stock (minibar)
+              </label>
+              {alta.controla_stock && (
+                <>
+                  <Campo etiqueta="Stock inicial" type="number" min="0" value={alta.stock} onChange={(e) => setAlta({ ...alta, stock: e.target.value })} />
+                  <Campo etiqueta="Stock mínimo (alerta)" type="number" min="0" value={alta.stock_minimo} onChange={(e) => setAlta({ ...alta, stock_minimo: e.target.value })} />
+                </>
               )}
-            </li>
-          ))}
-        </ul>
-        <p className="nota-chica">
-          ¿Llegó mercadería? Usa «Cargar desde factura», «Pegar planilla» o «Lector de códigos» para sumar todo el stock de una vez.
-        </p>
-      </section>
-      </div>
+              <button type="submit" className="boton-primario">Crear producto</button>
+            </form>
+          </section>
+
+          {error && <p role="alert" className="alerta">{error}</p>}
+          {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
+
+          <section className="tarjeta">
+            <h2>Catálogo {lista ? `(${lista.length})` : ''}</h2>
+            {!lista && <p className="estado" role="status" aria-busy="true">Cargando…</p>}
+            {lista && lista.length === 0 && <p className="estado estado-vacio">Aún no hay productos. Crea el primero arriba.</p>}
+
+            {lista && lista.length > 0 && (
+              <>
+                <BarraContextual
+                  titulo="Acciones de producto"
+                  seleccionado={Boolean(activo)}
+                  resumen={activo ? `${activo.nombre} · ${clp(activo.precio_clp)}` : ''}
+                  detalle={activo ? `${NOMBRE_CATEGORIA[activo.categoria] || activo.categoria}${activo.controla_stock ? ` · Stock ${activo.stock}` : ''} · ${activo.activo ? 'Activo' : 'Inactivo'}` : ''}
+                  placeholder="Selecciona un producto de la tabla para cambiar su precio, ajustar stock o activar/desactivar."
+                  alLimpiar={() => { setSeleccionadoId(null); setPanelAccion(null) }}
+                >
+                  {activo && (
+                    <>
+                      <button
+                        type="button"
+                        className="boton-primario"
+                        aria-expanded={panelAccion === 'precio'}
+                        onClick={() => {
+                          setNuevoPrecio(String(activo.precio_clp || ''))
+                          setPanelAccion(panelAccion === 'precio' ? null : 'precio')
+                        }}
+                      >
+                        Cambiar precio
+                      </button>
+                      {activo.controla_stock && (
+                        <button
+                          type="button"
+                          className="boton-secundario"
+                          aria-expanded={panelAccion === 'stock'}
+                          onClick={() => setPanelAccion(panelAccion === 'stock' ? null : 'stock')}
+                        >
+                          Ajustar stock
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="boton-fantasma"
+                        onClick={() => enviar(
+                          `/hotel/productos/${activo.producto_id}`,
+                          'PUT',
+                          { activo: !activo.activo },
+                          activo.activo ? `«${activo.nombre}» desactivado.` : `«${activo.nombre}» activado.`,
+                        )}
+                      >
+                        {activo.activo ? 'Desactivar' : 'Activar'}
+                      </button>
+                    </>
+                  )}
+                </BarraContextual>
+
+                {activo && panelAccion === 'precio' && (
+                  <form className="formulario" style={{ marginBottom: '0.75rem' }} onSubmit={(e) => guardarPrecio(e, activo)}>
+                    <Campo
+                      etiqueta={`Nuevo precio con IVA para ${activo.nombre} (CLP)`}
+                      type="number"
+                      min="1"
+                      value={nuevoPrecio}
+                      onChange={(e) => setNuevoPrecio(e.target.value)}
+                    />
+                    <button type="submit" className="boton-primario">Guardar precio</button>
+                    <button type="button" className="boton-fantasma" onClick={() => setPanelAccion(null)}>Cancelar</button>
+                  </form>
+                )}
+
+                {activo && panelAccion === 'stock' && activo.controla_stock && (
+                  <form className="formulario" style={{ marginBottom: '0.75rem' }} onSubmit={(e) => guardarAjusteStock(e, activo)}>
+                    <Campo
+                      etiqueta="Ajuste (+ reposición / − merma)"
+                      type="number"
+                      placeholder="Ej.: 10 o -2"
+                      value={ajusteStock.delta}
+                      onChange={(e) => setAjusteStock({ ...ajusteStock, delta: e.target.value })}
+                    />
+                    <Campo
+                      etiqueta="Motivo del ajuste"
+                      placeholder="Reposición semanal o merma"
+                      value={ajusteStock.motivo}
+                      onChange={(e) => setAjusteStock({ ...ajusteStock, motivo: e.target.value })}
+                    />
+                    <button type="submit" className="boton-primario">Aplicar ajuste</button>
+                    <button type="button" className="boton-fantasma" onClick={() => setPanelAccion(null)}>Cancelar</button>
+                  </form>
+                )}
+
+                <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Catálogo de productos (desliza para ver todas las columnas)">
+                  <table className="tabla">
+                    <thead>
+                      <tr>
+                        <th className="celda-selector"><span className="sr-only">Elegir</span></th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Código</th>
+                        <th>Precio (IVA incl.)</th>
+                        <th>Costo neto</th>
+                        <th>Stock</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lista.map((p) => {
+                        const elegida = activo?.producto_id === p.producto_id
+                        return (
+                          <tr
+                            key={p.producto_id}
+                            data-producto={p.producto_id}
+                            className="fila-seleccionable"
+                            data-seleccionada={elegida ? 'true' : 'false'}
+                            onClick={() => elegirProducto(p)}
+                          >
+                            <td className="celda-selector">
+                              <SelectorFila
+                                nombreGrupo="producto-activo"
+                                elegido={elegida}
+                                etiqueta={`Seleccionar producto ${p.nombre}`}
+                                alElegir={() => elegirProducto(p)}
+                              />
+                            </td>
+                            <td><strong>{p.nombre}</strong></td>
+                            <td>{NOMBRE_CATEGORIA[p.categoria] || p.categoria}</td>
+                            <td>{p.codigo || '—'}</td>
+                            <td><strong>{clp(p.precio_clp)}</strong></td>
+                            <td>{p.costo_clp !== null && p.costo_clp !== undefined ? clp(p.costo_clp) : '—'}</td>
+                            <td>
+                              {p.controla_stock ? (
+                                <span className={`reserva-estado ${p.stock > 0 ? 'estado-finalizada' : 'estado-cancelada'}`}>
+                                  Stock {p.stock}
+                                </span>
+                              ) : 'No aplica'}
+                            </td>
+                            <td>
+                              <span className={`reserva-estado ${p.activo ? 'estado-finalizada' : 'estado-cancelada'}`}>
+                                {p.activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            <p className="nota-chica">
+              ¿Llegó mercadería? Usa «Cargar desde factura», «Pegar planilla» o «Lector de códigos» para sumar todo el stock de una vez.
+            </p>
+          </section>
+        </div>
       )}
     </MarcoHotel>
   )

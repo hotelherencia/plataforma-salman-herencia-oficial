@@ -1,38 +1,39 @@
 'use client'
 
 import Link from 'next/link'
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDestacada } from '../_componentes/destacada'
 import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, SalidaJson } from '../../../lib/api'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
 import Subnav from '../_componentes/subnav'
 import FormularioEdicion from '../_componentes/formulario-edicion'
+import { BarraContextual, SelectorFila } from '../_componentes/barra-contextual'
 import { SUBNAV_BANDEJAS } from '../../../lib/menu-hotel'
 import { fechaATexto } from '../../../lib/formato'
 import { BotonExportar } from '../_componentes/boton-exportar'
 
 const ESTADO_SOLICITUD = { recibida: 'Recibida', convertida: 'Convertida', rechazada: 'Rechazada' }
 
-/** Bandeja de solicitudes públicas (V1-ISSUE-24): recepción o administrador
- *  ven las solicitudes de la landing, las convierten en reserva por la misma
- *  operación interna (carrera por la última unidad incluida) o las rechazan
- *  con motivo. La trazabilidad es solicitud → reserva_id + auditoría. */
+/** Bandeja de solicitudes públicas: selección de solicitud activa + barra
+ *  contextual única (sin repetir botones ni inputs en cada fila). */
 export default function Solicitudes() {
   const sesion = useSesion()
   const [lista, setLista] = useState(null)
   const [estado, setEstado] = useState('')
   const [error, setError] = useState('')
   const [salida, setSalida] = useState(null)
-  const [motivos, setMotivos] = useState({})
-  const [editando, setEditando] = useState(null)
+  const [seleccionadaId, setSeleccionadaId] = useState(null)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
+  const [editando, setEditando] = useState(false)
   const [claveConversion, renovarConversion] = useClaveOperacion()
   const [claveRechazo, renovarRechazo] = useClaveOperacion()
 
-  // Enlace directo desde un aviso por correo (?id=…): la fila queda marcada.
   const destacada = useDestacada(lista)
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
   const puedeGestionar = gestionaRecepcion(rol)
+
+  const activa = (lista || []).find((s) => s.solicitud_id === seleccionadaId) || null
 
   async function cargar(filtro) {
     setError('')
@@ -49,6 +50,13 @@ export default function Solicitudes() {
     if (puedeGestionar) cargar(estado)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado, puedeGestionar])
+
+  function elegirSolicitud(sol) {
+    setSeleccionadaId(sol.solicitud_id)
+    setEditando(false)
+    setMotivoRechazo('')
+    setError('')
+  }
 
   async function convertir(solicitudId) {
     setError('')
@@ -73,7 +81,7 @@ export default function Solicitudes() {
   async function rechazar(solicitudId) {
     setError('')
     setSalida(null)
-    const motivo = (motivos[solicitudId] || '').trim()
+    const motivo = motivoRechazo.trim()
     if (!motivo) {
       setError('Escribe el motivo del rechazo.')
       return
@@ -87,6 +95,7 @@ export default function Solicitudes() {
         alRechazar(r.estado, renovarRechazo)
       } else {
         setSalida(r.datos)
+        setMotivoRechazo('')
         renovarRechazo()
         cargar(estado)
       }
@@ -98,7 +107,7 @@ export default function Solicitudes() {
   if (sesion.fase === 'ok' && !puedeGestionar) {
     return (
       <MarcoHotel titulo="Solicitudes de reserva">
-      <Subnav items={SUBNAV_BANDEJAS} />
+        <Subnav items={SUBNAV_BANDEJAS} />
         <p className="estado">La bandeja de solicitudes es solo para recepción o la administración del hotel.</p>
       </MarcoHotel>
     )
@@ -124,18 +133,16 @@ export default function Solicitudes() {
               {etiqueta}
             </button>
           ))}
-        </div>
-        {lista && lista.length > 0 && (
-          <div className="acciones-fila" style={{ marginTop: '0.75rem' }}>
+          {lista && lista.length > 0 && (
             <BotonExportar
               titulo="Solicitudes de reserva"
               filtros={estado ? `estado ${estado}` : 'todas'}
               columnas={['ID', 'Huésped', 'Contacto', 'Tipo', 'Llegada', 'Salida', 'Personas', 'Estado', 'Reserva']}
-              filas={lista.map((s) => [s.solicitud_id, s.huesped_nombre, s.huesped_contacto, nombreTipo(s.tipo_habitacion), fechaATexto(s.inicio), fechaATexto(s.fin), s.personas, ESTADO_SOLICITUD[s.estado] || s.estado, s.reserva_id || ''])}
+              filas={lista.map((s) => [s.solicitud_id, s.huesped_nombre, s.huesped_contacto, nombreTipo(s.tipo_habitacion || s.tipo), fechaATexto(s.inicio), fechaATexto(s.fin), s.personas, ESTADO_SOLICITUD[s.estado] || s.estado, s.reserva_id || ''])}
               nombreArchivo="herencia-solicitudes.csv"
             />
-          </div>
-        )}
+          )}
+        </div>
       </section>
 
       {error && <p role="alert" className="alerta">{error}</p>}
@@ -145,110 +152,141 @@ export default function Solicitudes() {
         lista.length === 0 ? (
           <p className="estado estado-vacio">No hay solicitudes en este estado.</p>
         ) : (
-          <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)">
-            <table className="tabla">
-              <thead>
-                <tr>
-                  <th>Solicitud</th>
-                  <th>Tipo</th>
-                  <th>Habitación asignada</th>
-                  <th>Llegada</th>
-                  <th>Salida</th>
-                  <th>Personas</th>
-                  <th>Huésped</th>
-                  <th>RUT / Pasaporte</th>
-                  <th>Teléfono</th>
-                  <th>Correo</th>
-                  <th>Origen</th>
-                  <th>Estado</th>
-                  <th>Reserva</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lista.map((s) => {
-                  const raw = String(s.huesped_contacto || '')
-                  const mTel = raw.match(/Tel:\s*([^·]+)/i)
-                  const mDoc = raw.match(/Doc:\s*([^·]+)/i)
-                  const parteBase = raw.split('·')[0].trim()
-                  const correo = s.huesped_correo || (parteBase.includes('@') ? parteBase : '—')
-                  const telefono = s.huesped_telefono || (mTel ? mTel[1].trim() : (!parteBase.includes('@') && parteBase ? parteBase : '—'))
-                  const documento = s.huesped_documento || (mDoc ? mDoc[1].trim() : '—')
-                  return (
-                  <Fragment key={s.solicitud_id}>
-                  <tr {...destacada.props(s.solicitud_id)}>
-                    <td>{s.solicitud_id}</td>
-                    <td>{nombreTipo(s.tipo)}</td>
-                    <td>{s.habitacion_id || 'al convertir'}</td>
-                    <td className="celda-fecha">{fechaATexto(s.inicio) || s.inicio}</td>
-                    <td className="celda-fecha">{fechaATexto(s.fin) || s.fin}</td>
-                    <td>{s.personas}</td>
-                    <td>{s.huesped_nombre}</td>
-                    <td>{documento}</td>
-                    <td>{telefono}</td>
-                    <td>{correo}</td>
-                    <td>{s.origen || '—'}</td>
-                    <td><span className={`reserva-estado solicitud-${s.estado}`}>{ESTADO_SOLICITUD[s.estado] || s.estado}</span></td>
-                    <td>
-                      {s.reserva_id
-                        ? <Link href={`/hotel/reservas/${s.reserva_id}`}>{s.reserva_id}</Link>
-                        : '—'}
-                    </td>
-                    <td>
-                      <button type="button" className="boton-fantasma" aria-expanded={editando === s.solicitud_id}
-                        onClick={() => setEditando(editando === s.solicitud_id ? null : s.solicitud_id)}>
-                        Editar
+          <>
+            <BarraContextual
+              titulo="Acciones de solicitud"
+              seleccionado={Boolean(activa)}
+              resumen={activa ? `${activa.huesped_nombre} · ${nombreTipo(activa.tipo)}` : ''}
+              detalle={activa ? `${activa.solicitud_id} · Llegada ${fechaATexto(activa.inicio)} · Salida ${fechaATexto(activa.fin)} · ${ESTADO_SOLICITUD[activa.estado] || activa.estado}` : ''}
+              placeholder="Selecciona una solicitud de la tabla para convertirla en reserva, rechazarla o editarla."
+              alLimpiar={() => { setSeleccionadaId(null); setEditando(false) }}
+            >
+              {activa && (
+                <>
+                  <button
+                    type="button"
+                    className="boton-secundario"
+                    aria-expanded={editando}
+                    onClick={() => setEditando((v) => !v)}
+                  >
+                    {editando ? 'Cerrar edición' : 'Editar'}
+                  </button>
+                  {activa.estado === 'recibida' && (
+                    <>
+                      <button type="button" className="boton-primario" onClick={() => convertir(activa.solicitud_id)}>
+                        Convertir en reserva
                       </button>
-                      {s.estado === 'recibida' ? (
-                        <div className="acciones-fila">
-                          <button type="button" className="boton-primario" onClick={() => convertir(s.solicitud_id)}>
-                            Convertir en reserva
-                          </button>
-                          <input
-                            className="entrada"
-                            placeholder="Motivo del rechazo"
-                            value={motivos[s.solicitud_id] || ''}
-                            onChange={(e) => setMotivos({ ...motivos, [s.solicitud_id]: e.target.value })}
-                          />
-                          <button type="button" className="boton-secundario" onClick={() => rechazar(s.solicitud_id)}>
-                            Rechazar
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="nota-clave">Sin acciones pendientes</span>
-                      )}
-                    </td>
-                  </tr>
-                  {editando === s.solicitud_id && (
-                    <tr>
-                      <td colSpan={14}>
-                        <FormularioEdicion
-                          ruta={`/hotel/solicitudes/${s.solicitud_id}`}
-                          inicial={s}
-                          campos={[
-                            { nombre: 'huesped_nombre', etiqueta: 'Huésped', requerido: true },
-                            { nombre: 'huesped_contacto', etiqueta: 'Contacto (correo o teléfono)', requerido: true },
-                            ...(s.estado === 'recibida'
-                              ? [{ nombre: 'personas', etiqueta: 'Personas', tipo: 'number', requerido: true }] : []),
-                          ]}
-                          armar={(v) => ({
-                            huesped_nombre: v.huesped_nombre.trim(),
-                            huesped_contacto: v.huesped_contacto.trim(),
-                            personas: Number(v.personas ?? s.personas),
-                          })}
-                          alGuardar={() => { setEditando(null); cargar(estado) }}
-                          alCancelar={() => setEditando(null)}
-                        />
-                        <p className="nota-clave">Tipo, habitación y fechas no se editan aquí: cambian cupo y tarifa.</p>
-                      </td>
-                    </tr>
+                      <input
+                        className="entrada"
+                        aria-label={`Motivo de rechazo para ${activa.solicitud_id}`}
+                        placeholder="Motivo del rechazo"
+                        value={motivoRechazo}
+                        onChange={(e) => setMotivoRechazo(e.target.value)}
+                      />
+                      <button type="button" className="boton-secundario boton-peligro" onClick={() => rechazar(activa.solicitud_id)}>
+                        Rechazar
+                      </button>
+                    </>
                   )}
-                  </Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                </>
+              )}
+            </BarraContextual>
+
+            {activa && editando && (
+              <div style={{ marginBottom: '0.75rem' }}>
+                <FormularioEdicion
+                  key={activa.solicitud_id}
+                  ruta={`/hotel/solicitudes/${activa.solicitud_id}`}
+                  tituloAria={`Editar solicitud ${activa.solicitud_id}`}
+                  inicial={activa}
+                  campos={[
+                    { nombre: 'huesped_nombre', etiqueta: 'Huésped', requerido: true },
+                    { nombre: 'huesped_contacto', etiqueta: 'Contacto (correo o teléfono)', requerido: true },
+                    ...(activa.estado === 'recibida'
+                      ? [{ nombre: 'personas', etiqueta: 'Personas', tipo: 'number', requerido: true }] : []),
+                  ]}
+                  armar={(v) => ({
+                    huesped_nombre: v.huesped_nombre.trim(),
+                    huesped_contacto: v.huesped_contacto.trim(),
+                    personas: Number(v.personas ?? activa.personas),
+                  })}
+                  alGuardar={() => { setEditando(false); cargar(estado) }}
+                  alCancelar={() => setEditando(false)}
+                />
+                <p className="nota-clave">Tipo, habitación y fechas no se editan aquí: cambian cupo y tarifa.</p>
+              </div>
+            )}
+
+            <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Solicitudes de reserva (desliza para ver todas las columnas)">
+              <table className="tabla">
+                <thead>
+                  <tr>
+                    <th className="celda-selector"><span className="sr-only">Elegir</span></th>
+                    <th>Solicitud</th>
+                    <th>Tipo</th>
+                    <th>Habitación asignada</th>
+                    <th>Llegada</th>
+                    <th>Salida</th>
+                    <th>Personas</th>
+                    <th>Huésped</th>
+                    <th>RUT / Pasaporte</th>
+                    <th>Teléfono</th>
+                    <th>Correo</th>
+                    <th>Origen</th>
+                    <th>Estado</th>
+                    <th>Reserva</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map((item) => {
+                    const raw = String(item.huesped_contacto || '')
+                    const mTel = raw.match(/Tel:\s*([^·]+)/i)
+                    const mDoc = raw.match(/Doc:\s*([^·]+)/i)
+                    const parteBase = raw.split('·')[0].trim()
+                    const correo = item.huesped_correo || (parteBase.includes('@') ? parteBase : '—')
+                    const telefono = item.huesped_telefono || (mTel ? mTel[1].trim() : (!parteBase.includes('@') && parteBase ? parteBase : '—'))
+                    const documento = item.huesped_documento || (mDoc ? mDoc[1].trim() : '—')
+                    const elegida = activa?.solicitud_id === item.solicitud_id
+                    return (
+                      <tr
+                        key={item.solicitud_id}
+                        {...destacada.props(item.solicitud_id)}
+                        className="fila-seleccionable"
+                        data-seleccionada={elegida ? 'true' : 'false'}
+                        onClick={() => elegirSolicitud(item)}
+                      >
+                        <td className="celda-selector">
+                          <SelectorFila
+                            nombreGrupo="solicitud-activa"
+                            elegido={elegida}
+                            etiqueta={`Seleccionar solicitud ${item.solicitud_id} de ${item.huesped_nombre}`}
+                            alElegir={() => elegirSolicitud(item)}
+                          />
+                        </td>
+                        <td>{item.solicitud_id}</td>
+                        <td>{nombreTipo(item.tipo)}</td>
+                        <td>{item.habitacion_id || 'Al convertir'}</td>
+                        <td className="celda-fecha">{fechaATexto(item.inicio) || item.inicio}</td>
+                        <td className="celda-fecha">{fechaATexto(item.fin) || item.fin}</td>
+                        <td>{item.personas}</td>
+                        <td>{item.huesped_nombre}</td>
+                        <td>{documento}</td>
+                        <td>{telefono}</td>
+                        <td>{correo}</td>
+                        <td>{item.origen || '—'}</td>
+                        <td><span className={`reserva-estado solicitud-${item.estado}`}>{ESTADO_SOLICITUD[item.estado] || item.estado}</span></td>
+                        <td>
+                          {item.reserva_id
+                            ? <Link href={`/hotel/reservas/${item.reserva_id}`} onClick={(e) => e.stopPropagation()}>{item.reserva_id}</Link>
+                            : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )
       )}
     </MarcoHotel>
