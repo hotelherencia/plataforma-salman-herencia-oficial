@@ -14,7 +14,9 @@ import {
   useClaveOperacion,
   useSesion,
 } from '../../../../lib/api'
-import { esAdminHotel } from '../../../../lib/roles'
+import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
+import { Checklists } from '../../_componentes/checklists'
+import { ListaIncidencias, ReporteIncidencia } from '../../_componentes/incidencias'
 import { etiquetaOrigen, rangoNoches } from '../../../../lib/tipos'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 
@@ -40,6 +42,8 @@ export default function FichaHabitacion() {
   const sesion = useSesion()
   const esAdmin = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
   const [ficha, setFicha] = useState(null)
+  const [versionIncidencias, setVersionIncidencias] = useState(0)
+  const gestiona = sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
   const [errorCarga, setErrorCarga] = useState('')
   const [edicion, setEdicion] = useState({ tipo: '', capacidad: '' })
   const [motivo, setMotivo] = useState('')
@@ -364,6 +368,9 @@ export default function FichaHabitacion() {
               )}
             </section>
           )}
+          <Checklists habitacionId={habitacionId} puedeCrear={gestiona} />
+          <ReporteIncidencia habitacionId={habitacionId} alGuardar={() => setVersionIncidencias((v) => v + 1)} />
+          <ListaIncidencias habitacionId={habitacionId} puedeCerrar={gestiona} version={versionIncidencias} />
         </>
       )}
     </MarcoHotel>

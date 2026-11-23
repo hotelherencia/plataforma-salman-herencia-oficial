@@ -27,6 +27,7 @@ from .. import idempotencia
 from .. import inventario_documental
 from .. import leads as leads_mod
 from .. import observabilidad
+from .. import operacion
 from .. import politicas, recaptcha
 from .. import panel
 from .. import productos as productos_db
@@ -322,7 +323,7 @@ def consultar_indicadores(
     desde = desde or hoy
     hasta = hasta or desde + timedelta(days=1)
     solo_reales = not request.app.state.aplicacion.nucleo.empresa.es_sintetico
-    return panel.indicadores(
+    resultado = panel.indicadores(
         conexion,
         sesion.empresa_id,
         desde,
@@ -332,6 +333,10 @@ def consultar_indicadores(
         incluir_financiero=roles.es_admin_hotel(sesion.rol),
         solo_inventario_real=solo_reales,
     )
+    # #417: «Lo que necesita atención», cruzando áreas, con enlace al registro de origen.
+    resultado["atencion"] = operacion.atencion(
+        conexion, hoy, productos_db.reporte_reposicion(conexion, solo_alertas=True))
+    return resultado
 
 @router.post("/hotel/reservas")
 def confirmar_reserva(

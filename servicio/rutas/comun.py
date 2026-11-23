@@ -45,6 +45,11 @@ RUTAS_ASEO = tuple(re.compile(p) for p in (
     r"^/hotel/aseo$",
     r"^/hotel/habitaciones/[^/]+/limpieza$",
     r"^/hotel/habitaciones/[^/]+/observaciones/[^/]+/atendida$",
+    # Corte 1 (#415, #416): incidencias con foto, checklists y «En limpieza» desde el móvil.
+    r"^/hotel/habitaciones/[^/]+/en-limpieza$",
+    r"^/hotel/incidencias(/[^/]+(/(actualizacion|cierre|evidencias(/[^/]+)?))?)?$",
+    r"^/hotel/tareas(/[^/]+/(cierre|subtareas/[^/]+/marcado))?$",
+    r"^/hotel/checklists/plantillas$",
 ))
 
 

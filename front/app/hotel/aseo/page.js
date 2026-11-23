@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, mensajeDeError, MarcoHotel, useSesion } from '../../../lib/api'
 import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
+import { Checklists } from '../_componentes/checklists'
+import { ListaIncidencias, ReporteIncidencia } from '../_componentes/incidencias'
 
 const SITUACION = {
   ocupada: 'Ocupada',
@@ -31,6 +33,7 @@ export default function Aseo() {
   const [aviso, setAviso] = useState('')
   const [notas, setNotas] = useState({})
   const [soloPendientes, setSoloPendientes] = useState(false)
+  const [versionIncidencias, setVersionIncidencias] = useState(0)
 
   const cargar = useCallback(async () => {
     try {
@@ -62,6 +65,7 @@ export default function Aseo() {
   }
 
   const limpiar = (h) => enviar(`/hotel/habitaciones/${h.habitacion_id}/limpieza`, {}, `${h.habitacion_id} marcada como limpia.`)
+  const iniciar = (h) => enviar(`/hotel/habitaciones/${h.habitacion_id}/en-limpieza`, {}, `${h.habitacion_id} figura «En limpieza».`)
   const atender = (h, o) =>
     enviar(`/hotel/habitaciones/${h.habitacion_id}/observaciones/${o.observacion_id}/atendida`, {}, 'Observación atendida.')
   const verificar = (h, aprobada) => {
@@ -120,6 +124,7 @@ export default function Aseo() {
                 <span className={`reserva-estado ${h.estado_preparacion === 'sucia' ? 'estado-cancelada' : 'estado-finalizada'}`}>
                   {h.estado_preparacion}
                 </span>
+                {h.en_limpieza && <span className="reserva-estado">En limpieza{h.en_limpieza_por ? ` · ${h.en_limpieza_por}` : ''}</span>}
                 {h.mantenimiento_hoy && <span className="reserva-estado estado-cancelada">mantenimiento</span>}
               </div>
               {h.observaciones.length > 0 && (
@@ -140,6 +145,9 @@ export default function Aseo() {
                 </p>
               )}
               <div className="acciones-aseo">
+                {h.limpieza_pendiente && h.estado_preparacion === 'sucia' && !h.en_limpieza && (
+                  <button type="button" className="boton-secundario" onClick={() => iniciar(h)}>Empezar limpieza</button>
+                )}
                 {h.limpieza_pendiente && (
                   <button type="button" className="boton-primario" onClick={() => limpiar(h)}>Limpia</button>
                 )}
@@ -164,6 +172,9 @@ export default function Aseo() {
           )
         })}
       </ul>
+      <Checklists puedeCrear={anota} />
+      <ReporteIncidencia alGuardar={() => setVersionIncidencias((v) => v + 1)} />
+      <ListaIncidencias puedeCerrar={anota} version={versionIncidencias} />
     </MarcoHotel>
   )
 }

@@ -687,6 +687,10 @@ def completar_limpieza(conexion: psycopg.Connection, hotel, empresa_id: str, hab
         "UPDATE tareas_operativas SET completada_por = %s WHERE id = ANY(%s)",
         (actor, [t.id for t in pendientes]),
     )
+    # #416: terminada la limpieza, la unidad deja de figurar «En limpieza».
+    conexion.execute(
+        "UPDATE habitaciones SET en_limpieza_desde = NULL, en_limpieza_por = NULL WHERE id = %s", (habitacion_id,)
+    )
     (preparacion,) = conexion.execute(
         "SELECT estado_preparacion FROM habitaciones WHERE id = %s", (habitacion_id,)
     ).fetchone()
