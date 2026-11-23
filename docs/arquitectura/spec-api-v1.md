@@ -726,6 +726,10 @@ los compone el servidor.
 | `POST /hotel/activos/{id}/plan` | (#418) `{descripcion, cada_dias, proxima?}`: mantención preventiva periódica (por defecto la primera es hoy + `cada_dias`); no sobre activos de baja (409). Recepción o administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/mantenciones?dentro_de_dias` | (#418) Mantenciones vencidas y las que vencen en los próximos N días (14 por defecto), con `vencida`. Recepción, aseo y administración del hotel. |
 | `POST /hotel/mantenciones/{plan_id}/realizada` | (#418) `{fecha?, nota?}`: registra la mantención hecha en el historial (solo se agrega) y corre la próxima a `fecha + cada_dias`. Fecha futura o ya registrada → 409. Recepción, aseo o administración; `Idempotency-Key`. |
+| `GET /hotel/novedades?fecha` | (SPEC-NOV-01 / `#448`) Libro de novedades del día (turnos mañana/tarde/noche), mapa de cupos de estacionamiento por habitación/patente y conteos de desayunos/bebestibles. Roles recepción, caja o administración del hotel. |
+| `POST /hotel/novedades` | (SPEC-NOV-01 / `#448`) Registra una entrega de turno con resumen, desayunos servidos y detalle de bebestibles. Roles recepción, caja o administración del hotel; `Idempotency-Key`. |
+| `PUT /hotel/estacionamiento/asignacion` | (SPEC-NOV-01 / `#448`) Asigna o libera un cupo físico de estacionamiento (`1..cupos_configurados`) para una habitación/reserva/patente en una fecha. Roles recepción, caja o administración del hotel. |
+| `POST /hotel/novedades/conteos` | (SPEC-NOV-01 / `#448`) Registra un conteo operativo de desayunos o bebestibles por turno. Roles recepción, caja o administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
