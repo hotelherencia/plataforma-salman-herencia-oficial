@@ -338,7 +338,8 @@ def vista_aseo(conexion: psycopg.Connection, hoy: date) -> dict:
         " AND t.estado = 'pendiente' ORDER BY t.creado_en LIMIT 1), "
         "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia'), "
         "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'confirmada' AND r.inicio = %s), "
-        "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia' AND r.fin = %s) "
+        "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia' AND r.fin = %s), "
+        "h.en_limpieza_desde IS NOT NULL AND h.estado_preparacion = 'sucia', h.en_limpieza_por "
         "FROM habitaciones h ORDER BY h.id",
         (hoy, hoy + timedelta(days=1), hoy, hoy),
     ).fetchall()
@@ -368,6 +369,7 @@ def vista_aseo(conexion: psycopg.Connection, hoy: date) -> dict:
         habitaciones.append({
             "habitacion_id": f[0], "tipo": f[1], "estado_operativo": f[2], "estado_preparacion": f[3],
             "mantenimiento_hoy": bool(f[4]), "tarea_limpieza_id": f[5], "limpieza_pendiente": f[5] is not None,
+            "en_limpieza": bool(f[9]), "en_limpieza_por": f[10] if f[9] else None,
             "situacion": situacion, "observaciones": observaciones.get(f[0], []),
             "ultima_limpieza": ultimas.get(f[0]),
         })

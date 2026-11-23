@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (155)
+## Operaciones de esta versión (169)
 
 | Operación | Efecto |
 |---|---|
@@ -563,6 +563,20 @@ los compone el servidor.
 | `POST /hotel/reservas/{id}/habitacion` | (#361, 2026-11-18) Cambia la habitación de una reserva `confirmada` o `en_estadia` con `{habitacion_id, motivo}`; conserva la tarifa pactada. Recepción o administración del hotel. Destino fuera del cupo, sin capacidad, no preparada (en estadía) u ocupada en el rango → 409. En estadía la habitación de origen queda sucia con tarea de limpieza. Queda en `reasignaciones` y en la auditoría. La entrada (`/entrada`) acepta además `habitacion_id` para confirmar la unidad al llegar (#360) y `documento_tipo` (`rut` o `pasaporte`, validado; #367). |
 | `GET /hotel/aseo` | (#362, 2026-11-18) Lista para aseo: habitaciones con limpieza pendiente primero; situación (`ocupada`, `sale_hoy`, `llega_hoy`, `libre`), observaciones pendientes y última limpieza (quién, verificación). Sin datos del huésped ni precios. Roles aseo, recepción o administración del hotel. |
 | `POST /hotel/limpiezas/{tarea_id}/verificacion` | (#363) `{aprobada, observacion}`. Verificada → la unidad `limpia` pasa a `inspeccionada`. Rechazada (observación obligatoria) → vuelve a `sucia` con tarea nueva y la observación queda para aseo. Solo administración del hotel; ya verificada o no completada → 409. |
+| `GET /hotel/incidencias` | (#415) Incidencias por habitación o área, abiertas primero y las que bloquean la unidad antes. Filtros `estado` (`abiertas`, `abierta`, `en_curso`, `resuelta`, `cerrada`) y `habitacion_id`. Roles aseo, recepción o administración del hotel. |
+| `POST /hotel/incidencias` | (#415) `{habitacion_id? o area, descripcion, gravedad, responsable?, plazo?, costo_clp?, bloquea_disponibilidad}`. Con `bloquea_disponibilidad` la unidad sale del cupo (mantenimiento desde hoy hasta `plazo`) salvo que ya estuviera en mantenimiento. Idempotente; auditada sin datos personales. |
+| `GET /hotel/incidencias/{incidencia_id}` | (#415) Detalle con bitácora append-only (creación, estados, bloqueo, evidencias, cierre) y número de fotos. |
+| `POST /hotel/incidencias/{incidencia_id}/actualizacion` | (#415) `{estado: abierta\|en_curso\|resuelta, gravedad, responsable, plazo, costo_clp}`. `resuelta` libera la unidad si esta incidencia la había bloqueado y no queda otra que la bloquee. Cerrada → 409. |
+| `POST /hotel/incidencias/{incidencia_id}/cierre` | (#415) `{costo_clp?, nota?}`. Cierra y libera el bloqueo que aplicó. Recepción o administración; ya cerrada → 409. |
+| `POST /hotel/incidencias/{incidencia_id}/evidencias` | (#415) `{mime: image/jpeg\|png\|webp, contenido_base64}`: foto ligera desde el móvil (hasta 180 KB y 6 por incidencia; el front la reduce antes de enviar). |
+| `GET /hotel/incidencias/{incidencia_id}/evidencias/{evidencia_id}` | (#415) Devuelve la imagen (privada, sin caché compartida). |
+| `GET /hotel/tareas` | (#416) Tareas generales con subtareas y progreso, urgentes y próximas a vencer primero. Filtros `estado`, `habitacion_id`. |
+| `POST /hotel/tareas` | (#416) `{titulo, area, habitacion_id?, prioridad, vence?, responsable?, observaciones?, plantilla_id?, subtareas[{texto, obligatoria}]}`. Recepción o administración. |
+| `POST /hotel/tareas/{tarea_id}/subtareas/{subtarea_id}/marcado` | (#416) `{hecha}`: marca o desmarca una subtarea (queda quién). |
+| `POST /hotel/tareas/{tarea_id}/cierre` | (#416) Cierra la tarea; con subtareas obligatorias pendientes → 409. |
+| `GET /hotel/checklists/plantillas` | (#416) Plantillas de checklist configuradas. |
+| `POST /hotel/checklists/plantillas` | (#416) `{nombre, area, items[{texto, obligatoria}]}`. Solo administración del hotel; nombre repetido → 409. |
+| `POST /hotel/habitaciones/{habitacion_id}/en-limpieza` | (#416) Aseo toma una habitación `sucia`: figura «En limpieza» hasta que se marque limpia (no cambia `estado_preparacion`). |
 | `POST /hotel/habitaciones/{id}/observaciones` | (#363) Nota `{texto}` para aseo en una habitación. Recepción o administración del hotel. |
 | `POST /hotel/habitaciones/{id}/observaciones/{obs_id}/atendida` | (#363) Aseo (o recepción/administración) marca la observación como atendida; ya atendida → 409. |
 | `GET /hotel/avisos` | (#353, 2026-11-18) `{solicitudes_recibidas, canales_activos}`: contador para la insignia del menú y del panel (el front sondea cada 60 s) y canales de aviso encendidos (`correo`, `whatsapp`). Roles de gestión de solicitudes. |
