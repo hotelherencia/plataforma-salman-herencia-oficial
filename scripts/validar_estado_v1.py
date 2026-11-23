@@ -10,7 +10,7 @@ que gobierna HOY:
 
 - las cuatro specs gobernantes existen;
 - la tabla de operaciones de spec-api-v1 declara tantas operaciones como
-  filas tiene (el encabezado «Operaciones de esta versión (N)» es verdad);
+  filas tiene (el encabezado «Operaciones de esta versión», sin número obligatorio, no miente);
 - el tablero del backlog parsea, con estados permitidos e ids únicos;
 - los puntos de evidencia citados en el índice del backlog existen;
 - la landing apunta al front productivo y el repo no lleva `.env`;
@@ -51,14 +51,16 @@ for ruta in SPECS:
 
 # 2) Tabla de operaciones: el encabezado declara N y la tabla tiene N filas.
 spec_api = (ROOT / "docs/arquitectura/spec-api-v1.md").read_text(encoding="utf-8")
-m = re.search(r"## Operaciones de esta versión \((\d+)\)\n\n\| Operación \| Efecto \|\n\|---\|---\|\n(.*?)(?=\n## )",
+m = re.search(r"## Operaciones de esta versión(?: \((\d+)\))?\n\n\| Operación \| Efecto \|\n\|---\|---\|\n(.*?)(?=\n## )",
               spec_api, re.S)
 if m is None:
     check(False, "tabla de operaciones localizable en spec-api-v1")
 else:
-    declaradas = int(m.group(1))
     filas = len(re.findall(r"^\| `(?:GET|POST|PUT|DELETE) ", m.group(2), re.M))
-    check(declaradas == filas and declaradas > 0,
+    # El número del encabezado ya no se mantiene a mano (chocaba en cada PR); la igualdad
+    # exacta código ↔ tabla la verifica test_contrato_rutas. Si alguien lo declara, debe ser cierto.
+    declaradas = int(m.group(1)) if m.group(1) else filas
+    check(declaradas == filas and filas > 0,
           f"operaciones declaradas ({declaradas}) == filas de la tabla ({filas})")
 
 # 3) Tablero del backlog
