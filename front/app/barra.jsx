@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { api, useSesion } from '../lib/api'
 import { LOGO, NOMBRE_COMERCIAL } from '../lib/marca'
 import { esAdminPlataforma, esAseo, gestionaClientes, gestionaRecepcion, veAseo } from '../lib/roles'
-import { hayOperacionActiva, itemActivo, seccionesVisibles } from '../lib/menu-hotel'
+import { hayOperacionActiva, itemActivo, rutaInicio, seccionesVisibles } from '../lib/menu-hotel'
 import { Insignia, useContadorSolicitudes } from './hotel/_componentes/contador-solicitudes'
 
 /**
@@ -46,6 +46,7 @@ export default function BarraNav() {
     puedeVerAseo: sesion.fase === 'ok' && veAseo(sesion.usuario.rol),
     puedeVerClientes: sesion.fase === 'ok' && gestionaClientes(sesion.usuario.rol),
     soloAseo: sesion.fase === 'ok' && esAseo(sesion.usuario.rol),
+    rol: sesion.fase === 'ok' ? sesion.usuario.rol : null,
   }
   const secciones = enHotel ? seccionesVisibles(visibilidad) : []
   // #353: insignia de solicitudes por responder (recepción y administración del hotel).
@@ -102,7 +103,7 @@ export default function BarraNav() {
             Inicio
           </Link>
           <Link
-            href={visibilidad.soloAseo ? '/hotel/aseo' : '/hotel/panel'}
+            href={rutaInicio(visibilidad.rol)}
             className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}
           >
             Hotel
@@ -167,7 +168,7 @@ export default function BarraNav() {
             <Link href="/" onClick={cerrar} className={ruta === '/' ? 'nav-enlace activo' : 'nav-enlace'}>
               Inicio
             </Link>
-            <Link href={visibilidad.soloAseo ? '/hotel/aseo' : '/hotel/panel'} onClick={cerrar} className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
+            <Link href={rutaInicio(visibilidad.rol)} onClick={cerrar} className={enHotel && !operacionActiva ? 'nav-enlace activo' : 'nav-enlace'}>
               Hotel
             </Link>
             {enHotel && secciones.map((seccion) => (

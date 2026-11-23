@@ -2865,3 +2865,22 @@ a.boton-primario {
 .serie-guia { stroke: #d1d5db; stroke-dasharray: 3 3; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .serie-area { fill: rgba(23, 51, 38, 0.12); }
 .serie-trazo { fill: none; stroke: var(--verde); stroke-width: 2; }
+
+/* Vista previa del mensaje al huésped (#452) */
+.mensaje-previa {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0.4rem 0 0.8rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--superficie, #f6f5f0);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.lista-simple {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+}

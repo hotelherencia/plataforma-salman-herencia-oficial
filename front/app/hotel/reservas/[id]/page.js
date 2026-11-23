@@ -10,6 +10,7 @@ import Subnav from '../../_componentes/subnav'
 import FormularioEdicion from '../../_componentes/formulario-edicion'
 import PestanaHuespedes from '../../_componentes/pestana-huespedes'
 import BloqueGrupo from '../../_componentes/bloque-grupo'
+import MensajesHuesped from '../../_componentes/mensajes-huesped'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 import { nombreDocumento, nombreMedio } from '../../../../lib/caja'
@@ -254,6 +255,8 @@ export default function DetalleReserva() {
               </p>
             )}
           </section>
+
+          {puedeMover && <MensajesHuesped reservaId={reservaId} />}
 
           <section className="tarjeta" aria-label="Cuenta">
             <h2>Cuenta de la estadía</h2>

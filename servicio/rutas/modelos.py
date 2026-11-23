@@ -1,3 +1,4 @@
+import re
 """Modelos de entrada HTTP (pydantic), extraídos de aplicacion.py.
 
 ARC-A01 (#334): viven aparte de la fábrica de la app para que los módulos
@@ -62,6 +63,24 @@ class HuespedIn(BaseModel):
     # verificador; pasaporte alfanumérico). Sin tipo se acepta el texto
     # heredado (conversiones y clientes anteriores).
     documento_tipo: Literal["rut", "pasaporte"] | None = None
+    # #454: contacto del titular para confirmar y avisar; opcional para no romper clientes anteriores.
+    correo: str | None = Field(default=None, max_length=120)
+    telefono: str | None = Field(default=None, max_length=40)
+
+    @model_validator(mode="after")
+    def _contacto_valido(self):
+        if self.correo is not None:
+            self.correo = self.correo.strip().lower() or None
+            if self.correo and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$", self.correo):
+                raise ValueError("correo inválido")
+        if self.telefono is not None and self.telefono.strip():
+            normalizado = canal_publico.telefono_e164(self.telefono)
+            if normalizado is None:
+                raise ValueError("teléfono inválido: de 8 a 15 dígitos")
+            self.telefono = normalizado
+        else:
+            self.telefono = None
+        return self
 
     @model_validator(mode="after")
     def _documento_valido(self):
@@ -369,10 +388,9 @@ class SolicitudPublicaIn(BaseModel):
     # unidad nunca se guarda ni se devuelve al visitante.
     tipo: str | None = Field(default=None, min_length=1, max_length=50)
     habitacion_id: str | None = Field(default=None, min_length=1, max_length=50)
-    # 2026-11-20 (SPEC-06): especificar al check-in si ingresan 1 o 2 personas.
-    personas: Literal[1, 2] | None = None
     inicio: date
     fin: date
+    # #453: antes `personas` estaba declarado dos veces (Literal[1, 2] y luego int); valía solo la segunda.
     personas: int = Field(gt=0, le=canal_publico.MAX_PERSONAS)
     huesped_nombre: str = Field(min_length=1, max_length=120)
     huesped_contacto: str = Field(min_length=1, max_length=canal_publico.MAX_CONTACTO)

@@ -7,6 +7,7 @@ conversión la hace recepción por `reservas.crear_reserva` — la misma
 operación y la misma carrera por la última unidad, nunca una vía paralela.
 """
 import hashlib
+import re
 import json
 import os
 import threading
@@ -75,6 +76,30 @@ def contacto_normalizado(contacto: str) -> str:
     if len(digitos) == 9 and digitos.startswith("9"):
         return "+56" + digitos
     return "+" + digitos if digitos else base.lower()
+
+
+def telefono_e164(texto: str | None) -> str | None:
+    """+569XXXXXXXX para móviles chilenos de 9 dígitos; +dígitos (8 a 15) para el resto; None si no sirve."""
+    digitos = "".join(c for c in (texto or "") if c.isdigit())
+    if len(digitos) == 9 and digitos.startswith("9"):
+        return "+56" + digitos
+    if len(digitos) == 11 and digitos.startswith("569"):
+        return "+" + digitos
+    return "+" + digitos if 8 <= len(digitos) <= 15 else None
+
+
+def extraer_contacto(contacto: str) -> dict:
+    """Separa `correo · Tel: … · Doc: …` (o un correo o teléfono solos) en datos propios y normalizados."""
+    texto = (contacto or "").strip()
+    correo = re.search(r"[^\s·]+@[^\s·]+", texto)
+    tel = re.search(r"Tel:\s*([^·]+)", texto, re.IGNORECASE)
+    doc = re.search(r"Doc:\s*([^·]+)", texto, re.IGNORECASE)
+    telefono = telefono_e164(tel.group(1)) if tel else (None if correo else telefono_e164(texto.split("·")[0]))
+    return {
+        "huesped_correo": correo.group(0).lower() if correo else None,
+        "huesped_telefono": telefono,
+        "huesped_documento": doc.group(1).strip() if doc else None,
+    }
 
 
 def _exigir_tope(conexion: psycopg.Connection, empresa_id: str, contacto: str) -> None:
@@ -411,13 +436,17 @@ def crear_solicitud(
     # #348: tope por cliente (después del reintento idempotente, que no cuenta).
     normalizado = contacto_normalizado(contacto)
     _exigir_tope(conexion, empresa_id, normalizado)
+    datos_contacto = extraer_contacto(contacto)
     solicitud_id = f"SOL-{uuid.uuid4().hex[:12]}"
     conexion.execute(
         "INSERT INTO solicitudes (id, empresa_id, tipo, habitacion_id, inicio, fin, personas, "
-        "huesped_nombre, huesped_contacto, estado, origen, idempotency_key, cuerpo_hash, contacto_normalizado) "
-        "VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s, %s)",
+        "huesped_nombre, huesped_contacto, estado, origen, idempotency_key, cuerpo_hash, contacto_normalizado, "
+        "huesped_correo, huesped_telefono, huesped_documento) "
+        "VALUES (%s, %s, %s, NULL, %s, %s, %s, %s, %s, 'recibida', %s, %s, %s, %s, %s, %s, %s)",
         (solicitud_id, empresa_id, tipo, inicio, fin, personas,
-         nombre, contacto, origen, clave, cuerpo_hash, normalizado),
+         nombre, contacto, origen, clave, cuerpo_hash, normalizado,
+         datos_contacto["huesped_correo"], datos_contacto["huesped_telefono"],
+         datos_contacto["huesped_documento"]),
     )
     seguridad.auditar(conexion, f"publico:{solicitud_id}", "solicitud_recibida",
                       solicitud_id, "recibida")
@@ -448,7 +477,8 @@ def _motivo_sin_cupo(conexion: psycopg.Connection, tipo: str, inicio: date, fin:
 def _fila_publica(conexion: psycopg.Connection, solicitud_id: str) -> dict:
     fila = conexion.execute(
         "SELECT id, tipo, habitacion_id, inicio, fin, personas, huesped_nombre, huesped_contacto, "
-        "estado, origen, reserva_id, creado_en FROM solicitudes WHERE id = %s",
+        "estado, origen, reserva_id, creado_en, huesped_correo, huesped_telefono, huesped_documento, "
+        "contacto_verificado FROM solicitudes WHERE id = %s",
         (solicitud_id,),
     ).fetchone()
     if fila is None:
@@ -467,6 +497,10 @@ def _fila_publica(conexion: psycopg.Connection, solicitud_id: str) -> dict:
         "origen": fila[9],
         "reserva_id": fila[10],
         "creado_en": fila[11].isoformat(),
+        "huesped_correo": fila[12],
+        "huesped_telefono": fila[13],
+        "huesped_documento": fila[14],
+        "contacto_verificado": fila[15],
     }
 
 
@@ -526,11 +560,15 @@ def convertir(
     )]
     reserva = None
     ultimo_error: Exception | None = None
+    contacto_sol = conexion.execute(
+        "SELECT huesped_correo, huesped_telefono FROM solicitudes WHERE id = %s", (solicitud_id,),
+    ).fetchone() or (None, None)
     for habitacion_id in candidatas:
         try:
             reserva = reservas_db.crear_reserva(
                 conexion, empresa_id, habitacion_id, inicio, fin, nombre, None,
                 personas=personas, canal=canal_reserva,
+                huesped_correo=contacto_sol[0], huesped_telefono=contacto_sol[1],
             )
             break
         except (reservas_db.SinCupo, reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible) as error:
@@ -593,8 +631,12 @@ def editar(
     if cambiados:
         conexion.execute(
             "UPDATE solicitudes SET huesped_nombre = %s, huesped_contacto = %s, personas = %s, "
-            "contacto_normalizado = %s WHERE id = %s",
-            (nombre, contacto, personas, contacto_normalizado(contacto), solicitud_id),
+            "contacto_normalizado = %s, huesped_correo = %s, huesped_telefono = %s, huesped_documento = %s, "
+            "contacto_verificado = CASE WHEN huesped_contacto <> %s THEN FALSE ELSE contacto_verificado END "
+            "WHERE id = %s",
+            (nombre, contacto, personas, contacto_normalizado(contacto),
+             *(extraer_contacto(contacto)[k] for k in ("huesped_correo", "huesped_telefono", "huesped_documento")),
+             contacto, solicitud_id),
         )
         seguridad.auditar(conexion, actor, "solicitud_edicion", solicitud_id, ",".join(cambiados))
     return _fila_publica(conexion, solicitud_id)
