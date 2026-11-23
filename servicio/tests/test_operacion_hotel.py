@@ -97,7 +97,7 @@ class OperacionBaseTest(unittest.TestCase):
     def pagar(self, reserva_id, monto, clave_cobro, exceso=False):
         return self.cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": monto, "clave": clave_cobro, "modo": "manual", "confirmar_exceso": exceso},
+            json={"monto_clp": monto, "clave": clave_cobro, "modo": "manual", "medio": "transferencia", "confirmar_exceso": exceso},
             headers={"Idempotency-Key": self.clave()},
         )
 

@@ -74,7 +74,7 @@ class IngresosPeriodoTest(unittest.TestCase):
         p = cliente.post(
             f"/hotel/reservas/{rid}/pagos",
             # #365: algunos casos pagan de más a propósito; el exceso se confirma.
-            json={"monto_clp": monto, "clave": f"pago-{uuid.uuid4().hex[:8]}", "modo": "manual",
+            json={"monto_clp": monto, "clave": f"pago-{uuid.uuid4().hex[:8]}", "modo": "manual", "medio": "transferencia",
                   "confirmar_exceso": True},
             headers={"Idempotency-Key": self.clave()},
         )

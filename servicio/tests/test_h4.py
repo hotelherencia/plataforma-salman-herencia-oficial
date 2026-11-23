@@ -75,7 +75,7 @@ class CobroEstadiaTest(unittest.TestCase):
     def pagar(self, reserva_id, monto=100_000, clave="cob-1", modo="manual", idem="pag-1"):
         return self.cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": monto, "clave": clave, "modo": modo},
+            json={"monto_clp": monto, "clave": clave, "modo": modo, **({"medio": "transferencia"} if modo == "manual" else {})},
             headers={"Idempotency-Key": idem},
         )
 
@@ -126,7 +126,7 @@ class CobroEstadiaTest(unittest.TestCase):
         cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]})
         respuesta = cliente.post(
             f"/hotel/reservas/{rid}/pagos",
-            json={"monto_clp": 100_000, "clave": "cob-x", "modo": "manual"},
+            json={"monto_clp": 100_000, "clave": "cob-x", "modo": "manual", "medio": "transferencia"},
             headers={"Idempotency-Key": "pag-x"},
         )
         self.assertEqual(respuesta.status_code, 403)
@@ -149,7 +149,7 @@ class CobroEstadiaTest(unittest.TestCase):
 
     def test_idempotencia_del_pago_no_duplica_efecto(self):
         rid = self.reservar()
-        cuerpo = {"monto_clp": 100_000, "clave": "cob-1", "modo": "manual"}
+        cuerpo = {"monto_clp": 100_000, "clave": "cob-1", "modo": "manual", "medio": "transferencia"}
         primera = self.cliente.post(
             f"/hotel/reservas/{rid}/pagos", json=cuerpo, headers={"Idempotency-Key": "pag-1"}
         )
@@ -230,7 +230,7 @@ class CobroEstadiaTest(unittest.TestCase):
     def test_reserva_ajena_o_inexistente_responde_403(self):
         respuesta = self.cliente.post(
             "/hotel/reservas/RSV-NO-EXISTE/pagos",
-            json={"monto_clp": 100_000, "clave": "k", "modo": "manual"},
+            json={"monto_clp": 100_000, "clave": "k", "modo": "manual", "medio": "transferencia"},
             headers={"Idempotency-Key": "pag-ne"},
         )
         self.assertEqual(respuesta.status_code, 403)

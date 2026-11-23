@@ -101,7 +101,13 @@ class PoliticasDominioTest(unittest.TestCase):
         cuerpo = politicas.inicial()
         calc = politicas.calcular_recargos(cuerpo, 55000, 2, {"cama_adicional": True})
         self.assertEqual(calc["total_recargos_clp"], 0)
-        self.assertEqual(calc["avisos"][0]["motivo"], "pendiente_de_confirmar")
+        # Definición 21-11-2026: sin cunas ni camas adicionales.
+        self.assertEqual(calc["avisos"][0]["motivo"], "no_permitida")
+        # Si se habilita cama adicional pero sin precio confirmado, no inventa monto.
+        cuerpo["ninos_cama"]["cama_adicional_permitida"] = True
+        calc2 = politicas.calcular_recargos(cuerpo, 55000, 2, {"cama_adicional": True})
+        self.assertEqual(calc2["total_recargos_clp"], 0)
+        self.assertEqual(calc2["avisos"][0]["motivo"], "pendiente_de_confirmar")
 
     def test_publica_oculta_pasos_internos(self):
         vista = politicas.vista_publica({

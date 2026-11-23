@@ -176,10 +176,29 @@ class CajaContableTest(unittest.TestCase):
         self.assertIsNone(r.json()["turno_id"])  # transferencia sin turno: igual queda en el diario
         mov = self.caja.get("/hotel/caja/movimientos").json()["movimientos"]
         self.assertEqual([(m["medio"], m["monto_clp"]) for m in mov], [("transferencia", 1000)])
-        # Sin medio (clientes anteriores): no_informado y documento pendiente.
+        # #401: pagos manuales nuevos exigen medio obligatorio (422 si falta).
         r = self.pagar(rid, 500)
-        self.assertEqual(r.status_code, 201, r.text)
-        self.assertEqual((r.json()["medio"], r.json()["documento_tipo"]), ("no_informado", "pendiente"))
+        self.assertEqual(r.status_code, 422, r.text)
+        self.assertIn("medio de pago obligatorio", r.json()["detail"].lower())
+        # Lectura histórica: filas preexistentes con medio='no_informado' siguen siendo legibles.
+        with psycopg.connect(URL_TEST) as conn:
+            conn.execute(
+                "INSERT INTO pagos (id, reserva_id, monto_clp, clave, modo, estado, medio, documento_tipo, fecha_contable, actor) "
+                "VALUES ('PAG-HIST-001', %s, 500, 'hist-no-inf', 'manual', 'confirmado', 'no_informado', 'pendiente', %s, 'hist')",
+                (rid, HOY),
+            )
+            conn.commit()
+        caja_hist = self.caja.get(f"/hotel/caja?fecha={HOY.isoformat()}")
+        self.assertEqual(caja_hist.status_code, 200, caja_hist.text)
+        self.assertEqual(caja_hist.json()["por_medio"].get("no_informado"), 500)
+        con_hist = self.caja.get(f"/hotel/caja/conciliacion?fecha={HOY.isoformat()}")
+        self.assertEqual(con_hist.status_code, 200, con_hist.text)
+        self.assertEqual(con_hist.json()["cobros"]["por_medio"].get("no_informado"), 500)
+        # Validación pura de negocio (sin HTTP): exige medio explícito.
+        with psycopg.connect(URL_TEST) as conn:
+            for malo in ({}, {"medio": None}, {"medio": "no_informado"}):
+                with self.assertRaises(contabilidad.DatosCajaInvalidos):
+                    contabilidad.validar_datos_pago(conn, EMPRESA, malo)
 
     def test_anticipo_y_caja_del_dia_en_hora_de_chile(self):
         futura = self.reservar(inicio=HOY + timedelta(days=10), con_cargo=False)

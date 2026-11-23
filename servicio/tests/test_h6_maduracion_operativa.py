@@ -90,7 +90,7 @@ class MaduracionOperativaTest(unittest.TestCase):
     def pagar(self, reserva_id, monto, clave="cob-1", idem="pag-1", confirmar_exceso=False):
         return self.cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": monto, "clave": clave, "modo": "manual", "confirmar_exceso": confirmar_exceso},
+            json={"monto_clp": monto, "clave": clave, "modo": "manual", "medio": "transferencia", "confirmar_exceso": confirmar_exceso},
             headers={"Idempotency-Key": idem},
         )
 

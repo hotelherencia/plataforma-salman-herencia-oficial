@@ -109,7 +109,7 @@ class OfertaReservaDominioTest(unittest.TestCase):
         self.assertEqual(i["tipo"], "doble")
         self.assertEqual(i["tarifa_noche_clp"], 40000)
         self.assertEqual(i["total_clp"], 40000 + 70000 + 70000)
-        self.assertIn("48 horas", i["politica_cancelacion"])
+        self.assertIn("24 horas", i["politica_cancelacion"])
         self.assertIn("vigente_hasta", i)
 
     def test_oferta_no_incluye_unidad_ocupada_en_el_rango(self):

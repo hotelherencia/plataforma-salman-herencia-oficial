@@ -115,14 +115,14 @@ class AvisosCorreoTest(CanalPublicoBaseTest):
                                   headers={"Idempotency-Key": self.clave()})
         self.assertEqual(cargo.status_code, 201, cargo.text)
         pago = self.cliente.post(f"/hotel/reservas/{rid}/pagos",
-                                 json={"monto_clp": 10000, "clave": "c-1", "modo": "manual"},
+                                 json={"monto_clp": 10000, "clave": "c-1", "modo": "manual", "medio": "transferencia"},
                                  headers={"Idempotency-Key": self.clave()})
         self.assertEqual(pago.status_code, 201, pago.text)
         pagos = self.eventos("pago_registrado")
         self.assertEqual([p[1] for p in pagos], [pago.json()["pago_id"]])
         self.assertEqual((pagos[0][2]["monto_clp"], pagos[0][2]["tipo_pago"], pagos[0][2]["reserva_id"]), (10000, "parcial", rid))
         # pago repetido con la misma clave de cobro: no hay segundo evento
-        self.cliente.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 10000, "clave": "c-1", "modo": "manual"},
+        self.cliente.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 10000, "clave": "c-1", "modo": "manual", "medio": "transferencia"},
                           headers={"Idempotency-Key": self.clave()})
         self.assertEqual(len(self.eventos("pago_registrado")), 1)
         self.app.state.avisos.despachar()

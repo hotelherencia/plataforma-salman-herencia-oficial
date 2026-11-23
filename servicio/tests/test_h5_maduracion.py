@@ -166,7 +166,7 @@ class MaduracionTest(unittest.TestCase):
         )
         self.cliente.post(
             f"/hotel/reservas/{rid}/pagos",
-            json={"monto_clp": 100_000, "clave": "cob-1", "modo": "manual"},
+            json={"monto_clp": 100_000, "clave": "cob-1", "modo": "manual", "medio": "transferencia"},
             headers={"Idempotency-Key": "pag-1"},
         )
         with psycopg.connect(URL_TEST) as conexion:
@@ -238,7 +238,7 @@ class ReinicioTest(unittest.TestCase):
                  {"concepto": "Alojamiento 2 noches", "monto_clp": 100_000},
                  cookies={"Cookie": galleta}, idempotency_key="cgo-reinicio")
             http("POST", f"/hotel/reservas/{creada['reserva_id']}/pagos",
-                 {"monto_clp": 100_000, "clave": "cob-1", "modo": "manual"},
+                 {"monto_clp": 100_000, "clave": "cob-1", "modo": "manual", "medio": "transferencia"},
                  cookies={"Cookie": galleta}, idempotency_key="pag-reinicio")
             proceso_a.terminate()
             proceso_a.wait(timeout=10)

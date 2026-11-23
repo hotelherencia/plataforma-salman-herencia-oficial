@@ -292,7 +292,7 @@ class CancelacionEstadiaTest(unittest.TestCase):
         self.assertEqual(
             self.cliente.post(
                 f"/hotel/reservas/{rid}/pagos",
-                json={"monto_clp": 60_000, "clave": "cob-inv-1", "modo": "manual", "confirmar_exceso": True},  # cuenta vacía (ADP-4): el pago excede el saldo
+                json={"monto_clp": 60_000, "clave": "cob-inv-1", "modo": "manual", "medio": "transferencia", "confirmar_exceso": True},  # cuenta vacía (ADP-4): el pago excede el saldo
                 headers={"Idempotency-Key": "pag-inv-1"},
             ).status_code,
             201,

@@ -91,7 +91,7 @@ class Base(unittest.TestCase):
     def pagar(self, rid, monto, cliente=None, **extra):
         return (cliente or self.cliente).post(
             f"/hotel/reservas/{rid}/pagos", headers=self.idem(),
-            json={"monto_clp": monto, "clave": f"c-{uuid.uuid4().hex[:6]}", "modo": "manual", **extra})
+            json={"monto_clp": monto, "clave": f"c-{uuid.uuid4().hex[:6]}", "modo": "manual", "medio": "transferencia", **extra})
 
     def entrar(self, rid):
         with a_las(HOY):
@@ -223,7 +223,7 @@ class ImputacionTest(Base):
 
     def test_un_reintento_con_la_misma_clave_no_imputa_dos_veces(self):
         rid = self.reservar()
-        cuerpo = {"monto_clp": 30000, "clave": "misma", "modo": "manual"}
+        cuerpo = {"monto_clp": 30000, "clave": "misma", "modo": "manual", "medio": "transferencia"}
         for _ in range(2):
             self.cliente.post(f"/hotel/reservas/{rid}/pagos", json=cuerpo, headers=self.idem())
         self.assertEqual(self.sql("SELECT count(*) FROM imputaciones_pago")[0][0], 1)

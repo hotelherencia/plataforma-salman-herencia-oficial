@@ -95,7 +95,7 @@ class ForensePruebaGTest(unittest.TestCase):
             rp = self.cliente.post(
                 f"/hotel/reservas/{rid}/pagos",
                 headers={**self.csrf, "Idempotency-Key": f"p-{uuid.uuid4().hex[:8]}"},
-                json={"monto_clp": monto, "clave": f"pago-g-{idx}", "modo": "manual", "confirmar_exceso": exc},
+                json={"monto_clp": monto, "clave": f"pago-g-{idx}", "modo": "manual", "medio": "transferencia", "confirmar_exceso": exc},
             )
             self.assertEqual(rp.status_code, 201, rp.text)
 

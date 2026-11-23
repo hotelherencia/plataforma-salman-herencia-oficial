@@ -109,40 +109,37 @@ INICIAL: dict[str, Any] = {
     ),
     "minimo_noches": _bloque(NO_DEFINIDO, noches=None, nota_confirmacion="No está publicado un mínimo de noches."),
     "ninos_cama": _bloque(
-        NO_DEFINIDO,
-        edad_nino_hasta=None,
+        CONFIRMADO,
+        edad_nino_hasta=7,
         recargo_nino=None,
         recargo_persona_extra_clp=None,
-        cama_adicional_permitida=None,
+        cama_adicional_permitida=False,
         recargo_cama_adicional=None,
         nota_confirmacion=(
-            "No está confirmado el precio de persona extra, la política de niños "
-            "ni el recargo por cama adicional."
+            "Ratificado por Administración (21-11-2026): desde los 8 años cuenta como persona "
+            "(edad_nino_hasta=7); sin cunas ni camas adicionales."
         ),
     ),
     "mascotas": _bloque(
-        NO_DEFINIDO,
-        se_aceptan=None,
+        CONFIRMADO,
+        se_aceptan=True,
         recargo=None,
-        nota_confirmacion="No está confirmado si se aceptan mascotas.",
+        nota_confirmacion="Ratificado por Administración (21-11-2026): mascotas pequeñas permitidas sin costo adicional (daños a cargo del huésped).",
     ),
     "desayuno": _bloque(
         CONFIRMADO,
         incluido=True,
         tipo="buffet",
-        horario_desde=None,
-        horario_hasta=None,
-        nota="Desayuno buffet incluido (publicado). El horario del desayuno no está publicado.",
+        horario_desde="07:00",
+        horario_hasta="10:00",
+        nota="Desayuno buffet incluido (Lun–Sáb 07:00–10:00, Dom 08:00–11:00; opción vegetariana/sin gluten con aviso previo).",
     ),
     "estacionamiento": _bloque(
-        PENDIENTE,
+        CONFIRMADO,
         disponible=True,
-        con_costo=None,
+        con_costo=False,
         recargo=None,
-        nota_confirmacion=(
-            "El estacionamiento aparece como servicio del hotel. "
-            "No está confirmado si tiene costo."
-        ),
+        nota_confirmacion="Ratificado por Administración (21-11-2026): estacionamiento incluido en la tarifa (~14 cupos interior y frontis, reservable).",
     ),
     "medios_pago": _bloque(
         CONFIRMADO,

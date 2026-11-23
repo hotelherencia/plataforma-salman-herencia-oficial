@@ -91,7 +91,7 @@ class ReconciliacionBaseTest(unittest.TestCase):
     def pagar(self, reserva_id, monto):
         r = self.cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": monto, "clave": f"cobro-{uuid.uuid4().hex[:8]}", "modo": "manual"},
+            json={"monto_clp": monto, "clave": f"cobro-{uuid.uuid4().hex[:8]}", "modo": "manual", "medio": "transferencia"},
             headers={"Idempotency-Key": self.clave()},
         )
         self.assertEqual(r.status_code, 201, r.text)
