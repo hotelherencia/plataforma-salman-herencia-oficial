@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (169)
+## Operaciones de esta versión (171)
 
 | Operación | Efecto |
 |---|---|
@@ -572,6 +572,8 @@ los compone el servidor.
 | `GET /hotel/incidencias/{incidencia_id}/evidencias/{evidencia_id}` | (#415) Devuelve la imagen (privada, sin caché compartida). |
 | `GET /hotel/tareas` | (#416) Tareas generales con subtareas y progreso, urgentes y próximas a vencer primero. Filtros `estado`, `habitacion_id`. |
 | `POST /hotel/tareas` | (#416) `{titulo, area, habitacion_id?, prioridad, vence?, responsable?, observaciones?, plantilla_id?, subtareas[{texto, obligatoria}]}`. Recepción o administración. |
+| `POST /hotel/tareas/{tarea_id}/actualizacion` | (#426) `{titulo?, prioridad?, vence?, responsable?, observaciones?}`. Recepción o administración; tarea completada o sin cambios → 409. |
+| `POST /hotel/tareas/{tarea_id}/subtareas` | (#426) `{texto, obligatoria}`: agrega una subtarea a una tarea pendiente (máximo 40). Recepción o administración. |
 | `POST /hotel/tareas/{tarea_id}/subtareas/{subtarea_id}/marcado` | (#416) `{hecha}`: marca o desmarca una subtarea (queda quién). |
 | `POST /hotel/tareas/{tarea_id}/cierre` | (#416) Cierra la tarea; con subtareas obligatorias pendientes → 409. |
 | `GET /hotel/checklists/plantillas` | (#416) Plantillas de checklist configuradas. |

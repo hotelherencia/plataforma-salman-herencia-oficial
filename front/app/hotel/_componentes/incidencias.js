@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, mensajeDeError } from '../../../lib/api'
 import { fotoLigera } from '../../../lib/imagen'
+import { ETIQUETA_ESTADO_INCIDENCIA, ETIQUETA_GRAVEDAD, etiqueta } from '../../../lib/operacion-etiquetas'
 
-const GRAVEDADES = [['baja', 'Baja'], ['media', 'Media'], ['alta', 'Alta'], ['critica', 'Crítica']]
-const ESTADOS = { abierta: 'Abierta', en_curso: 'En curso', resuelta: 'Resuelta', cerrada: 'Cerrada' }
+const GRAVEDADES = Object.entries(ETIQUETA_GRAVEDAD)
 
 function clave(prefijo) {
   return `${prefijo}-${crypto.randomUUID().slice(0, 12)}`
@@ -133,7 +133,7 @@ export function ListaIncidencias({ habitacionId, puedeCerrar, version }) {
       <ul className="lista-simple">
         {(items || []).map((i) => (
           <li key={i.incidencia_id}>
-            <strong>{i.habitacion_id || i.area}</strong> · {i.gravedad} · {ESTADOS[i.estado]}
+            <strong>{i.habitacion_id || i.area}</strong> · {etiqueta(ETIQUETA_GRAVEDAD, i.gravedad)} · {etiqueta(ETIQUETA_ESTADO_INCIDENCIA, i.estado)}
             {i.bloqueo_activo && ' · bloquea la habitación'}
             {i.evidencias > 0 && ` · ${i.evidencias} foto${i.evidencias > 1 ? 's' : ''}`}
             <br />

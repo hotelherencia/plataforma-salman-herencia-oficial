@@ -268,6 +268,11 @@ def indicadores(
         "AND habitacion_id = ANY(%s)",
         (ids,),
     ).fetchone()
+    (en_limpieza,) = conexion.execute(
+        "SELECT count(*) FROM habitaciones WHERE id = ANY(%s) AND en_limpieza_desde IS NOT NULL "
+        "AND estado_preparacion = 'sucia'",
+        (ids,),
+    ).fetchone()
     contar = lambda predicado: sum(1 for h in habitaciones if predicado(h))  # noqa: E731
     hab = "habitaciones (estado actual)"
     situacion = {
@@ -292,6 +297,8 @@ def indicadores(
                                           "estado_preparacion = sucia", hab),
         "limpiezas_pendientes": _indicador(limpiezas, "tareas", "tareas de limpieza pendientes",
                                            "tareas_operativas"),
+        "habitaciones_en_limpieza": _indicador(en_limpieza, "unidades",
+                                               "sucia con limpieza iniciada por aseo (en_limpieza_desde)", hab),
         "en_mantenimiento": _indicador(contar(lambda h: _mantenimiento_en(h, hoy, hoy)), "unidades",
                                        "mantenimiento vigente hoy (#349)", hab),
         "fuera_de_servicio": _indicador(contar(lambda h: h["estado_operativo"] == "fuera_de_servicio"), "unidades",

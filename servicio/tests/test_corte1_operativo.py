@@ -232,6 +232,39 @@ class Corte1OperativoTest(unittest.TestCase):
         self.assertFalse(habitaciones["HAB-ASEO-1"]["en_limpieza"])
         self.assertEqual(habitaciones["HAB-ASEO-1"]["estado_preparacion"], "limpia")
 
+    # --- #426 ---
+    def test_426_editar_tarea_y_agregar_subtareas(self):
+        t = self.admin.post("/hotel/tareas", json={"titulo": "Lavandería", "area": "lavanderia",
+                                                    "subtareas": [{"texto": "Lavar sábanas"}]}, headers=self.idem()).json()
+        tid = t["tarea_id"]
+        r = self.admin.post(f"/hotel/tareas/{tid}/actualizacion",
+                            json={"prioridad": "urgente", "responsable": "turno tarde", "vence": str(HOY)}, headers=self.idem())
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual((r.json()["prioridad"], r.json()["responsable"]), ("urgente", "turno tarde"))
+        self.assertEqual(self.admin.post(f"/hotel/tareas/{tid}/actualizacion", json={}, headers=self.idem()).status_code, 409)
+        a = self.admin.post(f"/hotel/tareas/{tid}/subtareas", json={"texto": "Doblar toallas"}, headers=self.idem())
+        self.assertEqual(a.status_code, 200, a.text)
+        self.assertEqual([s["texto"] for s in a.json()["subtareas"]], ["Lavar sábanas", "Doblar toallas"])
+        self.assertEqual(a.json()["obligatorias_pendientes"], 2)
+        self.assertEqual(self.aseo.post(f"/hotel/tareas/{tid}/subtareas", json={"texto": "No debería"}, headers=self.idem()).status_code, 403)
+        for sub in a.json()["subtareas"]:
+            self.admin.post(f"/hotel/tareas/{tid}/subtareas/{sub['subtarea_id']}/marcado", json={"hecha": True}, headers=self.idem())
+        self.assertEqual(self.admin.post(f"/hotel/tareas/{tid}/cierre", headers=self.idem()).status_code, 200)
+        self.assertEqual(self.admin.post(f"/hotel/tareas/{tid}/subtareas", json={"texto": "Tarde"}, headers=self.idem()).status_code, 409)
+        self.assertEqual(self.admin.post(f"/hotel/tareas/{tid}/actualizacion", json={"titulo": "Otra"}, headers=self.idem()).status_code, 409)
+
+    def test_426_indicador_habitaciones_en_limpieza(self):
+        self.ensuciar("HAB-ASEO-1")
+        self.ensuciar("HAB-ASEO-2")
+        hoy = self.admin.get("/hotel/indicadores").json()["hoy"]
+        self.assertEqual(hoy["habitaciones_en_limpieza"]["valor"], 0)
+        self.aseo.post("/hotel/habitaciones/HAB-ASEO-1/en-limpieza", headers=self.idem())
+        hoy = self.admin.get("/hotel/indicadores").json()["hoy"]
+        self.assertEqual(hoy["habitaciones_en_limpieza"]["valor"], 1)
+        self.assertEqual(hoy["habitaciones_sucias"]["valor"], 2)
+        self.limpiar("HAB-ASEO-1")
+        self.assertEqual(self.admin.get("/hotel/indicadores").json()["hoy"]["habitaciones_en_limpieza"]["valor"], 0)
+
     # --- #417 ---
     def test_417_atencion_cruza_areas_con_enlaces(self):
         ayer = HOY - timedelta(days=1)

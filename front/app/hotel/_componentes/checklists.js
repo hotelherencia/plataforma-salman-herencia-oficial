@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { api, mensajeDeError } from '../../../lib/api'
+import { ETIQUETA_AREA, ETIQUETA_PRIORIDAD, etiqueta, progresoSubtareas } from '../../../lib/operacion-etiquetas'
 
-const AREAS = [
-  ['general', 'General'], ['limpieza', 'Limpieza'], ['banos', 'Baños'],
-  ['lavanderia', 'Lavandería'], ['desayunos', 'Desayunos'], ['mantencion', 'Mantención'],
-]
+const AREAS = Object.entries(ETIQUETA_AREA)
+const PRIORIDADES = Object.entries(ETIQUETA_PRIORIDAD)
 
 function clave(prefijo) {
   return `${prefijo}-${crypto.randomUUID().slice(0, 12)}`
@@ -64,8 +63,8 @@ export function Checklists({ habitacionId, puedeCrear }) {
       <ul className="lista-simple">
         {(items || []).map((t) => (
           <li key={t.tarea_id}>
-            <strong>{t.titulo}</strong> · {t.prioridad}{t.vence ? ` · vence ${t.vence}` : ''}
-            {t.progreso.total > 0 && ` · ${t.progreso.hechas}/${t.progreso.total}`}
+            <strong>{t.titulo}</strong> · {etiqueta(ETIQUETA_PRIORIDAD, t.prioridad)}{t.vence ? ` · vence ${t.vence}` : ''}{t.responsable ? ` · ${t.responsable}` : ''}
+            {t.progreso.total > 0 && ` · ${progresoSubtareas(t.subtareas).hechas}/${t.progreso.total}`}
             <ul className="lista-simple">
               {t.subtareas.map((s) => (
                 <li key={s.subtarea_id}>
@@ -76,6 +75,27 @@ export function Checklists({ habitacionId, puedeCrear }) {
                 </li>
               ))}
             </ul>
+            {puedeCrear && (
+              <div className="acciones-aseo">
+                <select className="entrada" aria-label={`Prioridad de ${t.titulo}`} value={t.prioridad}
+                  onChange={(e) => enviar(`/hotel/tareas/${t.tarea_id}/actualizacion`, { prioridad: e.target.value })}>
+                  {PRIORIDADES.map(([v, x]) => <option key={v} value={v}>{x}</option>)}
+                </select>
+                <input className="entrada" aria-label={`Responsable de ${t.titulo}`} placeholder="Responsable"
+                  defaultValue={t.responsable || ''}
+                  onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== (t.responsable || '') &&
+                    enviar(`/hotel/tareas/${t.tarea_id}/actualizacion`, { responsable: e.target.value.trim() })} />
+                <input className="entrada" aria-label={`Agregar subtarea a ${t.titulo}`} placeholder="Agregar subtarea y Enter"
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    const texto = e.currentTarget.value.trim()
+                    if (texto.length < 2) return
+                    e.currentTarget.value = ''
+                    enviar(`/hotel/tareas/${t.tarea_id}/subtareas`, { texto, obligatoria: true })
+                  }} />
+              </div>
+            )}
             <button type="button" className="boton-secundario" disabled={t.obligatorias_pendientes > 0} onClick={() => cerrar(t)}>
               {t.obligatorias_pendientes > 0 ? `Faltan ${t.obligatorias_pendientes} obligatorias` : 'Completar tarea'}
             </button>

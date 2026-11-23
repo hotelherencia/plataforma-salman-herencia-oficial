@@ -68,6 +68,13 @@ export const EXPLICACIONES = {
     noCuenta: 'Las limpias o ya revisadas.',
     ejemplo: 'Tras 3 Salidas sin limpiar, el panel muestra 3.',
   },
+  habitaciones_en_limpieza: {
+    mide: 'Cuántas habitaciones está limpiando el personal de aseo en este momento.',
+    formula: 'En limpieza = habitaciones sucias cuya limpieza ya fue iniciada con «Empezar limpieza».',
+    cuenta: 'Habitaciones sucias que aseo ya tomó y todavía no marca como limpias.',
+    noCuenta: 'Las sucias sin iniciar y las ya limpias o inspeccionadas.',
+    ejemplo: 'Si aseo empezó 2 habitaciones recién desocupadas, el panel muestra 2.',
+  },
   limpiezas_pendientes: {
     mide: 'Cuántas tareas de limpieza siguen por hacer.',
     formula: 'Limpiezas pendientes = tareas de limpieza en estado pendiente.',

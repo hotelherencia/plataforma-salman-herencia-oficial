@@ -39,6 +39,7 @@ const HABITACIONES = [
   ['habitaciones_vendibles', 'Vendibles'],
   ['habitaciones_ocupadas', 'Ocupadas ahora'],
   ['habitaciones_sucias', 'Sucias'],
+  ['habitaciones_en_limpieza', 'En limpieza'],
   ['limpiezas_pendientes', 'Limpiezas pendientes'],
   ['en_mantenimiento', 'En mantenimiento'],
   ['fuera_de_servicio', 'Fuera de servicio'],
