@@ -13,6 +13,7 @@ import {
 } from '../../../lib/caja'
 import css from './operacion.module.css'
 import cc from './caja.module.css'
+import ContableMensual from './contable-mensual'
 
 const SIN_CONEXION = 'No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.'
 
@@ -581,6 +582,7 @@ export function PestanaCierreDiario({ esAdmin }) {
           </div>
         </section>
       )}
+      <ContableMensual fechaDia={fecha} esAdmin={esAdmin} />
     </>
   )
 }

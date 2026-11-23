@@ -159,18 +159,31 @@ export const EXPLICACIONES = {
     noCuenta: 'Reservas creadas antes, aunque se alojen en el periodo.',
     ejemplo: '39 reservas creadas: 27 confirmadas, 9 canceladas y 3 finalizadas.',
   },
+  ingreso_alojamiento_clp: {
+    mide: 'Cuánto ingreso de alojamiento se devengó por las noches realmente alojadas del periodo.',
+    formula: 'Ingreso de alojamiento = suma de la tarifa congelada de cada noche alojada hasta hoy.',
+    cuenta: 'Noches con huésped en casa o finalizadas, con IVA incluido según el precio congelado al confirmar.',
+    noCuenta: 'Noches futuras, reservas sin Llegada, canceladas ni consumos extras.',
+    ejemplo: '6 noches alojadas a $60.000 por noche = $360.000.',
+  },
+  adr_clp: {
+    mide: 'Tarifa promedio por noche vendida (ADR) sobre las estadías reales del periodo.',
+    formula: 'Tarifa promedio diaria = ingreso de alojamiento devengado ÷ noches ocupadas.',
+    cuenta: 'Solo noches efectivamente alojadas (estadías en curso o finalizadas) con precio congelado e IVA incluido.',
+    noCuenta: 'Noches futuras ni habitaciones vacías. Si no hubo noches ocupadas se muestra «sin muestra».',
+    ejemplo: '$360.000 en 6 noches ocupadas = $60.000 por noche.',
+  },
+  revpar_clp: {
+    mide: 'Ingreso de alojamiento por habitación disponible (RevPAR) en las noches del periodo hasta hoy.',
+    formula: 'Ingreso por habitación disponible = ingreso de alojamiento devengado ÷ unidades-noche hasta hoy.',
+    cuenta: 'El ingreso real de alojamiento repartido entre todas las noches-habitación en servicio del periodo.',
+    noCuenta: 'Habitaciones fuera de servicio ni noches futuras. Sin muestra en el periodo se muestra «sin muestra».',
+    ejemplo: '$360.000 ÷ 15 unidades-noche = $24.000 por habitación disponible.',
+  },
 }
 
 /** Indicadores estándar de la industria que el panel todavía no calcula. */
 export const AUN_NO_DISPONIBLES = [
-  {
-    nombre: 'Tarifa promedio por noche vendida acumulada del periodo (ADR)',
-    texto: 'Ya se calcula por día en Caja y pagos → Cierre diario. El acumulado multi-día con comparación de periodos llega en la fase de reportería ejecutiva.',
-  },
-  {
-    nombre: 'Ingreso por habitación disponible acumulado del periodo (RevPAR)',
-    texto: 'Ya se calcula por día en Caja y pagos → Cierre diario. El acumulado multi-día con comparación de periodos llega en la fase de reportería ejecutiva.',
-  },
   {
     nombre: 'No se presentó',
     texto: 'La plataforma aún no tiene ese estado: esas reservas aparecen en «Llegadas atrasadas sin registrar».',

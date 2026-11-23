@@ -227,11 +227,6 @@ def _conteo_reservas(registros: list[tuple[str, str | None]] | list[str], unidad
 
 NO_DISPONIBLES = [
     {
-        "indicador": "ADR y RevPAR",
-        "motivo": "requieren el reconocimiento de ingreso por noche; el precio noche a noche quedó resuelto "
-                  "(#305, 2026-11-06) pero la fórmula de ingreso reconocido sigue sin decidir (D-IND-02).",
-    },
-    {
         "indicador": "pagos del periodo",
         "motivo": "DECISIÓN PENDIENTE D-IND-02; los pagos del día están en Caja (caja y administrador), sin conciliar.",
     },
@@ -450,6 +445,42 @@ def indicadores(
                 "misma base percibida que la recaudación del periodo",
             ),
             "por_canal": por_canal,
+        }
+        # #395 / KPI-002 (Contable 2.5): indicadores ejecutivos reales devengados (null = sin muestra).
+        from . import contable_avanzado
+        ej = contable_avanzado.indicadores_ejecutivos(
+            conexion, empresa_id, desde, hasta, hoy, tipo,
+            solo_inventario_real=solo_inventario_real,
+        )
+        periodo["ingreso_alojamiento_clp"] = {
+            **_indicador(
+                ej["ingreso_alojamiento_clp"], "CLP",
+                "suma de tarifas congeladas por noche alojada (en estadía o finalizada) hasta hoy",
+                "reserva_noches y reservas",
+                "null si el periodo no tiene noches pasadas o vigentes; con IVA incluido",
+            ),
+            "neto_clp": ej["ingreso_alojamiento_neto_clp"],
+            "iva_pct": ej["iva_pct"],
+        }
+        periodo["adr_clp"] = {
+            **_indicador(
+                ej["adr_clp"], "CLP",
+                "ingreso_alojamiento_clp / noches_ocupadas",
+                "reserva_noches y reservas",
+                "null cuando no hay noches ocupadas en el periodo (sin muestra, nunca cero inventado)",
+            ),
+            "neto_clp": ej["adr_neto_clp"],
+            "iva_pct": ej["iva_pct"],
+        }
+        periodo["revpar_clp"] = {
+            **_indicador(
+                ej["revpar_clp"], "CLP",
+                "ingreso_alojamiento_clp / unidades_noche_pasadas",
+                "reserva_noches, reservas y habitaciones",
+                "null cuando no hay unidades-noche en el periodo (sin muestra, nunca cero inventado)",
+            ),
+            "neto_clp": ej["revpar_neto_clp"],
+            "iva_pct": ej["iva_pct"],
         }
     return {
         "fecha_corte": hoy.isoformat(),
