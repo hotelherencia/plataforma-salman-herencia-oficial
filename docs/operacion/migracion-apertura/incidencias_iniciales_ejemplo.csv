@@ -1,0 +1,5 @@
+codigo_externo,habitacion_id,area,descripcion,gravedad,responsable,plazo,costo_clp,bloquea_disponibilidad
+MNT-AP-001,HAB-10,,Revisión de voltaje y alimentación eléctrica de equipo A/C en habitación 10,alta,Mantenimiento,2026-12-20,,false
+MNT-AP-002,HAB-02,,Reparación de filtración en ducha y sellado de baño habitación 2,alta,Gasfitería,2026-12-20,,false
+MNT-AP-003,,lavanderia,Revisión de desagüe y techumbre en patio de lavandería,media,Mantenimiento,2026-12-28,,false
+MNT-AP-004,,mantencion,Mantención preventiva y revisión de presión del motor de agua principal,alta,Mantenimiento,2026-12-22,,false

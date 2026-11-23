@@ -1,0 +1,13 @@
+codigo,nombre,categoria,bodega_codigo,stock_inicial,stock_minimo,precio_clp,costo_clp,activo
+LAV-SAB-2P,Sábana 2 plazas algodón,extra,lavanderia,34,12,1,12000,false
+LAV-TOA-BAN,Toalla de baño grande,extra,lavanderia,50,20,1,6500,false
+LAV-FUN-ALM,Funda de almohada estándar,extra,lavanderia,60,24,1,3200,false
+ASEO-CLOR-5L,Cloro gel bidón 5 L,extra,insumos_aseo,6,2,1,4500,false
+ASEO-DET-5L,Detergente líquido ropa 5 L,extra,insumos_aseo,8,3,1,8900,false
+ASEO-PAP-HIG,Papel higiénico doble hoja (rollo),extra,insumos_aseo,96,36,1,450,false
+DES-CAFE-GR,Café en grano 1 kg,cafeteria,insumos_desayuno,5,2,1,16900,false
+DES-LECH-1L,Leche entera UHT 1 L,cafeteria,insumos_desayuno,24,12,1,1150,false
+DES-PAN-MOL,Pan de molde integral (bolsa),cafeteria,insumos_desayuno,10,4,1,2400,false
+COC-ACEI-1L,Aceite maravilla 1 L,cafeteria,cocina,8,3,1,2300,false
+COC-HUEV-30,Huevos bandeja 30 unidades,cafeteria,cocina,4,2,1,7800,false
+COC-GAS-15K,Cilindro gas licuado 15 kg,extra,cocina,2,1,1,26500,false
