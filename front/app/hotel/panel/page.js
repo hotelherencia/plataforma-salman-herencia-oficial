@@ -12,6 +12,7 @@ import Mantenciones from '../_componentes/mantenciones'
 import Comunicados from '../_componentes/comunicados'
 import Turnos from '../_componentes/turnos'
 import Biblioteca from '../_componentes/biblioteca'
+import LibroNovedades from '../_componentes/libro-novedades'
 import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 import { nombreTipo } from '../../reservar/continuidad'
@@ -185,6 +186,9 @@ export default function Panel() {
           <Mantenciones puedeGestionar={gestionaRecepcion(sesion.usuario.rol)} />
           <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
           <Turnos usuario={sesion.usuario.usuario} puedeAdministrar={esAdminHotel(sesion.usuario.rol)} />
+          <LibroNovedades
+            puedeOperar={gestionaRecepcion(sesion.usuario.rol) || sesion.usuario.rol === 'caja'}
+          />
           <Biblioteca puedeAdministrar={esAdminHotel(sesion.usuario.rol)} />
           <p className="panel-corte">
             Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong>

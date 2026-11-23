@@ -191,6 +191,7 @@ from .rutas import avisos as rutas_avisos  # noqa: E402  (avisos por correo)
 from .rutas import facturas_proveedor as rutas_facturas  # noqa: E402  (facturas de proveedores)
 from .rutas import caja as rutas_caja  # noqa: E402  (caja y contabilidad, fase 1)
 from .rutas import grupos as rutas_grupos  # noqa: E402  (PR B / RES-007: grupos multi-habitación)
+from .rutas import novedades as rutas_novedades  # noqa: E402  (SPEC-NOV-01: novedades, estacionamiento y conteos)
 from .rutas import convenios as rutas_convenios  # noqa: E402  (SPEC-CONV-01: convenios tarifarios)
 
 
@@ -439,6 +440,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     app.include_router(rutas_biblioteca.router)
     app.include_router(rutas_activos.router)
     app.include_router(rutas_mensajes.router)
+    app.include_router(rutas_novedades.router)
     app.include_router(rutas_mensajeria.router)
 
     @app.exception_handler(RequestValidationError)
