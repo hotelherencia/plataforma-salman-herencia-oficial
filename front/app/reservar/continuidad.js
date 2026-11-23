@@ -176,20 +176,12 @@ export function errorCorreo(correo) {
   return undefined
 }
 
-/** RUT o pasaporte: opcional en la solicitud pública (#414); se exige en la Llegada.
- *  Vacío es válido; si se escribe, debe tener un largo razonable. */
+/** Valida el RUT o pasaporte si se entrega (es opcional en la solicitud pública, #414). */
 export function errorDocumento(documento) {
   const d = String(documento || '').trim()
   if (!d) return undefined
   if (d.length < 5 || d.length > 30) return 'Escribe un RUT o pasaporte válido.'
   return undefined
-}
-
-/** Contacto estructurado que recibe el backend: `correo · Tel: … [· Doc: …]`. */
-export function contactoEstructurado(correo, telefono, documento) {
-  const base = `${String(correo).trim()} · Tel: ${String(telefono).trim()}`
-  const d = String(documento || '').trim()
-  return d ? `${base} · Doc: ${d}` : base
 }
 
 /** Errores por campo del formulario de solicitud (textos fijos). */

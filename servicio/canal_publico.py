@@ -106,20 +106,27 @@ class TransicionInvalida(Exception):
 
 
 class FrenoDeSolicitudes:
-    """Freno de abuso en memoria por proceso: max_por_minuto por clave y
-    cinco veces eso para todo el proceso, en una ventana de 60 s.
+    """Freno de abuso persistente en PostgreSQL (OBS-01 / #414) con respaldo en memoria
+    para pruebas unitarias sin base de datos: max_por_minuto por clave y cinco veces eso
+    para todo el ámbito, en una ventana deslizante de 60 s.
 
     Una llamada puede nombrar varias claves (IP, correo, teléfono). Si
     cualquiera ya llenó su ventana, no se anota ninguna. El tope global
     sigue al valor actual de max_por_minuto, así una prueba que lo sube
-    también abre el techo del proceso.
+    también abre el techo del ámbito.
+
+    En PostgreSQL se guardan solo hashes SHA-256 de las claves (sin PII ni IP
+    en texto plano) y se serializa por ámbito con `pg_advisory_xact_lock`.
 
     CE-HH-2026-001 C-02: cada `ambito` (ruta) tiene su propio techo global y
     sus propias claves, así inundar /publico/disponibilidad no agota el cupo
     de leads, solicitudes ni del webhook firmado de WhatsApp."""
 
-    def __init__(self, max_por_minuto: int = 6) -> None:
+    _CLAVE_GLOBAL = "__global__"
+
+    def __init__(self, max_por_minuto: int = 6, database_url: str | None = None) -> None:
         self.max_por_minuto = max_por_minuto
+        self._database_url = database_url
         self._intentos: dict[str, list[float]] = {}
         self._global: dict[str, list[float]] = {}
         self._cerrojo = threading.Lock()
@@ -127,9 +134,60 @@ class FrenoDeSolicitudes:
     def _recientes(self, marcas: list[float], ahora: float) -> list[float]:
         return [t for t in marcas if ahora - t < 60]
 
+    @staticmethod
+    def _hash_clave(ambito: str, clave: str) -> str:
+        return hashlib.sha256(f"{ambito}|{clave}".encode("utf-8")).hexdigest()
+
+    def limpiar(self) -> None:
+        """Limpia las ventanas (uso en pruebas de aislamiento)."""
+        with self._cerrojo:
+            self._intentos.clear()
+            self._global.clear()
+        if self._database_url:
+            with psycopg.connect(self._database_url) as conn:
+                conn.execute("DELETE FROM freno_solicitudes_eventos")
+                conn.commit()
+
+    def _permite_pg(self, claves: tuple[str, ...], ambito: str) -> bool:
+        hashes = list(dict.fromkeys(self._hash_clave(ambito, c) for c in claves))
+        with psycopg.connect(self._database_url) as conn:
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"freno:{ambito}",))
+            conn.execute(
+                "DELETE FROM freno_solicitudes_eventos "
+                "WHERE ambito = %s AND registrado_en < now() - interval '60 seconds'",
+                (ambito,),
+            )
+            (global_n,) = conn.execute(
+                "SELECT count(*) FROM freno_solicitudes_eventos "
+                "WHERE ambito = %s AND clave_hash = %s AND registrado_en >= now() - interval '60 seconds'",
+                (ambito, self._CLAVE_GLOBAL),
+            ).fetchone()
+            if global_n >= self.max_por_minuto * 5:
+                conn.commit()
+                return False
+            for h in hashes:
+                (n,) = conn.execute(
+                    "SELECT count(*) FROM freno_solicitudes_eventos "
+                    "WHERE ambito = %s AND clave_hash = %s AND registrado_en >= now() - interval '60 seconds'",
+                    (ambito, h),
+                ).fetchone()
+                if n >= self.max_por_minuto:
+                    conn.commit()
+                    return False
+            filas = [(ambito, self._CLAVE_GLOBAL)] + [(ambito, h) for h in hashes]
+            with conn.cursor() as cur:
+                cur.executemany(
+                    "INSERT INTO freno_solicitudes_eventos (ambito, clave_hash) VALUES (%s, %s)",
+                    filas,
+                )
+            conn.commit()
+            return True
+
     def permite(self, *claves: str, ambito: str = "global") -> bool:
         if not claves:
             return False
+        if self._database_url:
+            return self._permite_pg(claves, ambito)
         claves = tuple(f"{ambito}|{clave}" for clave in claves)
         ahora = time.monotonic()
         with self._cerrojo:

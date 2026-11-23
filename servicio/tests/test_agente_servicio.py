@@ -73,8 +73,8 @@ class AgenteServicioBaseTest(unittest.TestCase):
             conexion.execute(
                 "TRUNCATE politica_agente, trazas_agente, borradores_agente, consultas_agente, "
                 "auditoria, claves_idempotencia, liquidaciones, efectos_nucleo, pagos, cargos, "
-                "solicitudes, reservas, tarifas, tareas_operativas, sesiones, usuarios, habitaciones "
-                "RESTART IDENTITY CASCADE"
+                "solicitudes, reservas, tarifas, tareas_operativas, sesiones, usuarios, habitaciones, "
+                "freno_solicitudes_eventos RESTART IDENTITY CASCADE"
             )
             seguridad.asegurar_admin_inicial(conexion, EMPRESA, ADMIN[0], ADMIN[1])
             agente.asegurar_agente_servicio(conexion, EMPRESA)
