@@ -7,6 +7,7 @@ import { Explicacion } from '../_componentes/explicacion'
 import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import Atencion from '../_componentes/atencion'
+import ResumenDueno from '../_componentes/resumen-dueno'
 import Mantenciones from '../_componentes/mantenciones'
 import Comunicados from '../_componentes/comunicados'
 import Turnos from '../_componentes/turnos'
@@ -178,6 +179,7 @@ export default function Panel() {
 
       {datos && (
         <>
+          {esAdminHotel(sesion.usuario.rol) && <ResumenDueno corte={datos.fecha_corte} />}
           <Atencion atencion={datos.atencion} />
           <Mantenciones puedeGestionar={gestionaRecepcion(sesion.usuario.rol)} />
           <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
