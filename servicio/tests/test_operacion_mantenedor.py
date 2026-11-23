@@ -457,7 +457,7 @@ class IndicadoresTest(BaseOperacion):
         # D-ROL-01 RATIFICADA 2026-11-06 (#297): `ingresos_periodo_clp` lo ve
         # solo administrador; ADR/RevPAR siguen en no_disponibles (D-IND-02).
         cuerpo = self.indicadores("")
-        self.assertEqual(cuerpo["periodo"], {"desde": HOY.isoformat(), "hasta": iso(1), "noches": 1})
+        self.assertEqual(cuerpo["periodo"], {"desde": HOY.isoformat(), "hasta": iso(7), "noches": 7})
         self.assertTrue(any("ADR" in x["indicador"] for x in cuerpo["no_disponibles"]))
         self.assertIn("ingresos_periodo_clp", cuerpo["periodo_indicadores"])  # admin lo recibe
         texto = str(cuerpo["periodo_indicadores"]) + str(cuerpo["hoy"])

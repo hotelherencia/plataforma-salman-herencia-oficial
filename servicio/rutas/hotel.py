@@ -316,12 +316,12 @@ def consultar_indicadores(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    """Panel operativo (spec-hotel-operacion-v1 §4); por defecto la noche de hoy.
+    """Panel operativo (spec-hotel-operacion-v1 §4); por defecto los próximos 7 días desde hoy (vista semanal).
     D-ROL-01 RATIFICADA 2026-11-06 (#297 opción a): el indicador financiero
     `ingresos_periodo_clp` solo lo recibe el administrador."""
     hoy = date.today()
     desde = desde or hoy
-    hasta = hasta or desde + timedelta(days=1)
+    hasta = hasta or desde + timedelta(days=7)
     solo_reales = not request.app.state.aplicacion.nucleo.empresa.es_sintetico
     resultado = panel.indicadores(
         conexion,
