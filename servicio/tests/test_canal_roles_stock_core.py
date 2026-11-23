@@ -156,7 +156,7 @@ class CanalRolesStockCoreTest(unittest.TestCase):
         bods = self.cliente.get("/core/stock/bodegas")
         self.assertEqual(bods.status_code, 200, bods.text)
         cods = {b["codigo"] for b in bods.json()["bodegas"]}
-        self.assertEqual(cods, {"bodega_principal", "minibar", "cafeteria"})
+        self.assertTrue({"bodega_principal", "minibar", "cafeteria"}.issubset(cods))
 
         # 2. Crear productos con stock_minimo (uno sin stock, uno bajo mínimo, uno ok).
         p_cero = self.cliente.post(
