@@ -7,6 +7,7 @@ import { Explicacion } from '../_componentes/explicacion'
 import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import Atencion from '../_componentes/atencion'
+import Mantenciones from '../_componentes/mantenciones'
 import Comunicados from '../_componentes/comunicados'
 import Turnos from '../_componentes/turnos'
 import Biblioteca from '../_componentes/biblioteca'
@@ -178,6 +179,7 @@ export default function Panel() {
       {datos && (
         <>
           <Atencion atencion={datos.atencion} />
+          <Mantenciones puedeGestionar={gestionaRecepcion(sesion.usuario.rol)} />
           <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
           <Turnos usuario={sesion.usuario.usuario} puedeAdministrar={esAdminHotel(sesion.usuario.rol)} />
           <Biblioteca puedeAdministrar={esAdminHotel(sesion.usuario.rol)} />

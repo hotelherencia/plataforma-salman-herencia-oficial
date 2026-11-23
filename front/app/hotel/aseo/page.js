@@ -6,6 +6,7 @@ import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 import { nombreTipo } from '../../reservar/continuidad'
 import { Checklists } from '../_componentes/checklists'
 import { ListaIncidencias, ReporteIncidencia } from '../_componentes/incidencias'
+import Mantenciones from '../_componentes/mantenciones'
 import Comunicados from '../_componentes/comunicados'
 import Turnos from '../_componentes/turnos'
 import Biblioteca from '../_componentes/biblioteca'
@@ -178,6 +179,7 @@ export default function Aseo() {
       <Comunicados />
       <Turnos usuario={sesion.usuario.usuario} />
       <Biblioteca />
+      <Mantenciones />
       <Checklists puedeCrear={anota} />
       <ReporteIncidencia alGuardar={() => setVersionIncidencias((v) => v + 1)} />
       <ListaIncidencias puedeCerrar={anota} version={versionIncidencias} />

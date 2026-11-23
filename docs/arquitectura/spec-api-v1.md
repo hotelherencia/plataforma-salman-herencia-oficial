@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (205)
+## Operaciones de esta versión (211)
 
 | Operación | Efecto |
 |---|---|
@@ -709,6 +709,12 @@ los compone el servidor.
 | `POST /hotel/sugerencias` | (#418) `{texto}`: buzón de sugerencias del personal; queda con su autor. Todos los roles; `Idempotency-Key`. |
 | `GET /hotel/sugerencias?estado` | (#418) Sugerencias recibidas. Solo administración del hotel. |
 | `POST /hotel/sugerencias/{id}/atencion` | (#418) `{respuesta?}`: marca la sugerencia como atendida; no se atiende dos veces (409). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/activos?habitacion_id&estado` | (#418) Inventario de activos por habitación o área común. Recepción, aseo y administración del hotel. |
+| `POST /hotel/activos` | (#418) `{habitacion_id? o area, nombre, categoria, notas?}`; la habitación debe existir. Recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/activos/{id}/actualizacion` | (#418) `{estado?: operativo\|en_reparacion\|de_baja, notas?}`; al dar de baja se desactivan sus planes de mantención. Recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/activos/{id}/plan` | (#418) `{descripcion, cada_dias, proxima?}`: mantención preventiva periódica (por defecto la primera es hoy + `cada_dias`); no sobre activos de baja (409). Recepción o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/mantenciones?dentro_de_dias` | (#418) Mantenciones vencidas y las que vencen en los próximos N días (14 por defecto), con `vencida`. Recepción, aseo y administración del hotel. |
+| `POST /hotel/mantenciones/{plan_id}/realizada` | (#418) `{fecha?, nota?}`: registra la mantención hecha en el historial (solo se agrega) y corre la próxima a `fecha + cada_dias`. Fecha futura o ya registrada → 409. Recepción, aseo o administración; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
