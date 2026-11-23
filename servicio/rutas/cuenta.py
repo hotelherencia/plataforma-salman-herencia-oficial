@@ -6,12 +6,19 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 
-from .. import clientes, cobro, contabilidad, contable_avanzado, credito_clientes, idempotencia, imputacion, productos, roles, seguridad
+from .. import (
+    clientes, cobro, conciliacion_bancaria, contabilidad, contable_avanzado,
+    credito_clientes, idempotencia, imputacion, productos, roles, seguridad, tributario,
+)
 from . import comun
 from .modelos import (
     AbonoCxcIn,
+    CartolaImportarIn,
+    CartolaVistaPreviaIn,
     CierreMensualIn,
     CobrarMovimientoDirectoIn,
+    ComisionesMediosIn,
+    EmparejarBancarioIn,
     MovimientoDirectoIn,
     ReaperturaMesIn,
     ReversoPagoIn,
@@ -309,3 +316,172 @@ def abonar_cuenta_por_cobrar(
         raise HTTPException(status_code=409, detail=str(error))
     conexion.commit()
     return JSONResponse(status_code=codigo, content=respuesta)
+
+
+# --- Contable 2.6 (#396): Conciliación bancaria con cartola ---------------------
+
+
+@router.get("/hotel/contabilidad/comisiones-medios")
+def listar_comisiones_medios(
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, conciliacion_bancaria.ROLES_CONCILIACION)
+    return {"comisiones": conciliacion_bancaria.obtener_comisiones(conexion, sesion.empresa_id)}
+
+
+@router.put("/hotel/contabilidad/comisiones-medios")
+def actualizar_comisiones_medios(
+    cuerpo: ComisionesMediosIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, conciliacion_bancaria.ROLES_COMISIONES)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    payload = {"operacion": "comisiones_medios", **cuerpo.model_dump()}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            res = conciliacion_bancaria.guardar_comisiones(
+                conexion, sesion.empresa_id, [m.model_dump() for m in cuerpo.medios], sesion.nombre,
+            )
+        except conciliacion_bancaria.ConciliacionInvalida as error:
+            return 422, {"detail": str(error)}
+        return 200, {"comisiones": res}
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, payload, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)
+
+
+@router.post("/hotel/contabilidad/cartolas/vista-previa")
+def vista_previa_cartola_bancaria(
+    cuerpo: CartolaVistaPreviaIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, conciliacion_bancaria.ROLES_CONCILIACION)
+    try:
+        return conciliacion_bancaria.vista_previa_cartola(
+            conexion, sesion.empresa_id, cuerpo.contenido_csv, cuerpo.mapeo_columnas,
+        )
+    except conciliacion_bancaria.ConciliacionInvalida as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+
+@router.post("/hotel/contabilidad/cartolas")
+def importar_cartola_bancaria(
+    cuerpo: CartolaImportarIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, conciliacion_bancaria.ROLES_CONCILIACION)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    payload = {"operacion": "cartola_importar", **cuerpo.model_dump()}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            res = conciliacion_bancaria.importar_y_conciliar_cartola(
+                conexion, sesion.empresa_id,
+                banco=cuerpo.banco, cuenta=cuerpo.cuenta, periodo=cuerpo.periodo,
+                contenido_csv=cuerpo.contenido_csv, mapeo=cuerpo.mapeo_columnas, actor=sesion.nombre,
+            )
+        except conciliacion_bancaria.ConciliacionInvalida as error:
+            return 422, {"detail": str(error)}
+        except conciliacion_bancaria.ConciliacionConflicto as error:
+            return 409, {"detail": str(error)}
+        return 201, res
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, payload, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)
+
+
+@router.get("/hotel/contabilidad/cartolas")
+def listar_cartolas_y_conciliacion(
+    periodo: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, conciliacion_bancaria.ROLES_CONCILIACION)
+    return conciliacion_bancaria.estado_conciliacion(conexion, sesion.empresa_id, periodo=periodo)
+
+
+@router.post("/hotel/contabilidad/conciliacion-bancaria/emparejar")
+def emparejar_conciliacion_bancaria(
+    cuerpo: EmparejarBancarioIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, conciliacion_bancaria.ROLES_CONCILIACION)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    payload = {"operacion": "conciliacion_bancaria_manual", **cuerpo.model_dump()}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            res = conciliacion_bancaria.emparejar_manual(
+                conexion, sesion.empresa_id,
+                cartola_movimiento_id=cuerpo.cartola_movimiento_id,
+                caja_movimiento_id=cuerpo.caja_movimiento_id,
+                monto_asignado_clp=cuerpo.monto_asignado_clp,
+                comision_clp=cuerpo.comision_clp,
+                justificacion=cuerpo.justificacion,
+                actor=sesion.nombre,
+            )
+        except conciliacion_bancaria.ConciliacionInvalida as error:
+            return 422, {"detail": str(error)}
+        except conciliacion_bancaria.ConciliacionConflicto as error:
+            return 409, {"detail": str(error)}
+        return 201, res
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, payload, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)
+
+
+# --- Contable 2.7 (#397): Conciliación tributaria mensual (borrador F29) -------
+
+
+@router.get("/hotel/contabilidad/tributario")
+def consultar_tributario_mensual(
+    anio: int = Query(ge=2020, le=2100),
+    mes: int = Query(ge=1, le=12),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Borrador F29 mensual (neto, IVA y total por documento; ventas en tránsito). Sin envío SII."""
+    comun.exigir_rol(sesion, tributario.ROLES_TRIBUTARIO)
+    return tributario.resumen_tributario_mensual(conexion, sesion.empresa_id, anio, mes)
+
+
+@router.get("/hotel/contabilidad/tributario/exportar.csv")
+def exportar_tributario_mensual_csv(
+    anio: int = Query(ge=2020, le=2100),
+    mes: int = Query(ge=1, le=12),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> Response:
+    comun.exigir_rol(sesion, tributario.ROLES_TRIBUTARIO)
+    datos = tributario.resumen_tributario_mensual(conexion, sesion.empresa_id, anio, mes)
+    csv_txt = tributario.exportar_tributario_csv(datos)
+    return Response(
+        content=csv_txt.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="tributario-f29-{anio:04d}-{mes:02d}.csv"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )

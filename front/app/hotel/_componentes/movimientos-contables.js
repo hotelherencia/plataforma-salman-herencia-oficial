@@ -7,6 +7,7 @@ import { CATEGORIAS_DIRECTAS, DOCUMENTOS, MEDIOS, esTarjeta, nombreMedio, valida
 import { formatearRut, rotuloMovimiento } from '../../../lib/contabilidad'
 import { fechaHora } from '../../../lib/formato'
 import { SelectorProducto } from './selector-producto'
+import ConciliacionBancariaTributaria from './conciliacion-bancaria-tributaria'
 import css from './operacion.module.css'
 
 const ROTULO_DOC = { boleta: 'Boleta', factura: 'Factura', sin_documento: 'Sin documento', pendiente: 'Por indicar' }
@@ -224,6 +225,7 @@ export default function MovimientosContables({ hoy, esAdmin = false }) {
           </div>
         )}
       </section>
+      <ConciliacionBancariaTributaria esAdmin={esAdmin} />
     </>
   )
 }
