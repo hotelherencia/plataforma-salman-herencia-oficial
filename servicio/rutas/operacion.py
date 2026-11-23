@@ -7,11 +7,11 @@ import json
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, Path as RutaParam, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .. import cobro, operacion, roles, seguridad
+from .. import cobro, comunicados, operacion, roles, seguridad
 from . import comun
 from .hotel import _ejecutar_exclusivo
 
@@ -384,3 +384,82 @@ def iniciar_limpieza(
         "limpieza_iniciada", "habitacion_id",
         lambda hotel: operacion.iniciar_limpieza(conexion, sesion.nombre, habitacion_id),
     )
+
+
+# --- Comunicados con confirmación de lectura (#418, Corte 2) ---
+
+class ComunicadoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    titulo: str = Field(min_length=3, max_length=120)
+    cuerpo: str = Field(min_length=3, max_length=4000)
+    roles: list[Literal["administrador", "admin_hotel", "recepcion", "caja", "aseo"]] = Field(default_factory=list, max_length=6)
+
+
+@router.get("/hotel/comunicados")
+def listar_comunicados(
+    archivados: bool = False,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    incluir = archivados and sesion.rol in roles.ROLES_ADMIN_HOTEL
+    return comunicados.listar(conexion, sesion.nombre, sesion.rol, incluir_archivados=incluir)
+
+
+@router.post("/hotel/comunicados")
+def crear_comunicado(
+    request: Request,
+    datos: ComunicadoIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, ROLES_PLANTILLAS)
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key, _cuerpo("comunicado", **datos.model_dump(mode="json")),
+        "comunicado_creado", "comunicado_id",
+        lambda hotel: comunicados.crear(conexion, sesion.nombre, datos.model_dump()),
+    )
+
+
+@router.post("/hotel/comunicados/{comunicado_id}/lectura")
+def confirmar_lectura(
+    request: Request,
+    comunicado_id: str = RutaParam(pattern=PATRON_ID),
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key, _cuerpo("comunicado_lectura", comunicado_id=comunicado_id),
+        "comunicado_leido", "comunicado_id",
+        lambda hotel: comunicados.confirmar_lectura(conexion, comunicado_id, sesion.nombre, sesion.rol),
+    )
+
+
+@router.post("/hotel/comunicados/{comunicado_id}/archivo")
+def archivar_comunicado(
+    request: Request,
+    comunicado_id: str = RutaParam(pattern=PATRON_ID),
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, ROLES_PLANTILLAS)
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key, _cuerpo("comunicado_archivo", comunicado_id=comunicado_id),
+        "comunicado_archivado", "comunicado_id",
+        lambda hotel: comunicados.archivar(conexion, comunicado_id),
+    )
+
+
+@router.get("/hotel/comunicados/{comunicado_id}/lecturas")
+def lecturas_comunicado(
+    comunicado_id: str = RutaParam(pattern=PATRON_ID),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_PLANTILLAS)
+    try:
+        return comunicados.lecturas(conexion, sesion.empresa_id, comunicado_id)
+    except operacion.NoEncontrado as error:
+        raise HTTPException(status_code=404, detail=str(error))
