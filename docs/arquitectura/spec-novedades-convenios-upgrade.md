@@ -1,0 +1,90 @@
+# SPEC: Libro de Novedades, Estacionamiento, Convenios/Eventos y Upgrade Flexible (2026-11-23)
+
+**Fecha:** 2026-11-23  
+**Estado:** Especificación propuesta para construcción (`main` base: `origin/main`)  
+**Fuentes:** Observaciones operativas del propietario + Análisis de documentos de Catalina (21-11-2026) y Ricardo/Orquestia (22-11-2026).
+
+---
+
+## 0. Alcance ya cubierto (puntos 2, 3 y 6 parcial)
+- **Puntos 2 y 3 (Análisis documentos Catalina y Ricardo):** completados e integrados en `docs/operacion/definiciones-administracion-2026-11-21.md`, `servicio/politicas.py` (PR #428) e issues `#415`–`#418` (Corte 1 ya en `main` por PRs #422 y #427).
+- **Punto 6 (Registro de factura, caja y pasajeros):**
+  - *Caja y factura:* cubiertos en base por `0050_caja_y_contabilidad.sql`, `0051_clientes_e_imputacion.sql` y `0040_facturas_proveedor.sql`.
+  - *Pasajeros:* cubierto por `0060_huespedes_y_ocupacion_llegada.sql` (PR #412).
+  - *Brecha a cerrar en este bloque:* unificar el acceso operativo entre el registro de pasajeros en Llegada, emisión/registro de boleta/factura (SII) y su visibilidad directa en la cuadratura de caja.
+
+---
+
+## 1. SPEC-NOV-01: Libro de Novedades de Turno, Estacionamiento y Conteos (Puntos 4 y 5)
+
+### 1.1 Objetivo
+Digitalizar el **libro de novedades turno a turno** (mañana / tarde / noche) junto con la **asignación de estacionamiento por habitación** (~14 cupos) y el **conteo operativo de desayunos y bebestibles** por turno/día.
+
+### 1.2 Modelo de datos propuesto (migración aditiva)
+- `libro_novedades`:
+  - `id` (`NOV-...`), `empresa_id`, `fecha_contable` (`DATE`), `turno` (`manana | tarde | noche`), `autor`, `resumen` (`TEXT`), `estacionamientos_asignados` (`JSONB` o tabla hija), `desayunos_servidos` (`INTEGER`), `bebestibles_detalle` (`JSONB`), `creado_en`.
+- `estacionamiento_asignaciones`:
+  - `id`, `empresa_id`, `fecha` (`DATE`), `cupo` (`1..14` o etiqueta), `habitacion_id`, `reserva_id` (FK opcional), `patente` (`TEXT`), `estado` (`reservado | ocupado | liberado`), `creado_por`, `creado_en`.
+- `conteos_turno_fnb`:
+  - `id`, `empresa_id`, `fecha_contable` (`DATE`), `turno`, `categoria` (`desayuno | bebestible`), `producto_id` (FK opcional a `productos`), `cantidad` (`INTEGER >= 0`), `observacion`, `actor`, `creado_en`.
+
+### 1.3 Reglas y endpoints
+- `GET /hotel/novedades?fecha=`: devuelve novedades del día, mapa de los ~14 cupos de estacionamiento por habitación/patente y conteos de desayuno/bebestibles.
+- `POST /hotel/novedades`: registra entrega de turno (con `Idempotency-Key` y auditoría).
+- `PUT /hotel/estacionamiento/asignacion`: asigna o libera un cupo para una habitación/reserva (sin sobrepasar los cupos físicos configurados).
+- `POST /hotel/novedades/conteos`: registra conteo de desayunos servidos y consumo de bebestibles (enlazable a reposición de stock `0055`).
+
+### 1.4 Criterios de aceptación
+- [ ] Recepción puede registrar entrega de turno con novedades, desayunos y bebestibles.
+- [ ] Se visualiza qué habitación/patente ocupa cada cupo de estacionamiento (máximo cupos del mantenedor).
+- [ ] No se agregan ítems nuevos al menú lateral (se integra como pestaña en `/hotel/panel` o `/hotel/estadia` / `/hotel/caja`).
+
+---
+
+## 2. SPEC-CONV-01: Convenios por Institución, Delegaciones y Eventos (Puntos 7 y 8)
+
+### 2.1 Objetivo
+Permitir tarifas especiales por **empresa/institución o evento anual** (ej. BMX, delegación de basketball, convenios institucionales) y reflejar explícitamente en el **cierre de caja** la institución aplicada y la **diferencia de precio** respecto a la tarifa lista.
+
+### 2.2 Modelo de datos propuesto
+- `convenios_tarifarios`:
+  - `id` (`CNV-...`), `empresa_id`, `nombre` (`TEXT`, ej. *"Delegación BMX 2026"*), `tipo` (`empresa | evento | delegacion`), `cliente_id` (FK opcional a `clientes`), `vigencia_desde` (`DATE`), `vigencia_hasta` (`DATE`), `reglas_precio` (`JSONB`: tarifa fija por tipo de habitación o % descuento), `requiere_abono_pct` (`INTEGER`, por defecto `50` si `>10` personas), `activo` (`BOOLEAN`), `creado_en`.
+- En `reservas`:
+  - `convenio_id` (`TEXT REFERENCES convenios_tarifarios(id)`), `tarifa_lista_clp` (`INTEGER`), `diferencia_convenio_clp` (`INTEGER` = `tarifa_noche_aceptada_clp - tarifa_lista_clp`).
+
+### 2.3 Reglas de negocio y cierre de caja (Punto 8)
+- Al crear/cotizar una reserva interna (`/hotel/reserva`), si se selecciona un **convenio/institución** vigente:
+  - El servidor calcula y guarda `tarifa_lista_clp`, `tarifa_noche_aceptada_clp` (tarifa convenio) y `diferencia_convenio_clp` (nunca calculado solo en el front).
+  - Si el convenio/delegación supera 10 personas, sugiere/aplica la regla oficial del **50 % de abono al confirmar**.
+- **En Cierre de Caja (`GET /hotel/caja/cierre` y vista `/hotel/caja`):**
+  - El cierre diario debe incluir una sección/desglose **`convenios_aplicados`**: por cada reserva/pago con convenio, mostrar:
+    - Institución / evento (`convenio_nombre`),
+    - Tarifa lista vs. tarifa aplicada,
+    - **Diferencia de precio (`diferencia_convenio_clp`)** acumulada por institución.
+
+### 2.4 Criterios de aceptación
+- [ ] Una reserva con convenio guarda `convenio_id`, `tarifa_lista_clp` y `diferencia_convenio_clp`.
+- [ ] El cierre de caja lista cada institución aplicada en el día/período y su diferencia exacta en CLP.
+- [ ] Solo `admin_hotel` / `administrador` crea o modifica convenios; recepción solo selecciona convenios vigentes.
+
+---
+
+## 3. SPEC-UPG-01: Upgrade Flexible por Agotamiento de Habitación Single (Punto 9)
+
+### 3.1 Objetivo
+Cuando no queden habitaciones **Single** disponibles para las fechas solicitadas, permitir asignar una habitación de categoría superior disponible (ej. **Doble** o **Matrimonial**) aplicándole el **precio de Single (tarifa flexible)** para 1 huésped.
+
+### 3.2 Reglas de negocio
+- Solo aplica cuando:
+  1. La solicitud/reserva es para **1 persona**,
+  2. No existen habitaciones de tipo `single` vendibles y disponibles en todo el rango `[inicio, fin)`, y
+  3. El operador autorizado (`recepcion` o `admin_hotel`) selecciona explícitamente la opción **«Upgrade a tarifa Single»** en la oferta/nueva reserva.
+- **Trazabilidad contable y de auditoría:**
+  - En `reservas` / `reserva_noches` se guarda el precio efectivamente pactado (tarifa Single) y un campo `upgrade_desde_tipo = 'single'` + `tarifa_lista_clp` (la de la habitación asignada) para que la diferencia quede explicada en reportes y no parezca un error de cobro.
+  - Si posteriormente en la Llegada se cambia la ocupación de `1` a `2` personas (`PUT /hotel/reservas/{id}/ocupacion`), el sistema recalcula automáticamente a la tarifa de la habitación real (2 personas) de forma append-only.
+- **Seguridad:** el visitante público en `/reservar` no puede forzar un upgrade de precio por su cuenta; el flujo público sigue ofreciendo solo tipos con cupo real salvo que el hotel active explícitamente una regla comercial.
+
+### 3.3 Criterios de aceptación
+- [ ] Con todas las `single` ocupadas y una `doble`/`matrimonial` libre, recepción puede crear una reserva de 1 persona con «Upgrade a tarifa Single» cobrando `$47.000`/noche.
+- [ ] Si hay al menos una `single` libre, el endpoint rechaza (`409`) el upgrade a precio Single.
+- [ ] Si al hacer la Llegada pasan a ser 2 personas, se ajusta el cargo a tarifa Doble/Matrimonial (`$55.000`/noche).
