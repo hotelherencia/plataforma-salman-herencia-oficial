@@ -8,6 +8,7 @@ import { Checklists } from '../_componentes/checklists'
 import { ListaIncidencias, ReporteIncidencia } from '../_componentes/incidencias'
 import Comunicados from '../_componentes/comunicados'
 import Turnos from '../_componentes/turnos'
+import Biblioteca from '../_componentes/biblioteca'
 
 const SITUACION = {
   ocupada: 'Ocupada',
@@ -176,6 +177,7 @@ export default function Aseo() {
       </ul>
       <Comunicados />
       <Turnos usuario={sesion.usuario.usuario} />
+      <Biblioteca />
       <Checklists puedeCrear={anota} />
       <ReporteIncidencia alGuardar={() => setVersionIncidencias((v) => v + 1)} />
       <ListaIncidencias puedeCerrar={anota} version={versionIncidencias} />

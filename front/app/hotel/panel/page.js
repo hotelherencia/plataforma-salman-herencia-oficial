@@ -9,6 +9,7 @@ import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solic
 import Atencion from '../_componentes/atencion'
 import Comunicados from '../_componentes/comunicados'
 import Turnos from '../_componentes/turnos'
+import Biblioteca from '../_componentes/biblioteca'
 import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 import { BotonExportar } from '../_componentes/boton-exportar'
@@ -179,6 +180,7 @@ export default function Panel() {
           <Atencion atencion={datos.atencion} />
           <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
           <Turnos usuario={sesion.usuario.usuario} puedeAdministrar={esAdminHotel(sesion.usuario.rol)} />
+          <Biblioteca puedeAdministrar={esAdminHotel(sesion.usuario.rol)} />
           <p className="panel-corte">
             Datos al <strong>{formatearFecha(datos.fecha_corte)}</strong>
           </p>

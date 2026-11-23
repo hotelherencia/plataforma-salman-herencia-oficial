@@ -175,6 +175,7 @@ from .rutas.modelos import (  # noqa: E402
 )
 from .rutas import acceso, hotel  # noqa: E402  (routers incluidos en crear_app)
 from .rutas import operacion as rutas_operacion  # noqa: E402
+from .rutas import biblioteca as rutas_biblioteca  # noqa: E402
 from .rutas import agente as rutas_agente  # noqa: E402  (alias: `agente` sigue siendo el dominio)
 from .rutas import mensajeria as rutas_mensajeria  # noqa: E402
 from .rutas import hotel_tipos as rutas_hotel_tipos  # noqa: E402  (entrega 1A)
@@ -431,6 +432,7 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     app.include_router(rutas_productos.router)
     app.include_router(rutas_agente.router)
     app.include_router(rutas_operacion.router)
+    app.include_router(rutas_biblioteca.router)
     app.include_router(rutas_mensajeria.router)
 
     @app.exception_handler(RequestValidationError)

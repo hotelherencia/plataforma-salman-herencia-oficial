@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (199)
+## Operaciones de esta versión (205)
 
 | Operación | Efecto |
 |---|---|
@@ -703,6 +703,12 @@ los compone el servidor.
 | `POST /hotel/turnos/{id}/cambio` | (#418) `{propuesto, motivo}`: quien tiene el turno (o la administración) pide que lo cubra otra persona; un solo cambio pendiente por turno y no sobre turnos pasados (409). `Idempotency-Key`. |
 | `GET /hotel/turnos/cambios?estado` | (#418) Solicitudes de cambio con su turno. Solo administración del hotel. |
 | `POST /hotel/turnos/cambios/{id}/resolucion` | (#418) `{aprobar}`: al aprobar, el turno pasa a la persona propuesta; la solicitud queda como historia y no se resuelve dos veces (409). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/biblioteca?categoria&archivados` | (#418) Documentos (manuales, instructivos, políticas) dirigidos al rol de la sesión o a todos. `archivados` solo lo respeta la administración. Todos los roles, incluido aseo. |
+| `POST /hotel/biblioteca` | (#418) `{titulo, categoria, contenido?, enlace? (https), roles[]}`; exige contenido o enlace. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/biblioteca/{id}/archivo` | (#418) Archiva el documento. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/sugerencias` | (#418) `{texto}`: buzón de sugerencias del personal; queda con su autor. Todos los roles; `Idempotency-Key`. |
+| `GET /hotel/sugerencias?estado` | (#418) Sugerencias recibidas. Solo administración del hotel. |
+| `POST /hotel/sugerencias/{id}/atencion` | (#418) `{respuesta?}`: marca la sugerencia como atendida; no se atiende dos veces (409). Solo administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
