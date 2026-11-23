@@ -36,6 +36,7 @@ export default function Reserva() {
     documento: '',
     canal: 'recepcion',
     notas_grupo: '',
+    upgrade_a_single: false,
   })
   const [habitacionesGrupo, setHabitacionesGrupo] = useState([
     filaHabitacion('', '', true),
@@ -102,6 +103,7 @@ export default function Reserva() {
           personas: Number(campos.personas) || undefined,
           canal: campos.canal || 'recepcion',
           huesped: { nombre: campos.nombre, documento: doc.valor, documento_tipo: campos.documento_tipo },
+          ...(campos.upgrade_a_single && Number(campos.personas) === 1 ? { upgrade_a_single: true } : {}),
           ...(campos.hora_llegada ? { hora_llegada: campos.hora_llegada } : {}),
           ...(campos.hora_salida ? { hora_salida: campos.hora_salida } : {}),
         },
@@ -209,6 +211,16 @@ export default function Reserva() {
               incluir={campos.habitacion_id || undefined}
               alCambiar={(id) => setCampos((c) => ({ ...c, habitacion_id: id }))}
             />
+            {Number(campos.personas) === 1 && (
+              <label className="campo-check">
+                <input
+                  type="checkbox"
+                  checked={campos.upgrade_a_single}
+                  onChange={(e) => setCampos({ ...campos, upgrade_a_single: e.target.checked })}
+                />{' '}
+                Upgrade a tarifa Single (sin Single disponible: habitación superior al precio de Single)
+              </label>
+            )}
             <Campo etiqueta="Hora de llegada" type="time" value={campos.hora_llegada} onChange={(e) => setCampos({ ...campos, hora_llegada: e.target.value })} />
             <Campo etiqueta="Hora de salida" type="time" value={campos.hora_salida} onChange={(e) => setCampos({ ...campos, hora_salida: e.target.value })} />
             <Campo etiqueta="Huésped" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />

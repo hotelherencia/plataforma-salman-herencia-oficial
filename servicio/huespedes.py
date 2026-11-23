@@ -219,12 +219,13 @@ def _reversar_ajustes_ocupacion_previos(
     empresa_id: str,
     reserva_id: str,
     motivo: str,
+    prefijo: str = "Ajuste ocupación",
 ) -> int:
-    """Revierte cargos activos previos de ajuste de ocupación (append-only) y retorna su suma."""
+    """Revierte cargos activos previos de ajuste (append-only) y retorna su suma."""
     activos = [
         c for c in hotel.cuenta(empresa_id, reserva_id)
         if c.tipo.value == "cargo"
-        and c.concepto.startswith("Ajuste ocupación")
+        and c.concepto.startswith(prefijo)
         and not any(r.tipo.value == "reverso" and r.referencia == c.id for r in hotel.cuenta(empresa_id, reserva_id))
     ]
     suma = 0
@@ -246,11 +247,13 @@ def actualizar_ocupacion(
     cobro._reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     r = conexion.execute(
         "SELECT r.habitacion_id, r.estado, r.inicio, r.fin, r.adultos, r.ninos, r.personas, "
-        "r.tarifa_noche_aceptada_clp, h.capacidad "
+        "r.tarifa_noche_aceptada_clp, h.capacidad, r.upgrade_desde_tipo, r.tarifa_lista_clp, "
+        "r.upgrade_ajustado_clp "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id WHERE r.id = %s",
         (reserva_id,),
     ).fetchone()
-    habitacion_id, estado, inicio, fin, a_prev, n_prev, p_prev, tarifa_noche, capacidad = r
+    (habitacion_id, estado, inicio, fin, a_prev, n_prev, p_prev, tarifa_noche, capacidad,
+     upgrade_tipo, tarifa_lista, upgrade_ajustado) = r
     if estado not in cobro.ESTADOS_CON_CUENTA_ABIERTA:
         raise cobro.TransicionInvalida(f"la reserva está {estado}")
     total_nuevo = adultos + ninos
@@ -285,6 +288,25 @@ def actualizar_ocupacion(
                 hotel.asentar_cargo(empresa_id, reserva_id, etiqueta, neto_restante)
         hotel_sql.persistir(conexion, hotel, empresa_id)
 
+    if upgrade_tipo and tarifa_lista is not None:
+        # SPEC-UPG-01: con 2 o más personas deja de valer la tarifa Single; se cobra la de la habitación.
+        deseado = max(0, tarifa_lista - tarifa_noche) * noches if total_nuevo >= 2 else 0
+        diferencia = deseado - (upgrade_ajustado or 0)
+        if diferencia != 0:
+            hotel_sql.recargar(conexion, hotel, empresa_id)
+            etiqueta_up = f"Ajuste upgrade a tarifa de la habitación ({total_nuevo} personas)"
+            if diferencia > 0:
+                hotel.asentar_cargo(empresa_id, reserva_id, etiqueta_up, diferencia)
+            else:
+                previo = _reversar_ajustes_ocupacion_previos(
+                    conexion, hotel, empresa_id, reserva_id, motivo=etiqueta_up, prefijo="Ajuste upgrade",
+                )
+                if previo + diferencia > 0:
+                    hotel.asentar_cargo(empresa_id, reserva_id, etiqueta_up, previo + diferencia)
+            hotel_sql.persistir(conexion, hotel, empresa_id)
+            conexion.execute(
+                "UPDATE reservas SET upgrade_ajustado_clp = %s WHERE id = %s", (deseado, reserva_id),
+            )
     seguridad.auditar(
         conexion, actor, "reserva_ocupacion", reserva_id,
         f"adultos={adultos},ninos={ninos},delta_clp={delta_clp}",

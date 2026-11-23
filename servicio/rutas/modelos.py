@@ -89,6 +89,8 @@ class ReservaIn(BaseModel):
     mascotas: bool | None = None
     # #324: canal de origen para calcular ingresos por canal en el panel.
     canal: Literal["recepcion", "landing", "directo", "google", "ota", "telefono", "whatsapp", "otro"] = "recepcion"
+    # SPEC-UPG-01: 1 persona, sin single libre, habitación superior cobrada a tarifa Single.
+    upgrade_a_single: bool = False
 
 
 class ReceptorFacturaIn(BaseModel):
