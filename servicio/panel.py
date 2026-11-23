@@ -264,7 +264,7 @@ def indicadores(
         ]
 
     (limpiezas,) = conexion.execute(
-        "SELECT count(*) FROM tareas_operativas WHERE tipo = 'limpieza' AND estado = 'pendiente' "
+        "SELECT count(*) FROM tareas_operativas WHERE tipo = 'limpieza' AND estado IN ('pendiente', 'en_proceso') "
         "AND habitacion_id = ANY(%s)",
         (ids,),
     ).fetchone()
@@ -290,6 +290,8 @@ def indicadores(
                                              "sin mantenimiento hoy y fuera de bloqueada/fuera_de_servicio", hab),
         "habitaciones_sucias": _indicador(contar(lambda h: h["estado_preparacion"] == "sucia"), "unidades",
                                           "estado_preparacion = sucia", hab),
+        "habitaciones_en_limpieza": _indicador(contar(lambda h: h["estado_preparacion"] == "en_limpieza"), "unidades",
+                                               "estado_preparacion = en_limpieza", hab),
         "limpiezas_pendientes": _indicador(limpiezas, "tareas", "tareas de limpieza pendientes",
                                            "tareas_operativas"),
         "en_mantenimiento": _indicador(contar(lambda h: _mantenimiento_en(h, hoy, hoy)), "unidades",
@@ -444,10 +446,117 @@ def indicadores(
             ),
             "por_canal": por_canal,
         }
+    # --- #417: Bloque accionable «Lo que necesita atención» ---
+    llegadas_atrasadas = [
+        {
+            "reserva_id": f[0],
+            "huesped_nombre": (f[1] or "").strip() or "Sin nombre",
+            "habitacion_id": f[2],
+            "fecha": f[3].isoformat(),
+            "enlace": f"/hotel/reservas/{f[0]}",
+        }
+        for f in conexion.execute(
+            "SELECT id, huesped_nombre, habitacion_id, inicio FROM reservas "
+            "WHERE empresa_id = %s AND habitacion_id = ANY(%s) AND estado = 'confirmada' AND inicio < %s "
+            "ORDER BY inicio, id",
+            (empresa_id, ids, hoy),
+        ).fetchall()
+    ]
+    salidas_atrasadas = [
+        {
+            "reserva_id": f[0],
+            "huesped_nombre": (f[1] or "").strip() or "Sin nombre",
+            "habitacion_id": f[2],
+            "fecha": f[3].isoformat(),
+            "enlace": f"/hotel/reservas/{f[0]}",
+        }
+        for f in conexion.execute(
+            "SELECT id, huesped_nombre, habitacion_id, fin FROM reservas "
+            "WHERE empresa_id = %s AND habitacion_id = ANY(%s) AND estado = 'en_estadia' AND fin < %s "
+            "ORDER BY fin, id",
+            (empresa_id, ids, hoy),
+        ).fetchall()
+    ]
+    limpiezas_por_verificar = [
+        {
+            "tarea_id": f[0],
+            "habitacion_id": f[1],
+            "completada_por": f[2],
+            "completada_en": f[3].isoformat() if f[3] else None,
+            "enlace": "/hotel/aseo",
+        }
+        for f in conexion.execute(
+            "SELECT id, habitacion_id, completada_por, completada_en FROM ("
+            "  SELECT DISTINCT ON (t.habitacion_id) t.id, t.habitacion_id, t.completada_por, t.completada_en, t.verificacion "
+            "  FROM tareas_operativas t "
+            "  WHERE t.tipo = 'limpieza' AND t.estado = 'completada' AND t.habitacion_id = ANY(%s) "
+            "  ORDER BY t.habitacion_id, t.completada_en DESC"
+            ") ult WHERE ult.verificacion IS NULL ORDER BY ult.habitacion_id",
+            (ids,),
+        ).fetchall()
+    ]
+    incidencias_abiertas: list[dict] = []
+    if conexion.execute("SELECT to_regclass('public.incidencias') IS NOT NULL").fetchone()[0]:
+        for f in conexion.execute(
+            "SELECT id, habitacion_id, area, titulo, gravedad, estado, bloquea_disponibilidad, plazo "
+            "FROM incidencias "
+            "WHERE empresa_id = %s AND estado IN ('abierta', 'en_progreso') "
+            "ORDER BY bloquea_disponibilidad DESC, "
+            "CASE gravedad WHEN 'critica' THEN 0 WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END, "
+            "creada_en ASC, id ASC",
+            (empresa_id,),
+        ).fetchall():
+            incidencias_abiertas.append(
+                {
+                    "incidencia_id": f[0],
+                    "habitacion_id": f[1],
+                    "area": f[2],
+                    "titulo": f[3],
+                    "gravedad": f[4],
+                    "estado": f[5],
+                    "bloquea_disponibilidad": bool(f[6]),
+                    "plazo": f[7].isoformat() if f[7] else None,
+                    "enlace": f"/hotel/habitaciones/{f[1]}" if f[1] else "/hotel/aseo",
+                }
+            )
+    productos_bajo_stock: list[dict] = []
+    if conexion.execute("SELECT to_regclass('public.productos') IS NOT NULL").fetchone()[0]:
+        from . import productos as productos_db
+
+        rep = productos_db.reporte_reposicion(conexion, solo_alertas=True)
+        for item in rep.get("items", []):
+            productos_bajo_stock.append(
+                {
+                    "producto_id": item["producto_id"],
+                    "nombre": item["nombre"],
+                    "categoria": item["categoria"],
+                    "stock_actual": item["stock_actual"],
+                    "stock_minimo": item["stock_minimo"],
+                    "nivel": item["nivel"],
+                    "enlace": "/hotel/productos",
+                }
+            )
+
+    atencion = {
+        "total": (
+            len(llegadas_atrasadas)
+            + len(salidas_atrasadas)
+            + len(limpiezas_por_verificar)
+            + len(incidencias_abiertas)
+            + len(productos_bajo_stock)
+        ),
+        "llegadas_atrasadas": llegadas_atrasadas,
+        "salidas_atrasadas": salidas_atrasadas,
+        "limpiezas_por_verificar": limpiezas_por_verificar,
+        "incidencias_abiertas": incidencias_abiertas,
+        "productos_bajo_stock": productos_bajo_stock,
+    }
+
     return {
         "fecha_corte": hoy.isoformat(),
         "periodo": {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "noches": len(noches)},
         "filtros": {"tipo": tipo},
+        "atencion": atencion,
         "hoy": situacion,
         "periodo_indicadores": periodo,
         "serie": serie,

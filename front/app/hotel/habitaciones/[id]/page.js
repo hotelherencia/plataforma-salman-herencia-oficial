@@ -14,7 +14,12 @@ import {
   useClaveOperacion,
   useSesion,
 } from '../../../../lib/api'
-import { esAdminHotel } from '../../../../lib/roles'
+import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
+import {
+  ETIQUETA_GRAVEDAD,
+  etiquetaPreparacion,
+  progresoSubtareas,
+} from '../../../../lib/operacion-corte1'
 import { etiquetaOrigen, rangoNoches } from '../../../../lib/tipos'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 
@@ -39,6 +44,7 @@ export default function FichaHabitacion() {
   const habitacionId = decodeURIComponent(id)
   const sesion = useSesion()
   const esAdmin = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
+  const puedeGestionar = sesion.fase === 'ok' && gestionaRecepcion(sesion.usuario.rol)
   const [ficha, setFicha] = useState(null)
   const [errorCarga, setErrorCarga] = useState('')
   const [edicion, setEdicion] = useState({ tipo: '', capacidad: '' })
@@ -48,6 +54,15 @@ export default function FichaHabitacion() {
   const [vigentes, setVigentes] = useState([])
   const [claveEdicion, renovarEdicion] = useClaveOperacion()
   const [claveServicio, renovarServicio] = useClaveOperacion()
+  const [incForm, setIncForm] = useState({
+    titulo: '',
+    descripcion: '',
+    gravedad: 'media',
+    plazo: '',
+    bloquea_disponibilidad: false,
+    evidencia_base64: '',
+    evidencia_nombre: '',
+  })
 
   const cargar = useCallback(async () => {
     try {
@@ -107,6 +122,46 @@ export default function FichaHabitacion() {
       }
     )
 
+  async function accionOperativa(ruta, cuerpo, metodo = 'POST') {
+    setError('')
+    try {
+      const r = await api(ruta, { metodo, cuerpo, claveIdempotencia: `hab-${crypto.randomUUID().slice(0, 12)}` })
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else await cargar()
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    }
+  }
+
+  const manejarFotoIncidencia = (e) => {
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
+    if (archivo.size > 5 * 1024 * 1024) {
+      setError('La foto supera el límite de 5 MB.')
+      return
+    }
+    const lector = new FileReader()
+    lector.onload = () => setIncForm((f) => ({ ...f, evidencia_base64: String(lector.result || ''), evidencia_nombre: archivo.name }))
+    lector.readAsDataURL(archivo)
+  }
+
+  const reportarIncidencia = async (e) => {
+    e.preventDefault()
+    await accionOperativa('/hotel/incidencias', {
+      habitacion_id: habitacionId,
+      area: 'habitacion',
+      titulo: incForm.titulo.trim(),
+      descripcion: incForm.descripcion.trim(),
+      gravedad: incForm.gravedad,
+      plazo: incForm.plazo || null,
+      bloquea_disponibilidad: incForm.bloquea_disponibilidad,
+      ...(incForm.evidencia_base64
+        ? { evidencia_base64: incForm.evidencia_base64, evidencia_nombre: incForm.evidencia_nombre || 'foto.jpg' }
+        : {}),
+    })
+    setIncForm({ titulo: '', descripcion: '', gravedad: 'media', plazo: '', bloquea_disponibilidad: false, evidencia_base64: '', evidencia_nombre: '' })
+  }
+
   return (
     <MarcoHotel titulo={`Habitación ${habitacionId}`}>
       <p className="migas">
@@ -133,7 +188,19 @@ export default function FichaHabitacion() {
               </dd>
               <dt>Preparación</dt>
               <dd>
-                <span className={`reserva-estado preparacion-${ficha.estado_preparacion}`}>{ficha.estado_preparacion}</span>
+                <span className={`reserva-estado preparacion-${ficha.estado_preparacion}`}>{etiquetaPreparacion(ficha.estado_preparacion)}</span>
+                {ficha.estado_preparacion === 'sucia' && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="boton-secundario"
+                      onClick={() => accionOperativa(`/hotel/habitaciones/${encodeURIComponent(habitacionId)}/limpieza/iniciar`, { aplicar_plantilla: true })}
+                    >
+                      Iniciar limpieza
+                    </button>
+                  </>
+                )}
               </dd>
               <dt>Mantenimiento</dt>
               <dd>{ficha.mantenimiento ? 'abierto (fuera del cupo)' : 'no'}</dd>
@@ -307,31 +374,134 @@ export default function FichaHabitacion() {
             )}
           </section>
 
+          <section className="tarjeta" aria-label="Incidencias de la habitación">
+            <h2>Incidencias de la habitación</h2>
+            {Array.isArray(ficha.incidencias) && ficha.incidencias.length > 0 ? (
+              <ul className="lista-aseo">
+                {ficha.incidencias.map((inc) => (
+                  <li key={inc.incidencia_id} className={`tarjeta tarjeta-aseo${inc.estado === 'abierta' || inc.estado === 'en_progreso' ? ' pendiente' : ''}`}>
+                    <div className="aseo-cabecera">
+                      <strong>{inc.titulo}</strong>
+                      <span className="reserva-estado">Gravedad: {ETIQUETA_GRAVEDAD[inc.gravedad] || inc.gravedad}</span>
+                      <span className="reserva-estado">{inc.estado.replace('_', ' ')}</span>
+                      {inc.bloquea_disponibilidad && <span className="badge-bloquea">Bloquea disponibilidad</span>}
+                    </div>
+                    <p>{inc.descripcion}</p>
+                    <div className="acciones-aseo">
+                      {inc.tiene_evidencia && (
+                        <a className="boton-fantasma" href={`/api/hotel/incidencias/${inc.incidencia_id}/evidencia`} target="_blank" rel="noopener noreferrer">
+                          Ver foto evidencia
+                        </a>
+                      )}
+                      {puedeGestionar && (inc.estado === 'abierta' || inc.estado === 'en_progreso') && (
+                        <button
+                          type="button"
+                          className="boton-secundario"
+                          onClick={() => accionOperativa(`/hotel/incidencias/${inc.incidencia_id}/cierre`, { estado_final: 'cerrada', resolucion: 'Cerrada desde ficha de habitación' })}
+                        >
+                          Cerrar incidencia
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="estado estado-vacio">Sin incidencias registradas.</p>
+            )}
+            <form className="formulario-incidencia-rapida" onSubmit={reportarIncidencia}>
+              <h3>Reportar incidencia rápida</h3>
+              <input
+                className="entrada"
+                required
+                minLength={3}
+                maxLength={160}
+                placeholder="Título del desperfecto"
+                value={incForm.titulo}
+                onChange={(e) => setIncForm((f) => ({ ...f, titulo: e.target.value }))}
+              />
+              <textarea
+                className="entrada"
+                required
+                minLength={3}
+                rows={2}
+                placeholder="Descripción breve"
+                value={incForm.descripcion}
+                onChange={(e) => setIncForm((f) => ({ ...f, descripcion: e.target.value }))}
+              />
+              <div className="acciones-aseo">
+                <select className="entrada" value={incForm.gravedad} onChange={(e) => setIncForm((f) => ({ ...f, gravedad: e.target.value }))}>
+                  {Object.entries(ETIQUETA_GRAVEDAD).map(([k, v]) => <option key={k} value={k}>Gravedad: {v}</option>)}
+                </select>
+                <Campo
+                  etiqueta="Plazo"
+                  type="date"
+                  value={incForm.plazo}
+                  onChange={(e) => setIncForm((f) => ({ ...f, plazo: e.target.value }))}
+                />
+                <label className="campo-check">
+                  <input type="checkbox" checked={incForm.bloquea_disponibilidad} onChange={(e) => setIncForm((f) => ({ ...f, bloquea_disponibilidad: e.target.checked }))} />
+                  Bloquea disponibilidad
+                </label>
+              </div>
+              <label className="campo-archivo">
+                <span>Evidencia móvil (JPG/PNG/WebP):</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={manejarFotoIncidencia} />
+              </label>
+              <button type="submit" className="boton-primario">Registrar incidencia</button>
+            </form>
+          </section>
+
           <section className="tarjeta" aria-label="Tareas">
-            <h2>Tareas de limpieza y mantenimiento</h2>
+            <h2>Tareas y checklists</h2>
             {ficha.tareas.length === 0 ? (
               <p className="estado estado-vacio">Sin tareas registradas.</p>
             ) : (
-              <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Tabla (desliza para ver todas las columnas)"><table className="tabla">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Creada</th>
-                    <th>Completada</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ficha.tareas.map((t) => (
-                    <tr key={t.tarea_id}>
-                      <td>{t.tipo}</td>
-                      <td>{t.estado}</td>
-                      <td>{t.creada_en.slice(0, 16).replace('T', ' ')}</td>
-                      <td>{t.completada_en ? t.completada_en.slice(0, 16).replace('T', ' ') : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table></div>
+              <ul className="lista-aseo">
+                {ficha.tareas.map((t) => {
+                  const prog = progresoSubtareas(t.subtareas)
+                  const abierta = t.estado === 'pendiente' || t.estado === 'en_proceso'
+                  return (
+                    <li key={t.tarea_id} className={`tarjeta tarjeta-aseo${abierta ? ' pendiente' : ''}`}>
+                      <div className="aseo-cabecera">
+                        <strong>{t.titulo || t.tipo}</strong>
+                        <span className="reserva-estado">{t.estado.replace('_', ' ')}</span>
+                        <span className="nota-clave">Creada: {t.creada_en.slice(0, 16).replace('T', ' ')}</span>
+                        {t.completada_en && <span className="nota-clave">Completada: {t.completada_en.slice(0, 16).replace('T', ' ')}</span>}
+                      </div>
+                      {Array.isArray(t.subtareas) && t.subtareas.length > 0 && (
+                        <ul className="checklist-subtareas">
+                          {t.subtareas.map((sub) => (
+                            <li key={sub.subtarea_id}>
+                              <label className={`subtarea-item${sub.completada ? ' completada' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  disabled={!abierta}
+                                  checked={Boolean(sub.completada)}
+                                  onChange={() => accionOperativa(`/hotel/tareas/${t.tarea_id}/subtareas/${sub.subtarea_id}`, { completada: !sub.completada })}
+                                />
+                                <span>{sub.descripcion}{sub.obligatoria && <em className="subtarea-req"> *</em>}</span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {abierta && (
+                        <div className="acciones-aseo">
+                          <button
+                            type="button"
+                            className="boton-primario"
+                            disabled={!prog.puedeCerrar}
+                            onClick={() => accionOperativa(`/hotel/tareas/${t.tarea_id}`, { estado: 'completada' }, 'PUT')}
+                          >
+                            Completar tarea
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
             )}
           </section>
 

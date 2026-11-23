@@ -332,6 +332,19 @@ def ficha_habitacion(
     ficha["reservas"] = list(
         reversed(buscar_reservas(conexion, empresa_id, habitacion_id=habitacion_id, ver_documento=ver_documento))
     )
+    tareas_filas = conexion.execute(
+        "SELECT id, tipo, estado, creado_en, completada_en, titulo, prioridad, responsable, vence_en "
+        "FROM tareas_operativas WHERE habitacion_id = %s ORDER BY creado_en DESC, id DESC",
+        (habitacion_id,),
+    ).fetchall()
+    from . import incidencias as incidencias_db
+    from . import tareas as tareas_db
+
+    subs_mapa = (
+        tareas_db.subtareas_de_tareas(conexion, [t[0] for t in tareas_filas])
+        if tareas_filas and conexion.execute("SELECT to_regclass('public.tarea_subtareas') IS NOT NULL").fetchone()[0]
+        else {}
+    )
     ficha["tareas"] = [
         {
             "tarea_id": t[0],
@@ -339,13 +352,19 @@ def ficha_habitacion(
             "estado": t[2],
             "creada_en": t[3].isoformat(),
             "completada_en": t[4].isoformat() if t[4] else None,
+            "titulo": t[5],
+            "prioridad": t[6] or "media",
+            "responsable": t[7],
+            "vence_en": t[8].isoformat() if t[8] else None,
+            "subtareas": subs_mapa.get(t[0], []),
         }
-        for t in conexion.execute(
-            "SELECT id, tipo, estado, creado_en, completada_en FROM tareas_operativas "
-            "WHERE habitacion_id = %s ORDER BY creado_en DESC, id DESC",
-            (habitacion_id,),
-        ).fetchall()
+        for t in tareas_filas
     ]
+    ficha["incidencias"] = (
+        incidencias_db.listar(conexion, empresa_id, habitacion_id=habitacion_id)
+        if conexion.execute("SELECT to_regclass('public.incidencias') IS NOT NULL").fetchone()[0]
+        else []
+    )
     if ver_auditoria:
         ficha["auditoria"] = [
             {"actor": a[0], "accion": a[1], "resultado": a[2], "registrada_en": a[3].isoformat()}

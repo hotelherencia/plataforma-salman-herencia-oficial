@@ -36,6 +36,7 @@ TOPE_CUERPO_GENERAL_BYTES = 256 * 1024
 # Facturas de proveedores (2026-11-19): la foto o el PDF (máx. 10 MB) y el XML
 # del SII (máx. 1,5 MB) necesitan más que el tope general, solo en esas rutas.
 TOPE_CUERPO_ARCHIVO_BYTES = 10 * 1024 * 1024 + 4096
+TOPE_CUERPO_EVIDENCIA_BYTES = 5 * 1024 * 1024 + 4096
 TOPE_CUERPO_XML_BYTES = 2 * 1024 * 1024
 RUTAS_XML = ("/hotel/productos/documentos/xml", "/hotel/productos/importacion")
 _METODOS_CON_CUERPO = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -255,6 +256,8 @@ class TopeCuerpoPublico:
             return self.tope_webhook
         if ruta == "/hotel/productos/documentos/archivo":
             return max(self.tope_general, TOPE_CUERPO_ARCHIVO_BYTES)
+        if ruta.startswith("/hotel/incidencias"):
+            return max(self.tope_general, TOPE_CUERPO_EVIDENCIA_BYTES)
         if ruta.startswith(RUTAS_XML):
             return max(self.tope_general, TOPE_CUERPO_XML_BYTES)
         return self.tope_general

@@ -328,14 +328,19 @@ class OperacionAseoInvalida(Exception):
 
 
 def vista_aseo(conexion: psycopg.Connection, hoy: date) -> dict:
-    """#362: lista para el personal de aseo. Primero las habitaciones con
-    limpieza pendiente; luego el estado de cada una (ocupada, llega o sale
-    hoy, libre). Sin nombres ni datos del huésped ni precios."""
+    """#362 / #416: lista para el personal de aseo. Primero las habitaciones con
+    limpieza pendiente o en curso; luego el estado de cada una (ocupada, llega
+    o sale hoy, libre), checklist de subtareas e incidencias abiertas.
+    Sin nombres ni datos del huésped ni precios."""
+    from . import tareas as tareas_db
+
     filas = conexion.execute(
         "SELECT h.id, h.tipo, h.estado_operativo, h.estado_preparacion, "
         f"{reservas_db.SQL_MANTENIMIENTO_SOLAPA}, "
         "(SELECT t.id FROM tareas_operativas t WHERE t.habitacion_id = h.id AND t.tipo = 'limpieza' "
-        " AND t.estado = 'pendiente' ORDER BY t.creado_en LIMIT 1), "
+        " AND t.estado IN ('pendiente', 'en_proceso') ORDER BY t.creado_en LIMIT 1), "
+        "(SELECT t.estado FROM tareas_operativas t WHERE t.habitacion_id = h.id AND t.tipo = 'limpieza' "
+        " AND t.estado IN ('pendiente', 'en_proceso') ORDER BY t.creado_en LIMIT 1), "
         "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia'), "
         "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'confirmada' AND r.inicio = %s), "
         "EXISTS(SELECT 1 FROM reservas r WHERE r.habitacion_id = h.id AND r.estado = 'en_estadia' AND r.fin = %s) "
@@ -353,22 +358,51 @@ def vista_aseo(conexion: psycopg.Connection, hoy: date) -> dict:
     for t in conexion.execute(
         "SELECT DISTINCT ON (habitacion_id) habitacion_id, id, completada_en, completada_por, verificacion, "
         "verificada_por, observacion FROM tareas_operativas WHERE tipo = 'limpieza' AND estado = 'completada' "
+        "AND habitacion_id IS NOT NULL "
         "ORDER BY habitacion_id, completada_en DESC"
     ).fetchall():
         ultimas[t[0]] = {"tarea_id": t[1], "completada_en": t[2].isoformat() if t[2] else None,
                          "completada_por": t[3], "verificacion": t[4], "verificada_por": t[5], "observacion": t[6]}
+    tareas_activas = [f[5] for f in filas if f[5] is not None]
+    subtareas_mapa = (
+        tareas_db.subtareas_de_tareas(conexion, tareas_activas)
+        if tareas_activas and conexion.execute("SELECT to_regclass('public.tarea_subtareas') IS NOT NULL").fetchone()[0]
+        else {}
+    )
+    incidencias_mapa: dict[str, list] = {}
+    if conexion.execute("SELECT to_regclass('public.incidencias') IS NOT NULL").fetchone()[0]:
+        for inc in conexion.execute(
+            "SELECT id, habitacion_id, titulo, gravedad, estado, bloquea_disponibilidad "
+            "FROM incidencias WHERE habitacion_id IS NOT NULL AND estado IN ('abierta', 'en_progreso') "
+            "ORDER BY bloquea_disponibilidad DESC, creada_en DESC"
+        ).fetchall():
+            incidencias_mapa.setdefault(inc[1], []).append(
+                {
+                    "incidencia_id": inc[0],
+                    "titulo": inc[2],
+                    "gravedad": inc[3],
+                    "estado": inc[4],
+                    "bloquea_disponibilidad": bool(inc[5]),
+                }
+            )
     habitaciones = []
     for f in filas:
-        if f[6]:
-            situacion = "sale_hoy" if f[8] else "ocupada"
-        elif f[7]:
+        if f[7]:
+            situacion = "sale_hoy" if f[9] else "ocupada"
+        elif f[8]:
             situacion = "llega_hoy"
         else:
             situacion = "libre"
+        subs = subtareas_mapa.get(f[5], []) if f[5] else []
         habitaciones.append({
             "habitacion_id": f[0], "tipo": f[1], "estado_operativo": f[2], "estado_preparacion": f[3],
-            "mantenimiento_hoy": bool(f[4]), "tarea_limpieza_id": f[5], "limpieza_pendiente": f[5] is not None,
+            "mantenimiento_hoy": bool(f[4]), "tarea_limpieza_id": f[5], "tarea_limpieza_estado": f[6],
+            "limpieza_pendiente": f[5] is not None,
+            "limpieza_en_curso": f[3] == "en_limpieza" or f[6] == "en_proceso",
             "situacion": situacion, "observaciones": observaciones.get(f[0], []),
+            "subtareas": subs,
+            "obligatorias_pendientes": sum(1 for s in subs if s["obligatoria"] and not s["completada"]),
+            "incidencias_abiertas": incidencias_mapa.get(f[0], []),
             "ultima_limpieza": ultimas.get(f[0]),
         })
     habitaciones.sort(key=lambda h: (not h["limpieza_pendiente"], h["situacion"] != "llega_hoy", h["habitacion_id"]))

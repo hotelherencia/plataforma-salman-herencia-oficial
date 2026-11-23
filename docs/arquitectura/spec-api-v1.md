@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (155)
+## Operaciones de esta versión (168)
 
 | Operación | Efecto |
 |---|---|
@@ -659,6 +659,19 @@ los compone el servidor.
 | `POST /core/stock/transferencias` | (#358) Transfiere stock entre bodegas del core sin alterar el total. Solo administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/productos/{producto_id}/transferencia` | Alias hotel de transferencia entre bodegas para un producto específico. Solo administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/reservas/{reserva_id}/devolucion` | (#91 / Q-HOT-04) Registra la devolución formal (efectivo con turno abierto o transferencia) de saldo a favor del huésped (`saldo_clp < 0`) hasta dejar la cuenta en $0. Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/incidencias` | (#415) Lista incidencias operativas por estado, gravedad, habitación, área o `bloquea_disponibilidad`, priorizando abiertas y bloqueantes. Roles aseo, recepción o administración del hotel. |
+| `POST /hotel/incidencias` | (#415) Crea una incidencia por habitación o área común con gravedad, responsable, plazo, costo opcional, evidencia móvil (JPG/PNG/WebP) y `bloquea_disponibilidad`; si bloquea, activa mantenimiento en la unidad. Auditado sin PII; `Idempotency-Key`. |
+| `GET /hotel/incidencias/{incidencia_id}` | (#415) Detalle de una incidencia de la empresa. Roles aseo, recepción o administración del hotel; ajena → 403. |
+| `PUT /hotel/incidencias/{incidencia_id}` | (#415) Actualiza estado, gravedad, responsable, plazo, costo, resolución o `bloquea_disponibilidad`, sincronizando el bloqueo de disponibilidad de la habitación. Roles recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/incidencias/{incidencia_id}/cierre` | (#415) Resuelve o cierra una incidencia y libera el bloqueo de disponibilidad de la habitación si no quedan otras incidencias bloqueantes abiertas. Auditado; `Idempotency-Key`. |
+| `POST /hotel/incidencias/{incidencia_id}/evidencia` | (#415) Adjunta o reemplaza evidencia fotográfica móvil (JPG/PNG/WebP, máx. 5 MB, verificada por bytes mágicos). Auditado sin PII. |
+| `GET /hotel/incidencias/{incidencia_id}/evidencia` | (#415) Sirve la foto de evidencia con `X-Content-Type-Options: nosniff`, CSP `sandbox` y `Cache-Control: no-store`. |
+| `POST /hotel/habitaciones/{habitacion_id}/limpieza/iniciar` | (#416) Pasa la habitación al estado intermedio «En limpieza» (`en_limpieza`), marca la tarea `en_proceso` y opcionalmente carga el checklist base de limpieza. Roles aseo, recepción o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/tareas` | (#416) Lista tareas operativas (habitaciones y áreas comunes: limpieza, baños, lavandería, desayunos, mantenimiento, general) con sus subtareas, conteos de progreso y plantillas activas. |
+| `POST /hotel/tareas` | (#416) Crea una tarea operativa manual o con checklist (propio o desde plantilla), prioridad, responsable, vencimiento y observaciones. Auditado; `Idempotency-Key`. |
+| `PUT /hotel/tareas/{tarea_id}` | (#416) Actualiza estado, prioridad, responsable, vencimiento u observación; impide completar (409) mientras existan subtareas obligatorias sin marcar. Auditado; `Idempotency-Key`. |
+| `POST /hotel/tareas/{tarea_id}/subtareas` | (#416) Agrega una subtarea (obligatoria u opcional) a una tarea abierta. Auditado; `Idempotency-Key`. |
+| `POST /hotel/tareas/{tarea_id}/subtareas/{subtarea_id}` | (#416) Marca o desmarca individualmente una subtarea del checklist. Auditado; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 

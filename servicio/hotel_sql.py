@@ -67,6 +67,7 @@ _OPERATIVO_DE_FILA = {
 _PREPARACION_DE_FILA = {
     "limpia": EstadoUnidad.LIMPIA,
     "sucia": EstadoUnidad.SUCIA,
+    "en_limpieza": EstadoUnidad.SUCIA,
     "inspeccionada": EstadoUnidad.INSPECCIONADA,
 }
 _OPERATIVO_A_FILA = {estado: fila for fila, estado in _OPERATIVO_DE_FILA.items()}
@@ -202,9 +203,18 @@ def recargar(conexion: psycopg.Connection, hotel, empresa_id: str, rango: tuple[
         ).fetchall()
     )
     tareas = tuple(
-        TareaOperativa(tid, empresa_id, hab, tipo, EstadoTarea(estado))
+        TareaOperativa(
+            tid,
+            empresa_id,
+            hab,
+            tipo,
+            EstadoTarea.PENDIENTE if estado == "en_proceso" else EstadoTarea(estado),
+        )
         for tid, hab, tipo, estado in conexion.execute(
-            "SELECT id, habitacion_id, tipo, estado FROM tareas_operativas ORDER BY creado_en, id"
+            "SELECT id, habitacion_id, tipo, estado FROM tareas_operativas "
+            "WHERE habitacion_id IS NOT NULL AND tipo IN ('limpieza', 'mantenimiento') "
+            "AND estado IN ('pendiente', 'en_proceso', 'completada') "
+            "ORDER BY creado_en, id"
         ).fetchall()
     )
     # El dominio guarda una tarifa por día (fecha inclusive): una por noche con precio resuelto.
@@ -245,8 +255,10 @@ def persistir(conexion: psycopg.Connection, hotel, empresa_id: str) -> None:
             )
         else:
             conexion.execute(
-                "UPDATE habitaciones SET estado_operativo = 'disponible', estado_preparacion = %s WHERE id = %s",
-                (u.estado.value, u.id),
+                "UPDATE habitaciones SET estado_operativo = 'disponible', "
+                "estado_preparacion = CASE WHEN %s = 'sucia' AND estado_preparacion = 'en_limpieza' "
+                "THEN 'en_limpieza' ELSE %s END WHERE id = %s",
+                (u.estado.value, u.estado.value, u.id),
             )
     for r in hotel._reservas.values():
         fila = _RESERVA_A_FILA.get(r.estado)
@@ -266,7 +278,9 @@ def persistir(conexion: psycopg.Connection, hotel, empresa_id: str) -> None:
         conexion.execute(
             "INSERT INTO tareas_operativas (id, habitacion_id, tipo, estado, completada_en) "
             "VALUES (%s,%s,%s,%s, CASE WHEN %s = 'completada' THEN now() END) "
-            "ON CONFLICT (id) DO UPDATE SET estado = EXCLUDED.estado, "
+            "ON CONFLICT (id) DO UPDATE SET "
+            "estado = CASE WHEN EXCLUDED.estado = 'pendiente' AND tareas_operativas.estado = 'en_proceso' "
+            "THEN 'en_proceso' ELSE EXCLUDED.estado END, "
             "completada_en = COALESCE(tareas_operativas.completada_en, EXCLUDED.completada_en)",
             (t.id, t.unidad_id, t.tipo, t.estado.value, t.estado.value),
         )
@@ -680,6 +694,16 @@ def completar_limpieza(conexion: psycopg.Connection, hotel, empresa_id: str, hab
     ]
     if not pendientes:
         raise cobro.TransicionInvalida("no hay una limpieza pendiente en la habitación")
+    if _existe(conexion, "tarea_subtareas"):
+        (obligatorias_pend,) = conexion.execute(
+            "SELECT count(*) FROM tarea_subtareas "
+            "WHERE tarea_id = ANY(%s) AND obligatoria AND NOT completada",
+            ([t.id for t in pendientes],),
+        ).fetchone()
+        if obligatorias_pend > 0:
+            raise cobro.TransicionInvalida(
+                f"faltan {obligatorias_pend} subtarea(s) obligatoria(s) por completar antes de cerrar la limpieza"
+            )
     for tarea in pendientes:
         hotel.completar_tarea(empresa_id, tarea.id)
     persistir(conexion, hotel, empresa_id)

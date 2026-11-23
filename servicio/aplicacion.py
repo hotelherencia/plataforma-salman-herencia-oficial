@@ -427,6 +427,8 @@ def crear_app(aplicacion: Aplicacion | None = None, configuracion: Configuracion
     app.include_router(rutas_caja.router)
     app.include_router(rutas_productos.router)
     app.include_router(rutas_agente.router)
+    from .rutas import operacion as rutas_operacion
+    app.include_router(rutas_operacion.router)
     app.include_router(rutas_mensajeria.router)
 
     @app.exception_handler(RequestValidationError)

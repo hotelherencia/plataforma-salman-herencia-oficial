@@ -8,6 +8,7 @@ import { AUN_NO_DISPONIBLES, EXPLICACIONES } from '../../../lib/explicaciones'
 import { Insignia, useContadorSolicitudes } from '../_componentes/contador-solicitudes'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
+import { resumirAtencion } from '../../../lib/operacion-corte1'
 import { BotonExportar } from '../_componentes/boton-exportar'
 
 /**
@@ -38,6 +39,7 @@ const HABITACIONES = [
   ['habitaciones_vendibles', 'Vendibles'],
   ['habitaciones_ocupadas', 'Ocupadas ahora'],
   ['habitaciones_sucias', 'Sucias'],
+  ['habitaciones_en_limpieza', 'En limpieza'],
   ['limpiezas_pendientes', 'Limpiezas pendientes'],
   ['en_mantenimiento', 'En mantenimiento'],
   ['fuera_de_servicio', 'Fuera de servicio'],
@@ -181,6 +183,52 @@ export default function Panel() {
               <Insignia valor={solicitudesPendientes} />
             </p>
           )}
+
+          {(() => {
+            const resumenAtencion = resumirAtencion(datos.atencion)
+            return (
+              <section
+                className={`tarjeta bloque-atencion${resumenAtencion.total > 0 ? ' tiene-alertas' : ''}`}
+                aria-label="Lo que necesita atención"
+                data-bloque-atencion
+              >
+                <div className="tarjeta-cabecera">
+                  <h2>
+                    Lo que necesita atención{' '}
+                    {resumenAtencion.total > 0 && <span className="insignia-atencion">{resumenAtencion.total}</span>}
+                  </h2>
+                </div>
+                {resumenAtencion.total === 0 ? (
+                  <p className="estado">Todo al día: no hay llegadas/salidas atrasadas, limpiezas por verificar, incidencias abiertas ni quiebres de stock.</p>
+                ) : (
+                  <div className="atencion-grid">
+                    {resumenAtencion.grupos.map((grupo) => (
+                      <div key={grupo.id} className={`atencion-grupo${grupo.urgente ? ' es-urgente' : ''}`}>
+                        <h3 className="atencion-grupo-titulo">
+                          {grupo.titulo} <span className="atencion-cuenta">({grupo.items.length})</span>
+                        </h3>
+                        <ul className="atencion-lista">
+                          {grupo.items.slice(0, 6).map((item) => (
+                            <li key={item.clave}>
+                              <Link href={item.href} className="atencion-enlace">
+                                <span>{item.texto}</span>
+                                {item.etiqueta && (
+                                  <span className={`atencion-tag${item.bloquea ? ' es-bloqueante' : ''}`}>
+                                    {item.etiqueta}
+                                  </span>
+                                )}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )
+          })()}
+
           <section className="tarjeta" aria-label="Situación de hoy">
             <h2>Situación de hoy</h2>
             <div className="kpi-rejilla">

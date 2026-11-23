@@ -75,6 +75,13 @@ export const EXPLICACIONES = {
     noCuenta: 'Tareas ya cerradas por aseo.',
     ejemplo: '2 tareas creadas por Salidas + 1 por cambio de habitación = 3.',
   },
+  habitaciones_en_limpieza: {
+    mide: 'Cuántas habitaciones están siendo limpiadas en este momento por el personal de aseo.',
+    formula: 'En limpieza = habitaciones cuyo estado de preparación actual es «En limpieza».',
+    cuenta: 'Habitaciones cuya limpieza ya se inició y todavía no se marca como limpia.',
+    noCuenta: 'Habitaciones sucias aún sin iniciar ni habitaciones ya limpias o inspeccionadas.',
+    ejemplo: 'Si aseo inició la limpieza de 2 habitaciones recién desocupadas, el panel muestra 2.',
+  },
   en_mantenimiento: {
     mide: 'Cuántas habitaciones están hoy en mantenimiento.',
     formula: 'En mantenimiento = habitaciones con un mantenimiento cuyo rango de fechas incluye hoy.',

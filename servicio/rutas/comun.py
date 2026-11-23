@@ -37,14 +37,22 @@ def conexion(request: Request) -> Iterator[psycopg.Connection]:
         yield conn
 
 
-# #362: el rol aseo solo alcanza estas rutas (lista blanca); el resto → 403.
+# #362 / #415 / #416: el rol aseo solo alcanza estas rutas (lista blanca); el resto → 403.
 RUTAS_ASEO = tuple(re.compile(p) for p in (
     r"^/sesion$",
     r"^/cuenta(/.*)?$",
     r"^/usuarios/[^/]+/clave$",
     r"^/hotel/aseo$",
     r"^/hotel/habitaciones/[^/]+/limpieza$",
+    r"^/hotel/habitaciones/[^/]+/limpieza/iniciar$",
     r"^/hotel/habitaciones/[^/]+/observaciones/[^/]+/atendida$",
+    r"^/hotel/tareas$",
+    r"^/hotel/tareas/[^/]+$",
+    r"^/hotel/tareas/[^/]+/subtareas$",
+    r"^/hotel/tareas/[^/]+/subtareas/[^/]+$",
+    r"^/hotel/incidencias$",
+    r"^/hotel/incidencias/[^/]+$",
+    r"^/hotel/incidencias/[^/]+/evidencia$",
 ))
 
 
