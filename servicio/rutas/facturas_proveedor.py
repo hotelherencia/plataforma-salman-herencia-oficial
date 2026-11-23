@@ -12,9 +12,17 @@ from .. import correo
 from .. import facturas_proveedor as facturas
 from .. import idempotencia
 from .. import importacion_productos as importacion
+from .. import notas_credito_proveedor as nc_mod
 from .. import roles, seguridad, vision
 from . import comun
-from .modelos import ConfirmacionDocumentoIn, DocumentoCambioIn, DocumentoXmlIn, EquivalenciaCambioIn
+from .modelos import (
+    AplicarNotaCreditoIn,
+    ConfirmacionDocumentoIn,
+    DocumentoCambioIn,
+    DocumentoXmlIn,
+    EquivalenciaCambioIn,
+    PagoCxpIn,
+)
 
 router = APIRouter()
 ROLES = roles.con_admin_hotel()
@@ -37,8 +45,8 @@ def listar_documentos(
 ) -> dict:
     """Bandeja: facturas por revisar y pedidos en borrador (o el historial)."""
     comun.exigir_rol(sesion, ROLES)
-    estados = {"abiertos": facturas.ESTADOS_ABIERTOS, "cargada": ("cargada", "facturado"),
-               "todos": ("pendiente", "borrador", "cargada", "facturado", "archivada", "descartada")}[estado]
+    estados = {"abiertos": facturas.ESTADOS_ABIERTOS, "cargada": ("cargada", "facturado", "aplicada"),
+               "todos": ("pendiente", "borrador", "cargada", "facturado", "aplicada", "archivada", "descartada")}[estado]
     hay_buzon = conexion.execute(
         "SELECT count(*) FROM buzones_correo WHERE proposito = 'recepcion_dte' AND activo").fetchone()[0] > 0
     return {"documentos": facturas.listar(conexion, estados), "lectura_automatica": vision.estado(),
@@ -239,3 +247,109 @@ def eliminar_equivalencia(equivalencia_id: str, sesion: seguridad.SesionActiva =
     seguridad.auditar(conexion, sesion.nombre, "equivalencia_proveedor_eliminada", equivalencia_id, "ok")
     conexion.commit()
     return {"equivalencia_id": equivalencia_id, "eliminada": True}
+
+
+@router.post(f"{BASE}/{{documento_id}}/aplicar-nota-credito")
+def aplicar_nota_credito_proveedor(
+    documento_id: str,
+    entrada: AplicarNotaCreditoIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#402 / PUR-004: vincula una NC de proveedor (DTE 61) a su factura cargada,
+    rebajando stock (0055) y cuenta por pagar de forma append-only e idempotente."""
+    comun.exigir_rol(sesion, ROLES)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    lineas_stock = [l.model_dump() for l in entrada.lineas_stock]
+    cuerpo = {
+        "operacion": "nota_credito_proveedor_aplicacion",
+        "documento_id": documento_id,
+        "factura_id": entrada.factura_id,
+        "lineas_stock": lineas_stock,
+        "monto_rebaja_clp": entrada.monto_rebaja_clp,
+        "motivo": entrada.motivo,
+    }
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = nc_mod.aplicar_nota_credito(
+                conexion,
+                documento_id,
+                entrada.factura_id,
+                lineas_stock,
+                sesion.nombre,
+                monto_rebaja_clp=entrada.monto_rebaja_clp,
+                motivo=entrada.motivo,
+            )
+        except facturas.DocumentoNoEncontrado as error:
+            return 404, {"detail": str(error)}
+        except facturas.DocumentoEnConflicto as error:
+            return 409, {"detail": str(error)}
+        except facturas.DocumentoInvalido as error:
+            return 422, {"detail": str(error)}
+        seguridad.auditar(
+            conexion, sesion.nombre, "nota_credito_proveedor_aplicada", documento_id,
+            f"factura={entrada.factura_id},rebaja_cxp={resultado['monto_rebajado_cxp_clp']},"
+            f"stock={resultado['unidades_rebajadas_stock']}",
+        )
+        return 200, resultado
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)
+
+
+@router.get("/hotel/productos/cuentas-por-pagar")
+def listar_cuentas_por_pagar(
+    estado: str = Query(default="pendientes", pattern=r"^(pendientes|abierta|parcial|pagada|anulada|todos)$"),
+    emisor_rut: str | None = Query(default=None, max_length=20),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """#402 / PUR-004: cuentas por pagar de facturas de proveedor con historial append-only."""
+    comun.exigir_rol(sesion, ROLES)
+    items = nc_mod.listar_cxp(conexion, estado=estado, emisor_rut=emisor_rut)
+    return {
+        "cuentas_por_pagar": items,
+        "total_pendiente_clp": sum(i["saldo_pendiente_clp"] for i in items),
+    }
+
+
+@router.post("/hotel/productos/cuentas-por-pagar/{cxp_id}/pagos")
+def registrar_pago_cuenta_por_pagar(
+    cxp_id: str,
+    entrada: PagoCxpIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """#402 / PUR-004: abono o pago a proveedor sobre una cuenta por pagar (append-only e idempotente)."""
+    comun.exigir_rol(sesion, ROLES)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    cuerpo = {"operacion": "cxp_pago", "cxp_id": cxp_id, **entrada.model_dump()}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = nc_mod.registrar_pago_cxp(
+                conexion, cxp_id, entrada.monto_clp, entrada.medio,
+                entrada.comprobante, entrada.motivo, clave, sesion.nombre,
+            )
+        except facturas.DocumentoNoEncontrado as error:
+            return 404, {"detail": str(error)}
+        except facturas.DocumentoEnConflicto as error:
+            return 409, {"detail": str(error)}
+        except facturas.DocumentoInvalido as error:
+            return 422, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, "cxp_pago", cxp_id, f"monto={entrada.monto_clp},medio={entrada.medio}")
+        return 201, resultado
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)
