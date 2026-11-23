@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import date, time, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path as RutaParam, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .. import cobro, comunicados, operacion, roles, seguridad
+from .. import cobro, comunicados, operacion, roles, seguridad, turnos
 from . import comun
 from .hotel import _ejecutar_exclusivo
 
@@ -463,3 +463,110 @@ def lecturas_comunicado(
         return comunicados.lecturas(conexion, sesion.empresa_id, comunicado_id)
     except operacion.NoEncontrado as error:
         raise HTTPException(status_code=404, detail=str(error))
+
+
+# --- Turnos semanales y cambios de turno (#418, Corte 2) ---
+
+class TurnoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    fecha: date
+    area: Literal["recepcion", "aseo", "desayunos", "mantencion"]
+    usuario: str = Field(min_length=1, max_length=80)
+    hora_inicio: time
+    hora_fin: time
+    nota: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _horas(self):
+        if self.hora_fin <= self.hora_inicio:
+            raise ValueError("la hora de fin debe ser posterior a la de inicio")
+        return self
+
+
+class CambioTurnoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    propuesto: str = Field(min_length=1, max_length=80)
+    motivo: str = Field(min_length=3, max_length=300)
+
+
+class ResolucionCambioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    aprobar: bool
+
+
+@router.get("/hotel/turnos")
+def listar_turnos(
+    desde: date | None = None,
+    hasta: date | None = None,
+    area: Literal["recepcion", "aseo", "desayunos", "mantencion"] | None = None,
+    solo_mios: bool = False,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    desde = desde or date.today()
+    hasta = hasta or desde + timedelta(days=7)
+    try:
+        return turnos.listar(conexion, desde, hasta, area, sesion.nombre if solo_mios else None)
+    except operacion.OperacionInvalida as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+
+@router.post("/hotel/turnos")
+def crear_turno(
+    request: Request,
+    datos: TurnoIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, ROLES_PLANTILLAS)
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key, _cuerpo("turno", **datos.model_dump(mode="json")),
+        "turno_creado", "turno_id",
+        lambda hotel: turnos.crear(conexion, sesion.empresa_id, sesion.nombre, datos.model_dump()),
+    )
+
+
+@router.post("/hotel/turnos/{turno_id}/cambio")
+def solicitar_cambio_turno(
+    request: Request,
+    datos: CambioTurnoIn,
+    turno_id: str = RutaParam(pattern=PATRON_ID),
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key, _cuerpo("turno_cambio", turno_id=turno_id, **datos.model_dump()),
+        "turno_cambio_solicitado", "cambio_id",
+        lambda hotel: turnos.solicitar_cambio(
+            conexion, sesion.empresa_id, turno_id, sesion.nombre, sesion.rol in roles.ROLES_ADMIN_HOTEL,
+            datos.propuesto, datos.motivo),
+    )
+
+
+@router.get("/hotel/turnos/cambios")
+def listar_cambios_turno(
+    estado: Literal["pendiente", "aprobado", "rechazado"] | None = None,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_PLANTILLAS)
+    return turnos.listar_cambios(conexion, estado)
+
+
+@router.post("/hotel/turnos/cambios/{cambio_id}/resolucion")
+def resolver_cambio_turno(
+    request: Request,
+    datos: ResolucionCambioIn,
+    cambio_id: str = RutaParam(pattern=PATRON_ID),
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, ROLES_PLANTILLAS)
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key, _cuerpo("turno_cambio_resolucion", cambio_id=cambio_id, aprobar=datos.aprobar),
+        "turno_cambio_resuelto", "cambio_id",
+        lambda hotel: turnos.resolver_cambio(conexion, cambio_id, datos.aprobar, sesion.nombre),
+    )
