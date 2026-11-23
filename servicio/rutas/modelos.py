@@ -708,6 +708,33 @@ class ConfirmacionDocumentoIn(BaseModel):
     pedido_id: str | None = Field(default=None, pattern=r"^DOC-[a-f0-9]{12}$")
 
 
+class LineaNotaCreditoStockIn(BaseModel):
+    """Línea con devolución física de stock para aplicar una nota de crédito (#402)."""
+    model_config = ConfigDict(extra="forbid")
+    producto_id: str = Field(pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
+    cantidad: float = Field(gt=0, le=100_000)
+    unidades_por_paquete: int = Field(default=1, ge=1, le=10_000)
+    bodega_codigo: str | None = Field(default=None, max_length=40)
+
+
+class AplicarNotaCreditoIn(BaseModel):
+    """Vincula una nota de crédito de proveedor (DTE 61) a su factura cargada (#402 / PUR-004)."""
+    model_config = ConfigDict(extra="forbid")
+    factura_id: str = Field(pattern=r"^DOC-[a-f0-9]{12}$")
+    lineas_stock: list[LineaNotaCreditoStockIn] = Field(default_factory=list, max_length=300)
+    monto_rebaja_clp: int | None = Field(default=None, ge=0, le=10_000_000_000)
+    motivo: str | None = Field(default=None, max_length=200)
+
+
+class PagoCxpIn(BaseModel):
+    """Abono o pago a proveedor sobre una cuenta por pagar (#402 / PUR-004)."""
+    model_config = ConfigDict(extra="forbid")
+    monto_clp: int = Field(gt=0, le=10_000_000_000)
+    medio: Literal["transferencia", "efectivo", "cheque", "tarjeta"] = "transferencia"
+    comprobante: str | None = Field(default=None, max_length=60)
+    motivo: str | None = Field(default=None, max_length=200)
+
+
 class EquivalenciaCambioIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")

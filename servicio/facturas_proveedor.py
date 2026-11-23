@@ -271,7 +271,8 @@ def crear_desde_archivo(conexion: psycopg.Connection, contenido: bytes, tipo_mim
 
 _COLUMNAS = ("id, clase, origen, estado, lectura, emisor_rut, emisor_razon_social, tipo_dte, folio, fecha_emision, "
              "monto_neto_clp, monto_exento_clp, iva_clp, monto_total_clp, lineas, ted, referencias, discrepancias, "
-             "archivo_id, remitente, importacion_id, pedido_id, actor, creado_en, actualizado_en")
+             "archivo_id, remitente, importacion_id, pedido_id, actor, creado_en, actualizado_en, "
+             "factura_referencia_id, aplicada_en, aplicada_por")
 
 
 def _vista(f) -> dict:
@@ -284,6 +285,9 @@ def _vista(f) -> dict:
         "lineas": f[14] or [], "ted": f[15], "referencias": f[16] or [], "discrepancias": f[17] or [],
         "tiene_archivo": bool(f[18]), "remitente": f[19], "importacion_id": f[20], "pedido_id": f[21],
         "actor": f[22], "creado_en": f[23].isoformat(), "actualizado_en": f[24].isoformat(),
+        "factura_referencia_id": f[25],
+        "aplicada_en": f[26].isoformat() if f[26] else None,
+        "aplicada_por": f[27],
     }
 
 
@@ -371,6 +375,10 @@ def detalle(conexion: psycopg.Connection, documento_id: str) -> dict:
         if fila:
             v["pedido_sugerido"] = {"documento_id": fila[0], "folio": fila[1],
                                     "fecha_emision": fila[2].isoformat() if fila[2] else None}
+    v["factura_sugerida"] = None
+    if v["clase"] == "nota_credito" and v["estado"] == "pendiente":
+        from . import notas_credito_proveedor as nc_mod
+        v["factura_sugerida"] = nc_mod.sugerir_factura_para_nc(conexion, v["emisor_rut"], v["referencias"])
     v["lectura_automatica"] = vision.estado()
     return v
 
@@ -496,7 +504,9 @@ def confirmar(conexion: psycopg.Connection, documento_id: str, lineas: list[dict
             "UPDATE documentos_proveedor SET estado = 'cargada', importacion_id = %s, pedido_id = %s, actualizado_en = now() "
             "WHERE id = %s", (resultado["importacion_id"], pedido, documento_id),
         )
-    return {**resultado, "documento_id": documento_id, "equivalencias_recordadas": recordadas}
+        from . import notas_credito_proveedor as nc_mod
+        cxp = nc_mod.asegurar_cxp_para_factura(conexion, documento_id, actor)
+    return {**resultado, "documento_id": documento_id, "equivalencias_recordadas": recordadas, "cuenta_por_pagar": cxp}
 
 
 def descartar(conexion: psycopg.Connection, documento_id: str, actor: str) -> dict:

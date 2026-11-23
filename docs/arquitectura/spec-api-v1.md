@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (171)
+## Operaciones de esta versión (174)
 
 | Operación | Efecto |
 |---|---|
@@ -675,6 +675,9 @@ los compone el servidor.
 | `POST /core/stock/transferencias` | (#358) Transfiere stock entre bodegas del core sin alterar el total. Solo administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/productos/{producto_id}/transferencia` | Alias hotel de transferencia entre bodegas para un producto específico. Solo administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/reservas/{reserva_id}/devolucion` | (#91 / Q-HOT-04) Registra la devolución formal (efectivo con turno abierto o transferencia) de saldo a favor del huésped (`saldo_clp < 0`) hasta dejar la cuenta en $0. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/productos/documentos/{documento_id}/aplicar-nota-credito` | (#402 / `PUR-004`) Vincula una nota de crédito de proveedor (`nota_credito`, DTE 61) a su factura cargada (`factura_id`), rebajando stock en bodegas (`0055`, movimiento `reverso`) y saldo en cuenta por pagar (`cxp_movimientos` append-only e idempotente). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/productos/cuentas-por-pagar?estado&emisor_rut` | (#402 / `PUR-004`) Lista cuentas por pagar de facturas de proveedor con notas de crédito, pagos, saldo pendiente y movimientos append-only. Solo administración del hotel. |
+| `POST /hotel/productos/cuentas-por-pagar/{cxp_id}/pagos` | (#402 / `PUR-004`) Registra abono o pago total a proveedor sobre una cuenta por pagar de forma append-only e idempotente (sin superar el saldo). Solo administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
