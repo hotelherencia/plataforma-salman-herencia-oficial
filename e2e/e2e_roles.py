@@ -3,6 +3,7 @@
 Uso (base local aislada, nunca producción):
   python3 e2e/e2e_roles.py .env
 El .env (ignorado por git) define ADMIN_USUARIO/ADMIN_CLAVE y E2E_<ROL>_USUARIO/_CLAVE para los 6 roles."""
+import os, sys, uuid
 from datetime import date, timedelta
 import httpx
 
