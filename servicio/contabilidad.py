@@ -948,8 +948,12 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
         "COALESCE((SELECT SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END) FROM pagos p "
         "WHERE p.reserva_id = r.id AND p.estado = 'confirmado'), 0), "
         "COALESCE((SELECT SUM(CASE WHEN p.tipo = 'reverso' THEN -p.monto_clp ELSE p.monto_clp END) FROM pagos p "
-        "WHERE p.reserva_id = r.id AND p.estado = 'confirmado' AND p.es_anticipo), 0) "
-        "FROM reservas r WHERE r.empresa_id = %s AND r.estado IN ('confirmada', 'en_estadia', 'finalizada') "
+        "WHERE p.reserva_id = r.id AND p.estado = 'confirmado' AND p.es_anticipo), 0), "
+        "r.convenio_id, cv.nombre, cv.tipo, cl.nombre, r.tarifa_lista_clp, r.diferencia_convenio_clp "
+        "FROM reservas r "
+        "LEFT JOIN convenios_tarifarios cv ON cv.id = r.convenio_id "
+        "LEFT JOIN clientes cl ON cl.id = COALESCE(r.cliente_id, cv.cliente_id) "
+        "WHERE r.empresa_id = %s AND r.estado IN ('confirmada', 'en_estadia', 'finalizada') "
         "AND r.inicio <= %s AND r.fin > %s AND r.habitacion_id = ANY(%s) ORDER BY r.habitacion_id",
         (fecha, empresa_id, fecha, fecha, ids),
     ).fetchall()
@@ -981,7 +985,55 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
             "huesped_nombre": r[2], "estado_reserva": r[3], "inicio": r[4].isoformat(), "fin": r[5].isoformat(),
             "tarifa_noche_clp": r[6], "cargos_clp": cargos, "pagado_clp": pagado, "anticipos_clp": anticipos,
             "saldo_clp": saldo,
+            "convenio_id": r[10], "convenio_nombre": r[11], "tarifa_lista_clp": r[14],
+            "diferencia_convenio_clp": r[15],
         })
+    # SPEC-CONV-01: desglose de convenios aplicados en la noche o con pagos registrados en la fecha.
+    conv_filas = conexion.execute(
+        "SELECT DISTINCT r.id, r.habitacion_id, r.huesped_nombre, r.convenio_id, cv.nombre, cv.tipo, "
+        "cl.nombre, COALESCE(r.tarifa_lista_clp, r.tarifa_noche_aceptada_clp), "
+        "COALESCE((SELECT n.precio_clp FROM reserva_noches n WHERE n.reserva_id = r.id AND n.noche = %s), "
+        "r.tarifa_noche_aceptada_clp), "
+        "COALESCE(r.diferencia_convenio_clp, 0) "
+        "FROM reservas r "
+        "JOIN convenios_tarifarios cv ON cv.id = r.convenio_id "
+        "LEFT JOIN clientes cl ON cl.id = COALESCE(r.cliente_id, cv.cliente_id) "
+        "WHERE r.empresa_id = %s AND r.estado <> 'cancelada' "
+        "AND ((r.inicio <= %s AND r.fin > %s) OR EXISTS ("
+        "  SELECT 1 FROM pagos p WHERE p.reserva_id = r.id AND p.fecha_contable = %s AND p.estado = 'confirmado'"
+        ")) ORDER BY cv.nombre, r.habitacion_id",
+        (fecha, empresa_id, fecha, fecha, fecha),
+    ).fetchall()
+    por_convenio: dict[str, dict] = {}
+    for cf in conv_filas:
+        cid = cf[3]
+        lista_noche = int(cf[7] or 0)
+        aplicada_noche = int(cf[8] or 0)
+        dif_noche = int(cf[9]) if cf[9] is not None else (aplicada_noche - lista_noche)
+        grupo_c = por_convenio.setdefault(cid, {
+            "convenio_id": cid,
+            "convenio_nombre": cf[4],
+            "convenio_tipo": cf[5],
+            "cliente_nombre": cf[6],
+            "reservas": 0,
+            "tarifa_lista_total_clp": 0,
+            "tarifa_aplicada_total_clp": 0,
+            "diferencia_convenio_clp": 0,
+            "detalle": [],
+        })
+        grupo_c["reservas"] += 1
+        grupo_c["tarifa_lista_total_clp"] += lista_noche
+        grupo_c["tarifa_aplicada_total_clp"] += aplicada_noche
+        grupo_c["diferencia_convenio_clp"] += dif_noche
+        grupo_c["detalle"].append({
+            "reserva_id": cf[0],
+            "habitacion_id": cf[1],
+            "huesped_nombre": cf[2],
+            "tarifa_lista_clp": lista_noche,
+            "tarifa_aplicada_clp": aplicada_noche,
+            "diferencia_convenio_clp": dif_noche,
+        })
+    convenios_aplicados = list(por_convenio.values())
     cobros = conexion.execute(
         "SELECT medio, tipo, COALESCE(SUM(monto_clp), 0), count(*) FROM caja_movimientos "
         "WHERE empresa_id = %s AND fecha_contable = %s GROUP BY medio, tipo",
@@ -1097,6 +1149,7 @@ def conciliacion_diaria(conexion: psycopg.Connection, empresa_id: str, fecha: da
                    "egresos_caja_clp": egresos_caja,
                    "anticipos_recibidos_clp": anticipos_dia, "anticipos_vigentes_clp": anticipos_vigentes},
         "documentos": documentos,
+        "convenios_aplicados": convenios_aplicados,
         "turnos": [{k: t[k] for k in ("turno_id", "usuario_nombre", "estado", "fondo_inicial_clp",
                                       "efectivo_esperado_clp", "efectivo_contado_clp", "diferencia_clp",
                                       "justificacion", "totales")} for t in turnos],

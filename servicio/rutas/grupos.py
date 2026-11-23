@@ -50,6 +50,9 @@ def crear_grupo(
                 canal=datos.canal,
                 notas=datos.notas,
                 actor=sesion.nombre,
+                convenio_id=datos.convenio_id,
+                cliente_id=datos.cliente_id,
+                es_huesped_provisorio=datos.es_huesped_provisorio,
             )
         except grupos_db.GrupoInvalido as error:
             return 422, {"detail": str(error)}

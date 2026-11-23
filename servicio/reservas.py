@@ -463,6 +463,9 @@ def crear_reserva(
     upgrade_a_single: bool = False,
     huesped_correo: str | None = None,
     huesped_telefono: str | None = None,
+    convenio_id: str | None = None,
+    cliente_id: str | None = None,
+    es_huesped_provisorio: bool = False,
 ) -> dict:
     canal_normalizado = canal if canal in CANALES_RESERVA else "recepcion"
     # Un RUT es una sola persona o empresa: si ya es de un cliente registrado con otro nombre, no se acepta.
@@ -477,12 +480,32 @@ def crear_reserva(
     if cotizacion.sin_tarifa is not None:
         raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {cotizacion.sin_tarifa}")
     tarifa_lista = None
+    diferencia_convenio = None
+    convenio_aplicado = None
+    cliente_final = cliente_id.strip() if isinstance(cliente_id, str) and cliente_id.strip() else None
+    if upgrade_a_single and convenio_id:
+        raise SinTarifaVigente("elige convenio tarifario o upgrade a tarifa Single, no ambos")
     if upgrade_a_single:
         # SPEC-UPG-01: se cobra la tarifa Single; la de la habitación asignada queda como referencia.
         tarifa_lista = cotizacion.tarifa_primera
         cotizacion = _cotizacion_single_para_upgrade(
             conexion, hotel, empresa_id, habitacion_id, inicio, fin, adultos, ninos_ocupacion, personas,
         )
+    elif convenio_id:
+        # SPEC-CONV-01: el servidor calcula tarifa convenio, tarifa lista y diferencia exacta.
+        from . import convenios as convenios_db
+        cotizacion, convenio_aplicado, tarifa_lista, diferencia_convenio = convenios_db.aplicar_a_cotizacion(
+            conexion, empresa_id, convenio_id, habitacion_id, cotizacion, inicio, fin,
+        )
+        if cliente_final is None and convenio_aplicado.get("cliente_id"):
+            cliente_final = convenio_aplicado["cliente_id"]
+    if cliente_final is not None:
+        existe_cli = conexion.execute(
+            "SELECT 1 FROM clientes WHERE id = %s",
+            (cliente_final,),
+        ).fetchone()
+        if not existe_cli:
+            raise SinTarifaVigente("cliente_id no corresponde a un cliente registrado de esta empresa")
     cuerpo_politica = politicas.de(conexion, empresa_id)["cuerpo"]
     item = politicas.enriquecer_item(
         {"habitacion_id": habitacion_id, "tarifa_noche_clp": cotizacion.tarifa_primera, "total_clp": cotizacion.total},
@@ -504,12 +527,22 @@ def crear_reserva(
         "politica_snapshot": psycopg.types.json.Json(snapshot),
         "recargos": psycopg.types.json.Json(item.get("recargos") or []),
         "canal": canal_normalizado,
-        "titular_aloja": bool(titular_aloja),
+        "titular_aloja": bool(titular_aloja) and not bool(es_huesped_provisorio),
+        "es_huesped_provisorio": bool(es_huesped_provisorio),
     }
+    if cliente_final is not None:
+        columnas_reserva["cliente_id"] = cliente_final
     if upgrade_a_single:
         columnas_reserva.update({
             "upgrade_desde_tipo": "single",
             "tarifa_lista_clp": tarifa_lista,
+            "tarifa_noche_aceptada_clp": tarifa,
+        })
+    elif convenio_aplicado is not None:
+        columnas_reserva.update({
+            "convenio_id": convenio_aplicado["convenio_id"],
+            "tarifa_lista_clp": tarifa_lista,
+            "diferencia_convenio_clp": diferencia_convenio,
             "tarifa_noche_aceptada_clp": tarifa,
         })
     if grupo_id is not None:
@@ -521,7 +554,7 @@ def crear_reserva(
         recargos=item.get("recargos") or [],
     )
     reserva_id = creada["reserva_id"]
-    if titular_aloja:
+    if titular_aloja and not es_huesped_provisorio:
         from . import huespedes as huespedes_db
         titular_id = huespedes_db.asegurar_titular_reserva(
             conexion, empresa_id, reserva_id, huesped_nombre, huesped_documento, huesped_documento_tipo,
@@ -537,7 +570,13 @@ def crear_reserva(
     avisos.registrar_evento(conexion, "reserva_confirmada", reserva_id, {
         "habitacion_id": habitacion_id, "inicio": inicio.isoformat(), "fin": fin.isoformat(),
         "personas": personas, "total_clp": total, "canal": canal_normalizado}, empresa_id)
-    return {
+    total_personas = (adultos_val or 0) + (ninos_val or 0)
+    abono_sugerido_pct = None
+    if convenio_aplicado is not None:
+        abono_sugerido_pct = convenio_aplicado["requiere_abono_pct"]
+    if total_personas > 10:
+        abono_sugerido_pct = max(abono_sugerido_pct or 0, 50)
+    respuesta = {
         "reserva_id": reserva_id,
         "habitacion_id": habitacion_id,
         "inicio": inicio.isoformat(),
@@ -551,7 +590,20 @@ def crear_reserva(
         "desglose": item.get("desglose"),
         "politica_cancelacion": snapshot["texto_cancelacion"],
         "personas": personas,
+        "es_huesped_provisorio": bool(es_huesped_provisorio),
     }
+    if convenio_aplicado is not None:
+        respuesta.update({
+            "convenio_id": convenio_aplicado["convenio_id"],
+            "convenio_nombre": convenio_aplicado["nombre"],
+            "tarifa_lista_clp": tarifa_lista,
+            "diferencia_convenio_clp": diferencia_convenio,
+        })
+    if cliente_final is not None:
+        respuesta["cliente_id"] = cliente_final
+    if abono_sugerido_pct is not None:
+        respuesta["abono_sugerido_pct"] = abono_sugerido_pct
+    return respuesta
 
 
 def noches_de_reserva(conexion: psycopg.Connection, reserva_id: str) -> list[dict]:

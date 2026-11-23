@@ -20,6 +20,7 @@ from .. import canal_publico
 from .. import clientes
 from .. import cobro
 from .. import contabilidad
+from .. import convenios as convenios_db
 from .. import documental
 from .. import hotel_sql
 from .. import huespedes as huespedes_db
@@ -375,11 +376,14 @@ def confirmar_reserva(
                 upgrade_a_single=reserva.upgrade_a_single,
                 huesped_correo=reserva.huesped.correo,
                 huesped_telefono=reserva.huesped.telefono,
+                convenio_id=reserva.convenio_id,
+                cliente_id=reserva.cliente_id,
+                es_huesped_provisorio=reserva.es_huesped_provisorio,
             )
         except reservas_db.SinCupo as error:
             return 409, {"detail": str(error)}
         except (reservas_db.SinTarifaVigente, reservas_db.HabitacionNoVendible,
-                clientes.ClienteConflicto) as error:
+                clientes.ClienteConflicto, convenios_db.ConvenioConflicto) as error:
             return 409, {"detail": str(error)}
         seguridad.auditar(conexion, sesion.nombre, "reserva", creada["reserva_id"], "confirmada")
         return 201, creada

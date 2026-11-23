@@ -39,13 +39,23 @@ export default function Reserva() {
     canal: 'recepcion',
     notas_grupo: '',
     upgrade_a_single: false,
+    convenio_id: '',
+    es_huesped_provisorio: false,
   })
+  const [convenios, setConvenios] = useState([])
   const [habitacionesGrupo, setHabitacionesGrupo] = useState([
     filaHabitacion('', '', true),
     filaHabitacion('', '', false),
   ])
 
   useEffect(() => {
+    api('/hotel/convenios?solo_vigentes=true')
+      .then((r) => {
+        if (r.estado === 200 && Array.isArray(r.datos?.convenios)) {
+          setConvenios(r.datos.convenios)
+        }
+      })
+      .catch(() => {})
     const params = new URLSearchParams(window.location.search)
     const ini = params.get('inicio') || ''
     const fin = params.get('fin') || ''
@@ -89,11 +99,14 @@ export default function Reserva() {
     e.preventDefault()
     setError('')
     setSalida(null)
-    const falta = camposFaltantes([[campos.inicio, 'Llegada'], [campos.fin, 'Salida'], [campos.habitacion_id, 'Habitación'], [campos.nombre, 'Nombre del huésped']])
+    const falta = camposFaltantes([[campos.inicio, 'Llegada'], [campos.fin, 'Salida'], [campos.habitacion_id, 'Habitación'], [campos.nombre, campos.es_huesped_provisorio ? 'Empresa o institución provisoria' : 'Nombre del huésped']])
     if (falta) { setError(falta); return }
-    // #367: el documento es obligatorio y se valida antes de enviar.
-    const doc = validarDocumento(campos.documento_tipo, campos.documento)
-    if (!doc.ok) { setError(doc.error); return }
+    // #367: el documento es obligatorio salvo reserva provisoria de empresa/institución (SPEC-PROV-01).
+    let doc = { ok: true, valor: null }
+    if (!campos.es_huesped_provisorio || campos.documento.trim()) {
+      doc = validarDocumento(campos.documento_tipo, campos.documento)
+      if (!doc.ok) { setError(doc.error); return }
+    }
     // #454: contacto opcional, pero si se escribe debe ser válido.
     const correo = campos.correo.trim()
     if (correo && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(correo)) { setError('Revisa el correo: parece incompleto.'); return }
@@ -101,6 +114,12 @@ export default function Reserva() {
     const digitos = telefono.replace(/\D/g, '')
     if (telefono && (digitos.length < 8 || digitos.length > 15)) { setError('El teléfono debe tener entre 8 y 15 dígitos.'); return }
     try {
+      const cuerpoHuesped = {
+        nombre: campos.nombre,
+        ...(doc.valor ? { documento: doc.valor, documento_tipo: campos.documento_tipo } : {}),
+        ...(correo ? { correo } : {}),
+        ...(telefono ? { telefono } : {}),
+      }
       const r = await api('/hotel/reservas', {
         metodo: 'POST',
         claveIdempotencia: clave,
@@ -110,8 +129,10 @@ export default function Reserva() {
           fin: campos.fin,
           personas: Number(campos.personas) || undefined,
           canal: campos.canal || 'recepcion',
-          huesped: { nombre: campos.nombre, documento: doc.valor, documento_tipo: campos.documento_tipo, ...(correo ? { correo } : {}), ...(telefono ? { telefono } : {}) },
-          ...(campos.upgrade_a_single && Number(campos.personas) === 1 ? { upgrade_a_single: true } : {}),
+          huesped: cuerpoHuesped,
+          ...(campos.convenio_id ? { convenio_id: campos.convenio_id } : {}),
+          ...(campos.es_huesped_provisorio ? { es_huesped_provisorio: true } : {}),
+          ...(campos.upgrade_a_single && !campos.convenio_id && Number(campos.personas) === 1 ? { upgrade_a_single: true } : {}),
           ...(campos.hora_llegada ? { hora_llegada: campos.hora_llegada } : {}),
           ...(campos.hora_salida ? { hora_salida: campos.hora_salida } : {}),
         },
@@ -132,10 +153,13 @@ export default function Reserva() {
     e.preventDefault()
     setError('')
     setSalida(null)
-    const falta = camposFaltantes([[campos.nombre, 'Nombre del titular']])
+    const falta = camposFaltantes([[campos.nombre, campos.es_huesped_provisorio ? 'Empresa o institución provisoria' : 'Nombre del titular']])
     if (falta) { setError(falta); return }
-    const doc = validarDocumento(campos.documento_tipo, campos.documento)
-    if (!doc.ok) { setError(doc.error); return }
+    let doc = { ok: true, valor: null }
+    if (!campos.es_huesped_provisorio || campos.documento.trim()) {
+      doc = validarDocumento(campos.documento_tipo, campos.documento)
+      if (!doc.ok) { setError(doc.error); return }
+    }
     for (let i = 0; i < habitacionesGrupo.length; i += 1) {
       const h = habitacionesGrupo[i]
       if (!h.inicio || !h.fin || !h.habitacion_id) {
@@ -148,8 +172,13 @@ export default function Reserva() {
         metodo: 'POST',
         claveIdempotencia: clave,
         cuerpo: {
-          titular: { nombre: campos.nombre, documento: doc.valor, documento_tipo: campos.documento_tipo },
+          titular: {
+            nombre: campos.nombre,
+            ...(doc.valor ? { documento: doc.valor, documento_tipo: campos.documento_tipo } : {}),
+          },
           canal: campos.canal || 'recepcion',
+          ...(campos.convenio_id ? { convenio_id: campos.convenio_id } : {}),
+          ...(campos.es_huesped_provisorio ? { es_huesped_provisorio: true } : {}),
           ...(campos.notas_grupo.trim() ? { notas: campos.notas_grupo.trim() } : {}),
           habitaciones: habitacionesGrupo.map((h) => ({
             habitacion_id: h.habitacion_id,
@@ -219,7 +248,7 @@ export default function Reserva() {
               incluir={campos.habitacion_id || undefined}
               alCambiar={(id) => setCampos((c) => ({ ...c, habitacion_id: id }))}
             />
-            {Number(campos.personas) === 1 && (
+            {Number(campos.personas) === 1 && !campos.convenio_id && (
               <label className="campo-check">
                 <input
                   type="checkbox"
@@ -229,9 +258,29 @@ export default function Reserva() {
                 Upgrade a tarifa Single (sin Single disponible: habitación superior al precio de Single)
               </label>
             )}
+            <CampoSelect
+              etiqueta="Convenio / institución (opcional)"
+              value={campos.convenio_id}
+              onChange={(e) => setCampos({ ...campos, convenio_id: e.target.value, upgrade_a_single: e.target.value ? false : campos.upgrade_a_single })}
+            >
+              <option value="">Sin convenio (tarifa lista)</option>
+              {convenios.map((conv) => (
+                <option key={conv.convenio_id} value={conv.convenio_id}>
+                  {conv.nombre}
+                </option>
+              ))}
+            </CampoSelect>
+            <label className="campo-check">
+              <input
+                type="checkbox"
+                checked={campos.es_huesped_provisorio}
+                onChange={(e) => setCampos({ ...campos, es_huesped_provisorio: e.target.checked })}
+              />{' '}
+              Reserva provisoria a nombre de empresa o institución (cargar pasajeros reales en la Llegada)
+            </label>
             <Campo etiqueta="Hora de llegada" type="time" value={campos.hora_llegada} onChange={(e) => setCampos({ ...campos, hora_llegada: e.target.value })} />
             <Campo etiqueta="Hora de salida" type="time" value={campos.hora_salida} onChange={(e) => setCampos({ ...campos, hora_salida: e.target.value })} />
-            <Campo etiqueta="Huésped" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
+            <Campo etiqueta={campos.es_huesped_provisorio ? 'Empresa o institución provisoria' : 'Huésped'} value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
             <Campo etiqueta="Correo del huésped (para confirmar)" type="email" inputMode="email" autoComplete="email" value={campos.correo} onChange={(e) => setCampos({ ...campos, correo: e.target.value })} />
             <Campo etiqueta="Teléfono / WhatsApp" type="tel" inputMode="tel" autoComplete="tel" value={campos.telefono} onChange={(e) => setCampos({ ...campos, telefono: e.target.value })} />
             <CampoSelect etiqueta="Canal de origen" value={campos.canal} onChange={(e) => setCampos({ ...campos, canal: e.target.value })}>
@@ -258,7 +307,27 @@ export default function Reserva() {
             Ideal para familias (4+ personas en habitaciones comunicadas) o delegaciones. Cada habitación mantiene su propia cuenta sin duplicar cargos.
           </p>
           <form className="formulario" onSubmit={confirmarGrupo}>
-            <Campo etiqueta="Nombre del titular" value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
+            <CampoSelect
+              etiqueta="Convenio / institución (opcional)"
+              value={campos.convenio_id}
+              onChange={(e) => setCampos({ ...campos, convenio_id: e.target.value })}
+            >
+              <option value="">Sin convenio (tarifa lista)</option>
+              {convenios.map((conv) => (
+                <option key={conv.convenio_id} value={conv.convenio_id}>
+                  {conv.nombre}
+                </option>
+              ))}
+            </CampoSelect>
+            <label className="campo-check">
+              <input
+                type="checkbox"
+                checked={campos.es_huesped_provisorio}
+                onChange={(e) => setCampos({ ...campos, es_huesped_provisorio: e.target.checked })}
+              />{' '}
+              Reserva provisoria a nombre de empresa o institución (cargar pasajeros reales en la Llegada)
+            </label>
+            <Campo etiqueta={campos.es_huesped_provisorio ? 'Empresa o institución provisoria' : 'Nombre del titular'} value={campos.nombre} onChange={(e) => setCampos({ ...campos, nombre: e.target.value })} />
             <CampoDocumento
               tipo={campos.documento_tipo}
               numero={campos.documento}
