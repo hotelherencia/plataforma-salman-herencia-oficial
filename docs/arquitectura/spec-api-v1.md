@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (211)
+## Operaciones de esta versión (219)
 
 | Operación | Efecto |
 |---|---|
@@ -678,6 +678,14 @@ los compone el servidor.
 | `POST /hotel/productos/documentos/{documento_id}/aplicar-nota-credito` | (#402 / `PUR-004`) Vincula una nota de crédito de proveedor (`nota_credito`, DTE 61) a su factura cargada (`factura_id`), rebajando stock en bodegas (`0055`, movimiento `reverso`) y saldo en cuenta por pagar (`cxp_movimientos` append-only e idempotente). Solo administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/productos/cuentas-por-pagar?estado&emisor_rut` | (#402 / `PUR-004`) Lista cuentas por pagar de facturas de proveedor con notas de crédito, pagos, saldo pendiente y movimientos append-only. Solo administración del hotel. |
 | `POST /hotel/productos/cuentas-por-pagar/{cxp_id}/pagos` | (#402 / `PUR-004`) Registra abono o pago total a proveedor sobre una cuenta por pagar de forma append-only e idempotente (sin superar el saldo). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/contabilidad/comisiones-medios` | (Contable 2.6 / `#396`) Comisiones (%) y días hábiles de abono configurados por medio de pago. Roles caja o administración del hotel. |
+| `PUT /hotel/contabilidad/comisiones-medios` | (Contable 2.6 / `#396`) Configura comisiones, IVA sobre comisión, días hábiles de abono y mapeo de columnas por medio/proveedor (sin hardcoding). Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/contabilidad/cartolas/vista-previa` | (Contable 2.6 / `#396` / `FIN-003`) Vista previa de cartola CSV con mapeo de columnas, hash anti-duplicado y filas rechazadas sin escribir en BD. Roles caja o administración del hotel. |
+| `POST /hotel/contabilidad/cartolas` | (Contable 2.6 / `#396` / `FIN-003`) Importa cartola bancaria (idempotente por SHA-256) y cruza automáticamente retiros, transferencias y liquidaciones de tarjetas según comisiones y desfase. Roles caja o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/contabilidad/cartolas?periodo` | (Contable 2.6 / `#396` / `FIN-006`) Cartolas importadas, movimientos (`conciliado`, `parcial`, `pendiente`), bandeja de pendientes y ventas «en tránsito» hacia el mes siguiente. Roles caja o administración del hotel. |
+| `POST /hotel/contabilidad/conciliacion-bancaria/emparejar` | (Contable 2.6 / `#396` / `FIN-004`) Conciliación manual muchos-a-muchos append-only con justificación obligatoria (10+ caracteres), sin superar importes disponibles. Roles caja o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/contabilidad/tributario?anio&mes` | (Contable 2.7 / `#397` / `TAX-002`) Resumen tributario mensual (borrador F29): boletas, facturas y notas de crédito con neto, IVA vigente y total, crédito fiscal de compras y ventas con tarjeta en tránsito. Sin envío al SII. Roles caja o administración del hotel. |
+| `GET /hotel/contabilidad/tributario/exportar.csv?anio&mes` | (Contable 2.7 / `#397`) Exportación CSV UTF-8 del borrador tributario F29 del mes calendario. Roles caja o administración del hotel. |
 | `POST /hotel/grupos` | (PR B / `RES-007`) Crea un grupo bajo un titular con 1 o más habitaciones (`reservas_grupo` + reservas individuales 1:1) en una transacción atómica (sin cupo/tarifa/capacidad en cualquier habitación → 409 con rollback total). Soporta `titular_aloja` por habitación. Recepción o administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/grupos/{grupo_id}` | (PR B / `RES-007`) Cabecera del grupo, lista de habitaciones con estado de huéspedes y cuentas individuales, más resumen consolidado sin duplicación. Documento solo para `ROLES_DOCUMENTO`. Ajeno o inexistente → 403. |
 | `POST /hotel/grupos/{grupo_id}/reservas` | (PR B / `RES-007`) Agrega una nueva habitación al grupo (o vincula una reserva existente de la empresa) en transacción atómica. Recepción o administración del hotel; `Idempotency-Key`. |

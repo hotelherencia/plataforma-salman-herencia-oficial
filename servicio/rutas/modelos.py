@@ -789,6 +789,46 @@ class ReservaHuespedEdicionIn(BaseModel):
     notas: str | None = Field(default=None, max_length=400)
 
 
+class ComisionMedioItemIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    medio: Literal["efectivo", "debito", "credito", "transferencia"]
+    proveedor: str = Field(default="general", min_length=1, max_length=60)
+    porcentaje_comision: float = Field(default=0.0, ge=0.0, le=30.0)
+    iva_comision: bool = True
+    dias_habiles_abono: int = Field(default=0, ge=0, le=30)
+    cuenta_deposito: str | None = Field(default=None, max_length=80)
+    mapeo_columnas: dict[str, str] = Field(default_factory=dict)
+
+
+class ComisionesMediosIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    medios: list[ComisionMedioItemIn] = Field(min_length=1, max_length=4)
+
+
+class CartolaVistaPreviaIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contenido_csv: str = Field(min_length=1, max_length=2_000_000)
+    mapeo_columnas: dict[str, str] | None = None
+
+
+class CartolaImportarIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    banco: str = Field(min_length=1, max_length=80)
+    cuenta: str = Field(min_length=1, max_length=60)
+    periodo: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    contenido_csv: str = Field(min_length=1, max_length=2_000_000)
+    mapeo_columnas: dict[str, str] | None = None
+
+
+class EmparejarBancarioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cartola_movimiento_id: str = Field(min_length=1, max_length=50)
+    caja_movimiento_id: str = Field(min_length=1, max_length=50)
+    monto_asignado_clp: int = Field(gt=0, le=10_000_000_000)
+    comision_clp: int = Field(default=0, ge=0, le=1_000_000_000)
+    justificacion: str = Field(min_length=1, max_length=400)
+
+
 class GrupoHabitacionIn(BaseModel):
     """Habitación individual dentro de una reserva de grupo (PR B / RES-007)."""
     model_config = ConfigDict(extra="forbid")
