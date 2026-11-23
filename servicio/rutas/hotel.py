@@ -28,7 +28,8 @@ from .. import inventario_documental
 from .. import leads as leads_mod
 from .. import observabilidad
 from .. import operacion
-from .. import politicas, recaptcha
+from .. import politicas
+from .. import tipos_habitacion, recaptcha
 from .. import panel
 from .. import productos as productos_db
 from .. import reservas as reservas_db
@@ -881,6 +882,33 @@ def _es_reintento(conexion, registrada, empresa_id: str, clave: str, accion: str
         return False
     observabilidad.evento_seguridad("reintento_idempotente", nivel=logging.INFO, accion=accion)
     return True
+
+
+@router.get("/publico/tarifas")
+def listar_tarifas_publicas(
+    request: Request,
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Tarifas base públicas vigentes por tipo de habitación (CLP, IVA incluido).
+    Sin sesión, solo lectura, sin IDs de habitación ni PII."""
+    es_titular = not request.app.state.aplicacion.nucleo.empresa.es_sintetico
+    filtro = inventario_documental.es_inventario_operativo if es_titular else None
+    lista = tipos_habitacion.listar(conexion, date.today(), filtro_inventario=filtro)
+    tipos_publicos = [
+        {
+            "tipo": t["tipo_id"],
+            "nombre": t["nombre"],
+            "capacidad": t.get("capacidad_base"),
+            "precio_base_clp": t["precio_base_clp"],
+        }
+        for t in lista
+        if t.get("activo", True) and t.get("precio_base_clp") and t["precio_base_clp"] > 0
+    ]
+    return JSONResponse(
+        status_code=200,
+        content={"moneda": "CLP", "iva_incluido": True, "tipos": tipos_publicos},
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @router.get("/publico/disponibilidad")
