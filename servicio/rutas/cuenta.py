@@ -1,12 +1,20 @@
-"""Contabilidad: saldo por reserva, libro de movimientos (reservas + directos sin habitación) y movimientos directos."""
-from datetime import date
+"""Contabilidad: saldo por reserva, libro de movimientos (reservas + directos sin habitación),
+movimientos directos, cuadratura diaria (2.3), cierre mensual y matriz Ocupación (2.4)
+e indicadores ejecutivos reales (2.5 / KPI-002)."""
+from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, Response
 
-from .. import clientes, cobro, contabilidad, idempotencia, imputacion, productos, roles, seguridad
+from .. import clientes, cobro, contabilidad, contable_avanzado, idempotencia, imputacion, productos, roles, seguridad
 from . import comun
-from .modelos import CobrarMovimientoDirectoIn, MovimientoDirectoIn, ReversoPagoIn
+from .modelos import (
+    CierreMensualIn,
+    CobrarMovimientoDirectoIn,
+    MovimientoDirectoIn,
+    ReaperturaMesIn,
+    ReversoPagoIn,
+)
 
 router = APIRouter()
 
@@ -129,4 +137,122 @@ def reversar_movimiento_directo(
             conexion, sesion.empresa_id, movimiento_id, cuerpo.motivo, sesion.nombre,
         ),
         "movimiento_directo_reverso", movimiento_id, codigo_ok=201,
+    )
+
+
+def _solo_reales(request: Request) -> bool:
+    return not request.app.state.aplicacion.nucleo.empresa.es_sintetico
+
+
+@router.get("/hotel/contabilidad/cuadratura-diaria")
+def cuadratura_diaria_contable(
+    request: Request,
+    fecha: date | None = None,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Contabilidad 2.3 (#393): cuadratura diaria de ocupación, noches devengadas y abonos."""
+    comun.exigir_rol(sesion, contable_avanzado.ROLES_CUADRATURA)
+    dia = fecha or contabilidad.hoy_chile()
+    return contable_avanzado.cuadratura_diaria(conexion, sesion.empresa_id, dia, _solo_reales(request))
+
+
+@router.get("/hotel/contabilidad/cierre-mensual")
+def ver_cierre_mensual(
+    request: Request,
+    anio: int = Query(ge=2020, le=2100),
+    mes: int = Query(ge=1, le=12),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Contabilidad 2.4 (#394): cierre mensual (congelado si está cerrado) y matriz habitaciones × días."""
+    comun.exigir_rol(sesion, contable_avanzado.ROLES_CUADRATURA)
+    return contable_avanzado.obtener_cierre_mensual(conexion, sesion.empresa_id, anio, mes, _solo_reales(request))
+
+
+@router.get("/hotel/contabilidad/cierre-mensual/exportar.csv")
+def exportar_cierre_mensual_csv(
+    request: Request,
+    anio: int = Query(ge=2020, le=2100),
+    mes: int = Query(ge=1, le=12),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> Response:
+    """Contabilidad 2.4 (#394): exportación CSV matriz habitaciones × días (equivalente a Ocupación 2026)."""
+    comun.exigir_rol(sesion, contable_avanzado.ROLES_CUADRATURA)
+    datos = contable_avanzado.obtener_cierre_mensual(conexion, sesion.empresa_id, anio, mes, _solo_reales(request))
+    contenido = contable_avanzado.exportar_matriz_mensual_csv(datos)
+    nombre = f"ocupacion-{anio:04d}-{mes:02d}.csv"
+    return Response(
+        content=contenido.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre}"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.post("/hotel/contabilidad/cierre-mensual")
+def cerrar_mes_contable(
+    request: Request,
+    cuerpo: CierreMensualIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Contabilidad 2.4 (#394): congela el cierre mensual y la matriz habitaciones × días."""
+    comun.exigir_rol(sesion, contable_avanzado.ROLES_CUADRATURA)
+    recurso = f"{cuerpo.anio:04d}-{cuerpo.mes:02d}"
+    return _operar_directo(
+        conexion, sesion, idempotency_key, cuerpo.model_dump(mode="json"),
+        lambda: contable_avanzado.cerrar_mes(
+            conexion, sesion.empresa_id, cuerpo.anio, cuerpo.mes,
+            sesion.usuario_id, sesion.nombre, cuerpo.nota, cuerpo.confirmar_alertas,
+            _solo_reales(request),
+        ),
+        "cierre_mensual", recurso, codigo_ok=201,
+    )
+
+
+@router.post("/hotel/contabilidad/cierre-mensual/{anio}/{mes}/reapertura")
+def reabrir_mes_contable(
+    anio: int,
+    mes: int,
+    cuerpo: ReaperturaMesIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Contabilidad 2.4 (#394): reapertura auditada de un mes cerrado (solo administración)."""
+    comun.exigir_rol(sesion, contable_avanzado.ROLES_REAPERTURA_MENSUAL)
+    recurso = f"{anio:04d}-{mes:02d}"
+    return _operar_directo(
+        conexion, sesion, idempotency_key, cuerpo.model_dump(mode="json"),
+        lambda: contable_avanzado.reabrir_mes(
+            conexion, sesion.empresa_id, anio, mes, sesion.nombre, cuerpo.motivo,
+        ),
+        "cierre_mensual_reapertura", recurso, codigo_ok=200,
+    )
+
+
+@router.get("/hotel/contabilidad/indicadores-ejecutivos")
+def consultar_indicadores_ejecutivos(
+    request: Request,
+    desde: date | None = None,
+    hasta: date | None = None,
+    tipo: str | None = Query(default=None, max_length=50),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Contabilidad 2.5 (#395 / KPI-002): indicadores ejecutivos reales (ocupación, ADR, RevPAR).
+    Solo administración del hotel; devuelve null cuando no hay muestra (nunca cero inventado)."""
+    comun.exigir_rol(sesion, contable_avanzado.ROLES_EJECUTIVOS)
+    hoy = contabilidad.hoy_chile()
+    desde = desde or hoy.replace(day=1)
+    hasta = hasta or (hoy + timedelta(days=1))
+    return contable_avanzado.indicadores_ejecutivos(
+        conexion, sesion.empresa_id, desde, hasta, hoy, tipo or None,
+        solo_inventario_real=_solo_reales(request),
     )

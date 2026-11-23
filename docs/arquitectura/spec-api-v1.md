@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (178)
+## Operaciones de esta versión (184)
 
 | Operación | Efecto |
 |---|---|
@@ -682,6 +682,12 @@ los compone el servidor.
 | `GET /hotel/grupos/{grupo_id}` | (PR B / `RES-007`) Cabecera del grupo, lista de habitaciones con estado de huéspedes y cuentas individuales, más resumen consolidado sin duplicación. Documento solo para `ROLES_DOCUMENTO`. Ajeno o inexistente → 403. |
 | `POST /hotel/grupos/{grupo_id}/reservas` | (PR B / `RES-007`) Agrega una nueva habitación al grupo (o vincula una reserva existente de la empresa) en transacción atómica. Recepción o administración del hotel; `Idempotency-Key`. |
 | `POST /hotel/grupos/{grupo_id}/entrada` | (PR B / `RES-007`) Llegada en lote atómica de las habitaciones confirmadas del grupo, exigiendo huéspedes completos en cada habitación; si falla cualquier habitación → 409 con rollback total. Recepción o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/contabilidad/cuadratura-diaria?fecha` | (Contable 2.3 / `#393`) Cuadratura diaria de ocupación física, noches devengadas, imputaciones, abonos (anticipos) y cruce libro vs caja con lista de diferencias. Roles caja o administración del hotel. |
+| `GET /hotel/contabilidad/cierre-mensual?anio&mes` | (Contable 2.4 / `#394`) Cierre mensual (congelado si está cerrado; en vivo si está abierto) con matriz habitaciones × días (equivalente a `Ocupación 2026`), totales y alertas. Roles caja o administración del hotel. |
+| `GET /hotel/contabilidad/cierre-mensual/exportar.csv?anio&mes` | (Contable 2.4 / `#394`) Descarga CSV UTF-8 (compatible con Excel) de la matriz habitaciones × días del mes. Roles caja o administración del hotel. |
+| `POST /hotel/contabilidad/cierre-mensual` | (Contable 2.4 / `#394`) Congela el cierre mensual `{anio, mes, nota?, confirmar_alertas}` en `cierres_mensuales`. Roles caja o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/contabilidad/cierre-mensual/{anio}/{mes}/reapertura` | (Contable 2.4 / `#394`) Reabre un mes cerrado con `{motivo}` (mín. 10 caracteres), auditado. Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/contabilidad/indicadores-ejecutivos?desde&hasta&tipo` | (Contable 2.5 / `#395` / `KPI-002`) Indicadores ejecutivos reales calculados en el servidor (ocupación, ADR, RevPAR con IVA y neto; `null` = sin muestra, nunca cero inventado). Solo administración del hotel. |
 
 ## Criterio de aceptación
 

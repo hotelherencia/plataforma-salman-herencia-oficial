@@ -263,6 +263,33 @@ export default function Panel() {
               {p.ingresos_periodo_clp && (
                 <Tarjeta titulo="Recaudación del periodo (cobros)" clave="ingresos_periodo_clp" indicador={p.ingresos_periodo_clp} valor={clp(p.ingresos_periodo_clp.valor)} />
               )}
+              {p.ingreso_alojamiento_clp && (
+                <Tarjeta
+                  titulo="Ingreso de alojamiento devengado"
+                  clave="ingreso_alojamiento_clp"
+                  indicador={p.ingreso_alojamiento_clp}
+                  valor={p.ingreso_alojamiento_clp.valor === null ? 'sin muestra' : clp(p.ingreso_alojamiento_clp.valor)}
+                  detalle={p.ingreso_alojamiento_clp.neto_clp !== null ? `Neto: ${clp(p.ingreso_alojamiento_clp.neto_clp)}` : undefined}
+                />
+              )}
+              {p.adr_clp && (
+                <Tarjeta
+                  titulo="Tarifa promedio diaria (ADR)"
+                  clave="adr_clp"
+                  indicador={p.adr_clp}
+                  valor={p.adr_clp.valor === null ? 'sin muestra' : clp(p.adr_clp.valor)}
+                  detalle={p.adr_clp.neto_clp !== null ? `Neto: ${clp(p.adr_clp.neto_clp)}` : undefined}
+                />
+              )}
+              {p.revpar_clp && (
+                <Tarjeta
+                  titulo="Ingreso por habitación disponible (RevPAR)"
+                  clave="revpar_clp"
+                  indicador={p.revpar_clp}
+                  valor={p.revpar_clp.valor === null ? 'sin muestra' : clp(p.revpar_clp.valor)}
+                  detalle={p.revpar_clp.neto_clp !== null ? `Neto: ${clp(p.revpar_clp.neto_clp)}` : undefined}
+                />
+              )}
               <Tarjeta titulo="Unidades-noche" clave="unidades_noche" indicador={p.unidades_noche} />
               <Tarjeta
                 titulo="Reservas canceladas"
@@ -272,7 +299,7 @@ export default function Panel() {
               <Tarjeta titulo="Reservas registradas" clave="reservas_registradas" indicador={p.reservas_registradas} />
             </div>
             <details className="aun-no-disponibles">
-              <summary>Indicadores que todavía no se calculan (tarifa promedio, RevPAR y otros)</summary>
+              <summary>Indicadores que todavía no se calculan</summary>
               <ul>
                 {AUN_NO_DISPONIBLES.map((i) => (
                   <li key={i.nombre}><strong>{i.nombre}.</strong> {i.texto}</li>

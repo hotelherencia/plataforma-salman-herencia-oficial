@@ -171,6 +171,19 @@ class ReaperturaDiaIn(BaseModel):
     motivo: str = Field(min_length=1, max_length=500)
 
 
+class CierreMensualIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    anio: int = Field(ge=2020, le=2100)
+    mes: int = Field(ge=1, le=12)
+    nota: str | None = Field(default=None, max_length=1000)
+    confirmar_alertas: bool = False
+
+
+class ReaperturaMesIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    motivo: str = Field(min_length=1, max_length=500)
+
+
 class MovimientoDirectoIn(BaseModel):
     """Cargo, venta de mostrador o egreso operacional SIN habitación ni reserva."""
     model_config = ConfigDict(extra="forbid")
