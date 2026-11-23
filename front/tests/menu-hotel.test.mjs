@@ -63,6 +63,9 @@ describe('menú del hotel (entrega 1A.3)', () => {
     assert.deepEqual(enlaces('recepcion'), base)
     assert.deepEqual(enlaces('caja'), ['/hotel/panel', '/hotel/ocupacion', '/hotel/reservas', '/hotel/clientes', '/hotel/caja', '/hotel/productos'])
     assert.deepEqual(enlaces('aseo'), ['/hotel/aseo'])
+    // Dueño: lee todo lo de consulta, no opera (sin Llegada, Salida, Aseo, Agente, Clientes, Usuarios).
+    assert.deepEqual(enlaces('dueno'), ['/hotel/panel', '/hotel/ocupacion', '/hotel/habitaciones', '/hotel/reservas',
+      '/hotel/solicitudes', '/hotel/caja', '/hotel/configuracion', '/hotel/productos'])
     assert.deepEqual(enlaces('admin_plataforma'), ['/hotel/panel', '/hotel/productos', '/hotel/usuarios'])
   })
 

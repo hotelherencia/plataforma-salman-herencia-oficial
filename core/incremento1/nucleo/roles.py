@@ -13,6 +13,7 @@ MODULO_CORE = "core"
 MODULO_HOTEL = "hotel"
 MODULOS_ACTIVOS_POR_DEFECTO = (MODULO_CORE, MODULO_HOTEL)
 
+DUENO = "dueno"
 ADMINISTRADOR = "administrador"
 ADMIN_HOTEL = "admin_hotel"
 ADMIN_PLATAFORMA = "admin_plataforma"
@@ -43,6 +44,14 @@ class DefinicionRol:
 
 
 CATALOGO_BASE: tuple[DefinicionRol, ...] = (
+    DefinicionRol(
+        codigo=DUENO,
+        modulo=MODULO_CORE,
+        etiqueta="Dueño (lectura global)",
+        descripcion="Ve ventas, caja, ocupación y cuentas de todo el grupo y deja observaciones a la administración; no cambia datos",
+        exige_doble_factor=True,
+        orden=5,
+    ),
     DefinicionRol(
         codigo=ADMINISTRADOR,
         modulo=MODULO_CORE,

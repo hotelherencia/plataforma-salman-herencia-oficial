@@ -7,9 +7,10 @@
 //   ajustes del sistema como la tasa de IVA).
 // - administrador: rol histórico = ambas administraciones.
 
-export const ROLES = ['administrador', 'admin_hotel', 'admin_plataforma', 'recepcion', 'caja', 'aseo']
+export const ROLES = ['dueno', 'administrador', 'admin_hotel', 'admin_plataforma', 'recepcion', 'caja', 'aseo']
 
 export const ETIQUETAS_ROL = {
+  dueno: 'Dueño (lectura global)',
   administrador: 'Administrador (hotel y plataforma)',
   admin_hotel: 'Administrador del hotel',
   admin_plataforma: 'Administrador de plataforma',
@@ -26,9 +27,19 @@ export function esAdminPlataforma(rol) {
   return rol === 'administrador' || rol === 'admin_plataforma'
 }
 
-/** Todo rol administrativo exige doble factor. */
+/** Dueño del grupo: lee todo y deja observaciones a la administración; no cambia datos. */
+export function esDueno(rol) {
+  return rol === 'dueno'
+}
+
+/** Quién ve el Resumen del dueño y las observaciones: el dueño y la administración del hotel. */
+export function veDireccion(rol) {
+  return esDueno(rol) || esAdminHotel(rol)
+}
+
+/** Todo rol administrativo y el dueño exigen doble factor. */
 export function exigeDobleFactor(rol) {
-  return esAdminHotel(rol) || esAdminPlataforma(rol)
+  return esAdminHotel(rol) || esAdminPlataforma(rol) || esDueno(rol)
 }
 
 /** Recepción o administración del hotel (bandejas, cancelación, limpieza). */

@@ -50,7 +50,9 @@ export const SUBNAV_CAJA = [
 // consulta reservas y ocupación y trabaja en Caja y pagos. Sin `roles` la entrada es para todos.
 const ADMIN_HOTEL = ['administrador', 'admin_hotel']
 const ROLES_RECEPCION = [...ADMIN_HOTEL, 'recepcion']
-const ROLES_FRENTE = [...ROLES_RECEPCION, 'caja']
+const ROLES_FRENTE = [...ROLES_RECEPCION, 'caja', 'dueno']
+// El dueño lee, pero no opera: ve habitaciones, solicitudes y configuración solo en consulta.
+const ROLES_LECTURA = [...ROLES_RECEPCION, 'dueno']
 
 /** Primera pantalla de cada rol (logo y enlace de inicio). */
 export function rutaInicio(rol) {
@@ -66,10 +68,10 @@ export const SECCIONES = [
     items: [
       { href: '/hotel/panel', nombre: 'Panel' },
       { href: '/hotel/ocupacion', nombre: 'Ocupación', roles: ROLES_FRENTE },
-      { href: '/hotel/habitaciones', nombre: 'Estado de habitaciones', roles: ROLES_RECEPCION },
+      { href: '/hotel/habitaciones', nombre: 'Estado de habitaciones', roles: ROLES_LECTURA },
       { href: '/hotel/aseo', nombre: 'Aseo', si: 'aseo' },
       { href: '/hotel/reservas', nombre: 'Reservas', tambien: ['/hotel/reserva', '/hotel/oferta'], roles: ROLES_FRENTE },
-      { href: '/hotel/solicitudes', nombre: 'Solicitudes y leads', tambien: ['/hotel/leads'], roles: ROLES_RECEPCION },
+      { href: '/hotel/solicitudes', nombre: 'Solicitudes y leads', tambien: ['/hotel/leads'], roles: ROLES_LECTURA },
       { href: '/hotel/agente', nombre: 'Agente', si: 'agente' },
       { href: '/hotel/clientes', nombre: 'Clientes', si: 'clientes' },
       { href: '/hotel/estadia', nombre: 'Llegada', roles: ROLES_RECEPCION },
@@ -81,7 +83,7 @@ export const SECCIONES = [
     id: 'configuracion',
     rotulo: 'Hotel · configuración',
     items: [
-      { href: '/hotel/configuracion', nombre: 'Configuración', tambien: ['/hotel/tipos'], roles: ROLES_RECEPCION },
+      { href: '/hotel/configuracion', nombre: 'Configuración', tambien: ['/hotel/tipos'], roles: ROLES_LECTURA },
       { href: '/hotel/productos', nombre: 'Productos y stock' },
     ],
   },
