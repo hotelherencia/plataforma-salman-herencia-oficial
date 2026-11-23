@@ -40,6 +40,7 @@ const ESTADOS = {
   facturado: { texto: 'Facturado', tono: 'exito' },
   archivada: { texto: 'Archivada', tono: 'neutro' },
   descartada: { texto: 'Descartada', tono: 'neutro' },
+  aplicada: { texto: 'Aplicada', tono: 'exito' },
 }
 const ORIGENES = { correo: 'Correo SII', foto: 'Foto', pdf: 'PDF', xml: 'XML' }
 const LECTURAS = {
@@ -69,7 +70,7 @@ export function proveedorDocumento(d) {
 export function accionesDocumento(d) {
   if (d.estado === 'borrador') return { cargar: false, descartar: true, texto: 'Pedido: no suma stock. Se cierra cuando llegue la factura.' }
   if (d.estado !== 'pendiente') return { cargar: false, descartar: false, texto: '' }
-  if (d.clase === 'nota_credito') return { cargar: false, descartar: true, texto: 'Nota de crédito: no descuenta stock sola. Archívala y ajusta el stock si corresponde.' }
+  if (d.clase === 'nota_credito') return { cargar: false, aplicar: true, descartar: true, texto: 'Nota de crédito: elige qué unidades se devuelven al proveedor. Al aplicarla baja el stock y se rebaja lo que se le debe. Si no corresponde, archívala.' }
   if (d.clase === 'desconocido') return { cargar: false, descartar: true, texto: 'Indica si es una factura, una nota de crédito o un pedido.' }
   return { cargar: true, descartar: true, texto: '' }
 }
@@ -162,4 +163,40 @@ export function resumenCorreo(r) {
   if (r.errores) return 'No se pudo revisar el correo. Revisa la configuración del buzón.'
   if (!r.documentos) return 'Correo revisado: no llegaron facturas nuevas.'
   return r.documentos === 1 ? 'Llegó 1 documento nuevo por revisar.' : `Llegaron ${r.documentos} documentos nuevos por revisar.`
+}
+
+/** Filas de la nota de crédito (líneas del documento con su coincidencia) → campos editables. */
+export function filasNotaCredito(lineas) {
+  return (lineas || []).map((l) => ({
+    nombre: l.nombre || '',
+    producto_id: l.coincidencia?.producto_id || '',
+    cantidad: String(l.cantidad ?? 0),
+    unidades_por_paquete: String(l.unidades_por_paquete || 1),
+    descontar: Boolean(l.coincidencia?.producto_id),
+  }))
+}
+
+/** Filas revisadas → líneas para POST /hotel/productos/documentos/{id}/aplicacion. */
+export function lineasAplicacion(filas) {
+  return filas.map((f) => (f.descontar
+    ? {
+        accion: 'descontar',
+        producto_id: f.producto_id || null,
+        nombre: (f.nombre || '').slice(0, 120) || null,
+        cantidad: Math.max(0, Number(f.cantidad) || 0),
+        unidades_por_paquete: Math.max(1, Math.min(10000, Math.round(Number(f.unidades_por_paquete) || 1))),
+      }
+    : { accion: 'omitir', nombre: (f.nombre || '').slice(0, 120) || null }))
+}
+
+/** Problema que impide aplicar la nota (o null): producto elegido y cantidad positiva en cada línea a descontar. */
+export function problemaAplicacion(filas) {
+  for (const f of filas) {
+    if (!f.descontar) continue
+    if (!f.producto_id) return `Elige el producto de «${f.nombre || 'la línea'}» o desmarca «Devolver».`
+    if (!(Number(f.cantidad) > 0)) return `La cantidad de «${f.nombre || 'la línea'}» debe ser mayor que cero.`
+    if (!Number.isInteger(Number(f.unidades_por_paquete)) || Number(f.unidades_por_paquete) < 1)
+      return 'Las unidades por envase deben ser un número entero (1 o más).'
+  }
+  return null
 }

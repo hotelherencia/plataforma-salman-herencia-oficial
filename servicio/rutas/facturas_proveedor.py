@@ -5,7 +5,7 @@ el documento pendiente; únicamente la confirmación toca el stock.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse, Response
 
 from .. import correo
@@ -14,7 +14,7 @@ from .. import idempotencia
 from .. import importacion_productos as importacion
 from .. import roles, seguridad, vision
 from . import comun
-from .modelos import ConfirmacionDocumentoIn, DocumentoCambioIn, DocumentoXmlIn, EquivalenciaCambioIn
+from .modelos import AplicacionNotaCreditoIn, ConfirmacionDocumentoIn, DocumentoCambioIn, DocumentoXmlIn, EquivalenciaCambioIn
 
 router = APIRouter()
 ROLES = roles.con_admin_hotel()
@@ -182,6 +182,48 @@ def confirmar_documento(documento_id: str, entrada: ConfirmacionDocumentoIn,
         raise HTTPException(status_code=409, detail=str(error))
     conexion.commit()
     return JSONResponse(status_code=codigo, content=respuesta)
+
+
+@router.post(f"{BASE}/{{documento_id}}/aplicacion")
+def aplicar_nota_credito(documento_id: str, entrada: AplicacionNotaCreditoIn,
+                         idempotency_key: str | None = Header(default=None),
+                         sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+                         conexion=Depends(comun.conexion)) -> JSONResponse:
+    """#402: aplica una nota de crédito de proveedor (baja de stock y rebaja de la cuenta por pagar), una sola vez."""
+    comun.exigir_rol(sesion, ROLES)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    lineas = [l.model_dump() for l in entrada.lineas]
+    cuerpo = {"operacion": "nota_credito_aplicacion", "documento_id": documento_id, "lineas": lineas,
+              "factura_id": entrada.factura_id}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            resultado = facturas.aplicar_nota_credito(conexion, documento_id, lineas, sesion.nombre, entrada.factura_id)
+        except facturas.DocumentoNoEncontrado as error:
+            return 404, {"detail": str(error)}
+        except facturas.DocumentoEnConflicto as error:
+            seguridad.auditar(conexion, sesion.nombre, "nota_credito_aplicacion", documento_id, "conflicto")
+            return 409, {"detail": str(error)}
+        except facturas.DocumentoInvalido as error:
+            return 422, {"detail": str(error)}
+        seguridad.auditar(conexion, sesion.nombre, "nota_credito_aplicacion", documento_id, "ok")
+        return 201, resultado
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)
+
+
+@router.get("/hotel/productos/proveedores/{emisor_rut}/cuenta")
+def cuenta_proveedor(emisor_rut: str = Path(pattern=r"^[0-9]{1,8}-[0-9K]$"),
+                     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+                     conexion=Depends(comun.conexion)) -> dict:
+    """PUR-004: saldo por pagar al proveedor (facturas cargadas menos notas de crédito aplicadas)."""
+    comun.exigir_rol(sesion, ROLES)
+    return facturas.saldo_proveedor(conexion, emisor_rut)
 
 
 @router.post(f"{BASE}/{{documento_id}}/descarte")

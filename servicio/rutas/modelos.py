@@ -708,6 +708,21 @@ class ConfirmacionDocumentoIn(BaseModel):
     pedido_id: str | None = Field(default=None, pattern=r"^DOC-[a-f0-9]{12}$")
 
 
+class LineaNotaCreditoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    accion: Literal["descontar", "omitir"]
+    producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")
+    nombre: str | None = Field(default=None, max_length=120)
+    cantidad: float = Field(default=0, ge=0, le=100_000)
+    unidades_por_paquete: int = Field(default=1, ge=1, le=10_000)
+
+
+class AplicacionNotaCreditoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    lineas: list[LineaNotaCreditoIn] = Field(default_factory=list, max_length=300)
+    factura_id: str | None = Field(default=None, pattern=r"^DOC-[a-f0-9]{12}$")
+
+
 class EquivalenciaCambioIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     producto_id: str | None = Field(default=None, pattern=r"^PRD-[A-Za-z0-9]{1,40}$")

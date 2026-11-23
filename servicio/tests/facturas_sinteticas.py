@@ -82,7 +82,7 @@ def envio_dte(*documentos: str) -> str:
 
 
 def documento(folio="5001", tipo=33, rut="76123456-0", lineas=(("CJ-AGUA24", "Agua mineral 500 ml caja x 24", 2, 12000),),
-              referencia=None):
+              referencia=None, tipo_ref="801"):
     detalle = "".join(
         f"<Detalle><NroLinDet>{i + 1}</NroLinDet><CdgItem><TpoCodigo>INT1</TpoCodigo><VlrCodigo>{c}</VlrCodigo></CdgItem>"
         f"<NmbItem>{n}</NmbItem><QtyItem>{q}</QtyItem><UnmdItem>CJ</UnmdItem><PrcItem>{p}</PrcItem>"
@@ -90,7 +90,7 @@ def documento(folio="5001", tipo=33, rut="76123456-0", lineas=(("CJ-AGUA24", "Ag
         for i, (c, n, q, p) in enumerate(lineas))
     neto = sum(q * p for _, _, q, p in lineas)
     iva = round(neto * 0.19)
-    ref = (f"<Referencia><NroLinRef>1</NroLinRef><TpoDocRef>801</TpoDocRef><FolioRef>{referencia}</FolioRef>"
+    ref = (f"<Referencia><NroLinRef>1</NroLinRef><TpoDocRef>{tipo_ref}</TpoDocRef><FolioRef>{referencia}</FolioRef>"
            "<FchRef>2026-11-17</FchRef></Referencia>") if referencia else ""
     return (f'<Documento ID="F{folio}"><Encabezado><IdDoc><TipoDTE>{tipo}</TipoDTE><Folio>{folio}</Folio>'
             f"<FchEmis>2026-11-18</FchEmis></IdDoc><Emisor><RUTEmisor>{rut}</RUTEmisor><RznSoc>DISTRIBUIDORA PRUEBA SPA"

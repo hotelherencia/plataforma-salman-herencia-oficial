@@ -341,6 +341,110 @@ class FacturasHttpTest(ImportacionHttpBase):
         dtd = '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]><DTE>&e;</DTE>'
         self.assertEqual(self.admin.post("/hotel/productos/documentos/xml", json={"xml": dtd}).status_code, 422)
 
+    # ---- notas de crédito (#402)
+    def _factura_cargada(self, folio="7001", cajas=2, precio=12000):
+        xml = fs.envio_dte(fs.documento(folio=folio, lineas=(("CJ-AGUA24", "Agua mineral 500 ml caja x 24", cajas, precio),)))
+        r = self.admin.post("/hotel/productos/documentos/xml", json={"xml": xml})
+        self.assertEqual(r.status_code, 201, r.text)
+        doc = r.json()["creados"][0]["documento_id"]
+        c = self.admin.post(f"/hotel/productos/documentos/{doc}/confirmacion", headers=self.idem(), json={"lineas": [
+            {"accion": "crear", "nombre": "Agua mineral 500 ml", "codigo_proveedor": "CJ-AGUA24",
+             "nombre_proveedor": "Agua mineral 500 ml caja x 24", "categoria": "minibar", "cantidad": cajas,
+             "unidades_por_paquete": 24, "costo_unitario_clp": precio, "precio_clp": 1500}]})
+        self.assertEqual(c.status_code, 201, c.text)
+        return doc
+
+    def _nota(self, folio="88", cajas=1, referencia="7001", precio=12000):
+        xml = fs.envio_dte(fs.documento(folio=folio, tipo=61, referencia=referencia, tipo_ref="33",
+                                        lineas=(("CJ-AGUA24", "Agua mineral 500 ml caja x 24", cajas, precio),)))
+        r = self.admin.post("/hotel/productos/documentos/xml", json={"xml": xml})
+        self.assertEqual(r.status_code, 201, r.text)
+        return r.json()["creados"][0]["documento_id"]
+
+    def _lineas_nc(self, cajas=1):
+        pid = self.catalogo()["Agua mineral 500 ml"]["producto_id"]
+        return [{"accion": "descontar", "producto_id": pid, "nombre": "Agua", "cantidad": cajas, "unidades_por_paquete": 24}]
+
+    def test_402_nota_de_credito_baja_stock_y_rebaja_la_cuenta_una_sola_vez(self):
+        self._factura_cargada()
+        self.assertEqual(self.stock("Agua mineral 500 ml"), 48)
+        cuenta = self.admin.get("/hotel/productos/proveedores/76123456-0/cuenta").json()
+        self.assertEqual(cuenta["saldo_clp"], 28560)
+        nota = self._nota()
+        det = self.admin.get(f"/hotel/productos/documentos/{nota}").json()
+        self.assertEqual(det["factura_origen"]["folio"], "7001")
+        r = self.admin.post(f"/hotel/productos/documentos/{nota}/aplicacion", headers=self.idem(), json={"lineas": self._lineas_nc()})
+        self.assertEqual(r.status_code, 201, r.text)
+        self.assertEqual(r.json()["lineas"][0]["stock_antes"], 48)
+        self.assertEqual(r.json()["lineas"][0]["stock_despues"], 24)
+        self.assertEqual(self.stock("Agua mineral 500 ml"), 24)
+        self.assertEqual(r.json()["saldo_proveedor_clp"], 28560 - 14280)
+        self.assertEqual(self.admin.get(f"/hotel/productos/documentos/{nota}").json()["estado"], "aplicada")
+        # repetir (otra clave) no vuelve a mover nada
+        r2 = self.admin.post(f"/hotel/productos/documentos/{nota}/aplicacion", headers=self.idem(), json={"lineas": self._lineas_nc()})
+        self.assertEqual(r2.status_code, 409, r2.text)
+        # misma clave: respuesta repetida, tampoco mueve
+        self.assertEqual(self.stock("Agua mineral 500 ml"), 24)
+        cuenta = self.admin.get("/hotel/productos/proveedores/76123456-0/cuenta").json()
+        self.assertEqual([m["tipo"] for m in cuenta["movimientos"]], ["factura", "nota_credito"])
+        self.assertEqual(cuenta["saldo_clp"], 14280)
+        with psycopg.connect(URL_TEST) as c:
+            movs = c.execute("SELECT tipo, delta FROM movimientos_stock WHERE tipo = 'devolucion'").fetchall()
+            self.assertEqual(movs, [("devolucion", -24)])
+            with self.assertRaises(psycopg.errors.RaiseException):
+                c.execute("UPDATE cuenta_proveedor_movimientos SET monto_clp = 0")
+
+    def test_402_misma_clave_de_idempotencia_repite_la_respuesta(self):
+        self._factura_cargada()
+        nota = self._nota()
+        h = self.idem()
+        a = self.admin.post(f"/hotel/productos/documentos/{nota}/aplicacion", headers=h, json={"lineas": self._lineas_nc()})
+        b = self.admin.post(f"/hotel/productos/documentos/{nota}/aplicacion", headers=h, json={"lineas": self._lineas_nc()})
+        self.assertEqual((a.status_code, b.status_code), (201, 201))
+        self.assertEqual(self.stock("Agua mineral 500 ml"), 24)
+
+    def test_402_exige_la_factura_de_origen_y_no_deja_stock_negativo(self):
+        nota_huerfana = self._nota(folio="90", referencia="9999")
+        r = self.admin.post(f"/hotel/productos/documentos/{nota_huerfana}/aplicacion", headers=self.idem(), json={"lineas": []})
+        self.assertEqual(r.status_code, 409, r.text)
+        self.assertIn("factura de origen", r.json()["detail"])
+        self._factura_cargada(folio="7002", cajas=2)
+        # se vende todo el stock antes de la devolución
+        pid = self.catalogo()["Agua mineral 500 ml"]["producto_id"]
+        with psycopg.connect(URL_TEST) as c:
+            c.execute("UPDATE productos SET stock = 10 WHERE id = %s", (pid,))
+            c.execute("UPDATE core_stock_bodega SET cantidad = 10 WHERE producto_id = %s", (pid,))
+            c.commit()
+        nota = self._nota(folio="91", referencia="7002")
+        r = self.admin.post(f"/hotel/productos/documentos/{nota}/aplicacion", headers=self.idem(), json={"lineas": self._lineas_nc()})
+        self.assertEqual(r.status_code, 422, r.text)
+        self.assertIn("negativo", r.json()["detail"])
+        self.assertEqual(self.stock("Agua mineral 500 ml"), 10)
+        self.assertEqual(self.admin.get(f"/hotel/productos/documentos/{nota}").json()["estado"], "pendiente")
+        self.assertEqual(self.admin.get("/hotel/productos/proveedores/76123456-0/cuenta").json()["saldo_clp"], 28560)
+
+    def test_402_notas_no_pueden_sumar_mas_que_la_factura(self):
+        self._factura_cargada(folio="7003", cajas=1)
+        a = self._nota(folio="92", cajas=1, referencia="7003")
+        self.assertEqual(self.admin.post(f"/hotel/productos/documentos/{a}/aplicacion", headers=self.idem(),
+                                         json={"lineas": []}).status_code, 201)
+        b = self._nota(folio="93", cajas=1, referencia="7003")
+        r = self.admin.post(f"/hotel/productos/documentos/{b}/aplicacion", headers=self.idem(), json={"lineas": []})
+        self.assertEqual(r.status_code, 422, r.text)
+        self.assertEqual(self.admin.get("/hotel/productos/proveedores/76123456-0/cuenta").json()["saldo_clp"], 0)
+
+    def test_402_solo_administracion_y_documento_correcto(self):
+        doc = self._factura_cargada(folio="7004")
+        r = self.admin.post(f"/hotel/productos/documentos/{doc}/aplicacion", headers=self.idem(), json={"lineas": []})
+        self.assertEqual(r.status_code, 409)  # no es una nota de crédito
+        nota = self._nota(folio="94", referencia="7004")
+        for rol in ("recepcion", "caja"):
+            cliente = self.otros[rol]
+            self.assertEqual(cliente.get("/hotel/productos/proveedores/76123456-0/cuenta").status_code, 403)
+            self.assertEqual(cliente.post(f"/hotel/productos/documentos/{nota}/aplicacion", headers=self.idem(),
+                                          json={"lineas": []}).status_code, 403)
+        self.assertEqual(self.admin.post(f"/hotel/productos/documentos/{nota}/aplicacion", json={"lineas": []}).status_code, 400)
+
     def test_buzon_de_intercambio_crea_pendientes_sin_tocar_stock(self):
         with psycopg.connect(URL_TEST) as conexion:
             conexion.execute(

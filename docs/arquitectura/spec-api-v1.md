@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (171)
+## Operaciones de esta versión (173)
 
 | Operación | Efecto |
 |---|---|
@@ -601,6 +601,8 @@ los compone el servidor.
 | `PUT /hotel/productos/documentos/{id}` | (2026-11-19) Corrige clase, encabezado o líneas (p. ej. escritas a mano sin IA) de un documento abierto; RUT/tipo/folio del timbre o del XML no se cambian. Recalcula diferencias. Solo administración del hotel. |
 | `POST /hotel/productos/documentos/{id}/confirmacion` | (2026-11-19) `Idempotency-Key`. Carga la factura al inventario una sola vez: cantidad × `unidades_por_paquete`, costo por unidad; recuerda proveedor+ítem → producto y envase; marca el pedido como facturado. Nota de crédito o pedido → 409. Solo administración del hotel. |
 | `POST /hotel/productos/documentos/{id}/descarte` | (2026-11-19) Saca el documento de la bandeja (nota de crédito: queda archivada). Solo administración del hotel. |
+| `POST /hotel/productos/documentos/{id}/aplicacion` | (#402) `Idempotency-Key`. Aplica una nota de crédito de proveedor `{lineas[{accion: descontar\|omitir, producto_id, cantidad, unidades_por_paquete}], factura_id?}`: devuelve unidades (baja de stock, movimiento `devolucion`) y rebaja la cuenta por pagar del proveedor. Exige la factura de origen ya cargada (por referencia o `factura_id`); una sola vez (repetir → 409, sin mover nada); stock insuficiente, factura sobrepasada o datos faltantes → 422. Solo administración del hotel. |
+| `GET /hotel/productos/proveedores/{emisor_rut}/cuenta` | (PUR-004) Saldo por pagar al proveedor y su libro append-only: facturas cargadas menos notas de crédito aplicadas. Los pagos al proveedor quedan fuera de esta versión. |
 | `POST /hotel/productos/recepcion-correo` | (2026-11-19) Revisa ahora los buzones `recepcion_dte` (casilla de intercambio del SII) sin esperar la revisión periódica. Solo administración del hotel. |
 | `GET /hotel/productos/equivalencias` | (2026-11-19) Equivalencias recordadas por proveedor: ítem del proveedor → producto y unidades por envase. Solo administración del hotel. |
 | `PUT /hotel/productos/equivalencias/{id}` | (2026-11-19) Cambia producto, unidades por envase o nota de una equivalencia. Solo administración del hotel. |

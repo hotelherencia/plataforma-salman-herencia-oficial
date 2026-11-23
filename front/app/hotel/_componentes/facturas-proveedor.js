@@ -10,7 +10,7 @@ import { fechaCorta, pesos } from '../../../lib/estadias'
 import { fechaATexto, plural } from '../../../lib/formato'
 import { decodificarXml } from '../../../lib/importacion'
 import {
-  CALIDAD_FOTO, LADO_MAXIMO_FOTO, accionesDocumento, clasificarArchivo, dimensionesReducidas, etiquetaClase, etiquetaEstado,
+  CALIDAD_FOTO, LADO_MAXIMO_FOTO, accionesDocumento, filasNotaCredito, lineasAplicacion, problemaAplicacion, clasificarArchivo, dimensionesReducidas, etiquetaClase, etiquetaEstado,
   etiquetaLectura, etiquetaOrigen, lineaManualVacia, lineasManuales, proveedorDocumento, resumenCorreo, tituloDocumento,
 } from '../../../lib/facturas'
 import { Revision } from './importar-productos'
@@ -312,6 +312,87 @@ function EditorLineas({ inicial, alGuardar }) {
 }
 
 /** Un documento abierto: foto, avisos, datos y la revisión común. */
+/** #402: aplica una nota de crédito de proveedor (devolución de unidades y rebaja de la cuenta por pagar). */
+function AplicarNotaCredito({ doc, catalogo, alTerminar }) {
+  const [filas, setFilas] = useState(() => filasNotaCredito(doc.lineas))
+  const [clave, renovar] = useClaveOperacion()
+  const [error, setError] = useState('')
+  const [hecho, setHecho] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const origen = doc.factura_origen
+  const cambia = (i, campo, valor) => setFilas((fs) => fs.map((f, k) => (k === i ? { ...f, [campo]: valor } : f)))
+
+  async function aplicar() {
+    setError('')
+    const problema = problemaAplicacion(filas)
+    if (problema) { setError(problema); return }
+    setEnviando(true)
+    try {
+      const r = await api(`/hotel/productos/documentos/${encodeURIComponent(doc.documento_id)}/aplicacion`, {
+        metodo: 'POST', claveIdempotencia: clave, cuerpo: { lineas: lineasAplicacion(filas), factura_id: origen?.documento_id || null },
+      })
+      if (r.estado >= 400) { setError(mensajeDeError(r.datos, r.estado)); alRechazar(r.estado, renovar); return }
+      renovar()
+      setHecho(r.datos)
+      alTerminar?.()
+    } catch {
+      setError(SIN_CONEXION)
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  if (hecho) {
+    return (
+      <section className="tarjeta" aria-label="Nota de crédito aplicada" data-nota-aplicada>
+        <h3>Nota de crédito aplicada</h3>
+        <p role="status">
+          Se rebajaron {pesos(hecho.monto_rebajado_clp)} de la factura {hecho.factura_folio}.
+          Saldo por pagar al proveedor: {pesos(hecho.saldo_proveedor_clp)}.
+        </p>
+        {hecho.lineas.length > 0 && (
+          <ul className="lista-simple">
+            {hecho.lineas.map((l) => <li key={l.producto_id}>{l.nombre}: {plural(l.unidades, 'unidad', 'unidades')} devueltas (stock {l.stock_antes} → {l.stock_despues})</li>)}
+          </ul>
+        )}
+      </section>
+    )
+  }
+  return (
+    <section className="tarjeta" aria-label="Aplicar nota de crédito" data-aplicar-nota>
+      <h3>Aplicar la nota de crédito</h3>
+      {origen
+        ? <p className={css.ayuda}>Factura de origen: N° {origen.folio}{origen.fecha_emision ? ` del ${fechaCorta(origen.fecha_emision)}` : ''}. Se rebajan {pesos(doc.monto_total_clp)} de lo que se debe al proveedor.</p>
+        : <p className="alerta" role="alert">La factura de origen aún no está cargada al inventario. Cárgala primero y vuelve a abrir esta nota.</p>}
+      <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Líneas de la nota de crédito">
+        <table className="tabla">
+          <thead><tr><th>Devolver</th><th>Línea</th><th>Producto</th><th>Cantidad</th><th>Unid. por envase</th></tr></thead>
+          <tbody>
+            {filas.map((f, i) => (
+              <tr key={i}>
+                <td><input type="checkbox" aria-label={`Devolver ${f.nombre}`} checked={f.descontar} onChange={(e) => cambia(i, 'descontar', e.target.checked)} /></td>
+                <td>{f.nombre}</td>
+                <td>
+                  <select className="entrada" aria-label={`Producto de ${f.nombre}`} value={f.producto_id} disabled={!f.descontar} onChange={(e) => cambia(i, 'producto_id', e.target.value)}>
+                    <option value="">Elige…</option>
+                    {catalogo.filter((p) => p.activo || p.producto_id === f.producto_id).map((p) => <option key={p.producto_id} value={p.producto_id}>{p.nombre}</option>)}
+                  </select>
+                </td>
+                <td><input className="entrada" inputMode="decimal" aria-label={`Cantidad de ${f.nombre}`} value={f.cantidad} disabled={!f.descontar} onChange={(e) => cambia(i, 'cantidad', e.target.value)} /></td>
+                <td><input className="entrada" inputMode="numeric" aria-label={`Unidades por envase de ${f.nombre}`} value={f.unidades_por_paquete} disabled={!f.descontar} onChange={(e) => cambia(i, 'unidades_por_paquete', e.target.value)} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {error && <p className="alerta" role="alert">{error}</p>}
+      <button type="button" className="boton-primario" disabled={enviando || !origen} onClick={aplicar}>
+        {enviando ? 'Aplicando…' : 'Aplicar nota de crédito'}
+      </button>
+    </section>
+  )
+}
+
 function Documento({ documentoId, catalogo, alVolver, alTerminar }) {
   const [doc, setDoc] = useState(null)
   const [error, setError] = useState('')
@@ -391,6 +472,9 @@ function Documento({ documentoId, catalogo, alVolver, alTerminar }) {
           </>
         ) : null}
       </section>
+      {acc.aplicar && !editando && (
+        <AplicarNotaCredito key={`n${version}`} doc={doc} catalogo={catalogo} alTerminar={alTerminar} />
+      )}
       {(acc.cargar || doc.ya_importada) && !sinLineas && !editando && (
         <Revision key={`r${version}`} previa={previa} catalogo={catalogo} documentoId={doc.documento_id}
           pedidoSugerido={doc.pedido_sugerido} textoCancelar="Volver a la bandeja"

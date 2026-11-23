@@ -371,6 +371,9 @@ def detalle(conexion: psycopg.Connection, documento_id: str) -> dict:
         if fila:
             v["pedido_sugerido"] = {"documento_id": fila[0], "folio": fila[1],
                                     "fecha_emision": fila[2].isoformat() if fila[2] else None}
+    v["factura_origen"] = None
+    if v["clase"] == "nota_credito" and v["estado"] == "pendiente":
+        v["factura_origen"] = _factura_referida(conexion, v)
     v["lectura_automatica"] = vision.estado()
     return v
 
@@ -496,7 +499,133 @@ def confirmar(conexion: psycopg.Connection, documento_id: str, lineas: list[dict
             "UPDATE documentos_proveedor SET estado = 'cargada', importacion_id = %s, pedido_id = %s, actualizado_en = now() "
             "WHERE id = %s", (resultado["importacion_id"], pedido, documento_id),
         )
+        if v["monto_total_clp"] is not None and v["monto_total_clp"] >= 0:
+            conexion.execute(
+                "INSERT INTO cuenta_proveedor_movimientos (emisor_rut, documento_id, tipo, monto_clp, actor) "
+                "VALUES (%s, %s, 'factura', %s, %s) ON CONFLICT (documento_id, tipo) DO NOTHING",
+                (v["emisor_rut"], documento_id, v["monto_total_clp"], actor),
+            )
     return {**resultado, "documento_id": documento_id, "equivalencias_recordadas": recordadas}
+
+
+def _factura_referida(conexion, nota: dict, factura_id: str | None = None) -> dict | None:
+    """Factura ya cargada a la que apunta la nota de crédito (mismo proveedor), o la elegida a mano."""
+    if factura_id:
+        fila = conexion.execute(
+            "SELECT id, folio, fecha_emision, monto_total_clp FROM documentos_proveedor "
+            "WHERE id = %s AND clase = 'factura' AND estado = 'cargada' AND emisor_rut = %s",
+            (factura_id, nota["emisor_rut"]),
+        ).fetchone()
+    else:
+        folios = [str(r.get("folio")) for r in nota["referencias"]
+                  if r.get("folio") and str(r.get("tipo") or "") in ("33", "34", "")]
+        if not folios or not nota["emisor_rut"]:
+            return None
+        fila = conexion.execute(
+            "SELECT id, folio, fecha_emision, monto_total_clp FROM documentos_proveedor "
+            "WHERE clase = 'factura' AND estado = 'cargada' AND emisor_rut = %s AND folio = ANY(%s) "
+            "ORDER BY creado_en DESC LIMIT 1",
+            (nota["emisor_rut"], folios),
+        ).fetchone()
+    if fila is None:
+        return None
+    return {"documento_id": fila[0], "folio": fila[1],
+            "fecha_emision": fila[2].isoformat() if fila[2] else None, "monto_total_clp": fila[3]}
+
+
+def aplicar_nota_credito(conexion: psycopg.Connection, documento_id: str, lineas: list[dict], actor: str,
+                         factura_id: str | None = None) -> dict:
+    """Aplica una nota de crédito de proveedor (#402): devuelve unidades (baja de stock con movimiento
+    «devolucion») y rebaja la cuenta por pagar del proveedor. Todo o nada; un documento se aplica una
+    sola vez y exige la factura de origen ya cargada. El stock nunca queda negativo."""
+    from . import productos as productos_db  # evita ciclos de importación
+    from core.incremento1.nucleo import stock as stock_core
+
+    v = _vista(_fila(conexion, documento_id, bloquear=True))
+    if v["clase"] != "nota_credito":
+        raise DocumentoEnConflicto("Este documento no es una nota de crédito.", documento_id)
+    if v["estado"] == "aplicada":
+        raise DocumentoEnConflicto("Esta nota de crédito ya fue aplicada: no se vuelve a mover el stock.", documento_id)
+    if v["estado"] != "pendiente":
+        raise DocumentoEnConflicto("Esta nota de crédito ya no está en la bandeja.", documento_id)
+    if not (v["emisor_rut"] and v["folio"]):
+        raise DocumentoInvalido("Falta el RUT del proveedor o el folio de la nota de crédito: complétalos antes de aplicar.")
+    total = v["monto_total_clp"]
+    if total is None or total < 0:
+        raise DocumentoInvalido("Falta el monto total de la nota de crédito: complétalo antes de aplicar.")
+    factura = _factura_referida(conexion, v, factura_id)
+    if factura is None:
+        raise DocumentoEnConflicto(
+            "La factura de origen aún no está cargada al inventario: cárgala primero o elígela a mano.", documento_id)
+    acumulado = conexion.execute(
+        "SELECT COALESCE(-SUM(monto_clp), 0) FROM cuenta_proveedor_movimientos "
+        "WHERE tipo = 'nota_credito' AND referencia_documento_id = %s", (factura["documento_id"],),
+    ).fetchone()[0]
+    if factura["monto_total_clp"] is not None and acumulado + total > factura["monto_total_clp"]:
+        raise DocumentoInvalido(
+            f"Las notas de crédito de la factura {factura['folio']} sumarían más que su total "
+            f"({acumulado + total} de {factura['monto_total_clp']}).")
+    motivo = f"Nota de crédito {v['folio']} (factura {factura['folio']})"
+    aplicadas = []
+    with conexion.transaction():
+        for l in lineas:
+            if l.get("accion") != "descontar":
+                continue
+            producto_id = l.get("producto_id")
+            if not producto_id:
+                raise DocumentoInvalido(f"Elige el producto de «{l.get('nombre') or 'la línea'}» o márcala como «no descontar».")
+            unidades = int(round((l.get("cantidad") or 0) * int(l.get("unidades_por_paquete") or 1)))
+            if unidades <= 0:
+                raise DocumentoInvalido(f"La cantidad de «{l.get('nombre') or producto_id}» debe ser mayor que cero.")
+            try:
+                producto = productos_db.obtener(conexion, producto_id, bloqueo=True)
+            except productos_db.ProductoInvalido as error:
+                raise DocumentoInvalido(str(error)) from error
+            if not producto["controla_stock"]:
+                raise DocumentoInvalido(f"«{producto['nombre']}» no controla stock: no se puede devolver.")
+            if producto["stock"] - unidades < 0:
+                raise DocumentoInvalido(
+                    f"«{producto['nombre']}»: la devolución de {unidades} deja el stock negativo (hay {producto['stock']}).")
+            bodega = stock_core.bodega_por_categoria(producto["categoria"])
+            try:
+                productos_db.registrar_stock_bodega(conexion, producto_id, bodega, -unidades)
+            except productos_db.ProductoInvalido as error:
+                raise DocumentoInvalido(f"«{producto['nombre']}»: {error}") from error
+            conexion.execute("UPDATE productos SET stock = stock - %s, actualizado_en = now() WHERE id = %s",
+                             (unidades, producto_id))
+            productos_db._movimiento(conexion, producto_id, -unidades, motivo, actor, bodega_codigo=bodega, tipo="devolucion")
+            aplicadas.append({"producto_id": producto_id, "nombre": producto["nombre"], "unidades": unidades,
+                              "stock_antes": producto["stock"], "stock_despues": producto["stock"] - unidades})
+        if total:
+            conexion.execute(
+                "INSERT INTO cuenta_proveedor_movimientos (emisor_rut, documento_id, tipo, monto_clp, "
+                "referencia_documento_id, actor) VALUES (%s, %s, 'nota_credito', %s, %s, %s)",
+                (v["emisor_rut"], documento_id, -total, factura["documento_id"], actor),
+            )
+        resumen = {"factura_folio": factura["folio"], "monto_rebajado_clp": total, "lineas": aplicadas}
+        conexion.execute(
+            "UPDATE documentos_proveedor SET estado = 'aplicada', factura_origen_id = %s, aplicacion = %s, "
+            "actualizado_en = now() WHERE id = %s",
+            (factura["documento_id"], Jsonb(resumen), documento_id),
+        )
+    return {"documento_id": documento_id, "estado": "aplicada", "factura_origen_id": factura["documento_id"], **resumen,
+            "saldo_proveedor_clp": saldo_proveedor(conexion, v["emisor_rut"])["saldo_clp"]}
+
+
+def saldo_proveedor(conexion: psycopg.Connection, emisor_rut: str) -> dict:
+    """Cuenta por pagar del proveedor: facturas cargadas menos notas de crédito aplicadas (PUR-004).
+    Los pagos al proveedor quedan fuera de esta versión."""
+    filas = conexion.execute(
+        "SELECT m.id, m.tipo, m.monto_clp, m.registrado_en, d.folio, m.actor "
+        "FROM cuenta_proveedor_movimientos m JOIN documentos_proveedor d ON d.id = m.documento_id "
+        "WHERE m.emisor_rut = %s ORDER BY m.registrado_en, m.id", (emisor_rut,),
+    ).fetchall()
+    return {
+        "emisor_rut": emisor_rut,
+        "saldo_clp": sum(f[2] for f in filas),
+        "movimientos": [{"movimiento_id": f[0], "tipo": f[1], "monto_clp": f[2], "folio": f[4],
+                         "registrado_en": f[3].isoformat(), "actor": f[5]} for f in filas],
+    }
 
 
 def descartar(conexion: psycopg.Connection, documento_id: str, actor: str) -> dict:

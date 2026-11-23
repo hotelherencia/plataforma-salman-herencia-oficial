@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  accionesDocumento, clasificarArchivo, costoPorUnidad, dimensionesReducidas, extrasDocumento,
+  accionesDocumento, filasNotaCredito, lineasAplicacion, problemaAplicacion, clasificarArchivo, costoPorUnidad, dimensionesReducidas, extrasDocumento,
   lineaConfirmacionDocumento, lineasManuales, resumenCorreo, tituloDocumento, unidadesTotales, validarEnvases,
 } from '../lib/facturas.js'
 
@@ -43,6 +43,8 @@ test('la línea del documento lleva lo recordado del proveedor a la confirmació
 test('qué se puede hacer según clase y estado', () => {
   assert.equal(accionesDocumento({ estado: 'pendiente', clase: 'factura' }).cargar, true)
   assert.equal(accionesDocumento({ estado: 'pendiente', clase: 'nota_credito' }).cargar, false)
+  assert.equal(accionesDocumento({ estado: 'pendiente', clase: 'nota_credito' }).aplicar, true)
+  assert.equal(accionesDocumento({ estado: 'aplicada', clase: 'nota_credito' }).aplicar, undefined)
   assert.match(accionesDocumento({ estado: 'borrador', clase: 'pedido' }).texto, /no suma stock/)
   assert.equal(accionesDocumento({ estado: 'cargada', clase: 'factura' }).descartar, false)
   assert.equal(tituloDocumento({ clase: 'factura', folio: '3797574' }), 'Factura N° 3797574')
@@ -79,4 +81,19 @@ test('el correo de intercambio SII se configura como un buzón más', async () =
   assert.ok(imap.includes('carpeta_entrada') && !imap.includes('carpeta_enviados') && !imap.includes('remitente'))
   assert.ok(!camposVisibles('lectura_enviados', 'imap', 'clave').parametros.includes('carpeta_entrada'))
   assert.equal(formularioVacio('recepcion_dte').proveedor, 'imap')
+})
+
+test('nota de crédito: filas, líneas y validación', () => {
+  const filas = filasNotaCredito([
+    { nombre: 'Agua caja x 24', cantidad: 1, unidades_por_paquete: 24, coincidencia: { producto_id: 'PRD-1' } },
+    { nombre: 'Algo sin producto', cantidad: 2 },
+  ])
+  assert.deepEqual(filas.map((f) => f.descontar), [true, false])
+  assert.equal(problemaAplicacion(filas), null)
+  assert.deepEqual(lineasAplicacion(filas), [
+    { accion: 'descontar', producto_id: 'PRD-1', nombre: 'Agua caja x 24', cantidad: 1, unidades_por_paquete: 24 },
+    { accion: 'omitir', nombre: 'Algo sin producto' },
+  ])
+  assert.match(problemaAplicacion([{ ...filas[1], descontar: true }]), /Elige el producto/)
+  assert.match(problemaAplicacion([{ ...filas[0], cantidad: '0' }]), /mayor que cero/)
 })
