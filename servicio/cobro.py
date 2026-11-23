@@ -299,6 +299,10 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
             "liquidacion_id": liquidacion[0], "total_clp": liquidacion[1], "pagado_clp": liquidacion[2],
             "saldo_clp": liquidacion[3], "liquidada_en": liquidacion[4].isoformat(),
         }
+    from . import credito_clientes
+    detalle["credito_cliente"] = credito_clientes.resumen_credito_por_rut(
+        conexion, empresa_id, r[6], None, reserva_id,
+    )
     return detalle
 
 

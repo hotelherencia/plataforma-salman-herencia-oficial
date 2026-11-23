@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (189)
+## Operaciones de esta versión (194)
 
 | Operación | Efecto |
 |---|---|
@@ -693,6 +693,11 @@ los compone el servidor.
 | `POST /hotel/comunicados/{id}/lectura` | (#418) Confirma la lectura del usuario de la sesión; una sola vez (solo se agrega, repetir no cambia nada). Comunicado ajeno al rol → 404. `Idempotency-Key`. |
 | `POST /hotel/comunicados/{id}/archivo` | (#418) Archiva el comunicado (deja de mostrarse). Solo administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/comunicados/{id}/lecturas` | (#418) Quién leyó (con hora) y quién falta entre los destinatarios. Solo administración del hotel. |
+| `GET /hotel/clientes/{cliente_id}/credito` | (Contable 2.2 / `#392`) Política de crédito vigente del cliente/empresa, cupo, plazo, deuda abierta, cupo disponible y alertas de límite o vencimiento. Roles recepción, caja o administración del hotel. |
+| `PUT /hotel/clientes/{cliente_id}/credito` | (Contable 2.2 / `#392`) Configura política de crédito (`pago_al_registrarse`, `credito_autorizado`, `garantia_salida`), límite, plazo en días y marca/últimos 4 dígitos (PCI: jamás número completo ni CVV). Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/reservas/{reserva_id}/salida-credito` | (Contable 2.2 / `#392` / `REC-003`) Registra Salida física dejando cuenta por cobrar trazable si el cliente tiene política de crédito/garantía habilitada; exceso de cupo → 409 salvo confirmación de administración. Recepción o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/contabilidad/cuentas-por-cobrar?estado&cliente_id` | (Contable 2.2 / `#392` / `FIN-002`) Listado de cuentas por cobrar agrupado por tramos de antigüedad (`0-30`, `31-60`, `61-90`, `mas_90` días) con totales y alertas de vencimiento. Roles caja o administración del hotel. |
+| `POST /hotel/contabilidad/cuentas-por-cobrar/{cxc_id}/abonos` | (Contable 2.2 / `#392`) Registra abono append-only e idempotente sobre una cuenta por cobrar (sin superar saldo pendiente). Roles caja o administración del hotel; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 

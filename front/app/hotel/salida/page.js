@@ -71,6 +71,37 @@ export default function SalidaPage() {
     }
   }
 
+  async function registrarSalidaCredito() {
+    if (!detalle || !detalle.credito_cliente?.cliente_id || enviando) return
+    setError('')
+    setEnviando(true)
+    try {
+      const r = await api(`/hotel/reservas/${encodeURIComponent(detalle.reserva_id)}/salida-credito`, {
+        metodo: 'POST',
+        claveIdempotencia: clave,
+        cuerpo: { cliente_id: detalle.credito_cliente.cliente_id },
+      })
+      if (r.estado >= 400) {
+        setError(mensajeDeError(r.datos, r.estado))
+        alRechazar(r.estado, renovarClave)
+      } else {
+        setLiquidado(detalle)
+        setLiquidacion({
+          ...r.datos,
+          total_clp: detalle.cuenta.cargos_netos_clp,
+          pagado_clp: detalle.cuenta.pagado_clp,
+          saldo_clp: r.datos.saldo_a_credito_clp,
+        })
+        renovarClave()
+        setVersion((v) => v + 1)
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   if (liquidacion) {
     return (
       <MarcoHotel titulo="Salida">
@@ -101,12 +132,23 @@ export default function SalidaPage() {
         <section className="tarjeta">
           <h2>Revisar y registrar la Salida</h2>
           <FichaEstadia detalle={detalle} alCambiar={otra}>
+            {detalle.credito_cliente?.alertas?.length > 0 && (
+              <p className="alerta" role="alert">
+                Crédito del cliente: {detalle.credito_cliente.alertas.join(' · ')}
+              </p>
+            )}
             {bloqueo && <p className="alerta" role="alert" data-bloqueo-salida>{bloqueo}</p>}
             <div className={css.acciones}>
               {detalle.cuenta.saldo_clp > 0 && detalle.estado !== 'finalizada' && (
                 <Link className="boton-primario" href={`/hotel/pago?reserva_id=${encodeURIComponent(detalle.reserva_id)}&volver=salida`}>
                   Registrar pago del saldo
                 </Link>
+              )}
+              {detalle.cuenta.saldo_clp > 0 && detalle.estado === 'en_estadia'
+                && detalle.credito_cliente?.politica_credito && detalle.credito_cliente.politica_credito !== 'pago_al_registrarse' && (
+                <button type="button" className="boton-secundario" onClick={registrarSalidaCredito} disabled={enviando}>
+                  {enviando ? 'Registrando…' : 'Registrar Salida a crédito'}
+                </button>
               )}
               <button
                 type="button"

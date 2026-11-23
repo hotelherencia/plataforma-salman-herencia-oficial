@@ -1,11 +1,12 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
-import { api, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, Campo } from '../../../lib/api'
-import { gestionaClientes } from '../../../lib/roles'
+import { api, clp, mensajeDeError, MarcoHotel, useSesion, useClaveOperacion, alRechazar, Campo, CampoSelect } from '../../../lib/api'
+import { esAdminHotel, gestionaClientes } from '../../../lib/roles'
 import { rutValido } from '../../../lib/contabilidad'
 import FormularioEdicion from '../_componentes/formulario-edicion'
 import { BotonExportar } from '../_componentes/boton-exportar'
+import CuentasPorCobrar, { ETIQUETA_POLITICA } from '../_componentes/cuentas-por-cobrar'
 
 function validarRutCampo(v) {
   const texto = String(v ?? '').trim()
@@ -37,11 +38,60 @@ export default function Clientes() {
   const [error, setError] = useState('')
   const [creando, setCreando] = useState(false)
   const [editando, setEditando] = useState(null)
+  const [creditoId, setCreditoId] = useState(null)
+  const [formCredito, setFormCredito] = useState({
+    politica_credito: 'pago_al_registrarse',
+    cupo_credito_clp: '0',
+    plazo_dias: '0',
+    garantia_tarjeta_marca: '',
+    garantia_tarjeta_ultimos4: '',
+  })
   const [aviso, setAviso] = useState('')
   const [claveAlta, renovarClaveAlta] = useClaveOperacion()
 
   const rol = sesion.fase === 'ok' ? sesion.usuario.rol : null
   const puede = gestionaClientes(rol)
+  const esAdmin = esAdminHotel(rol)
+  const puedeVerCxc = esAdmin || rol === 'caja'
+
+  function abrirCredito(c) {
+    if (creditoId === c.id) { setCreditoId(null); return }
+    setCreditoId(c.id)
+    setFormCredito({
+      politica_credito: c.politica_credito || 'pago_al_registrarse',
+      cupo_credito_clp: String(c.cupo_credito_clp || 0),
+      plazo_dias: String(c.plazo_dias || 0),
+      garantia_tarjeta_marca: c.garantia_tarjeta_marca || '',
+      garantia_tarjeta_ultimos4: c.garantia_tarjeta_ultimos4 || '',
+    })
+  }
+
+  async function guardarCredito(e, clienteId) {
+    e.preventDefault()
+    setError('')
+    setAviso('')
+    try {
+      const r = await api(`/hotel/clientes/${encodeURIComponent(clienteId)}/credito`, {
+        metodo: 'PUT',
+        claveIdempotencia: `cred-${clienteId}-${crypto.randomUUID().slice(0, 8)}`,
+        cuerpo: {
+          politica_credito: formCredito.politica_credito,
+          cupo_credito_clp: Math.max(0, Number(formCredito.cupo_credito_clp) || 0),
+          plazo_dias: Math.max(0, Number(formCredito.plazo_dias) || 0),
+          garantia_tarjeta_marca: formCredito.garantia_tarjeta_marca.trim() || null,
+          garantia_tarjeta_ultimos4: formCredito.garantia_tarjeta_ultimos4.trim() || null,
+        },
+      })
+      if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
+      else {
+        setCreditoId(null)
+        setAviso('Política de crédito actualizada.')
+        cargar(texto.trim())
+      }
+    } catch {
+      setError('No se pudo conectar con el servidor.')
+    }
+  }
 
   async function cargar(q) {
     setError('')
@@ -122,7 +172,7 @@ export default function Clientes() {
             <table className="tabla">
               <thead>
                 <tr>
-                  <th>Nombre</th><th>RUT</th><th>Tipo</th><th>Teléfono</th><th>Correo</th><th>Giro</th><th>Comuna</th><th>Estado</th><th>Acciones</th>
+                  <th>Nombre</th><th>RUT</th><th>Tipo</th><th>Teléfono</th><th>Correo</th><th>Crédito</th><th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,19 +184,29 @@ export default function Clientes() {
                       <td>{c.tipo === 'persona' ? 'Persona' : 'Empresa'}</td>
                       <td>{c.telefono ?? '—'}</td>
                       <td>{c.correo ?? '—'}</td>
-                      <td>{c.giro ?? '—'}</td>
-                      <td>{c.comuna ?? '—'}</td>
+                      <td>
+                        {ETIQUETA_POLITICA[c.politica_credito] || 'Pago al registrarse'}
+                        {c.politica_credito === 'credito_autorizado' && (
+                          <div className="nota-clave">Cupo {clp(c.cupo_credito_clp)} · {c.plazo_dias} d</div>
+                        )}
+                      </td>
                       <td>{c.activo ? 'activo' : 'inactivo'}</td>
                       <td>
                         <button type="button" className="boton-fantasma" aria-expanded={editando === c.id}
                           onClick={() => setEditando(editando === c.id ? null : c.id)}>
                           Editar
                         </button>
+                        {esAdmin && (
+                          <button type="button" className="boton-fantasma" aria-expanded={creditoId === c.id}
+                            onClick={() => abrirCredito(c)}>
+                            Crédito
+                          </button>
+                        )}
                       </td>
                     </tr>
                     {editando === c.id && (
                       <tr>
-                        <td colSpan={9}>
+                        <td colSpan={8}>
                           <FormularioEdicion
                             ruta={`/hotel/clientes/${c.id}`}
                             inicial={c}
@@ -158,6 +218,40 @@ export default function Clientes() {
                         </td>
                       </tr>
                     )}
+                    {esAdmin && creditoId === c.id && (
+                      <tr>
+                        <td colSpan={8}>
+                          <form className="formulario" onSubmit={(e) => guardarCredito(e, c.id)} aria-label="Política de crédito">
+                            <CampoSelect etiqueta="Política de crédito" value={formCredito.politica_credito}
+                              onChange={(e) => setFormCredito({ ...formCredito, politica_credito: e.target.value })}>
+                              <option value="pago_al_registrarse">Pago al registrarse</option>
+                              <option value="credito_autorizado">Crédito autorizado</option>
+                              <option value="garantia_salida">Garantía con tarjeta cobrada a la Salida</option>
+                            </CampoSelect>
+                            {formCredito.politica_credito === 'credito_autorizado' && (
+                              <>
+                                <Campo etiqueta="Límite de crédito (CLP)" type="number" min="1" value={formCredito.cupo_credito_clp}
+                                  onChange={(e) => setFormCredito({ ...formCredito, cupo_credito_clp: e.target.value })} />
+                                <Campo etiqueta="Plazo en días" type="number" min="0" max="365" value={formCredito.plazo_dias}
+                                  onChange={(e) => setFormCredito({ ...formCredito, plazo_dias: e.target.value })} />
+                              </>
+                            )}
+                            {formCredito.politica_credito === 'garantia_salida' && (
+                              <>
+                                <Campo etiqueta="Marca tarjeta (sin número completo)" value={formCredito.garantia_tarjeta_marca}
+                                  placeholder="Ej.: Visa / Mastercard"
+                                  onChange={(e) => setFormCredito({ ...formCredito, garantia_tarjeta_marca: e.target.value })} />
+                                <Campo etiqueta="Últimos 4 dígitos (nunca CVV)" maxLength={4} value={formCredito.garantia_tarjeta_ultimos4}
+                                  placeholder="1234"
+                                  onChange={(e) => setFormCredito({ ...formCredito, garantia_tarjeta_ultimos4: e.target.value })} />
+                              </>
+                            )}
+                            <button type="submit" className="boton-primario">Guardar política de crédito</button>
+                            <button type="button" className="boton-fantasma" onClick={() => setCreditoId(null)}>Cancelar</button>
+                          </form>
+                        </td>
+                      </tr>
+                    )}
                   </Fragment>
                 ))}
               </tbody>
@@ -166,6 +260,7 @@ export default function Clientes() {
         )
       )}
       {truncado && <p className="nota-clave">Se muestran los primeros resultados: afina la búsqueda.</p>}
+      <CuentasPorCobrar puedeCobrar={puedeVerCxc} />
     </MarcoHotel>
   )
 }

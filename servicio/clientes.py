@@ -106,10 +106,16 @@ class ClienteInvalido(ValueError):
 def _ficha(f: tuple) -> dict:
     return {"id": f[0], "tipo": f[1], "rut": rut_visible(f[2]), "nombre": f[3], "giro": f[4],
             "direccion": f[5], "comuna": f[6], "correo": f[7], "telefono": f[8],
-            "activo": f[9], "creado_en": f[10].isoformat()}
+            "activo": f[9], "creado_en": f[10].isoformat(),
+            "politica_credito": f[11], "cupo_credito_clp": int(f[12] or 0),
+            "plazo_dias": int(f[13] or 0), "garantia_tarjeta_marca": f[14],
+            "garantia_tarjeta_ultimos4": f[15]}
 
 
-_COLUMNAS = "id, tipo, rut, nombre, giro, direccion, comuna, correo, telefono, activo, creado_en"
+_COLUMNAS = (
+    "id, tipo, rut, nombre, giro, direccion, comuna, correo, telefono, activo, creado_en, "
+    "politica_credito, cupo_credito_clp, plazo_dias, garantia_tarjeta_marca, garantia_tarjeta_ultimos4"
+)
 
 
 def _validar_telefono(telefono: str | None) -> str | None:
