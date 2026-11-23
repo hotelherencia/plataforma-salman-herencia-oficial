@@ -500,7 +500,7 @@ cancelacion, faq, etc.). El verificador acepta cifras que salgan de esa
 herramienta o de la oferta del mismo turno. El modelo no redacta los montos:
 los compone el servidor.
 
-## Operaciones de esta versión (194)
+## Operaciones de esta versión (211)
 
 | Operación | Efecto |
 |---|---|
@@ -698,6 +698,23 @@ los compone el servidor.
 | `POST /hotel/reservas/{reserva_id}/salida-credito` | (Contable 2.2 / `#392` / `REC-003`) Registra Salida física dejando cuenta por cobrar trazable si el cliente tiene política de crédito/garantía habilitada; exceso de cupo → 409 salvo confirmación de administración. Recepción o administración del hotel; `Idempotency-Key`. |
 | `GET /hotel/contabilidad/cuentas-por-cobrar?estado&cliente_id` | (Contable 2.2 / `#392` / `FIN-002`) Listado de cuentas por cobrar agrupado por tramos de antigüedad (`0-30`, `31-60`, `61-90`, `mas_90` días) con totales y alertas de vencimiento. Roles caja o administración del hotel. |
 | `POST /hotel/contabilidad/cuentas-por-cobrar/{cxc_id}/abonos` | (Contable 2.2 / `#392`) Registra abono append-only e idempotente sobre una cuenta por cobrar (sin superar saldo pendiente). Roles caja o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/turnos?desde&hasta&area&solo_mios` | (#418) Rol de turnos por día (por defecto 7 días desde hoy, máximo 31) con área, persona y horario. Todos los roles, incluido aseo. |
+| `POST /hotel/turnos` | (#418) `{fecha, area, usuario, hora_inicio, hora_fin, nota?}`; la persona debe existir y no repetir el mismo bloque el mismo día (409). Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/turnos/{id}/cambio` | (#418) `{propuesto, motivo}`: quien tiene el turno (o la administración) pide que lo cubra otra persona; un solo cambio pendiente por turno y no sobre turnos pasados (409). `Idempotency-Key`. |
+| `GET /hotel/turnos/cambios?estado` | (#418) Solicitudes de cambio con su turno. Solo administración del hotel. |
+| `POST /hotel/turnos/cambios/{id}/resolucion` | (#418) `{aprobar}`: al aprobar, el turno pasa a la persona propuesta; la solicitud queda como historia y no se resuelve dos veces (409). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/biblioteca?categoria&archivados` | (#418) Documentos (manuales, instructivos, políticas) dirigidos al rol de la sesión o a todos. `archivados` solo lo respeta la administración. Todos los roles, incluido aseo. |
+| `POST /hotel/biblioteca` | (#418) `{titulo, categoria, contenido?, enlace? (https), roles[]}`; exige contenido o enlace. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/biblioteca/{id}/archivo` | (#418) Archiva el documento. Solo administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/sugerencias` | (#418) `{texto}`: buzón de sugerencias del personal; queda con su autor. Todos los roles; `Idempotency-Key`. |
+| `GET /hotel/sugerencias?estado` | (#418) Sugerencias recibidas. Solo administración del hotel. |
+| `POST /hotel/sugerencias/{id}/atencion` | (#418) `{respuesta?}`: marca la sugerencia como atendida; no se atiende dos veces (409). Solo administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/activos?habitacion_id&estado` | (#418) Inventario de activos por habitación o área común. Recepción, aseo y administración del hotel. |
+| `POST /hotel/activos` | (#418) `{habitacion_id? o area, nombre, categoria, notas?}`; la habitación debe existir. Recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/activos/{id}/actualizacion` | (#418) `{estado?: operativo\|en_reparacion\|de_baja, notas?}`; al dar de baja se desactivan sus planes de mantención. Recepción o administración del hotel; `Idempotency-Key`. |
+| `POST /hotel/activos/{id}/plan` | (#418) `{descripcion, cada_dias, proxima?}`: mantención preventiva periódica (por defecto la primera es hoy + `cada_dias`); no sobre activos de baja (409). Recepción o administración del hotel; `Idempotency-Key`. |
+| `GET /hotel/mantenciones?dentro_de_dias` | (#418) Mantenciones vencidas y las que vencen en los próximos N días (14 por defecto), con `vencida`. Recepción, aseo y administración del hotel. |
+| `POST /hotel/mantenciones/{plan_id}/realizada` | (#418) `{fecha?, nota?}`: registra la mantención hecha en el historial (solo se agrega) y corre la próxima a `fecha + cada_dias`. Fecha futura o ya registrada → 409. Recepción, aseo o administración; `Idempotency-Key`. |
 
 ## Criterio de aceptación
 
