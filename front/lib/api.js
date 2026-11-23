@@ -331,12 +331,27 @@ export function SalidaJson({ datos }) {
   )
 }
 
-export function Campo({ etiqueta, ...props }) {
-  if (props.type === 'date') return <CampoFecha etiqueta={etiqueta} {...props} />
+export function Campo({ etiqueta, error, ayuda, id, inputMode, ...props }) {
+  const idAuto = useId()
+  const idCampo = id || `campo-${idAuto}`
+  const idError = error ? `${idCampo}-err` : undefined
+  const idAyuda = ayuda ? `${idCampo}-ayuda` : undefined
+  const descrito = [idError, idAyuda, props['aria-describedby']].filter(Boolean).join(' ') || undefined
+  if (props.type === 'date') return <CampoFecha etiqueta={etiqueta} id={id} error={error} ayuda={ayuda} {...props} />
+  const modo = inputMode ?? (props.type === 'number' ? 'numeric' : props.type === 'tel' ? 'tel' : undefined)
   return (
-    <label className="campo">
+    <label className="campo" htmlFor={idCampo}>
       <span className="campo-etiqueta">{etiqueta}</span>
-      <input className="entrada" {...props} />
+      <input
+        id={idCampo}
+        className="entrada"
+        inputMode={modo}
+        aria-invalid={error ? 'true' : props['aria-invalid']}
+        aria-describedby={descrito}
+        {...props}
+      />
+      {error && <span id={idError} className="error-campo" role="alert">{error}</span>}
+      {ayuda && !error && <span id={idAyuda} className="campo-ayuda">{ayuda}</span>}
     </label>
   )
 }
@@ -445,13 +460,26 @@ export function CampoClave({ etiqueta, autoComplete = 'current-password', ...pro
   )
 }
 
-export function CampoSelect({ etiqueta, children, ...props }) {
+export function CampoSelect({ etiqueta, error, ayuda, id, children, ...props }) {
+  const idAuto = useId()
+  const idCampo = id || `select-${idAuto}`
+  const idError = error ? `${idCampo}-err` : undefined
+  const idAyuda = ayuda ? `${idCampo}-ayuda` : undefined
+  const descrito = [idError, idAyuda, props['aria-describedby']].filter(Boolean).join(' ') || undefined
   return (
-    <label className="campo">
+    <label className="campo" htmlFor={idCampo}>
       <span className="campo-etiqueta">{etiqueta}</span>
-      <select className="entrada" {...props}>
+      <select
+        id={idCampo}
+        className="entrada"
+        aria-invalid={error ? 'true' : props['aria-invalid']}
+        aria-describedby={descrito}
+        {...props}
+      >
         {children}
       </select>
+      {error && <span id={idError} className="error-campo" role="alert">{error}</span>}
+      {ayuda && !error && <span id={idAyuda} className="campo-ayuda">{ayuda}</span>}
     </label>
   )
 }

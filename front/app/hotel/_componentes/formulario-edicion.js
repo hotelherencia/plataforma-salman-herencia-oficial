@@ -158,13 +158,14 @@ export default function FormularioEdicion({
               <input
                 className="entrada"
                 type={c.tipo || 'text'}
+                inputMode={c.inputMode || (c.tipo === 'number' ? 'numeric' : c.tipo === 'tel' ? 'tel' : c.tipo === 'email' ? 'email' : undefined)}
                 placeholder={c.placeholder}
                 value={valores[c.nombre]}
                 onChange={(e) => cambiar(c.nombre, e.target.value)}
                 {...propsA11y}
               />
             )}
-            {msgError && <span id={idError} className="error-campo">{msgError}</span>}
+            {msgError && <span id={idError} className="error-campo" role="alert">{msgError}</span>}
           </label>
         )
       })}

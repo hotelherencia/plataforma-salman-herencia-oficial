@@ -14,6 +14,7 @@ import Turnos from '../_componentes/turnos'
 import Biblioteca from '../_componentes/biblioteca'
 import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
+import { nombreTipo } from '../../reservar/continuidad'
 import { BotonExportar } from '../_componentes/boton-exportar'
 import { rangoSemana, rangoMes, resumenSerie, puntosLinea } from '../../../lib/panel-serie'
 
@@ -233,10 +234,10 @@ export default function Panel() {
             <Campo etiqueta="Desde (noche)" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
             <Campo etiqueta="Hasta (sin incluir)" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
             <CampoSelect etiqueta="Tipo de habitación" value={filtros.tipo} onChange={(e) => setFiltros({ ...filtros, tipo: e.target.value })}>
-              <option value="">(todos)</option>
+              <option value="">Todos los tipos</option>
               {tipos.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {nombreTipo(t)}
                 </option>
               ))}
             </CampoSelect>

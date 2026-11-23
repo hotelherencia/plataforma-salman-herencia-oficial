@@ -1,73 +1,128 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { clp } from '../../../lib/api'
 import { esAdminHotel, gestionaRecepcion } from '../../../lib/roles'
-import { plural } from '../../../lib/formato'
+import { fechaATexto, plural } from '../../../lib/formato'
+import { nombreTipo } from '../../reservar/continuidad'
+import { BarraContextual, SelectorFila } from './barra-contextual'
 
 /**
  * Capa del módulo Hotel — inventario operativo de habitaciones (pura, sin
- * fetch): dibuja GET /hotel/habitaciones tal cual la envía la API y emite las
- * acciones de fila hacia la página (que las ejecuta con su clave de
- * idempotencia). Las reglas de visibilidad vienen del contrato: limpieza la
- * completan recepción o administrador; el mantenimiento, solo administrador.
+ * fetch): usa selección por fila + barra contextual única (sin repetir
+ * botones en las 17 habitaciones).
  */
 
 const ETIQUETA_OPERATIVO = {
-  disponible: 'disponible',
-  ocupada: 'ocupada',
-  bloqueada: 'bloqueada',
-  fuera_de_servicio: 'fuera de servicio',
+  disponible: 'Disponible',
+  ocupada: 'Ocupada',
+  bloqueada: 'Bloqueada',
+  fuera_de_servicio: 'Fuera de servicio',
 }
 
 const ETIQUETA_PREPARACION = {
-  limpia: 'limpia',
-  sucia: 'sucia',
-  inspeccionada: 'inspeccionada',
+  limpia: 'Limpia',
+  sucia: 'Sucia',
+  en_limpieza: 'En limpieza',
+  inspeccionada: 'Inspeccionada',
 }
 
 export function InventarioHabitaciones({ habitaciones, rol, alLimpiar, alCambiarMantenimiento }) {
   const puedeLimpiar = gestionaRecepcion(rol)
   const puedeMantenimiento = esAdminHotel(rol)
+  const [seleccionadaId, setSeleccionadaId] = useState(null)
+
+  const activa = habitaciones.find((h) => h.habitacion_id === seleccionadaId) || null
+  const hayLimpiezaPendiente = activa ? (activa.limpieza_pendiente || activa.estado_preparacion === 'sucia') : false
+
   return (
     <>
       <p className="reservas-total">{plural(habitaciones.length, 'habitación', 'habitaciones')}</p>
-      <ul className="reservas-lista" role="table">
-        <li className="inventario-encabezado" role="row">
-          <span role="columnheader">Habitación</span>
-          <span role="columnheader">Tipo</span>
-          <span role="columnheader">Cap.</span>
-          <span role="columnheader">Estado</span>
-          <span role="columnheader">Preparación</span>
-          <span role="columnheader">Mantenimiento</span>
-          <span role="columnheader">Precio hoy</span>
-          <span role="columnheader">Acciones</span>
-        </li>
-        {habitaciones.map((h) => (
-          <FilaHabitacion
-            key={h.habitacion_id}
-            habitacion={h}
-            puedeLimpiar={puedeLimpiar}
-            puedeMantenimiento={puedeMantenimiento}
-            alLimpiar={alLimpiar}
-            alCambiarMantenimiento={alCambiarMantenimiento}
-          />
-        ))}
-      </ul>
+
+      <BarraContextual
+        titulo="Acciones de habitación"
+        seleccionado={Boolean(activa)}
+        resumen={activa ? `Habitación ${activa.habitacion_id} · ${nombreTipo(activa.tipo)}` : ''}
+        detalle={activa ? `${ETIQUETA_OPERATIVO[activa.estado_operativo] || activa.estado_operativo} · ${ETIQUETA_PREPARACION[activa.estado_preparacion] || activa.estado_preparacion}` : ''}
+        placeholder="Selecciona una habitación para abrir su ficha, completar limpieza o gestionar mantenimiento."
+        alLimpiar={() => setSeleccionadaId(null)}
+      >
+        {activa && (
+          <>
+            <Link href={`/hotel/habitaciones/${activa.habitacion_id}`} className="boton-primario">
+              Abrir ficha
+            </Link>
+            {puedeLimpiar && hayLimpiezaPendiente && (
+              <button type="button" className="boton-secundario" onClick={() => alLimpiar(activa.habitacion_id)}>
+                Completar limpieza
+              </button>
+            )}
+            {puedeMantenimiento && (
+              <button
+                type="button"
+                className="boton-secundario"
+                onClick={() => alCambiarMantenimiento(activa.habitacion_id, !activa.mantenimiento)}
+              >
+                {activa.mantenimiento ? 'Cerrar mantenimiento' : 'Abrir mantenimiento'}
+              </button>
+            )}
+          </>
+        )}
+      </BarraContextual>
+
+      <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Inventario de habitaciones (desliza para ver todas las columnas)">
+        <ul className="reservas-lista" role="table">
+          <li className="inventario-encabezado" role="row">
+            <span role="columnheader"><span className="sr-only">Elegir</span></span>
+            <span role="columnheader">Habitación</span>
+            <span role="columnheader">Tipo</span>
+            <span role="columnheader">Cap.</span>
+            <span role="columnheader">Estado</span>
+            <span role="columnheader">Preparación</span>
+            <span role="columnheader">Mantenimiento</span>
+            <span role="columnheader">Precio hoy</span>
+          </li>
+          {habitaciones.map((h) => (
+            <FilaHabitacion
+              key={h.habitacion_id}
+              habitacion={h}
+              seleccionada={activa?.habitacion_id === h.habitacion_id}
+              alElegir={() => setSeleccionadaId(h.habitacion_id)}
+            />
+          ))}
+        </ul>
+      </div>
     </>
   )
 }
 
-export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento, alLimpiar, alCambiarMantenimiento }) {
-  const hayLimpiezaPendiente = h.limpieza_pendiente || h.estado_preparacion === 'sucia'
+export function FilaHabitacion({ habitacion: h, seleccionada = false, alElegir }) {
   return (
-    <li className="inventario-fila" role="row">
+    <li
+      className="inventario-fila fila-seleccionable"
+      role="row"
+      data-seleccionada={seleccionada ? 'true' : 'false'}
+      onClick={alElegir}
+    >
+      <span role="cell">
+        <SelectorFila
+          nombreGrupo="habitacion-activa"
+          elegido={seleccionada}
+          etiqueta={`Seleccionar habitación ${h.habitacion_id}`}
+          alElegir={alElegir}
+        />
+      </span>
       <span role="cell" className="reserva-id">
-        <Link href={`/hotel/habitaciones/${h.habitacion_id}`} title="Abrir ficha: datos, precio, reservas e historial">
+        <Link
+          href={`/hotel/habitaciones/${h.habitacion_id}`}
+          title="Abrir ficha: datos, precio, reservas e historial"
+          onClick={(e) => e.stopPropagation()}
+        >
           {h.habitacion_id}
         </Link>
       </span>
-      <span role="cell" className="reserva-celda">{h.tipo}</span>
+      <span role="cell" className="reserva-celda">{nombreTipo(h.tipo)}</span>
       <span role="cell" className="reserva-celda">{h.capacidad}</span>
       <span role="cell" className={`reserva-estado estado-${h.estado_operativo}`}>
         {ETIQUETA_OPERATIVO[h.estado_operativo] || h.estado_operativo}
@@ -77,30 +132,11 @@ export function FilaHabitacion({ habitacion: h, puedeLimpiar, puedeMantenimiento
       </span>
       <span role="cell" className={`reserva-estado ${h.mantenimiento ? 'estado-cancelada' : 'estado-finalizada'}`}>
         {h.mantenimiento
-          ? `en mantenimiento${h.mantenimiento_desde ? ` desde ${h.mantenimiento_desde}` : ''}${h.mantenimiento_hasta ? ` hasta ${h.mantenimiento_hasta}` : ''}`
-          : 'activa'}
+          ? `En mantenimiento${h.mantenimiento_desde ? ` desde ${fechaATexto(h.mantenimiento_desde)}` : ''}${h.mantenimiento_hasta ? ` hasta ${fechaATexto(h.mantenimiento_hasta)}` : ''}`
+          : 'Activa'}
       </span>
       <span role="cell" className="reserva-tarifa">
-        {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'sin precio hoy'}
-      </span>
-      <span role="cell" className="inventario-acciones">
-        <Link href={`/hotel/habitaciones/${h.habitacion_id}`} className="boton-fantasma">
-          Ficha
-        </Link>
-        {puedeLimpiar && hayLimpiezaPendiente && (
-          <button type="button" className="boton-fantasma" onClick={() => alLimpiar(h.habitacion_id)}>
-            Completar limpieza
-          </button>
-        )}
-        {puedeMantenimiento && (
-          <button
-            type="button"
-            className="boton-fantasma"
-            onClick={() => alCambiarMantenimiento(h.habitacion_id, !h.mantenimiento)}
-          >
-            {h.mantenimiento ? 'Cerrar mantenimiento' : 'Abrir mantenimiento'}
-          </button>
-        )}
+        {h.tarifa_vigente_hoy_clp ? `${clp(h.tarifa_vigente_hoy_clp)}/noche` : 'Sin precio hoy'}
       </span>
     </li>
   )

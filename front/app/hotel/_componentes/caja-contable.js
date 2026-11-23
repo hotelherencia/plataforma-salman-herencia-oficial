@@ -14,6 +14,7 @@ import {
 import css from './operacion.module.css'
 import cc from './caja.module.css'
 import ContableMensual from './contable-mensual'
+import { BarraContextual, SelectorFila } from './barra-contextual'
 
 const SIN_CONEXION = 'No se pudo conectar con el servidor. Intenta nuevamente en unos minutos.'
 
@@ -299,6 +300,7 @@ export function PestanaMovimientos({ esAdmin, soloDepositos = false }) {
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
+  const [seleccionadoId, setSeleccionadoId] = useState(null)
   const [reversando, setReversando] = useState(null)
 
   const cargar = useCallback(async (d = desde, h = hasta) => {
@@ -316,6 +318,8 @@ export function PestanaMovimientos({ esAdmin, soloDepositos = false }) {
 
   const filas = (datos?.movimientos || []).filter((m) => !soloDepositos || m.tipo === 'retiro_deposito')
   const total = filas.reduce((s, m) => s + m.monto_clp, 0)
+  const activo = filas.find((m) => m.movimiento_id === seleccionadoId) || null
+  const puedeReversarActivo = Boolean(esAdmin && !soloDepositos && activo && activo.tipo === 'cobro' && activo.pago_id)
   return (
     <>
       <section className="tarjeta">
@@ -334,38 +338,68 @@ export function PestanaMovimientos({ esAdmin, soloDepositos = false }) {
         : (
           <>
             <p className="resumen">{plural(filas.length, 'movimiento')} · {soloDepositos ? 'Total retirado para banco (en tránsito)' : 'Flujo del periodo'}: <strong>{clp(soloDepositos ? -total : total)}</strong></p>
+            {esAdmin && !soloDepositos && (
+              <BarraContextual
+                titulo="Acciones de movimiento de caja"
+                seleccionado={Boolean(activo)}
+                resumen={activo ? `${nombreMovimiento(activo.tipo)} · ${clp(activo.monto_clp)} · ${nombreMedio(activo.medio)}` : ''}
+                detalle={activo ? (puedeReversarActivo ? `Pago de ${activo.huesped_nombre || 'huésped'} (${activo.habitacion_id || 'sin hab.'})` : 'Este tipo de movimiento no admite reverso de pago') : ''}
+                placeholder="Selecciona un cobro de la tabla si necesitas registrar un reverso contable."
+                alLimpiar={() => setSeleccionadoId(null)}
+              >
+                {puedeReversarActivo && (
+                  <button type="button" className="boton-secundario boton-peligro" onClick={() => setReversando(activo)}>
+                    Reversar pago
+                  </button>
+                )}
+              </BarraContextual>
+            )}
             <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Movimientos de caja (desliza para ver todas las columnas)">
               <table className="tabla">
                 <thead>
                   <tr>
+                    {esAdmin && !soloDepositos && <th className="celda-selector"><span className="sr-only">Elegir</span></th>}
                     <th>Fecha</th><th>Hora</th><th>Movimiento</th><th>Medio</th><th>Monto</th>
                     {soloDepositos ? <><th>Comprobante</th><th>Banco</th></> : <><th>Huésped</th><th>Hab.</th><th>Documento</th></>}
-                    <th>Registró</th>{esAdmin && !soloDepositos && <th>Acción</th>}
+                    <th>Registró</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filas.map((m) => (
-                    <tr key={m.movimiento_id}>
-                      <td>{fechaATexto(m.fecha_contable)}</td>
-                      <td>{fechaHora(m.registrado_en).slice(11)}</td>
-                      <td>{nombreMovimiento(m.tipo)}{m.es_anticipo ? ' (anticipo)' : ''}</td>
-                      <td>{nombreMedio(m.medio)}{m.tarjeta_ultimos4 ? ` ····${m.tarjeta_ultimos4}` : ''}</td>
-                      <td>{clp(soloDepositos ? -m.monto_clp : m.monto_clp)}</td>
-                      {soloDepositos
-                        ? <><td>{m.comprobante || '—'}</td><td>{m.banco || '—'}</td></>
-                        : <>
-                          <td>{m.huesped_nombre || m.nota || '—'}</td>
-                          <td>{m.habitacion_id || '—'}</td>
-                          <td>{m.pago_id ? nombreDocumento(m.documento_tipo) : '—'}</td>
-                        </>}
-                      <td>{m.actor}</td>
-                      {esAdmin && !soloDepositos && (
-                        <td>{m.tipo === 'cobro' && m.pago_id && (
-                          <button type="button" className="boton-secundario" onClick={() => setReversando(m)}>Reversar</button>
-                        )}</td>
-                      )}
-                    </tr>
-                  ))}
+                  {filas.map((m) => {
+                    const elegida = activo?.movimiento_id === m.movimiento_id
+                    return (
+                      <tr
+                        key={m.movimiento_id}
+                        className={esAdmin && !soloDepositos ? 'fila-seleccionable' : undefined}
+                        data-seleccionada={elegida ? 'true' : 'false'}
+                        onClick={esAdmin && !soloDepositos ? () => setSeleccionadoId(m.movimiento_id) : undefined}
+                      >
+                        {esAdmin && !soloDepositos && (
+                          <td className="celda-selector">
+                            <SelectorFila
+                              nombreGrupo="mov-caja-activo"
+                              elegido={elegida}
+                              etiqueta={`Seleccionar movimiento ${m.movimiento_id}`}
+                              alElegir={() => setSeleccionadoId(m.movimiento_id)}
+                            />
+                          </td>
+                        )}
+                        <td className="celda-fecha">{fechaATexto(m.fecha_contable)}</td>
+                        <td>{fechaHora(m.registrado_en).slice(11)}</td>
+                        <td>{nombreMovimiento(m.tipo)}{m.es_anticipo ? ' (anticipo)' : ''}</td>
+                        <td>{nombreMedio(m.medio)}{m.tarjeta_ultimos4 ? ` ····${m.tarjeta_ultimos4}` : ''}</td>
+                        <td>{clp(soloDepositos ? -m.monto_clp : m.monto_clp)}</td>
+                        {soloDepositos
+                          ? <><td>{m.comprobante || '—'}</td><td>{m.banco || '—'}</td></>
+                          : <>
+                            <td>{m.huesped_nombre || m.nota || '—'}</td>
+                            <td>{m.habitacion_id || '—'}</td>
+                            <td>{m.pago_id ? nombreDocumento(m.documento_tipo) : '—'}</td>
+                          </>}
+                        <td>{m.actor}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

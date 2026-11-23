@@ -1586,3 +1586,296 @@ input[type="radio"] {
   gap: var(--e-2);
   grid-column: 1 / -1;
 }
+
+/* ---------- Auditoría UI/UX: Controles, Alineación y Barra Contextual (2026-11-23) ---------- */
+
+/* Alineación geométrica en formularios y filtros horizontales */
+.formulario {
+  align-items: end;
+}
+
+.formulario > .boton-primario,
+.formulario > .boton-secundario,
+.formulario > .boton-fantasma {
+  align-self: end;
+  height: 2.75rem;
+}
+
+.formulario > .acciones-fila,
+.formulario > .filtros,
+.formulario > .nota-clave,
+.formulario > .alerta,
+.formulario > .campo-ayuda {
+  grid-column: 1 / -1;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-3);
+  align-items: flex-end;
+}
+
+.filtros > .campo {
+  flex: 1 1 14rem;
+  min-width: min(14rem, 100%);
+}
+
+.filtros > button,
+.filtros > a,
+.filtros > .boton-primario,
+.filtros > .boton-secundario,
+.filtros > .boton-fantasma {
+  flex: 0 0 auto;
+  align-self: flex-end;
+}
+
+/* Etiquetas uniformes y altura exacta en input / select (44px WCAG 2.5.8) */
+.campo {
+  display: grid;
+  align-content: end;
+  gap: var(--e-2);
+  min-width: 0;
+}
+
+.campo-etiqueta {
+  display: block;
+  min-height: 1.35rem;
+  line-height: 1.35;
+}
+
+.entrada {
+  height: 2.75rem;
+  min-height: 2.75rem;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+
+select.entrada {
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+  padding-right: 2.35rem;
+}
+
+textarea.entrada {
+  height: auto;
+  min-height: 6rem;
+}
+
+.boton-primario,
+.boton-secundario,
+.boton-fantasma {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  text-align: center;
+}
+
+.tarjeta {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.formulario > .campo:has(textarea),
+.formulario > label:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+/* Contraste WCAG AA (>= 4.5:1) para pastilla «En estadía» (antes #8a4b2f sobre #e9c4ad = 4.14:1) */
+.estado-en_estadia {
+  background: var(--c-terracota-suave);
+  color: var(--c-terracota);
+}
+
+.error-campo {
+  display: block;
+  margin: 0.15rem 0 0;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--c-error);
+  line-height: 1.35;
+}
+
+.campo-ayuda {
+  display: block;
+  margin: 0.15rem 0 0;
+  font-size: var(--t-xs);
+  color: var(--c-tinta-2);
+  line-height: 1.4;
+}
+
+/* Barra contextual única para listados y tablas (elimina botones repetidos por fila) */
+.barra-contextual {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--e-3);
+  margin: 0 0 var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  border: 1.5px solid var(--c-linea-fuerte);
+  border-radius: var(--r-md);
+  background: var(--c-superficie);
+  box-shadow: var(--s-2);
+}
+
+.barra-contextual[data-activa="true"] {
+  border-color: var(--c-verde);
+  background: var(--c-verde-suave);
+}
+
+.barra-contextual-info {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.barra-contextual-titulo {
+  margin: 0;
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--c-tinta);
+}
+
+.barra-contextual-detalle {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-tinta-2);
+}
+
+.barra-contextual-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--e-2);
+}
+
+.barra-contextual-acciones .entrada {
+  min-width: min(14rem, 100%);
+  flex: 1 1 12rem;
+}
+
+.selector-fila {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: -0.35rem;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+
+.selector-fila:hover {
+  background: rgba(23, 51, 38, 0.08);
+}
+
+.celda-selector {
+  width: 3rem;
+  text-align: center;
+}
+
+.fila-seleccionable {
+  cursor: pointer;
+}
+
+.tabla tbody tr[data-seleccionada="true"] td {
+  background: var(--c-verde-suave);
+}
+
+.tabla tbody tr[data-seleccionada="true"] td:first-child {
+  box-shadow: inset 3px 0 0 var(--c-verde);
+}
+
+.reserva-fila[data-seleccionada="true"],
+.inventario-fila[data-seleccionada="true"],
+.tarjeta-aseo[data-seleccionada="true"] {
+  background: var(--c-verde-suave);
+  box-shadow: inset 3px 0 0 var(--c-verde);
+}
+
+/* Ajuste geométrico exacto de grilla de reservas (selector + 6 datos) */
+.reserva-encabezado,
+.reserva-fila {
+  grid-template-columns: 3rem minmax(9rem, 1fr) minmax(9.5rem, 1.25fr) minmax(6.5rem, 0.75fr) 9.5rem 6.75rem 7.5rem;
+  min-width: 55rem;
+}
+
+/* Ajuste geométrico exacto de inventario de habitaciones (selector + 7 datos) */
+.inventario-encabezado,
+.inventario-fila {
+  display: grid;
+  grid-template-columns: 3rem minmax(6.5rem, 0.8fr) minmax(8.5rem, 1.1fr) 3.75rem 7.25rem 7.25rem minmax(8rem, 1fr) 8.5rem;
+  align-items: center;
+  gap: var(--e-2) var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  min-width: 56rem;
+}
+
+.inventario-encabezado {
+  background: var(--c-superficie-2);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--c-tinta-2);
+}
+
+.inventario-fila {
+  border-top: 1px solid var(--c-linea);
+  font-size: var(--t-sm);
+}
+
+@media (max-width: 720px) {
+  .barra-contextual {
+    position: static;
+    padding: var(--e-3);
+  }
+
+  .barra-contextual-acciones {
+    width: 100%;
+  }
+
+  .barra-contextual-acciones > .boton-primario,
+  .barra-contextual-acciones > .boton-secundario,
+  .barra-contextual-acciones > .boton-fantasma {
+    flex: 1 1 auto;
+  }
+
+  .reserva-fila {
+    min-width: 0;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "sel huesped estado"
+      "sel fechas tarifa"
+      "sel habitacion habitacion"
+      "sel id id";
+    gap: var(--e-2) var(--e-3);
+    padding: var(--e-4);
+  }
+
+  .reserva-fila > .reserva-sel { grid-area: sel; align-self: start; }
+  .reserva-fila > .reserva-id { grid-area: id; }
+  .reserva-fila > .reserva-huesped { grid-area: huesped; }
+  .reserva-fila > .reserva-celda:not(.reserva-fechas) { grid-area: habitacion; font-size: var(--t-xs); }
+  .reserva-fila > .reserva-fechas { grid-area: fechas; }
+  .reserva-fila > .reserva-estado-celda { grid-area: estado; justify-self: end; }
+  .reserva-fila > .reserva-tarifa { grid-area: tarifa; justify-self: end; align-self: end; }
+
+  .inventario-encabezado {
+    display: none;
+  }
+
+  .inventario-fila {
+    min-width: 0;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--e-2) var(--e-3);
+    padding: var(--e-3);
+  }
+}

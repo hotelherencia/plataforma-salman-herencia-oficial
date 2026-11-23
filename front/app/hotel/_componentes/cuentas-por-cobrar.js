@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, Campo, CampoSelect } from '../../../lib/api'
 import { fechaATexto, plural } from '../../../lib/formato'
+import { BarraContextual, SelectorFila } from './barra-contextual'
 
 const ETIQUETA_TRAMO = {
   '0-30': '0 a 30 días',
@@ -22,14 +23,15 @@ export { ETIQUETA_POLITICA }
 
 /**
  * Listado de Cuentas por Cobrar agrupado por tramos de antigüedad (Contable 2.2 / #392).
- * Enlaza directo a cada reserva por nombre y habitación, sin JSON ni IDs crudos.
+ * Usa selección por fila + barra contextual única para registrar abonos sin repetir botones.
  */
 export default function CuentasPorCobrar({ puedeCobrar = false }) {
   const [estadoFiltro, setEstadoFiltro] = useState('pendientes')
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
-  const [abonandoId, setAbonandoId] = useState(null)
+  const [seleccionadaId, setSeleccionadaId] = useState(null)
+  const [mostrandoAbono, setMostrandoAbono] = useState(false)
   const [abono, setAbono] = useState({ monto_clp: '', medio: 'transferencia', comprobante: '', nota: '' })
   const [enviando, setEnviando] = useState(false)
 
@@ -48,6 +50,9 @@ export default function CuentasPorCobrar({ puedeCobrar = false }) {
   useEffect(() => {
     if (puedeCobrar) cargar(estadoFiltro)
   }, [puedeCobrar, estadoFiltro, cargar])
+
+  const listaCxc = datos?.cuentas_por_cobrar || []
+  const activa = listaCxc.find((c) => c.cxc_id === seleccionadaId) || null
 
   async function registrarAbono(e, item) {
     e.preventDefault()
@@ -70,7 +75,7 @@ export default function CuentasPorCobrar({ puedeCobrar = false }) {
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setAviso(`Abono registrado por ${clp(monto)}. Nuevo saldo: ${clp(r.datos.saldo_pendiente_clp)}.`)
-        setAbonandoId(null)
+        setMostrandoAbono(false)
         setAbono({ monto_clp: '', medio: 'transferencia', comprobante: '', nota: '' })
         await cargar(estadoFiltro)
       }
@@ -104,7 +109,7 @@ export default function CuentasPorCobrar({ puedeCobrar = false }) {
         ))}
       </div>
 
-      <div className="filtros" style={{ marginTop: '0.75rem' }}>
+      <div className="filtros" style={{ marginTop: '0.75rem', marginBottom: '0.75rem' }}>
         <CampoSelect etiqueta="Mostrar" value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}>
           <option value="pendientes">Pendientes (abiertas y parciales)</option>
           <option value="pagada">Pagadas</option>
@@ -115,71 +120,127 @@ export default function CuentasPorCobrar({ puedeCobrar = false }) {
       {error && <p role="alert" className="alerta">{error}</p>}
       {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
 
-      {datos.cuentas_por_cobrar.length === 0 ? (
+      {listaCxc.length === 0 ? (
         <p className="estado">No hay cuentas por cobrar en este filtro.</p>
       ) : (
-        <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Listado de cuentas por cobrar">
-          <table className="tabla">
-            <thead>
-              <tr>
-                <th>Cliente / Empresa</th>
-                <th>Estadía</th>
-                <th>Vencimiento</th>
-                <th>Tramo</th>
-                <th>Original</th>
-                <th>Pendiente</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {datos.cuentas_por_cobrar.map((c) => (
-                <tr key={c.cxc_id}>
-                  <td>
-                    <strong>{c.cliente_nombre}</strong>
-                    <div className="nota-clave">{c.cliente_rut} · {ETIQUETA_POLITICA[c.politica_aplicada] || c.politica_aplicada}</div>
-                  </td>
-                  <td>
-                    <Link href={`/hotel/reservas/${encodeURIComponent(c.reserva_id)}`}>
-                      Hab. {c.habitacion_id} · {c.huesped_nombre}
-                    </Link>
-                  </td>
-                  <td>
-                    {fechaATexto(c.fecha_vencimiento)}
-                    {c.vencida && <div className="alerta">Vencida ({c.dias_vencido} d)</div>}
-                  </td>
-                  <td>{ETIQUETA_TRAMO[c.tramo_antiguedad] || c.tramo_antiguedad}</td>
-                  <td>{clp(c.monto_original_clp)}</td>
-                  <td><strong>{clp(c.saldo_pendiente_clp)}</strong></td>
-                  <td>
-                    {c.saldo_pendiente_clp > 0 && (
-                      abonandoId === c.cxc_id ? (
-                        <form className="formulario" onSubmit={(e) => registrarAbono(e, c)}>
-                          <Campo etiqueta="Monto (CLP)" type="number" min="1" max={c.saldo_pendiente_clp}
-                            placeholder={String(c.saldo_pendiente_clp)} value={abono.monto_clp}
-                            onChange={(e) => setAbono({ ...abono, monto_clp: e.target.value })} />
-                          <CampoSelect etiqueta="Medio" value={abono.medio} onChange={(e) => setAbono({ ...abono, medio: e.target.value })}>
-                            <option value="transferencia">Transferencia</option>
-                            <option value="efectivo">Efectivo</option>
-                            <option value="debito">Débito</option>
-                            <option value="credito">Crédito</option>
-                          </CampoSelect>
-                          <Campo etiqueta="Comprobante" value={abono.comprobante}
-                            onChange={(e) => setAbono({ ...abono, comprobante: e.target.value })} />
-                          <button type="submit" className="boton-primario" disabled={enviando}>Guardar abono</button>
-                          <button type="button" className="boton-fantasma" onClick={() => setAbonandoId(null)}>Cancelar</button>
-                        </form>
-                      ) : (
-                        <button type="button" className="boton-secundario" onClick={() => setAbonandoId(c.cxc_id)}>
-                          Registrar abono
-                        </button>
-                      )
-                    )}
-                  </td>
+        <>
+          <BarraContextual
+            titulo="Acciones de cuenta por cobrar"
+            seleccionado={Boolean(activa)}
+            resumen={activa ? `${activa.cliente_nombre} · Hab. ${activa.habitacion_id}` : ''}
+            detalle={activa ? `Pendiente ${clp(activa.saldo_pendiente_clp)} · Vence ${fechaATexto(activa.fecha_vencimiento)}` : ''}
+            placeholder="Selecciona una cuenta por cobrar para registrar un abono o abrir la reserva."
+            alLimpiar={() => { setSeleccionadaId(null); setMostrandoAbono(false) }}
+          >
+            {activa && (
+              <>
+                <Link href={`/hotel/reservas/${encodeURIComponent(activa.reserva_id)}`} className="boton-secundario">
+                  Ver reserva
+                </Link>
+                {activa.saldo_pendiente_clp > 0 && (
+                  <button
+                    type="button"
+                    className="boton-primario"
+                    aria-expanded={mostrandoAbono}
+                    onClick={() => setMostrandoAbono((v) => !v)}
+                  >
+                    {mostrandoAbono ? 'Cerrar abono' : 'Registrar abono'}
+                  </button>
+                )}
+              </>
+            )}
+          </BarraContextual>
+
+          {activa && mostrandoAbono && activa.saldo_pendiente_clp > 0 && (
+            <form className="formulario" style={{ marginBottom: '0.75rem' }} onSubmit={(e) => registrarAbono(e, activa)}>
+              <Campo
+                etiqueta="Monto (CLP)"
+                type="number"
+                min="1"
+                max={activa.saldo_pendiente_clp}
+                placeholder={String(activa.saldo_pendiente_clp)}
+                value={abono.monto_clp}
+                onChange={(e) => setAbono({ ...abono, monto_clp: e.target.value })}
+              />
+              <CampoSelect etiqueta="Medio" value={abono.medio} onChange={(e) => setAbono({ ...abono, medio: e.target.value })}>
+                <option value="transferencia">Transferencia</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="debito">Débito</option>
+                <option value="credito">Crédito</option>
+              </CampoSelect>
+              <Campo
+                etiqueta="Comprobante (opcional)"
+                value={abono.comprobante}
+                onChange={(e) => setAbono({ ...abono, comprobante: e.target.value })}
+              />
+              <Campo
+                etiqueta="Nota (opcional)"
+                value={abono.nota}
+                onChange={(e) => setAbono({ ...abono, nota: e.target.value })}
+              />
+              <div className="acciones-fila">
+                <button type="submit" className="boton-primario" disabled={enviando}>
+                  {enviando ? 'Registrando…' : 'Confirmar abono'}
+                </button>
+                <button type="button" className="boton-fantasma" onClick={() => setMostrandoAbono(false)}>Cancelar</button>
+              </div>
+            </form>
+          )}
+
+          <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Listado de cuentas por cobrar">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th className="celda-selector"><span className="sr-only">Elegir</span></th>
+                  <th>Cliente / Empresa</th>
+                  <th>Estadía</th>
+                  <th>Vencimiento</th>
+                  <th>Tramo</th>
+                  <th>Original</th>
+                  <th>Pendiente</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {listaCxc.map((c) => {
+                  const elegida = activa?.cxc_id === c.cxc_id
+                  return (
+                    <tr
+                      key={c.cxc_id}
+                      className="fila-seleccionable"
+                      data-seleccionada={elegida ? 'true' : 'false'}
+                      onClick={() => { setSeleccionadaId(c.cxc_id); setMostrandoAbono(false) }}
+                    >
+                      <td className="celda-selector">
+                        <SelectorFila
+                          nombreGrupo="cxc-activa"
+                          elegido={elegida}
+                          etiqueta={`Seleccionar cuenta por cobrar de ${c.cliente_nombre}`}
+                          alElegir={() => { setSeleccionadaId(c.cxc_id); setMostrandoAbono(false) }}
+                        />
+                      </td>
+                      <td>
+                        <strong>{c.cliente_nombre}</strong>
+                        <div className="nota-clave">{c.cliente_rut} · {ETIQUETA_POLITICA[c.politica_aplicada] || c.politica_aplicada}</div>
+                      </td>
+                      <td>
+                        <Link href={`/hotel/reservas/${encodeURIComponent(c.reserva_id)}`} onClick={(e) => e.stopPropagation()}>
+                          Hab. {c.habitacion_id} · {c.huesped_nombre}
+                        </Link>
+                      </td>
+                      <td className="celda-fecha">
+                        {fechaATexto(c.fecha_vencimiento)}
+                        {c.vencida && <div className="alerta">Vencida ({c.dias_vencido} d)</div>}
+                      </td>
+                      <td>{ETIQUETA_TRAMO[c.tramo_antiguedad] || c.tramo_antiguedad}</td>
+                      <td>{clp(c.monto_original_clp)}</td>
+                      <td><strong>{clp(c.saldo_pendiente_clp)}</strong></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </section>
   )
