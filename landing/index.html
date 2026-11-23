@@ -159,8 +159,21 @@
                         <span>Habitaciones familiares</span>
                     </div>
 
+                    <span id="reserva-rapida-ancla"></span>
+                    <form class="reserva-rapida" data-widget-reserva novalidate aria-label="Reservar una habitación">
+                        <label class="field">
+                            <span>Llegada</span>
+                            <input type="date" name="inicio" required>
+                        </label>
+                        <label class="field">
+                            <span>Salida</span>
+                            <input type="date" name="fin" required>
+                        </label>
+                        <button class="button button--primary" type="submit">Reservar</button>
+                        <p class="form-status" role="alert" hidden></p>
+                    </form>
+
                     <div class="hero__actions">
-                        <a class="button button--primary" href="#contacto" data-cta-reserva>Consultar reserva</a>
                         <a class="button button--primary" href="#contacto">Hablar con recepcionista</a>
                         <a class="button button--ghost" href="#ubicacion">Ver ubicación</a>
                     </div>
@@ -194,9 +207,8 @@
                     <p class="eyebrow">Ubicación</p>
                     <h2>Hotel en Chillán con ubicación práctica</h2>
                     <p>
-                        Si buscas un hotel en Chillán cerca del centro, nuestra ubicación combina acceso práctico a la
-                        Plaza de Armas, conectividad con la estación de trenes y cercanía a servicios para moverte con
-                        facilidad por la ciudad.
+                        Para consultas generales, eventos o grupos, escríbenos. Si quieres reservar una habitación,
+                        usa la barra «Reservar» de arriba: es un solo formulario.
                     </p>
 
                     <div class="location__details">
@@ -544,7 +556,7 @@
             <div class="container contact">
                 <div class="contact__intro" data-reveal>
                     <p class="eyebrow">Contacto</p>
-                    <h2>Consulta disponibilidad en Hotel Herencia</h2>
+                    <h2>Consultas generales y grupos</h2>
                     <p>
                         Si buscas un hotel en Chillán con desayuno, estacionamiento y habitaciones cómodas, envíanos
                         tus fechas, número de huéspedes y requerimientos para responderte a la brevedad.
@@ -577,22 +589,12 @@
                                 <span>Huéspedes</span>
                                 <input type="number" id="guests" name="guests" min="1" max="8" value="2" required>
                             </label>
-
-                            <label class="field">
-                                <span>Check-in</span>
-                                <input type="date" id="checkin" name="checkin" required>
-                            </label>
-
-                            <label class="field">
-                                <span>Check-out</span>
-                                <input type="date" id="checkout" name="checkout" required>
-                            </label>
                         </div>
 
                         <label class="field field--full">
                             <span>Mensaje o requerimientos</span>
                             <textarea id="message" name="message" rows="5" maxlength="2000"
-                                placeholder="Cuéntanos si viajas en familia o algún detalle útil para responder. No escribas RUT, datos de salud ni datos de tarjeta."></textarea>
+                                placeholder="Cuéntanos tu consulta, el tamaño del grupo o el evento. No escribas RUT, datos de salud ni datos de tarjeta."></textarea>
                         </label>
 
                         <p class="aviso-tratamiento" data-aviso-version="2026-11-10-aviso-02">
@@ -602,7 +604,6 @@
                         <div class="contact-form__footer">
                             <p class="contact-form__note">Responderemos a la brevedad</p>
                             <div class="contact-form__actions">
-                                <button class="button button--ghost" type="button" data-ver-disponibilidad>Ver disponibilidad</button>
                                 <button class="button button--primary button--submit" type="submit">Enviar consulta</button>
                             </div>
                         </div>
@@ -615,15 +616,15 @@
         </section>
     </main>
 
-    <a class="sticky-cta" href="#contacto" data-cta-reserva>Consultar reserva</a>
+    <a class="sticky-cta" href="#reserva-rapida-ancla" data-cta-reserva>Reservar</a>
 
     <script src="assets/js/main.js" defer></script>
     <script type="module">
         import { inicializarFormulario } from './js/formulario.js'
-        import { inicializarDisponibilidad } from './js/widget.js'
+        import { inicializarWidget } from './js/widget.js'
 
         inicializarFormulario(document)
-        inicializarDisponibilidad(document)
+        inicializarWidget(document)
     </script>
 </body>
 

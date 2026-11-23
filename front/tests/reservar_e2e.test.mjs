@@ -1,19 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { erroresContacto, errorCorreo, errorDocumento, errorTelefono } from '../app/reservar/continuidad.js'
+import { contactoEstructurado, erroresContacto, errorCorreo, errorDocumento, errorTelefono } from '../app/reservar/continuidad.js'
 
-test('E2E formulario /reservar: exige los 4 campos obligatorios (nombre, correo, teléfono, RUT/pasaporte)', () => {
+test('E2E formulario /reservar: exige 3 campos obligatorios (nombre, correo, teléfono); RUT/pasaporte es opcional', () => {
   const vacio = erroresContacto('', '', '', '')
   assert.ok(vacio.nombre, 'Debe exigir nombre')
   assert.ok(vacio.contacto, 'Debe exigir correo')
   assert.ok(vacio.telefono, 'Debe exigir teléfono')
-  assert.ok(vacio.documento, 'Debe exigir RUT o pasaporte')
+  assert.equal(vacio.documento, undefined, 'RUT o pasaporte es opcional (#414)')
 
   const soloCorreo = erroresContacto('Ana Pérez', 'ana@ejemplo.cl', '', '')
   assert.equal(soloCorreo.nombre, undefined)
   assert.equal(soloCorreo.contacto, undefined)
   assert.ok(soloCorreo.telefono, 'Debe rechazar si falta teléfono aunque haya correo')
-  assert.ok(soloCorreo.documento, 'Debe rechazar si falta documento')
+  assert.equal(soloCorreo.documento, undefined)
 
   const valido = erroresContacto('Ana Pérez', 'ana@ejemplo.cl', '+56 9 8765 4321', '12.345.678-9')
   assert.deepEqual(valido, {})
@@ -69,4 +69,9 @@ test('E2E envío /publico/solicitudes: procesa payload completo con idempotencia
   assert.match(capturado.body.huesped_contacto, /15\.234\.567-K/)
   assert.ok(capturado.opts.headers['Idempotency-Key'], 'Debe incluir Idempotency-Key contra envíos duplicados')
   assert.ok(capturado.opts.headers['X-Recaptcha-Token'], 'Debe incluir token reCAPTCHA contra abuso automatizado')
+})
+
+test('#414: contacto estructurado omite «Doc» cuando no hay documento', () => {
+  assert.equal(contactoEstructurado('a@b.cl', '+56987654321', ''), 'a@b.cl · Tel: +56987654321')
+  assert.equal(contactoEstructurado('a@b.cl', '+56987654321', ' 12.345.678-9 '), 'a@b.cl · Tel: +56987654321 · Doc: 12.345.678-9')
 })
