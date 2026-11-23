@@ -6,7 +6,7 @@ solape en (habitación, rango). La tarifa aceptada queda congelada en la
 reserva: cambiar tarifas no altera precios ya aceptados (spec-api-v1).
 """
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import psycopg
 from psycopg.errors import ExclusionViolation
@@ -420,6 +420,30 @@ def buscar_reservas(
     return items
 
 
+def _cotizacion_single_para_upgrade(
+    conexion: psycopg.Connection, hotel, empresa_id: str, habitacion_id: str, inicio: date, fin: date,
+    adultos: int | None, ninos: int, personas: int | None,
+):
+    """Cotización a tarifa Single para un upgrade; 409 (SinCupo) si no corresponde."""
+    if (adultos if adultos is not None else (personas or 1)) + (ninos or 0) != 1:
+        raise SinCupo("el upgrade a tarifa Single es solo para 1 persona")
+    tipo = conexion.execute("SELECT tipo FROM habitaciones WHERE id = %s", (habitacion_id,)).fetchone()
+    if tipo is None or tipo[0] == "single":
+        raise SinCupo("el upgrade a tarifa Single se asigna a una habitación de categoría superior")
+    libres = hotel_sql.candidatas(
+        conexion, hotel, empresa_id, inicio, fin, 1, datetime.now(timezone.utc),
+    )
+    if any(item.get("tipo") == "single" for item in libres):
+        raise SinCupo("hay una habitación Single disponible: no corresponde el upgrade a tarifa Single")
+    singles = [f[0] for f in conexion.execute(
+        "SELECT id FROM habitaciones WHERE tipo = 'single' AND en_inventario ORDER BY id").fetchall()]
+    for single_id in singles:
+        cotizacion = precios.cotizar(conexion, single_id, inicio, fin)
+        if cotizacion.sin_tarifa is None:
+            return cotizacion
+    raise SinTarifaVigente("no hay tarifa Single vigente para cotizar el upgrade")
+
+
 def crear_reserva(
     conexion: psycopg.Connection,
     empresa_id: str,
@@ -436,6 +460,7 @@ def crear_reserva(
     titular_aloja: bool = True,
     adultos: int | None = None,
     ninos_ocupacion: int = 0,
+    upgrade_a_single: bool = False,
 ) -> dict:
     canal_normalizado = canal if canal in CANALES_RESERVA else "recepcion"
     # Un RUT es una sola persona o empresa: si ya es de un cliente registrado con otro nombre, no se acepta.
@@ -449,6 +474,13 @@ def crear_reserva(
     cotizacion = precios.cotizar(conexion, habitacion_id, inicio, fin)
     if cotizacion.sin_tarifa is not None:
         raise SinTarifaVigente(f"sin tarifa vigente para {habitacion_id} la noche {cotizacion.sin_tarifa}")
+    tarifa_lista = None
+    if upgrade_a_single:
+        # SPEC-UPG-01: se cobra la tarifa Single; la de la habitación asignada queda como referencia.
+        tarifa_lista = cotizacion.tarifa_primera
+        cotizacion = _cotizacion_single_para_upgrade(
+            conexion, hotel, empresa_id, habitacion_id, inicio, fin, adultos, ninos_ocupacion, personas,
+        )
     cuerpo_politica = politicas.de(conexion, empresa_id)["cuerpo"]
     item = politicas.enriquecer_item(
         {"habitacion_id": habitacion_id, "tarifa_noche_clp": cotizacion.tarifa_primera, "total_clp": cotizacion.total},
@@ -472,6 +504,12 @@ def crear_reserva(
         "canal": canal_normalizado,
         "titular_aloja": bool(titular_aloja),
     }
+    if upgrade_a_single:
+        columnas_reserva.update({
+            "upgrade_desde_tipo": "single",
+            "tarifa_lista_clp": tarifa_lista,
+            "tarifa_noche_aceptada_clp": tarifa,
+        })
     if grupo_id is not None:
         columnas_reserva["grupo_id"] = grupo_id
     creada = hotel_sql.reservar(

@@ -350,6 +350,8 @@ def confirmar_reserva(
         raise HTTPException(status_code=400, detail="falta la cabecera Idempotency-Key")
     if reserva.fin <= reserva.inicio:
         raise HTTPException(status_code=400, detail="fin debe ser mayor que inicio")
+    if reserva.upgrade_a_single and sesion.rol not in (roles.RECEPCION, *roles.ROLES_ADMIN_HOTEL):
+        raise HTTPException(status_code=403, detail="acceso denegado")
     cuerpo = json.loads(reserva.model_dump_json())
 
     def operacion() -> tuple[int, dict]:
@@ -369,6 +371,7 @@ def confirmar_reserva(
                     reserva.hora_llegada, reserva.hora_salida,
                     reserva.cama_adicional, reserva.ninos, reserva.mascotas,
                 ),
+                upgrade_a_single=reserva.upgrade_a_single,
             )
         except reservas_db.SinCupo as error:
             return 409, {"detail": str(error)}
