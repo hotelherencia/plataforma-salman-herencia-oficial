@@ -8,7 +8,7 @@ from servicio.aplicacion import crear_app
 
 RAIZ = Path(__file__).resolve().parents[2]
 _PATRON = re.compile(
-    r"## Operaciones de esta versión \((\d+)\)\n\n\| Operación \| Efecto \|\n\|---\|---\|\n(.*?)(?=\n## )", re.S
+    r"## Operaciones de esta versión(?: \((\d+)\))?\n\n\| Operación \| Efecto \|\n\|---\|---\|\n(.*?)(?=\n## )", re.S
 )
 
 
@@ -32,7 +32,8 @@ class ContratoRutasTest(unittest.TestCase):
         }
         self.assertEqual(sorted(codigo - tabla), [], "rutas sin fila en spec-api-v1")
         self.assertEqual(sorted(tabla - codigo), [], "filas de spec-api-v1 sin ruta")
-        self.assertEqual(int(m.group(1)), len(codigo))
+        if m.group(1):  # el número del encabezado es opcional; si se declara, debe ser cierto
+            self.assertEqual(int(m.group(1)), len(codigo))
 
 
 if __name__ == "__main__":
