@@ -74,7 +74,7 @@ class CajaHallazgosTest(unittest.TestCase):
     def pagar(self, rid, monto, **extra):
         return self.cliente.post(
             f"/hotel/reservas/{rid}/pagos",
-            json={"monto_clp": monto, "clave": f"c-{uuid.uuid4().hex[:6]}", "modo": "manual", **extra},
+            json={"monto_clp": monto, "clave": f"c-{uuid.uuid4().hex[:6]}", "modo": "manual", "medio": "transferencia", **extra},
             headers=self.idem(),
         )
 

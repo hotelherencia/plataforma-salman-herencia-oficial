@@ -76,27 +76,27 @@ class OperacionDominioTest(unittest.TestCase):
     def test_pago_falla_si_falla_el_dominio_y_no_deja_fila(self):
         rid = self.en_estadia()
         with mock.patch.object(ServicioHotelInventario, "registrar_pago", side_effect=RuntimeError("dominio")):
-            r = self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 1000, "clave": "p1", "modo": "manual"},
+            r = self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 1000, "clave": "p1", "modo": "manual", "medio": "transferencia"},
                           self.cliente_sin_excepciones())
         self.assertEqual(r.status_code, 500)
         self.assertEqual(self.sql("SELECT count(*) FROM pagos")[0][0], 0)
 
     def test_pago_proyecta_fila_con_efecto_del_nucleo_y_es_idempotente_por_clave(self):
         rid = self.en_estadia()
-        r = self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 30000, "clave": "p1", "modo": "manual"})
+        r = self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 30000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         self.assertEqual(r.status_code, 201, r.text)
-        otra = self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 30000, "clave": "p1", "modo": "manual"})
+        otra = self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 30000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         self.assertEqual(otra.status_code, 201)
         self.assertTrue(otra.json().get("reintento"))
         filas = self.sql("SELECT monto_clp, modo, estado, efecto_nucleo_id FROM pagos WHERE reserva_id=%s", rid)
         self.assertEqual(len(filas), 1)
         self.assertEqual(filas[0][:3], (30000, "manual", "confirmado"))
         self.assertIsNotNone(filas[0][3])
-        self.assertEqual(self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 99, "clave": "p1", "modo": "manual"}).status_code, 409)
+        self.assertEqual(self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 99, "clave": "p1", "modo": "manual", "medio": "transferencia"}).status_code, 409)
 
     def test_salida_falla_si_falla_check_out(self):
         rid = self.en_estadia()
-        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual"})
+        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         with mock.patch.object(ServicioHotelInventario, "check_out", side_effect=RuntimeError("dominio")):
             r = self.post(f"/hotel/reservas/{rid}/salida", cli=self.cliente_sin_excepciones())
         self.assertEqual(r.status_code, 500)
@@ -106,7 +106,7 @@ class OperacionDominioTest(unittest.TestCase):
         rid = self.en_estadia()  # 2 noches × 50000
         self.assertEqual(self.post(f"/hotel/reservas/{rid}/salida").status_code, 409)
         self.assertEqual(self.sql("SELECT count(*) FROM liquidaciones")[0][0], 0)
-        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual"})
+        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         r = self.post(f"/hotel/reservas/{rid}/salida")
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual((r.json()["total_clp"], r.json()["pagado_clp"], r.json()["saldo_clp"]), (100000, 100000, 0))
@@ -119,7 +119,7 @@ class OperacionDominioTest(unittest.TestCase):
 
     def test_el_detalle_muestra_la_cuenta_del_dominio(self):
         rid = self.en_estadia()
-        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 30000, "clave": "p1", "modo": "manual"})
+        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 30000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         d = self.cli.get(f"/hotel/reservas/{rid}").json()
         self.assertEqual(d["cuenta"], {"cargos_netos_clp": 100000, "pagado_clp": 30000, "saldo_clp": 70000})
 
@@ -136,13 +136,13 @@ class OperacionDominioTest(unittest.TestCase):
         r = self.post(f"/hotel/reservas/{rid}/cargos", {"concepto": "minibar", "monto_clp": 5000})
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(self.sql("SELECT count(*) FROM cargos WHERE reserva_id=%s AND concepto='minibar'", rid)[0][0], 1)
-        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 105000, "clave": "p1", "modo": "manual"})
+        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 105000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         self.post(f"/hotel/reservas/{rid}/salida")
         self.assertEqual(self.post(f"/hotel/reservas/{rid}/cargos", {"concepto": "tarde", "monto_clp": 1}).status_code, 409)
 
     def test_limpieza_falla_si_falla_completar_tarea(self):
         rid = self.en_estadia()
-        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual"})
+        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         self.post(f"/hotel/reservas/{rid}/salida")
         with mock.patch.object(ServicioHotelInventario, "completar_tarea", side_effect=RuntimeError("dominio")):
             r = self.post("/hotel/habitaciones/H1/limpieza", cli=self.cliente_sin_excepciones())
@@ -151,7 +151,7 @@ class OperacionDominioTest(unittest.TestCase):
 
     def test_limpieza_completa_tarea_y_deja_limpia_la_unidad(self):
         rid = self.en_estadia()
-        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual"})
+        self.post(f"/hotel/reservas/{rid}/pagos", {"monto_clp": 100000, "clave": "p1", "modo": "manual", "medio": "transferencia"})
         self.post(f"/hotel/reservas/{rid}/salida")
         r = self.post("/hotel/habitaciones/H1/limpieza")
         self.assertEqual(r.status_code, 200, r.text)

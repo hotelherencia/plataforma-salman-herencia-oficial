@@ -105,7 +105,7 @@ class InventarioHabitacionesTest(unittest.TestCase):
         # La salida exige saldo neto en cero: se paga el total aceptado.
         cliente.post(
             f"/hotel/reservas/{reserva_id}/pagos",
-            json={"monto_clp": reserva["total_clp"], "clave": "inv-cobro-1", "modo": "manual"},
+            json={"monto_clp": reserva["total_clp"], "clave": "inv-cobro-1", "modo": "manual", "medio": "transferencia"},
             headers={"Idempotency-Key": "inv-pag-1"},
         )
         cliente.post("/hotel/reservas/%s/salida" % reserva_id, headers={"Idempotency-Key": "inv-sal-1"})

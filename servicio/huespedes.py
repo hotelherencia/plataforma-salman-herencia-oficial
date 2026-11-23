@@ -492,16 +492,26 @@ def quitar_huesped_de_reserva(
 
 
 def verificar_huespedes_para_entrada(conexion: psycopg.Connection, reserva_id: str) -> None:
-    """Exige que estén registrados todos los huéspedes según `adultos + ninos` antes de la Llegada."""
+    """Exige que estén registrados todos los huéspedes según `adultos + ninos` antes de la Llegada.
+    Mantiene compatibilidad con reservas antiguas/1 titular auto-asegurando el titular si falta la
+    fila en `reserva_huespedes` (#413)."""
     r = conexion.execute(
-        "SELECT adultos, ninos, personas FROM reservas WHERE id = %s", (reserva_id,),
+        "SELECT empresa_id, adultos, ninos, personas, huesped_nombre, huesped_documento, huesped_documento_tipo "
+        "FROM reservas WHERE id = %s",
+        (reserva_id,),
     ).fetchone()
     if not r:
         return
-    esperado = (r[0] if r[0] is not None else (r[2] or 1)) + (r[1] if r[1] is not None else 0)
+    empresa_id, adultos, ninos, personas, nombre, documento, documento_tipo = r
+    esperado = (adultos if adultos is not None else (personas or 1)) + (ninos if ninos is not None else 0)
     registrados = conexion.execute(
         "SELECT COUNT(*) FROM reserva_huespedes WHERE reserva_id = %s", (reserva_id,),
     ).fetchone()[0]
+    if registrados == 0 and nombre:
+        asegurar_titular_reserva(conexion, empresa_id, reserva_id, nombre, documento, documento_tipo)
+        registrados = conexion.execute(
+            "SELECT COUNT(*) FROM reserva_huespedes WHERE reserva_id = %s", (reserva_id,),
+        ).fetchone()[0]
     if registrados < esperado:
         faltan = esperado - registrados
         raise cobro.TransicionInvalida(

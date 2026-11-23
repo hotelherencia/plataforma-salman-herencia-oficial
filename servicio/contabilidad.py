@@ -138,22 +138,22 @@ def total_arqueo(arqueo: dict, denominaciones: list[int]) -> int:
 
 def validar_datos_pago(conexion: psycopg.Connection, empresa_id: str, datos: dict | None) -> dict:
     """Medio, documento tributario y voucher de un pago manual. Devuelve las
-    columnas a guardar. Sin `medio` (clientes anteriores a la fase 1) queda
-    «no_informado» y no toca la caja de efectivo."""
+    columnas a guardar. Exige `medio` obligatorio (`efectivo`, `debito`, `credito`
+    o `transferencia`) para pagos nuevos (#401); la lectura histórica de filas
+    existentes con `no_informado` se mantiene intacta."""
     datos = dict(datos or {})
     param = parametros(conexion, empresa_id)
-    medio = datos.get("medio") or "no_informado"
-    if medio != "no_informado":
-        if medio not in MEDIOS:
-            raise DatosCajaInvalidos("medio de pago: efectivo, débito, crédito o transferencia")
-        if not param["medios"][medio]["activo"]:
-            raise DatosCajaInvalidos(f"{NOMBRE_MEDIO[medio]} no está habilitado en el hotel")
+    medio = datos.get("medio")
+    if not medio or medio not in MEDIOS:
+        raise DatosCajaInvalidos("medio de pago obligatorio: efectivo, débito, crédito o transferencia")
+    if not param["medios"][medio]["activo"]:
+        raise DatosCajaInvalidos(f"{NOMBRE_MEDIO[medio]} no está habilitado en el hotel")
     documento = datos.get("documento_tipo")
     if documento is None:
-        documento = param["documento_por_defecto"] if medio != "no_informado" else "pendiente"
+        documento = param["documento_por_defecto"]
     if documento not in DOCUMENTOS and documento != "pendiente":
         raise DatosCajaInvalidos("documento: boleta, factura o sin documento")
-    if documento == "pendiente" and param["exigir_documento"] and medio != "no_informado":
+    if documento == "pendiente" and param["exigir_documento"]:
         raise DatosCajaInvalidos("indica si el cliente requiere boleta o factura")
     receptor = None
     if documento == "factura":

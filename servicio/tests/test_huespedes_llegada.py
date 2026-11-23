@@ -40,9 +40,9 @@ class HuespedesLlegadaTest(unittest.TestCase):
     def setUp(self):
         with psycopg.connect(URL_TEST) as c:
             c.execute(
-                "TRUNCATE reserva_huespedes, huespedes, reasignaciones, liquidaciones, "
+                "TRUNCATE reserva_huespedes, huespedes, clientes, reasignaciones, liquidaciones, "
                 "pagos, cargos, reserva_noches, reservas, tarifas, excepciones_precio, "
-                "habitaciones, politicas_hotel, claves_idempotencia, auditoria, sesiones CASCADE"
+                "habitaciones, politicas_hotel, claves_idempotencia, auditoria, sesiones, usuarios CASCADE"
             )
             c.execute(
                 "INSERT INTO usuarios (id, nombre, clave_hash, rol, empresa_id, activo) VALUES "
@@ -109,7 +109,10 @@ class HuespedesLlegadaTest(unittest.TestCase):
             ).fetchone()
             self.assertEqual(tit[0], "titular")
 
-        # Compatibilidad: reserva migrada con 1 titular puede completar Llegada
+        # Compatibilidad #413: reserva antigua con 1 titular (incluso sin fila previa en reserva_huespedes) completa Llegada
+        with psycopg.connect(URL_TEST) as c:
+            c.execute("DELETE FROM reserva_huespedes WHERE reserva_id = %s", (rid,))
+            c.commit()
         with a_las(HOY, hora=time(15, 30)):
             r_ent = self.recep.post(f"/hotel/reservas/{rid}/entrada", headers=self._idem(), json={})
         self.assertEqual(r_ent.status_code, 200, r_ent.text)

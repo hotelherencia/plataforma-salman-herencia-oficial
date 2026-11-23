@@ -313,7 +313,7 @@ class ConsultaReservasTest(BaseOperacion):
         self.admin.post(f"/hotel/reservas/{rid}/entrada", json={}, headers=self.clave())  # asienta las noches
         self.admin.post(f"/hotel/reservas/{rid}/cargos", json={"concepto": "minibar", "monto_clp": 7000},
                         headers=self.clave())
-        self.admin.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 50000, "clave": "p1", "modo": "manual"},
+        self.admin.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 50000, "clave": "p1", "modo": "manual", "medio": "transferencia"},
                         headers=self.clave())
         detalle = self.admin.get(f"/hotel/reservas/{rid}").json()
         self.assertEqual(detalle["cuenta"], {"cargos_netos_clp": 97000, "pagado_clp": 50000, "saldo_clp": 47000})
@@ -322,7 +322,7 @@ class ConsultaReservasTest(BaseOperacion):
         salida = self.admin.post(f"/hotel/reservas/{rid}/salida", json={}, headers=self.clave())
         self.assertEqual(salida.status_code, 409)
         self.assertIn("47000", salida.json()["detail"])
-        self.admin.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 47000, "clave": "p2", "modo": "manual"},
+        self.admin.post(f"/hotel/reservas/{rid}/pagos", json={"monto_clp": 47000, "clave": "p2", "modo": "manual", "medio": "transferencia"},
                         headers=self.clave())
         self.assertEqual(self.admin.get(f"/hotel/reservas/{rid}").json()["cuenta"]["saldo_clp"], 0)
         self.assertEqual(self.admin.post(f"/hotel/reservas/{rid}/salida", json={},

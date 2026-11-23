@@ -90,7 +90,7 @@ class CaracterizacionBaseTest(unittest.TestCase):
     def pagar(self, cliente, rid, monto):
         pago = cliente.post(
             f"/hotel/reservas/{rid}/pagos",
-            json={"monto_clp": monto, "clave": f"car-pago-{uuid.uuid4().hex[:8]}", "modo": "manual"},
+            json={"monto_clp": monto, "clave": f"car-pago-{uuid.uuid4().hex[:8]}", "modo": "manual", "medio": "transferencia"},
             headers={"Idempotency-Key": self.clave()},
         )
         self.assertEqual(pago.status_code, 201, pago.text)

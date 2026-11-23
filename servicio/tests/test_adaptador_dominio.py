@@ -152,7 +152,7 @@ class AdaptadorDominioTest(unittest.TestCase):
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid}/entrada", json={}, headers={"Idempotency-Key": "ent-1"}).status_code, 200)
         self.cliente.post(f"/hotel/reservas/{rid}/pagos",
-                          json={"monto_clp": 200_000, "clave": "cob-1", "modo": "manual"},
+                          json={"monto_clp": 200_000, "clave": "cob-1", "modo": "manual", "medio": "transferencia"},
                           headers={"Idempotency-Key": "pag-1"})
         self.assertEqual(self.cliente.post(
             f"/hotel/reservas/{rid}/salida", json={}, headers={"Idempotency-Key": "sal-1"}).status_code, 200)
