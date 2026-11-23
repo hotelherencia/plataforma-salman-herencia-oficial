@@ -44,21 +44,20 @@ class PoliticasDominioTest(unittest.TestCase):
         cuerpo = politicas.inicial()
         self.assertEqual(cuerpo["llegada_salida"]["hora_llegada_desde"], "14:00")
         self.assertEqual(cuerpo["llegada_salida"]["hora_salida_hasta"], "12:00")
-        self.assertEqual(cuerpo["llegada_salida"]["confirmacion"], politicas.PENDIENTE)
-        self.assertEqual(cuerpo["cancelacion"]["confirmacion"], politicas.PENDIENTE)
-        self.assertEqual(cuerpo["cancelacion"]["horas_antelacion_gratis"], 48)
-        self.assertIn("48 horas", politicas.texto_cancelacion(cuerpo))
-        self.assertEqual(cuerpo["no_show"]["confirmacion"], politicas.NO_DEFINIDO)
-        self.assertIsNone(cuerpo["no_show"]["penalidad_tipo"])
-        self.assertEqual(cuerpo["mascotas"]["confirmacion"], politicas.NO_DEFINIDO)
-        self.assertIsNone(cuerpo["mascotas"]["se_aceptan"])
-        self.assertIsNone(cuerpo["estacionamiento"]["con_costo"])
+        self.assertEqual(cuerpo["llegada_salida"]["confirmacion"], politicas.CONFIRMADO)
+        self.assertEqual(cuerpo["cancelacion"]["confirmacion"], politicas.CONFIRMADO)
+        self.assertEqual(cuerpo["cancelacion"]["horas_antelacion_gratis"], 24)
+        self.assertIn("24 horas", politicas.texto_cancelacion(cuerpo))
+        self.assertEqual(cuerpo["no_show"]["confirmacion"], politicas.CONFIRMADO)
+        self.assertEqual(cuerpo["no_show"]["penalidad_tipo"], "porcentaje")
+        self.assertEqual(cuerpo["mascotas"]["confirmacion"], politicas.CONFIRMADO)
+        self.assertTrue(cuerpo["mascotas"]["se_aceptan"])
+        self.assertFalse(cuerpo["estacionamiento"]["con_costo"])
         self.assertTrue(cuerpo["desayuno"]["incluido"])
         self.assertEqual(cuerpo["medios_pago"]["medios"], ["efectivo", "tarjeta", "transferencia"])
         self.assertGreaterEqual(len(cuerpo["faq"]), 14)
         rutas = {p["ruta"] for p in politicas.pendientes(cuerpo)}
-        self.assertTrue(any(r == "cancelacion" or r.startswith("cancelacion.") for r in rutas))
-        self.assertTrue(any(r == "llegada_salida" or r.startswith("llegada_salida.") for r in rutas))
+        self.assertTrue(any(r == "minimo_noches" or r.startswith("minimo_noches.") for r in rutas))
 
     def test_recargo_llegada_anticipada_por_hora(self):
         cuerpo = politicas.inicial()
@@ -81,7 +80,7 @@ class PoliticasDominioTest(unittest.TestCase):
         self.assertEqual(item["total_clp"], 140000)
         self.assertEqual(item["desglose"]["con_iva"], 140000)
         self.assertEqual(item["desglose"]["neto"] + item["desglose"]["iva"], 140000)
-        self.assertEqual(item["cancelacion_confirmacion"], politicas.PENDIENTE)
+        self.assertEqual(item["cancelacion_confirmacion"], politicas.CONFIRMADO)
 
     def test_horas_iniciadas(self):
         self.assertEqual(politicas._horas_iniciadas(time(11, 0), time(14, 0), True), 3)
@@ -154,7 +153,7 @@ class PoliticasHttpTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         cuerpo = r.json()
         self.assertEqual(cuerpo["politicas"]["llegada_salida"]["hora_llegada_desde"], "14:00")
-        self.assertEqual(cuerpo["politicas"]["cancelacion"]["confirmacion"], "pendiente_confirmar")
+        self.assertEqual(cuerpo["politicas"]["cancelacion"]["confirmacion"], "confirmado")
         self.assertNotIn("registro_salida", cuerpo["politicas"])
         self.assertTrue(cuerpo["pendientes"])
 
@@ -199,7 +198,7 @@ class PoliticasHttpTest(unittest.TestCase):
         self.assertEqual(item["total_recargos_clp"], 30000)
         self.assertEqual(item["total_clp"], 140000)
         self.assertEqual(item["desglose"]["con_iva"], 140000)
-        self.assertEqual(item["cancelacion_confirmacion"], "pendiente_confirmar")
+        self.assertEqual(item["cancelacion_confirmacion"], "confirmado")
         reserva = self.cliente.post("/hotel/reservas", json={
             "habitacion_id": hid, "inicio": iso(3), "fin": iso(5),
             "huesped": {"nombre": "Huésped 1A3"}, "personas": 2,
@@ -215,7 +214,7 @@ class PoliticasHttpTest(unittest.TestCase):
                 (reserva.json()["reserva_id"],),
             ).fetchone()
         self.assertEqual(fila[0], 140000)
-        self.assertIn("48 horas", fila[1]["texto_cancelacion"])
+        self.assertIn("24 horas", fila[1]["texto_cancelacion"])
         self.assertEqual(fila[2][0]["monto_clp"], 30000)
 
     def test_simulacion_con_precio_de_ejemplo(self):

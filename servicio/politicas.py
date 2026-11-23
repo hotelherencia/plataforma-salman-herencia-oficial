@@ -40,8 +40,8 @@ TEMAS_CONOCIMIENTO = (
 # inicial del mantenedor, marcado pendiente de confirmar: la landing dice
 # que las fuentes internas no coinciden.
 TEXTO_CANCELACION_INICIAL = (
-    "cancelación gratuita hasta 48 horas antes de la llegada; "
-    "después se carga la primera noche"
+    "cancelación gratuita hasta 24 horas antes de la llegada; "
+    "fuera de plazo se cobra el total de la reserva (control no-show)"
 )
 
 
@@ -58,16 +58,10 @@ def _recargo(modo: str, valor: int, por: str) -> dict:
 # o pendiente_confirmar, sin cifras ni afirmaciones nuevas.
 INICIAL: dict[str, Any] = {
     "llegada_salida": _bloque(
-        PENDIENTE,
-        # La web publica 14:00; un comentario en reservas.py hablaba de 15:00.
-        # Se parte de lo publicado y se marca pendiente hasta que el hotel lo ratifique.
+        CONFIRMADO,
         hora_llegada_desde="14:00",
         hora_salida_hasta="12:00",
-        nota_confirmacion=(
-            "La web publica llegada desde las 14:00 y salida hasta las 12:00. "
-            "En el código había un comentario de llegada a las 15:00. "
-            "Confirmar la hora de llegada antes de automatizar cotizaciones."
-        ),
+        nota_confirmacion="Ratificado por Administración (21-11-2026): llegada 14:00, salida 12:00.",
         llegada_anticipada=_bloque(
             CONFIRMADO,
             permitida=True,
@@ -86,23 +80,19 @@ INICIAL: dict[str, Any] = {
         ),
     ),
     "cancelacion": _bloque(
-        PENDIENTE,
-        horas_antelacion_gratis=48,
-        penalidad_tipo="primera_noche",
-        penalidad_valor=None,
+        CONFIRMADO,
+        horas_antelacion_gratis=24,
+        penalidad_tipo="porcentaje",
+        penalidad_valor=100,
         texto_visible=TEXTO_CANCELACION_INICIAL,
-        nota_confirmacion=(
-            "Este texto estaba en el código de la oferta. La ficha pública "
-            "indica que la política de cancelación y no-show no está confirmada "
-            "(las fuentes internas no coinciden)."
-        ),
+        nota_confirmacion="Ratificado por Administración (21-11-2026): 24 horas de anticipación; fuera de plazo se cobra el total.",
     ),
     "no_show": _bloque(
-        NO_DEFINIDO,
-        penalidad_tipo=None,
-        penalidad_valor=None,
-        texto_visible=None,
-        nota_confirmacion="No hay una política de no-show ratificada.",
+        CONFIRMADO,
+        penalidad_tipo="porcentaje",
+        penalidad_valor=100,
+        texto_visible="Control no-show: si no se anula con 24 h de anticipación se cobra el total de la reserva.",
+        nota_confirmacion="Ratificado por Administración (21-11-2026).",
     ),
     "deposito": _bloque(
         CONFIRMADO,
@@ -207,8 +197,8 @@ INICIAL: dict[str, Any] = {
          "respuesta": "Estamos en Calle Diego de Almagro 751, Chillán, a aproximadamente 1,5 a 1,7 km de la Plaza de Armas y a 2,8 km de la estación de trenes.",
          "publica": True, "confirmacion": CONFIRMADO},
         {"id": "FAQ-02", "pregunta": "¿El hotel cuenta con estacionamiento?",
-         "respuesta": "Sí. Hotel Herencia dispone de estacionamiento para facilitar la llegada y salida de huéspedes que viajan en auto. No está confirmado si tiene costo.",
-         "publica": True, "confirmacion": PENDIENTE},
+         "respuesta": "Sí. Hotel Herencia dispone de estacionamiento incluido en la tarifa (~14 cupos interior y frontis, reservable).",
+         "publica": True, "confirmacion": CONFIRMADO},
         {"id": "FAQ-03", "pregunta": "¿La estadía incluye desayuno?",
          "respuesta": "Sí. El hotel ofrece desayuno buffet incluido, junto con WiFi y aire acondicionado.",
          "publica": True, "confirmacion": CONFIRMADO},
@@ -237,8 +227,8 @@ INICIAL: dict[str, Any] = {
          "respuesta": "Por teléfono o WhatsApp al +56 9 5649 1501, por Instagram (@hotelherencia) o con el formulario de contacto de la web.",
          "publica": True, "confirmacion": CONFIRMADO},
         {"id": "FAQ-12", "pregunta": "¿A qué hora es la llegada y la salida?",
-         "respuesta": "La llegada es a partir de las 14:00 y la salida hasta las 12:00. La llegada anticipada y la salida tardía tienen un cobro de $10.000 por hora, sujeto a disponibilidad. La hora de llegada está pendiente de confirmar (en un comentario interno aparecía 15:00).",
-         "publica": True, "confirmacion": PENDIENTE},
+         "respuesta": "La llegada es a partir de las 14:00 y la salida hasta las 12:00. La llegada anticipada y la salida tardía tienen un cobro de $10.000 por hora, sujeto a disponibilidad.",
+         "publica": True, "confirmacion": CONFIRMADO},
         {"id": "FAQ-13", "pregunta": "¿Qué medios de pago aceptan?",
          "respuesta": "Efectivo, tarjeta y transferencia.",
          "publica": True, "confirmacion": CONFIRMADO},
