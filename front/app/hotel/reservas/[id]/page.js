@@ -9,6 +9,7 @@ import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
 import FormularioEdicion from '../../_componentes/formulario-edicion'
 import PestanaHuespedes from '../../_componentes/pestana-huespedes'
+import BloqueGrupo from '../../_componentes/bloque-grupo'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 import { nombreDocumento, nombreMedio } from '../../../../lib/caja'
@@ -183,6 +184,15 @@ export default function DetalleReserva() {
           )}
           {pestana === 'resumen' && (
             <>
+          {reserva.grupo_id && (
+            <BloqueGrupo
+              grupoId={reserva.grupo_id}
+              reservaActualId={reserva.reserva_id}
+              puedeEditar={puedeMover}
+              enlaceBase="/hotel/reservas"
+              alCambiar={() => setVersion((v) => v + 1)}
+            />
+          )}
           <section className="tarjeta" aria-label="Reserva">
             <h2>
               {reserva.huesped_nombre}{' '}

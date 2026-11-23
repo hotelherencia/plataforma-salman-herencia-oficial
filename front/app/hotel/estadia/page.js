@@ -8,6 +8,7 @@ import { BuscadorEstadias } from '../_componentes/buscador-estadias'
 import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
 import { SelectorProducto } from '../_componentes/selector-producto'
 import PestanaHuespedes from '../_componentes/pestana-huespedes'
+import BloqueGrupo from '../_componentes/bloque-grupo'
 import { esAdminHotel } from '../../../lib/roles'
 import { validarDocumento } from '../../../lib/documento'
 import { gestionaRecepcion } from '../../../lib/roles'
@@ -253,6 +254,15 @@ export default function Estadia() {
         <PestanaHuespedes reservaId={detalleActivo.reserva_id} puedeEditar={puedeCancelar} alCambiar={() => refrescarDetalle(reservaId)} />
       ) : (
         <>
+      {detalleActivo?.grupo_id && (
+        <BloqueGrupo
+          grupoId={detalleActivo.grupo_id}
+          reservaActualId={detalleActivo.reserva_id}
+          puedeEditar={puedeCancelar}
+          enlaceBase="/hotel/estadia"
+          alCambiar={() => refrescarDetalle(reservaId)}
+        />
+      )}
       <section className="tarjeta">
         <h2>Registrar Llegada</h2>
         {puedeCancelar && !detalleActivo && (

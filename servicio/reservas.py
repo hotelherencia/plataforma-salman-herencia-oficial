@@ -374,7 +374,8 @@ def buscar_reservas(
     `desde`/`hasta` (2026-11-03): la reserva toca el periodo [desde, hasta)."""
     consulta = (
         "SELECT id, habitacion_id, inicio, fin, huesped_nombre, estado, "
-        "tarifa_noche_aceptada_clp, huesped_documento, canal FROM reservas WHERE empresa_id = %s"
+        "tarifa_noche_aceptada_clp, huesped_documento, canal, grupo_id, titular_aloja "
+        "FROM reservas WHERE empresa_id = %s"
     )
     parametros: list = [empresa_id]
     if fecha is not None:
@@ -410,6 +411,8 @@ def buscar_reservas(
             "canal": fila[8],
             "tarifa_noche_aceptada_clp": fila[6],
             "noches": (fila[3] - fila[2]).days,
+            "grupo_id": fila[9],
+            "titular_aloja": bool(fila[10]) if fila[10] is not None else True,
         }
         if ver_documento:
             item["huesped_documento"] = fila[7]
@@ -429,6 +432,10 @@ def crear_reserva(
     extras: dict | None = None,
     huesped_documento_tipo: str | None = None,
     canal: str = "recepcion",
+    grupo_id: str | None = None,
+    titular_aloja: bool = True,
+    adultos: int | None = None,
+    ninos_ocupacion: int = 0,
 ) -> dict:
     canal_normalizado = canal if canal in CANALES_RESERVA else "recepcion"
     # Un RUT es una sola persona o empresa: si ya es de un cliente registrado con otro nombre, no se acepta.
@@ -453,25 +460,32 @@ def crear_reserva(
         )
     tarifa, total = cotizacion.tarifa_primera, item["total_clp"]
     snapshot = politicas.snapshot_para_reserva(cuerpo_politica, item)
+    adultos_val = adultos if adultos is not None else (personas or 1)
+    ninos_val = ninos_ocupacion if ninos_ocupacion is not None else 0
+    columnas_reserva = {
+        "huesped_documento_tipo": huesped_documento_tipo,
+        "adultos": adultos_val,
+        "ninos": ninos_val,
+        "total_aceptado_clp": total,
+        "politica_snapshot": psycopg.types.json.Json(snapshot),
+        "recargos": psycopg.types.json.Json(item.get("recargos") or []),
+        "canal": canal_normalizado,
+        "titular_aloja": bool(titular_aloja),
+    }
+    if grupo_id is not None:
+        columnas_reserva["grupo_id"] = grupo_id
     creada = hotel_sql.reservar(
         conexion, hotel, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, personas,
-        columnas={
-            "huesped_documento_tipo": huesped_documento_tipo,
-            "adultos": personas or 1,
-            "ninos": 0,
-            "total_aceptado_clp": total,
-            "politica_snapshot": psycopg.types.json.Json(snapshot),
-            "recargos": psycopg.types.json.Json(item.get("recargos") or []),
-            "canal": canal_normalizado,
-        },
+        columnas=columnas_reserva,
         noches=cotizacion.noches,
         recargos=item.get("recargos") or [],
     )
     reserva_id = creada["reserva_id"]
-    from . import huespedes as huespedes_db
-    huespedes_db.asegurar_titular_reserva(
-        conexion, empresa_id, reserva_id, huesped_nombre, huesped_documento, huesped_documento_tipo,
-    )
+    if titular_aloja:
+        from . import huespedes as huespedes_db
+        huespedes_db.asegurar_titular_reserva(
+            conexion, empresa_id, reserva_id, huesped_nombre, huesped_documento, huesped_documento_tipo,
+        )
     # Aviso «reserva confirmada» en la misma transacción (sin datos del huésped).
     from . import avisos
 
