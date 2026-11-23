@@ -87,6 +87,15 @@ class TareaIn(BaseModel):
     subtareas: list[SubtareaIn] = Field(default_factory=list, max_length=40)
 
 
+class TareaCambioIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    titulo: str | None = Field(default=None, min_length=2, max_length=160)
+    prioridad: Prioridad | None = None
+    vence: date | None = None
+    responsable: str | None = Field(default=None, max_length=80)
+    observaciones: str | None = Field(default=None, max_length=1000)
+
+
 class MarcadoIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     hecha: bool
@@ -261,6 +270,42 @@ def crear_tarea(
         request, sesion, conexion, idempotency_key, _cuerpo("tarea", **datos.model_dump(mode="json")),
         "tarea_creada", "tarea_id",
         lambda hotel: operacion.crear_tarea(conexion, sesion.nombre, datos.model_dump()),
+    )
+
+
+@router.post("/hotel/tareas/{tarea_id}/actualizacion")
+def actualizar_tarea(
+    request: Request,
+    cambios: TareaCambioIn,
+    tarea_id: str = RutaParam(pattern=PATRON_ID),
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, ROLES_GESTION)
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key,
+        _cuerpo("tarea_actualizacion", tarea_id=tarea_id, **cambios.model_dump(mode="json")),
+        "tarea_actualizada", "tarea_id",
+        lambda hotel: operacion.actualizar_tarea(conexion, tarea_id, cambios.model_dump()),
+    )
+
+
+@router.post("/hotel/tareas/{tarea_id}/subtareas")
+def agregar_subtarea(
+    request: Request,
+    subtarea: SubtareaIn,
+    tarea_id: str = RutaParam(pattern=PATRON_ID),
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, ROLES_GESTION)
+    return _ejecutar(
+        request, sesion, conexion, idempotency_key,
+        _cuerpo("subtarea_alta", tarea_id=tarea_id, **subtarea.model_dump(mode="json")),
+        "subtarea_agregada", "tarea_id",
+        lambda hotel: operacion.agregar_subtarea(conexion, tarea_id, subtarea.texto, subtarea.obligatoria),
     )
 
 

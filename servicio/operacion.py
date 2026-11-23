@@ -302,6 +302,35 @@ def listar_tareas(conexion, estado: str | None = None, habitacion_id: str | None
     return {"items": items, "pendientes": sum(1 for t in items if t["estado"] == "pendiente")}
 
 
+def actualizar_tarea(conexion, tarea_id: str, cambios: dict) -> dict:
+    tarea = obtener_tarea(conexion, tarea_id)
+    if tarea["estado"] == "completada":
+        raise OperacionInvalida("la tarea ya está completada")
+    sets, params = [], []
+    for campo in ("titulo", "prioridad", "responsable", "vence", "observaciones"):
+        if cambios.get(campo) is not None:
+            sets.append(f"{campo} = %s")
+            params.append(cambios[campo].strip() if isinstance(cambios[campo], str) else cambios[campo])
+    if not sets:
+        raise OperacionInvalida("no hay cambios")
+    conexion.execute(f"UPDATE tareas_generales SET {', '.join(sets)} WHERE id = %s", (*params, tarea_id))
+    return obtener_tarea(conexion, tarea_id)
+
+
+def agregar_subtarea(conexion, tarea_id: str, texto: str, obligatoria: bool) -> dict:
+    tarea = obtener_tarea(conexion, tarea_id)
+    if tarea["estado"] == "completada":
+        raise OperacionInvalida("la tarea ya está completada")
+    if len(tarea["subtareas"]) >= 40:
+        raise OperacionInvalida("máximo 40 subtareas por tarea")
+    conexion.execute(
+        "INSERT INTO tarea_subtareas (id, tarea_id, orden, texto, obligatoria) VALUES (%s, %s, "
+        "(SELECT COALESCE(max(orden), -1) + 1 FROM tarea_subtareas WHERE tarea_id = %s), %s, %s)",
+        (_id("SUB"), tarea_id, tarea_id, texto.strip(), obligatoria),
+    )
+    return obtener_tarea(conexion, tarea_id)
+
+
 def marcar_subtarea(conexion, actor: str, tarea_id: str, subtarea_id: str, hecha: bool) -> dict:
     tarea = obtener_tarea(conexion, tarea_id)
     if tarea["estado"] == "completada":
