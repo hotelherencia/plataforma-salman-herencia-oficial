@@ -10,6 +10,7 @@ import Atencion from '../_componentes/atencion'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 import { BotonExportar } from '../_componentes/boton-exportar'
+import { rangoSemana, rangoMes, resumenSerie, puntosLinea } from '../../../lib/panel-serie'
 
 /**
  * Panel operativo (spec-hotel-operacion-v1 §4): dibuja GET /hotel/indicadores
@@ -243,6 +244,9 @@ export default function Panel() {
           {corte && (
             <div className="atajos">
               <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 1))}>Hoy</button>
+              <button type="button" className="boton-fantasma" onClick={() => { const r = rangoSemana(corte); atajo(r.desde, r.hasta) }}>Esta semana</button>
+              <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 7))}>Próximos 7 días</button>
+              <button type="button" className="boton-fantasma" onClick={() => { const r = rangoMes(corte); atajo(r.desde, r.hasta) }}>Este mes</button>
               <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -7), sumarDias(corte, 1))}>Últimos 7 días</button>
               <button type="button" className="boton-fantasma" onClick={() => atajo(sumarDias(corte, -30), sumarDias(corte, 1))}>Últimos 30 días</button>
               <button type="button" className="boton-fantasma" onClick={() => atajo(corte, sumarDias(corte, 14))}>Próximos 14 días</button>
@@ -394,6 +398,28 @@ export default function Panel() {
                       <span className="leyenda-item"><span className="punto punto-disponible"></span> Disponibles: <strong>{totalDisponibles}</strong></span>
                     </div>
                   </div>
+                  {(() => {
+                    const res = resumenSerie(datos.serie)
+                    if (!res) return null
+                    const pts = puntosLinea(res.puntos)
+                    const linea = pts.map((q) => `${q.x},${q.y}`).join(' ')
+                    return (
+                      <div className="serie-resumen" data-resumen-serie>
+                        <div className="serie-datos">
+                          <div><span className="serie-dato-valor">{res.promedio} %</span><span className="serie-dato-etiqueta">Ocupación promedio (en casa + reservadas)</span></div>
+                          <div><span className="serie-dato-valor">{res.pico.pct} %</span><span className="serie-dato-etiqueta">Noche más llena: {diaSemana(res.pico.fecha)} {fechaCorta(res.pico.fecha)}</span></div>
+                          <div><span className="serie-dato-valor">{res.valle.pct} %</span><span className="serie-dato-etiqueta">Noche más libre: {diaSemana(res.valle.fecha)} {fechaCorta(res.valle.fecha)}</span></div>
+                        </div>
+                        {pts.length > 1 && (
+                          <svg className="serie-linea" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={`Ocupación por noche, promedio ${res.promedio} por ciento`}>
+                            <line x1="0" y1="50" x2="100" y2="50" className="serie-guia" />
+                            <polygon points={`0,100 ${linea} 100,100`} className="serie-area" />
+                            <polyline points={linea} className="serie-trazo" vectorEffect="non-scaling-stroke" />
+                          </svg>
+                        )}
+                      </div>
+                    )
+                  })()}
                   <div className="grafico-barras-contenedor">
                     <div className="grafico-barras">
                       {datos.serie.map((s) => {
