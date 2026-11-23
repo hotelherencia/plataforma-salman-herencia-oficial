@@ -22,6 +22,7 @@ from .. import cobro
 from .. import contabilidad
 from .. import documental
 from .. import hotel_sql
+from .. import huespedes as huespedes_db
 from .. import idempotencia
 from .. import inventario_documental
 from .. import leads as leads_mod
@@ -35,7 +36,7 @@ from . import comun
 from .modelos import (
     CargoIn, DevolucionSaldoIn, DocumentoHuespedIn, GestionLeadIn, HabitacionIn, HuespedEdicionIn, LeadEdicionIn,
     LeadPublicoIn, LeadVinculoIn, MantenimientoIn, SolicitudEdicionIn,
-    ObservacionIn, PagoIn, PATRON_ID_HABITACION, ReasignacionIn, VerificacionAseoIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
+    ObservacionIn, OcupacionIn, PagoIn, PATRON_ID_HABITACION, ReasignacionIn, ReservaHuespedEdicionIn, ReservaHuespedIn, VerificacionAseoIn, RechazoSolicitudIn, ReservaIn, ReversoCargoIn, ServicioIn,
     SolicitudPublicaIn,
 )
 
@@ -1315,3 +1316,134 @@ def buscar_estadias(
         )
     except busqueda_estadias.BusquedaInvalida as error:
         raise HTTPException(status_code=422, detail=str(error))
+
+
+@router.get("/hotel/huespedes/busqueda")
+def buscar_huespedes(
+    documento: str = Query(min_length=1, max_length=50),
+    documento_tipo: str | None = Query(default=None, pattern="^(rut|pasaporte)$"),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Búsqueda de huéspedes registrados por documento (solo recepción y admin_hotel/administrador)."""
+    comun.exigir_rol(sesion, ROLES_DOCUMENTO_HUESPED)
+    try:
+        items = huespedes_db.buscar(conexion, sesion.empresa_id, documento, documento_tipo)
+    except huespedes_db.HuespedInvalido as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    return {"huespedes": items, "total": len(items)}
+
+
+@router.get("/hotel/reservas/{reserva_id}/huespedes")
+def listar_huespedes_reserva(
+    reserva_id: str,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    try:
+        return huespedes_db.obtener_huespedes_reserva(
+            conexion, sesion.empresa_id, reserva_id,
+            ver_documento=sesion.rol in ROLES_DOCUMENTO_HUESPED,
+        )
+    except cobro.RecursoAjenoOInexistente:
+        raise HTTPException(status_code=403, detail="acceso denegado")
+
+
+@router.put("/hotel/reservas/{reserva_id}/ocupacion")
+def actualizar_ocupacion_reserva(
+    request: Request,
+    reserva_id: str,
+    datos: OcupacionIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_DOCUMENTO_HUESPED)
+    with hotel_sql.EXCLUSIVO:
+        hotel_sql.bloquear(conexion)
+        try:
+            resultado = huespedes_db.actualizar_ocupacion(
+                conexion, request.app.state.aplicacion.hotel, sesion.empresa_id,
+                reserva_id, datos.adultos, datos.ninos, sesion.nombre,
+            )
+        except cobro.RecursoAjenoOInexistente:
+            conexion.rollback()
+            raise HTTPException(status_code=403, detail="acceso denegado")
+        except (cobro.TransicionInvalida, huespedes_db.OcupacionInvalida) as error:
+            conexion.rollback()
+            raise HTTPException(status_code=409, detail=str(error))
+        conexion.commit()
+    return resultado
+
+
+@router.post("/hotel/reservas/{reserva_id}/huespedes", status_code=201)
+def agregar_huesped_reserva(
+    reserva_id: str,
+    datos: ReservaHuespedIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_DOCUMENTO_HUESPED)
+    try:
+        resultado = huespedes_db.agregar_huesped(
+            conexion, sesion.empresa_id, reserva_id, datos.model_dump(), sesion.nombre,
+        )
+    except cobro.RecursoAjenoOInexistente:
+        conexion.rollback()
+        raise HTTPException(status_code=403, detail="acceso denegado")
+    except huespedes_db.HuespedInvalido as error:
+        conexion.rollback()
+        raise HTTPException(status_code=422, detail=str(error))
+    except (cobro.TransicionInvalida, huespedes_db.HuespedConflicto) as error:
+        conexion.rollback()
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return resultado
+
+
+@router.put("/hotel/reservas/{reserva_id}/huespedes/{huesped_id}")
+def editar_huesped_vinculado(
+    reserva_id: str,
+    huesped_id: str,
+    datos: ReservaHuespedEdicionIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_DOCUMENTO_HUESPED)
+    try:
+        resultado = huespedes_db.editar_huesped_en_reserva(
+            conexion, sesion.empresa_id, reserva_id, huesped_id,
+            datos.model_dump(exclude_unset=True), sesion.nombre,
+        )
+    except cobro.RecursoAjenoOInexistente:
+        conexion.rollback()
+        raise HTTPException(status_code=403, detail="acceso denegado")
+    except huespedes_db.HuespedInvalido as error:
+        conexion.rollback()
+        raise HTTPException(status_code=422, detail=str(error))
+    except huespedes_db.HuespedConflicto as error:
+        conexion.rollback()
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return resultado
+
+
+@router.delete("/hotel/reservas/{reserva_id}/huespedes/{huesped_id}")
+def quitar_huesped_vinculado(
+    reserva_id: str,
+    huesped_id: str,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, ROLES_DOCUMENTO_HUESPED)
+    try:
+        resultado = huespedes_db.quitar_huesped_de_reserva(
+            conexion, sesion.empresa_id, reserva_id, huesped_id, sesion.nombre,
+        )
+    except cobro.RecursoAjenoOInexistente:
+        conexion.rollback()
+        raise HTTPException(status_code=403, detail="acceso denegado")
+    except (cobro.TransicionInvalida, huespedes_db.HuespedConflicto) as error:
+        conexion.rollback()
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return resultado

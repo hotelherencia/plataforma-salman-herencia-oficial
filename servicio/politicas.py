@@ -122,6 +122,7 @@ INICIAL: dict[str, Any] = {
         NO_DEFINIDO,
         edad_nino_hasta=None,
         recargo_nino=None,
+        recargo_persona_extra_clp=None,
         cama_adicional_permitida=None,
         recargo_cama_adicional=None,
         nota_confirmacion=(
@@ -466,6 +467,9 @@ def validar_cuerpo(cuerpo: dict) -> dict:
             "confirmacion": _confirmacion(ninos.get("confirmacion", NO_DEFINIDO), "ninos_cama.confirmacion"),
             "edad_nino_hasta": _entero(ninos.get("edad_nino_hasta"), "edad_nino_hasta", 0, 17),
             "recargo_nino": _validar_recargo(ninos.get("recargo_nino"), "recargo_nino"),
+            "recargo_persona_extra_clp": _entero(
+                ninos.get("recargo_persona_extra_clp"), "recargo_persona_extra_clp", 0, 100_000_000
+            ),
             "cama_adicional_permitida": _bool(ninos.get("cama_adicional_permitida"), "cama_adicional_permitida"),
             "recargo_cama_adicional": _validar_recargo(ninos.get("recargo_cama_adicional"), "recargo_cama_adicional"),
             "nota_confirmacion": _texto(ninos.get("nota_confirmacion"), "ninos_cama.nota_confirmacion", 800),
@@ -884,3 +888,61 @@ def cifras_de_politicas(cuerpo: dict, extras: dict | None, tarifa_noche: int | N
         if bloque:
             cifras.add(str(bloque["valor"]))
     return cifras
+
+
+def calcular_recargo_ocupacion(
+    cuerpo: dict,
+    tarifa_noche: int | None,
+    noches: int,
+    adultos_nuevo: int,
+    ninos_nuevo: int,
+    adultos_prev: int,
+    ninos_prev: int,
+) -> dict:
+    """Recargo (o ajuste) por cambio de ocupación real respecto a la ocupación previa.
+
+    Si `recargo_persona_extra_clp` o `recargo_nino` no están configurados (`None`),
+    calcula $0 y entrega un aviso claro sin bloquear la operación.
+    """
+    ninos_cama = (cuerpo or {}).get("ninos_cama") or {}
+    recargo_extra = ninos_cama.get("recargo_persona_extra_clp")
+    recargo_nino = ninos_cama.get("recargo_nino")
+    avisos: list[dict] = []
+
+    delta_adultos = adultos_nuevo - adultos_prev
+    delta_ninos = ninos_nuevo - ninos_prev
+
+    monto_adultos = 0
+    if delta_adultos != 0:
+        if recargo_extra is not None:
+            monto_adultos = delta_adultos * int(recargo_extra) * max(1, noches)
+        else:
+            avisos.append({
+                "concepto": "persona_extra",
+                "motivo": "no_configurado",
+                "mensaje": "Recargo por persona extra no configurado en políticas ($0).",
+            })
+
+    monto_ninos = 0
+    if delta_ninos != 0:
+        if recargo_nino:
+            unidades = max(1, noches) if recargo_nino.get("por") == "noche" else 1
+            monto_ninos = delta_ninos * monto_recargo(recargo_nino, tarifa_noche, unidades)
+        elif recargo_extra is not None:
+            monto_ninos = delta_ninos * int(recargo_extra) * max(1, noches)
+        else:
+            avisos.append({
+                "concepto": "ninos",
+                "motivo": "no_configurado",
+                "mensaje": "Recargo por niño no configurado en políticas ($0).",
+            })
+
+    return {
+        "delta_clp": monto_adultos + monto_ninos,
+        "delta_adultos_clp": monto_adultos,
+        "delta_ninos_clp": monto_ninos,
+        "avisos": avisos,
+        "edad_nino_hasta": ninos_cama.get("edad_nino_hasta"),
+        "recargo_persona_extra_clp": recargo_extra,
+        "recargo_nino": recargo_nino,
+    }

@@ -7,6 +7,7 @@ import { SelectorReserva } from '../_componentes/selector-reserva'
 import { BuscadorEstadias } from '../_componentes/buscador-estadias'
 import { CampoDocumento, SelectorUnidad } from '../_componentes/campos-recepcion'
 import { SelectorProducto } from '../_componentes/selector-producto'
+import PestanaHuespedes from '../_componentes/pestana-huespedes'
 import { esAdminHotel } from '../../../lib/roles'
 import { validarDocumento } from '../../../lib/documento'
 import { gestionaRecepcion } from '../../../lib/roles'
@@ -40,6 +41,7 @@ export default function Estadia() {
   const [personasEntrada, setPersonasEntrada] = useState('1')
   const [docEntrada, setDocEntrada] = useState({ tipo: 'rut', numero: '' })
   const [enviando, setEnviando] = useState(false)
+  const [pestana, setPestana] = useState('operacion')
   const enVueloRef = useRef(false)
 
   // V1-ISSUE-35 / V1-ISSUE-40: precarga desde ?reserva_id= tanto en entrada/
@@ -237,8 +239,20 @@ export default function Estadia() {
             <strong>{clp(detalleActivo.cuenta.saldo_clp)}</strong> ·{' '}
             <Link href={`/hotel/reservas/${detalleActivo.reserva_id}`}>Ver detalle y cuenta</Link>
           </p>
+          <div className="subnav" role="tablist" aria-label="Secciones de Llegada">
+            <button type="button" role="tab" aria-selected={pestana === 'operacion'} className={pestana === 'operacion' ? 'subnav-item activo' : 'subnav-item'} onClick={() => setPestana('operacion')}>
+              Llegada y cargos
+            </button>
+            <button type="button" role="tab" aria-selected={pestana === 'huespedes'} className={pestana === 'huespedes' ? 'subnav-item activo' : 'subnav-item'} onClick={() => setPestana('huespedes')}>
+              Huéspedes ({detalleActivo.adultos ?? 1} ad. + {detalleActivo.ninos ?? 0} ni.)
+            </button>
+          </div>
         </section>
       )}
+      {detalleActivo && pestana === 'huespedes' ? (
+        <PestanaHuespedes reservaId={detalleActivo.reserva_id} puedeEditar={puedeCancelar} alCambiar={() => refrescarDetalle(reservaId)} />
+      ) : (
+        <>
       <section className="tarjeta">
         <h2>Registrar Llegada</h2>
         {puedeCancelar && !detalleActivo && (
@@ -362,6 +376,8 @@ export default function Estadia() {
         <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveCargo}</code></span>
       </section>
       <button onClick={() => { setSalida(null); setError(''); renovarClaveEntrada(); renovarClaveCancela(); renovarClaveCargo() }} className="boton-secundario">Nueva operación</button>
+        </>
+      )}
       {error && <p role="alert" className="alerta">{error}</p>}
       <SalidaJson datos={salida} />
     </MarcoHotel>

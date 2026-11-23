@@ -457,6 +457,8 @@ def crear_reserva(
         conexion, hotel, empresa_id, habitacion_id, inicio, fin, huesped_nombre, huesped_documento, personas,
         columnas={
             "huesped_documento_tipo": huesped_documento_tipo,
+            "adultos": personas or 1,
+            "ninos": 0,
             "total_aceptado_clp": total,
             "politica_snapshot": psycopg.types.json.Json(snapshot),
             "recargos": psycopg.types.json.Json(item.get("recargos") or []),
@@ -466,6 +468,10 @@ def crear_reserva(
         recargos=item.get("recargos") or [],
     )
     reserva_id = creada["reserva_id"]
+    from . import huespedes as huespedes_db
+    huespedes_db.asegurar_titular_reserva(
+        conexion, empresa_id, reserva_id, huesped_nombre, huesped_documento, huesped_documento_tipo,
+    )
     # Aviso «reserva confirmada» en la misma transacción (sin datos del huésped).
     from . import avisos
 

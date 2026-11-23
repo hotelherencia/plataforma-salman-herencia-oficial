@@ -8,6 +8,7 @@ import { esAdminHotel, gestionaRecepcion } from '../../../../lib/roles'
 import { SelectorUnidad } from '../../_componentes/campos-recepcion'
 import Subnav from '../../_componentes/subnav'
 import FormularioEdicion from '../../_componentes/formulario-edicion'
+import PestanaHuespedes from '../../_componentes/pestana-huespedes'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 import { nombreDocumento, nombreMedio } from '../../../../lib/caja'
@@ -49,6 +50,7 @@ export default function DetalleReserva() {
   const [destino, setDestino] = useState('')
   const [motivoCambio, setMotivoCambio] = useState('')
   const [devolucion, setDevolucion] = useState({ monto_clp: '', medio: 'transferencia', motivo: '' })
+  const [pestana, setPestana] = useState('resumen')
 
   // #91 / Q-HOT-04: devolución formal de saldo a favor del huésped (solo administración).
   async function registrarDevolucion(e) {
@@ -168,6 +170,19 @@ export default function DetalleReserva() {
       {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       {reserva && (
         <>
+          <div className="subnav" role="tablist" aria-label="Secciones de la reserva">
+            <button type="button" role="tab" aria-selected={pestana === 'resumen'} className={pestana === 'resumen' ? 'subnav-item activo' : 'subnav-item'} onClick={() => setPestana('resumen')}>
+              Resumen y cuenta
+            </button>
+            <button type="button" role="tab" aria-selected={pestana === 'huespedes'} className={pestana === 'huespedes' ? 'subnav-item activo' : 'subnav-item'} onClick={() => setPestana('huespedes')}>
+              Huéspedes ({reserva.adultos ?? 1} ad. + {reserva.ninos ?? 0} ni.)
+            </button>
+          </div>
+          {pestana === 'huespedes' && (
+            <PestanaHuespedes reservaId={reservaId} puedeEditar={puedeMover} alCambiar={() => setVersion((v) => v + 1)} />
+          )}
+          {pestana === 'resumen' && (
+            <>
           <section className="tarjeta" aria-label="Reserva">
             <h2>
               {reserva.huesped_nombre}{' '}
@@ -390,6 +405,8 @@ export default function DetalleReserva() {
               </p>
             )}
           </section>
+            </>
+          )}
         </>
       )}
     </MarcoHotel>

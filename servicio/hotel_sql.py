@@ -437,7 +437,7 @@ def entrada(
     los decide el dominio; los rechazos salen como `TransicionInvalida` (409). Asienta la primera noche
     (la asienta el dominio) y las restantes con el precio de cada noche (#305), para que la salida
     liquide la estadía completa. #360: si recepción elige otra unidad, se reasigna antes de entrar."""
-    from . import cobro  # evita el ciclo de importación
+    from . import cobro, huespedes as huespedes_db  # evita el ciclo de importación
 
     fila = cobro._reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)  # 403 y cerrojo de fila
     try:
@@ -461,6 +461,10 @@ def entrada(
                     "UPDATE reservas SET huesped_documento = %s, huesped_documento_tipo = %s WHERE id = %s",
                     (documento.strip(), documento_tipo, reserva_id),
                 )
+                huespedes_db.sincronizar_documento_titular(
+                    conexion, empresa_id, reserva_id, documento.strip(), documento_tipo,
+                )
+            huespedes_db.verificar_huespedes_para_entrada(conexion, reserva_id)
             hoy = ahora.date()
             recargar(conexion, hotel, empresa_id, (inicio, fin), mantenimiento_en=(hoy, hoy + timedelta(days=1)))
             noches_congeladas = dict(
