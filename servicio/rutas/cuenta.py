@@ -6,9 +6,10 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 
-from .. import clientes, cobro, contabilidad, contable_avanzado, idempotencia, imputacion, productos, roles, seguridad
+from .. import clientes, cobro, contabilidad, contable_avanzado, credito_clientes, idempotencia, imputacion, productos, roles, seguridad
 from . import comun
 from .modelos import (
+    AbonoCxcIn,
     CierreMensualIn,
     CobrarMovimientoDirectoIn,
     MovimientoDirectoIn,
@@ -256,3 +257,55 @@ def consultar_indicadores_ejecutivos(
         conexion, sesion.empresa_id, desde, hasta, hoy, tipo or None,
         solo_inventario_real=_solo_reales(request),
     )
+
+
+@router.get("/hotel/contabilidad/cuentas-por-cobrar")
+def listar_cuentas_por_cobrar(
+    estado: str = Query(default="pendientes", pattern="^(pendientes|abierta|parcial|pagada|anulada|todos)$"),
+    cliente_id: str | None = Query(default=None, max_length=50),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    """Contable 2.2 (#392 / FIN-002): listado de cuentas por cobrar con antigüedad 0-30/31-60/61-90/+90."""
+    comun.exigir_rol(sesion, credito_clientes.ROLES_CXC)
+    return credito_clientes.listar_cxc(conexion, sesion.empresa_id, estado=estado, cliente_id=cliente_id)
+
+
+@router.post("/hotel/contabilidad/cuentas-por-cobrar/{cxc_id}/abonos")
+def abonar_cuenta_por_cobrar(
+    cxc_id: str,
+    datos: AbonoCxcIn,
+    idempotency_key: str | None = Header(default=None),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Contable 2.2 (#392): registra abono append-only e idempotente sobre una cuenta por cobrar."""
+    comun.exigir_rol(sesion, credito_clientes.ROLES_CXC)
+    clave = comun.clave_idempotencia_o_400(idempotency_key)
+    cuerpo = {"operacion": "cxc_abono", "cxc_id": cxc_id, **datos.model_dump()}
+
+    def operacion() -> tuple[int, dict]:
+        try:
+            res = credito_clientes.registrar_abono_cxc(
+                conexion,
+                sesion.empresa_id,
+                cxc_id,
+                monto_clp=datos.monto_clp,
+                medio=datos.medio,
+                comprobante=datos.comprobante,
+                nota=datos.nota,
+                clave_idempotencia=clave,
+                actor=sesion.nombre,
+            )
+        except credito_clientes.CreditoInvalido as error:
+            return 422, {"detail": str(error)}
+        except credito_clientes.CreditoConflicto as error:
+            return 409, {"detail": str(error)}
+        return 201, res
+
+    try:
+        codigo, respuesta = idempotencia.ejecutar(conexion, sesion.empresa_id, clave, cuerpo, operacion)
+    except idempotencia.ConflictoIdempotencia as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    conexion.commit()
+    return JSONResponse(status_code=codigo, content=respuesta)

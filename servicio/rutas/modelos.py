@@ -866,3 +866,30 @@ class GrupoEntradaIn(BaseModel):
             except documento_mod.DocumentoInvalido as error:
                 raise ValueError(str(error)) from error
         return self
+
+
+class ClienteCreditoIn(BaseModel):
+    """Contable 2.2 (#392): política de crédito por cliente/empresa (PCI: sin PAN ni CVV)."""
+    model_config = ConfigDict(extra="forbid")
+    politica_credito: Literal["pago_al_registrarse", "credito_autorizado", "garantia_salida"]
+    cupo_credito_clp: int = Field(default=0, ge=0, le=10_000_000_000)
+    plazo_dias: int = Field(default=0, ge=0, le=365)
+    garantia_tarjeta_marca: str | None = Field(default=None, max_length=30)
+    garantia_tarjeta_ultimos4: str | None = Field(default=None, max_length=4)
+
+
+class SalidaCreditoIn(BaseModel):
+    """Contable 2.2 (#392 / REC-003): Salida física dejando cuenta por cobrar trazable."""
+    model_config = ConfigDict(extra="forbid")
+    cliente_id: str = Field(min_length=1, max_length=50)
+    confirmar_exceso_cupo: bool = False
+    nota: str | None = Field(default=None, max_length=300)
+
+
+class AbonoCxcIn(BaseModel):
+    """Contable 2.2 (#392): abono append-only a una cuenta por cobrar."""
+    model_config = ConfigDict(extra="forbid")
+    monto_clp: int = Field(gt=0, le=10_000_000_000)
+    medio: Literal["efectivo", "debito", "credito", "transferencia"]
+    comprobante: str | None = Field(default=None, max_length=60)
+    nota: str | None = Field(default=None, max_length=300)
