@@ -621,12 +621,11 @@ input[type="radio"] {
 
 .subnav {
   display: flex;
-  flex-wrap: nowrap;
-  gap: var(--e-1);
+  flex-wrap: wrap;
+  gap: var(--e-1) var(--e-2);
   margin: 0 0 var(--e-6);
   padding: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow-x: visible;
   border-bottom: 1px solid var(--c-linea);
 }
 
@@ -1689,6 +1688,9 @@ input[type="radio"] {
 .formulario > .subtitulo,
 .formulario > h2,
 .formulario > h3,
+.formulario > ul,
+.formulario > ol,
+.formulario > .lista-aseo,
 .formulario > .acciones-fila,
 .formulario > .filtros,
 .formulario > .nota-clave,
@@ -2231,4 +2233,13 @@ textarea.entrada {
   min-height: 2.75rem;
   padding: 0.45rem 0.65rem;
   font-size: var(--t-sm);
+}
+
+.formulario > .lista-aseo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--e-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
