@@ -61,7 +61,7 @@ export default function Mantenciones({ puedeGestionar = false }) {
     <section className="tarjeta" aria-label="Mantención preventiva" data-mantenciones>
       <h2>Mantención preventiva {lista.length > 0 && <span className="insignia">{lista.length}</span>}</h2>
       {error && <p role="alert" className="alerta">{error}</p>}
-      {aviso && <p role="status" className="estado">{aviso}</p>}
+      {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       {lista.length === 0 && <p className="estado">Nada por vencer en los próximos 14 días.</p>}
       <ul className="lista-simple">
         {lista.map((m) => (

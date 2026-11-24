@@ -26,7 +26,7 @@ export function useSaldoReserva(reservaId, version = 0) {
 export default function SaldoReserva({ reservaId, version = 0, conNoches = true, estado: dado }) {
   const propio = useSaldoReserva(dado ? '' : reservaId, version)
   const { saldo, error } = dado || propio
-  if (error) return <p className="estado" role="status">No se pudo cargar el saldo de la reserva.</p>
+  if (error) return <p className="alerta" role="alert">No se pudo cargar el saldo de la reserva.</p>
   if (!saldo) return <p className="estado" role="status" aria-busy="true">Cargando el saldo…</p>
   const visible = saldoVisible(saldo)
   return (

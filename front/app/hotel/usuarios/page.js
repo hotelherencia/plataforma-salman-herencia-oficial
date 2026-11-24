@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoClave, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
 import { ETIQUETAS_ROL, ROLES, esAdminPlataforma } from '../../../lib/roles'
+import { useMensajes } from '../../_componentes/centro-mensajes'
 
 export default function Usuarios() {
   const sesion = useSesion()
+  const { confirmar } = useMensajes()
   const [alta, setAlta] = useState({ nombre: '', rol: 'recepcion', clave: '', email: '' })
   // #352: vincular el correo de Google de un usuario existente.
   const [vinculo, setVinculo] = useState({ id: '', email: '' })
@@ -153,7 +155,19 @@ export default function Usuarios() {
       </section>
       <section className="tarjeta">
         <h2>Revocación de sesiones (sobre otro usuario)</h2>
-        <form className="formulario" onSubmit={(e) => postear(`/usuarios/${revocacionId}/revocacion`, {}, claveRevocacion, renovarClaveRevocacion, e)}>
+        <form
+          className="formulario"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const ok = await confirmar({
+              titulo: 'Revocar sesiones',
+              mensaje: '¿Revocar todas las sesiones activas de este usuario? Deberá iniciar sesión de nuevo.',
+              textoConfirmar: 'Revocar sesiones',
+              variante: 'peligro',
+            })
+            if (ok) postear(`/usuarios/${revocacionId}/revocacion`, {}, claveRevocacion, renovarClaveRevocacion, e)
+          }}
+        >
           <CampoSelect etiqueta="Usuario" value={revocacionId} onChange={(e) => setRevocacionId(e.target.value)}>
             <option value="">(Selecciona un usuario)</option>
             {usuarios?.map((u) => (
@@ -162,13 +176,25 @@ export default function Usuarios() {
               </option>
             ))}
           </CampoSelect>
-          <button type="submit" className="boton-primario" disabled={enviando || !revocacionId} onClick={(e) => { if (!window.confirm('¿Revocar todas las sesiones de este usuario? Deberá iniciar sesión de nuevo.')) e.preventDefault() }}>Revocar sesiones</button>
+          <button type="submit" className="boton-primario" disabled={enviando || !revocacionId}>Revocar sesiones</button>
         </form>
         <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveRevocacion}</code></span>
       </section>
       <section className="tarjeta">
         <h2>Baja de usuario (sobre otro usuario)</h2>
-        <form className="formulario" onSubmit={(e) => postear(`/usuarios/${bajaId}/baja`, {}, claveBaja, renovarClaveBaja, e)}>
+        <form
+          className="formulario"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const ok = await confirmar({
+              titulo: 'Dar de baja usuario',
+              mensaje: '¿Dar de baja a este usuario? Quedará inactivo y sin acceso a la plataforma.',
+              textoConfirmar: 'Dar de baja',
+              variante: 'peligro',
+            })
+            if (ok) postear(`/usuarios/${bajaId}/baja`, {}, claveBaja, renovarClaveBaja, e)
+          }}
+        >
           <CampoSelect etiqueta="Usuario" value={bajaId} onChange={(e) => setBajaId(e.target.value)}>
             <option value="">(Selecciona un usuario)</option>
             {usuarios?.map((u) => (
@@ -177,7 +203,7 @@ export default function Usuarios() {
               </option>
             ))}
           </CampoSelect>
-          <button type="submit" className="boton-primario" disabled={enviando || !bajaId} onClick={(e) => { if (!window.confirm('¿Dar de baja este usuario? Queda inactivo y sin acceso.')) e.preventDefault() }}>Dar de baja</button>
+          <button type="submit" className="boton-primario" disabled={enviando || !bajaId}>Dar de baja</button>
         </form>
         <span className="nota-clave nota-idempotencia" aria-hidden="true"><code>{claveBaja}</code></span>
       </section>

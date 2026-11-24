@@ -14,6 +14,7 @@ import MensajesHuesped from '../../_componentes/mensajes-huesped'
 import { SUBNAV_RESERVAS } from '../../../../lib/menu-hotel'
 import { fechaATexto, fechaHora, plural } from '../../../../lib/formato'
 import { nombreDocumento, nombreMedio } from '../../../../lib/caja'
+import { useMensajes } from '../../../_componentes/centro-mensajes'
 
 /**
  * Detalle de la reserva con su cuenta (spec-hotel-operacion-v1 §3.2). El saldo
@@ -42,6 +43,7 @@ export default function DetalleReserva() {
   const { id } = useParams()
   const reservaId = decodeURIComponent(id)
   const sesion = useSesion()
+  const { confirmar, solicitarTexto, notificarExito } = useMensajes()
   const [reserva, setReserva] = useState(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
@@ -62,7 +64,13 @@ export default function DetalleReserva() {
     const monto = Number(devolucion.monto_clp || Math.abs(reserva?.cuenta?.saldo_clp || 0))
     if (!(monto > 0)) { setError('Indica un monto válido mayor que 0.'); return }
     if (devolucion.motivo.trim().length < 10) { setError('Indica el motivo de la devolución (mínimo 10 caracteres).'); return }
-    if (!window.confirm(`¿Registrar devolución de ${clp(monto)} por ${devolucion.medio} a ${reserva.huesped_nombre}?`)) return
+    const confirmado = await confirmar({
+      titulo: 'Registrar devolución de saldo',
+      mensaje: `¿Registrar devolución de ${clp(monto)} por ${devolucion.medio} a ${reserva.huesped_nombre}?`,
+      textoConfirmar: 'Registrar devolución',
+      variante: 'primario',
+    })
+    if (!confirmado) return
     try {
       const r = await api(`/hotel/reservas/${encodeURIComponent(reservaId)}/devolucion`, {
         metodo: 'POST',
@@ -71,7 +79,9 @@ export default function DetalleReserva() {
       })
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
-        setAviso(`Devolución registrada por ${clp(r.datos.monto_clp)} (${r.datos.medio}). Saldo actual: ${clp(r.datos.saldo_clp)}.`)
+        const msgOk = `Devolución registrada por ${clp(r.datos.monto_clp)} (${r.datos.medio}). Saldo actual: ${clp(r.datos.saldo_clp)}.`
+        setAviso(msgOk)
+        notificarExito(msgOk)
         setDevolucion({ monto_clp: '', medio: 'transferencia', motivo: '' })
         setVersion((v) => v + 1)
       }
@@ -87,7 +97,13 @@ export default function DetalleReserva() {
     setAviso('')
     if (!destino || destino === reserva.habitacion_id) { setError('Elige una habitación distinta de la actual.'); return }
     if (motivoCambio.trim().length < 3) { setError('Indica el motivo del cambio (mínimo 3 caracteres).'); return }
-    if (!window.confirm(`¿Mover a ${reserva.huesped_nombre} de ${reserva.habitacion_id} a ${destino}?`)) return
+    const confirmado = await confirmar({
+      titulo: 'Cambiar habitación',
+      mensaje: `¿Mover a ${reserva.huesped_nombre} de ${reserva.habitacion_id} a ${destino}? Se conserva la tarifa pactada.`,
+      textoConfirmar: 'Mover habitación',
+      variante: 'primario',
+    })
+    if (!confirmado) return
     try {
       const r = await api(`/hotel/reservas/${encodeURIComponent(reservaId)}/habitacion`, {
         metodo: 'POST',
@@ -96,7 +112,9 @@ export default function DetalleReserva() {
       })
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
-        setAviso(`Huésped movido de ${r.datos.desde_habitacion_id} a ${r.datos.hacia_habitacion_id}.`)
+        const msgOk = `Huésped movido de ${r.datos.desde_habitacion_id} a ${r.datos.hacia_habitacion_id}.`
+        setAviso(msgOk)
+        notificarExito(msgOk)
         setDestino('')
         setMotivoCambio('')
         setVersion((v) => v + 1)
@@ -106,9 +124,15 @@ export default function DetalleReserva() {
     }
   }
 
-  // Cancelación por operación de dominio (POST /hotel/reservas/{id}/cancelacion; política 48 h).
+  // Cancelación por operación de dominio (POST /hotel/reservas/{id}/cancelacion).
   async function cancelarReserva() {
-    if (!window.confirm(`¿Cancelar la reserva ${reservaId} de ${reserva.huesped_nombre}? Se aplica la política de cancelación vigente (gratuita hasta 48 h antes de la llegada; después se carga la primera noche).`)) return
+    const confirmado = await confirmar({
+      titulo: 'Cancelar reserva',
+      mensaje: `¿Cancelar la reserva ${reservaId} de ${reserva.huesped_nombre}? Se aplica la política de cancelación vigente de la reserva.`,
+      textoConfirmar: 'Cancelar reserva',
+      variante: 'peligro',
+    })
+    if (!confirmado) return
     setError('')
     setAviso('')
     try {
@@ -120,7 +144,9 @@ export default function DetalleReserva() {
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         const penalidad = r.datos.penalidad_clp ? ` Penalidad aplicada: ${clp(r.datos.penalidad_clp)}.` : ' Sin penalidad.'
-        setAviso(`Reserva cancelada.${penalidad}`)
+        const msgOk = `Reserva cancelada.${penalidad}`
+        setAviso(msgOk)
+        notificarExito(msgOk)
         setVersion((v) => v + 1)
       }
     } catch {
@@ -130,9 +156,17 @@ export default function DetalleReserva() {
 
   // #359: anular un cargo = asentar su reverso (movimiento contrario), nunca borrar.
   async function reversar(cargo) {
-    const motivo = window.prompt(`Motivo del reverso de «${cargo.concepto}» (${clp(cargo.monto_clp)}):`)
+    const motivo = await solicitarTexto({
+      titulo: 'Reversar cargo',
+      mensaje: `Asentarás un reverso contable por «${cargo.concepto}» (${clp(cargo.monto_clp)}). El cargo original queda en el historial.`,
+      etiqueta: 'Motivo del reverso',
+      placeholder: 'Ej.: consumo cargado en habitación equivocada',
+      minCaracteres: 3,
+      mensajeMinimo: 'Indica un motivo de al menos 3 caracteres.',
+      textoConfirmar: 'Asentar reverso',
+      variante: 'peligro',
+    })
     if (motivo === null) return
-    if (motivo.trim().length < 3) { setError('Indica un motivo (mínimo 3 caracteres).'); return }
     setError('')
     setAviso('')
     try {
@@ -143,7 +177,9 @@ export default function DetalleReserva() {
       })
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
-        setAviso(`Reverso asentado por ${clp(r.datos.monto_clp)}. Saldo: ${clp(r.datos.saldo_clp)}.`)
+        const msgOk = `Reverso asentado por ${clp(r.datos.monto_clp)}. Saldo: ${clp(r.datos.saldo_clp)}.`
+        setAviso(msgOk)
+        notificarExito(msgOk)
         setVersion((v) => v + 1)
       }
     } catch {

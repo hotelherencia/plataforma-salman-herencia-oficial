@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError, Campo } from '../../../lib/api'
 import { SelectorUnidad } from './campos-recepcion'
 import { fechaATexto, plural } from '../../../lib/formato'
+import { useMensajes } from '../../_componentes/centro-mensajes'
 
 const ETIQUETA_ESTADO = {
   confirmada: 'confirmada',
@@ -26,6 +27,7 @@ export default function BloqueGrupo({
   enlaceBase = '/hotel/reservas',
   alCambiar,
 }) {
+  const { confirmar, notificarExito } = useMensajes()
   const [grupo, setGrupo] = useState(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
@@ -109,7 +111,13 @@ export default function BloqueGrupo({
   async function llegadaEnLote() {
     setError('')
     setAviso('')
-    if (!window.confirm('¿Registrar la Llegada de todas las habitaciones confirmadas de este grupo?')) return
+    const confirmado = await confirmar({
+      titulo: 'Registrar Llegada en lote',
+      mensaje: '¿Registrar la Llegada de todas las habitaciones confirmadas de este grupo?',
+      textoConfirmar: 'Registrar Llegada',
+      variante: 'primario',
+    })
+    if (!confirmado) return
     setEnviando(true)
     try {
       const r = await api(`/hotel/grupos/${encodeURIComponent(grupoId)}/entrada`, {
@@ -120,7 +128,9 @@ export default function BloqueGrupo({
       if (r.estado >= 400) {
         setError(mensajeDeError(r.datos, r.estado))
       } else {
-        setAviso(`Llegada registrada en lote para ${plural(r.datos.total_procesadas, 'habitación', 'habitaciones')}.`)
+        const textoOk = `Llegada registrada en lote para ${plural(r.datos.total_procesadas, 'habitación', 'habitaciones')}.`
+        setAviso(textoOk)
+        notificarExito(textoOk)
         setVersion((v) => v + 1)
         if (alCambiar) alCambiar()
       }

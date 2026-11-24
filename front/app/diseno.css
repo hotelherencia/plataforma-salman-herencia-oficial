@@ -713,15 +713,76 @@ input[type="radio"] {
   background: #c49a2c;
 }
 
-.aviso-ok,
+.aviso-ok {
+  position: relative;
+  margin: 0 0 var(--e-4);
+  padding: var(--e-3) var(--e-4) var(--e-3) 2.6rem;
+  border: 1px solid rgba(31, 92, 58, 0.28);
+  border-left: 4px solid var(--c-exito);
+  border-radius: var(--r-sm);
+  background: var(--c-exito-fondo);
+  color: var(--c-exito);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.aviso-ok::before {
+  content: "✓";
+  position: absolute;
+  left: 0.85rem;
+  top: 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--c-exito);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.aviso-info {
+  position: relative;
+  margin: 0 0 var(--e-4);
+  padding: var(--e-3) var(--e-4) var(--e-3) 2.6rem;
+  border: 1px solid var(--c-linea-fuerte);
+  border-left: 4px solid var(--c-verde);
+  border-radius: var(--r-sm);
+  background: var(--c-superficie);
+  color: var(--c-tinta);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.aviso-info::before {
+  content: "i";
+  position: absolute;
+  left: 0.85rem;
+  top: 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--c-verde);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .operacion-confirmada {
   border-radius: var(--r-sm);
   font-size: var(--t-sm);
 }
 
 .confirmacion-operacion-contenedor {
-  border-radius: var(--r-md);
-  border: 1px solid rgba(31, 92, 58, 0.25);
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(31, 92, 58, 0.28);
   border-left: 4px solid var(--c-exito);
   background: var(--c-exito-fondo);
   box-shadow: none;
@@ -733,6 +794,9 @@ input[type="radio"] {
 
 .confirmacion-cuerpo .operacion-confirmada {
   color: var(--c-exito);
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .estado {
@@ -1555,15 +1619,36 @@ input[type="radio"] {
   color: var(--c-verde-oscuro);
 }
 
-/* Avisos informativos, notas y acciones en Configuración y Facturas. */
+/* Avisos de advertencia/atención unificados (misma geometría que .alerta y .aviso-ok). */
 .aviso {
-  margin: var(--e-3) 0;
-  padding: var(--e-3) var(--e-4);
-  border: 1px solid var(--c-aviso);
-  border-radius: var(--r-md);
+  position: relative;
+  margin: 0 0 var(--e-4);
+  padding: var(--e-3) var(--e-4) var(--e-3) 2.6rem;
+  border: 1px solid var(--c-aviso-borde);
+  border-left: 4px solid #9a6700;
+  border-radius: var(--r-sm);
   background: var(--c-aviso-fondo);
   color: var(--c-aviso);
   font-size: var(--t-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.aviso::before {
+  content: "!";
+  position: absolute;
+  left: 0.85rem;
+  top: 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: #9a6700;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .nota {
@@ -1605,6 +1690,9 @@ input[type="radio"] {
 .formulario > .filtros,
 .formulario > .nota-clave,
 .formulario > .alerta,
+.formulario > .aviso-ok,
+.formulario > .aviso,
+.formulario > .aviso-info,
 .formulario > .campo-ayuda {
   grid-column: 1 / -1;
 }
@@ -1877,5 +1965,251 @@ textarea.entrada {
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: var(--e-2) var(--e-3);
     padding: var(--e-3);
+  }
+}
+
+/* ---------- Diálogos modales accesibles y notificaciones flotantes (2026-11-23) ---------- */
+
+.dialogo-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: var(--e-4);
+  background: rgba(15, 37, 28, 0.56);
+  backdrop-filter: blur(2px);
+}
+
+.dialogo-modal {
+  width: min(30rem, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-linea-fuerte);
+  border-top: 4px solid var(--c-verde);
+  background: var(--c-superficie);
+  color: var(--c-tinta);
+  box-shadow: 0 24px 60px rgba(15, 37, 28, 0.28);
+}
+
+.dialogo-modal.dialogo-peligro {
+  border-top-color: var(--c-error);
+}
+
+.dialogo-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-4) var(--e-5) var(--e-2);
+  border-bottom: 1px solid var(--c-linea);
+}
+
+.dialogo-titulo {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--c-tinta);
+  line-height: 1.25;
+}
+
+.dialogo-cerrar {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-tinta-2);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dialogo-cerrar:hover,
+.dialogo-cerrar:focus-visible {
+  background: var(--c-papel);
+  border-color: var(--c-linea-fuerte);
+  color: var(--c-tinta);
+}
+
+.dialogo-cuerpo {
+  display: grid;
+  gap: var(--e-4);
+  padding: var(--e-4) var(--e-5) var(--e-5);
+}
+
+.dialogo-mensaje {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-tinta);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.dialogo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--e-2);
+  padding-top: var(--e-2);
+}
+
+.boton-peligro-solido {
+  background: var(--c-error);
+  border-color: var(--c-error);
+  color: #fff;
+}
+
+.boton-peligro-solido:hover:not(:disabled),
+.boton-peligro-solido:focus-visible:not(:disabled) {
+  background: #991b1b;
+  border-color: #991b1b;
+  color: #fff;
+}
+
+.toast-pila {
+  position: fixed;
+  right: var(--e-4);
+  bottom: var(--e-4);
+  z-index: 75;
+  display: grid;
+  gap: var(--e-2);
+  width: min(25rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-3) var(--e-3) 2.6rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-linea-fuerte);
+  border-left-width: 4px;
+  background: var(--c-superficie);
+  color: var(--c-tinta);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1.45;
+  box-shadow: 0 12px 30px rgba(15, 37, 28, 0.16);
+  pointer-events: auto;
+  overflow-wrap: anywhere;
+}
+
+.toast::before {
+  position: absolute;
+  left: 0.85rem;
+  top: 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.toast-exito {
+  border-color: rgba(31, 92, 58, 0.3);
+  border-left-color: var(--c-exito);
+  background: var(--c-exito-fondo);
+  color: var(--c-exito);
+}
+.toast-exito::before {
+  content: "✓";
+  background: var(--c-exito);
+}
+
+.toast-error {
+  border-color: var(--c-error-borde);
+  border-left-color: var(--c-error);
+  background: var(--c-error-fondo);
+  color: var(--c-error);
+}
+.toast-error::before {
+  content: "!";
+  background: var(--c-error);
+}
+
+.toast-aviso {
+  border-color: var(--c-aviso-borde);
+  border-left-color: #9a6700;
+  background: var(--c-aviso-fondo);
+  color: var(--c-aviso);
+}
+.toast-aviso::before {
+  content: "!";
+  background: #9a6700;
+}
+
+.toast-info {
+  border-left-color: var(--c-verde);
+}
+.toast-info::before {
+  content: "i";
+  background: var(--c-verde);
+}
+
+.toast-texto {
+  flex: 1 1 auto;
+  padding-top: 0.15rem;
+}
+
+.toast-cerrar {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: -0.45rem -0.35rem -0.45rem 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast-cerrar:hover,
+.toast-cerrar:focus-visible {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: currentColor;
+}
+
+@media (max-width: 640px) {
+  .dialogo-fondo {
+    align-items: end;
+    padding: var(--e-3);
+  }
+
+  .dialogo-acciones {
+    flex-direction: column-reverse;
+  }
+
+  .dialogo-acciones > button {
+    width: 100%;
+  }
+
+  .toast-pila {
+    left: var(--e-3);
+    right: var(--e-3);
+    bottom: var(--e-3);
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialogo-fondo {
+    backdrop-filter: none;
   }
 }

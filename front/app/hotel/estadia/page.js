@@ -13,6 +13,7 @@ import { esAdminHotel } from '../../../lib/roles'
 import { validarDocumento } from '../../../lib/documento'
 import { gestionaRecepcion } from '../../../lib/roles'
 import { fechaATexto, plural } from '../../../lib/formato'
+import { useMensajes } from '../../_componentes/centro-mensajes'
 
 const ETIQUETA_ESTADO = {
   confirmada: 'confirmada',
@@ -23,6 +24,7 @@ const ETIQUETA_ESTADO = {
 
 export default function Estadia() {
   const sesion = useSesion()
+  const { confirmar } = useMensajes()
   const puedeConceptoLibre = sesion.fase === 'ok' && esAdminHotel(sesion.usuario.rol)
   const [reservaId, setReservaId] = useState('')
   const [detalleReserva, setDetalleReserva] = useState(null)
@@ -157,7 +159,13 @@ export default function Estadia() {
     setSalida(null)
     const falta = camposFaltantes([[reservaId, 'el huésped (búscalo por nombre, habitación o documento)']])
     if (falta) { setError(falta); return }
-    if (!window.confirm('¿Cancelar esta reserva? Se reversan los cargos sin pagar y, fuera de plazo, se carga la primera noche.')) return
+    const confirmado = await confirmar({
+      titulo: 'Cancelar reserva',
+      mensaje: '¿Cancelar esta reserva? Se reversan los cargos sin pagar y se aplica la política de cancelación vigente.',
+      textoConfirmar: 'Cancelar reserva',
+      variante: 'peligro',
+    })
+    if (!confirmado) return
     enVueloRef.current = true
     setEnviando(true)
     try {

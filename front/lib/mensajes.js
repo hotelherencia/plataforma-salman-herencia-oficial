@@ -32,6 +32,8 @@ const PATRONES = [
   [/^pasarela no configurada$/i, () => 'El pago en línea aún no está habilitado: no quedó nada cobrado.'],
   [/^estado inválido$/i, () => 'El estado elegido no es válido.'],
   [/^hasta debe ser mayor que desde$/i, () => 'La fecha «hasta» debe ser posterior a la fecha «desde».'],
+  [/^acceso denegado$/i, () => 'No tienes permiso para acceder o modificar este registro.'],
+  [/^conflicto de integridad$/i, () => 'No se pudo guardar por un conflicto con otro registro ya existente.'],
 ]
 
 export function traducirDetalle(detalle) {
@@ -53,6 +55,12 @@ const NOMBRES_CAMPO = {
   telefono: 'el teléfono', rol: 'el rol', usuario: 'el usuario', fecha: 'la fecha', delta: 'el ajuste',
   categoria: 'la categoría', codigo: 'el código', capacidad: 'la capacidad', stock: 'el stock',
   costo_unitario_clp: 'el costo', xml: 'el archivo', lineas: 'las líneas', q: 'la búsqueda',
+  correo: 'el correo', adultos: 'los adultos', ninos: 'los niños',
+  convenio_id: 'el convenio', cliente_id: 'el cliente', vigencia_desde: 'la vigencia desde',
+  vigencia_hasta: 'la vigencia hasta', requiere_abono_pct: 'el porcentaje de abono',
+  patente: 'la patente', cupo: 'el cupo de estacionamiento', turno: 'el turno',
+  resumen: 'el resumen', observacion: 'la observación',
+  es_huesped_provisorio: 'la reserva provisoria',
 }
 
 function campoLegible(loc) {
