@@ -139,41 +139,121 @@ INSTRUCCION_PUBLICA = (
     "No tienes acceso a reservas, huéspedes ni caja."
 )
 
+MAX_TOKENS_INTERNO = 500
+MAX_RESPUESTA_INTERNA = 1600
+
 GUIA_SISTEMA = """\
-Guía de la plataforma del hotel (solo lectura; no puedes ejecutar acciones):
-- Panel: resumen del día, llegadas y salidas, ocupación.
-- Solicitudes: las que llegan desde hotelherencia.cl; se convierten en reserva o se rechazan.
-- Reservas: crear en /hotel/reserva, ver la ficha, registrar Llegada y Salida, cobrar, cancelar.
-- Caja: cobros del día y cierre; solo caja y administración.
-- Agente: borradores de respuesta a consultas; un humano aprueba antes de enviar.
-- Habitaciones y Aseo: estado de limpieza y mantenimiento de cada habitación.
-- Mensajes al huésped: plantillas por correo o WhatsApp desde la ficha de la reserva.
-- Tarifas, descuentos y usuarios: solo administración.
-Términos de la interfaz: se usa «Llegada» y «Salida» (no check-in/check-out).
+Guía de la plataforma Hotel Herencia (eres HerencIA, copiloto operativo de recepción y administración):
+- Panel (/hotel/panel): situación de hoy, turnos semanales, libro de novedades, estacionamiento (14 cupos), desayunos y ocupación por noche.
+- Solicitudes (/hotel/solicitudes): solicitudes desde hotelherencia.cl; se convierten en reserva o se rechazan.
+- Reservas (/hotel/reservas y /hotel/reserva): reservas individuales o de grupo/provisorias (empresa), Llegada, Salida, cobros, upgrade a tarifa Single y convenios tarifarios.
+- Caja (/hotel/caja): cobros del día, movimientos, arqueo, cierre de caja (incluye desglose por convenio) y facturas/F29.
+- Agente (/hotel/agente): borradores de respuesta con tarifas reales para aprobar antes de enviar.
+- Aseo y Habitaciones (/hotel/aseo y /hotel/habitaciones): limpieza, incidencias con foto y bloqueo de mantenimiento.
+- Clientes (/hotel/clientes) y Mensajes al huésped: ficha de empresa/cliente, crédito y plantillas por correo/WhatsApp.
+- Configuración (/hotel/configuracion): tipos, tarifas, convenios vigentes, políticas y usuarios.
+Términos de la interfaz: usa «Llegada» y «Salida» (en vez de check-in/check-out).
 """
 
+RUTA_AYUDA = {
+    "/hotel/panel": "El usuario está en Panel: puede revisar llegadas/salidas de hoy, turnos, libro de novedades, estacionamiento y ocupación.",
+    "/hotel/reservas": "El usuario está en Reservas: puede filtrar, abrir fichas, registrar Llegada/Salida, aplicar convenios o gestionar grupos/provisorias.",
+    "/hotel/reserva": "El usuario está creando una Nueva Reserva: puede elegir tarifa normal, convenio vigente, upgrade a Single o reserva provisoria de empresa.",
+    "/hotel/caja": "El usuario está en Caja y pagos: puede registrar pagos, revisar movimientos, hacer cierre de caja o revisar facturas/F29.",
+    "/hotel/aseo": "El usuario está en Aseo e incidencias: puede marcar habitaciones limpias/sucias y reportar o cerrar incidencias.",
+    "/hotel/agente": "El usuario está en Agente: puede pegar una consulta entrante o aprobar/editar borradores de respuesta.",
+    "/hotel/solicitudes": "El usuario está en Solicitudes y leads: puede revisar pedidos web de hotelherencia.cl y convertirlos en reserva.",
+}
+
 INSTRUCCION_INTERNA = (
-    "Eres el asistente de ayuda interna de la plataforma de Hotel Herencia. Explica cómo usar el sistema y "
-    "las políticas del hotel en español, en máximo 6 frases, usando SOLO el CONTEXTO. No tienes acceso a "
-    "datos de reservas, huéspedes ni caja, y no puedes ejecutar acciones: indica a qué pantalla ir. "
-    "Si no sabes, dilo."
+    "Eres HerencIA, el asistente operativo inteligente de Hotel Herencia para recepción y administración. "
+    "Responde en español, claro, práctico y directo (máximo 8 frases o viñetas breves), usando el CONTEXTO en vivo del hotel. "
+    "Puedes informar habitaciones disponibles/ocupadas/sucias, pendientes de hoy, cupos de estacionamiento, convenios activos, "
+    "guiar paso a paso en la pantalla actual y ayudar a redactar mensajes a huéspedes, novedades de turno o reportes de incidencias. "
+    "No inventes cifras ni confirmes acciones que no ejecutaste (eres de solo lectura: indica el botón o pantalla donde el usuario lo ejecuta). "
+    "Si falta un dato en el contexto, dilo con honestidad."
 )
 
 
-def _llamar(modelo, sistema: str, contexto: str, pregunta: str) -> str:
+def _llamar(modelo, sistema: str, contexto: str, pregunta: str,
+            max_tokens: int = MAX_TOKENS, max_chars: int = MAX_RESPUESTA) -> str:
     responder = getattr(modelo, "responder", None)
     if responder is None:
         raise NoDisponible("asistente sin modelo")
     try:
         texto = responder(
-            f"{sistema}\n\nCONTEXTO:\n{contexto}", pregunta, max_tokens=MAX_TOKENS
+            f"{sistema}\n\nCONTEXTO:\n{contexto}", pregunta, max_tokens=max_tokens
         )
     except Exception as error:  # el detalle del proveedor no sale al visitante
         raise NoDisponible("el modelo no respondió") from error
     texto = (texto or "").strip()
     if not texto:
         raise NoDisponible("respuesta vacía")
-    return texto[:MAX_RESPUESTA]
+    return texto[:max_chars]
+
+
+def contexto_operativo_interno(conexion, empresa_id: str) -> str:
+    """Resumen en vivo del estado del hotel para uso interno (sin PII de huéspedes ni montos privados)."""
+    lineas = ["ESTADO EN VIVO DEL HOTEL (solo lectura, sin PII):"]
+    try:
+        habs = conexion.execute(
+            "SELECT id, tipo, estado_operativo, estado_preparacion, mantenimiento "
+            "FROM habitaciones WHERE establecimiento_id IN "
+            "(SELECT id FROM establecimientos WHERE empresa_id = %s) OR true "
+            "ORDER BY id",
+            (empresa_id,),
+        ).fetchall()
+    except Exception:
+        habs = []
+        try:
+            habs = conexion.execute(
+                "SELECT id, tipo, estado_operativo, estado_preparacion, mantenimiento FROM habitaciones ORDER BY id"
+            ).fetchall()
+        except Exception:
+            habs = []
+
+    if habs:
+        disp = [f"{r[0]} ({r[1]})" for r in habs if r[2] == "disponible" and r[3] == "limpia" and not r[4]]
+        ocup = [f"{r[0]} ({r[1]})" for r in habs if r[2] == "ocupada"]
+        sucias = [f"{r[0]} ({r[1]})" for r in habs if r[3] in ("sucia", "en_limpieza")]
+        mant = [f"{r[0]} ({r[1]})" for r in habs if r[4] or r[2] == "fuera_de_servicio"]
+        lineas.append(f"- Habitaciones totales: {len(habs)} | Listas y disponibles ({len(disp)}): {', '.join(disp) or 'ninguna'}.")
+        lineas.append(f"- Ocupadas ({len(ocup)}): {', '.join(ocup) or 'ninguna'}.")
+        lineas.append(f"- Sucias / en limpieza ({len(sucias)}): {', '.join(sucias) or 'ninguna'}.")
+        if mant:
+            lineas.append(f"- En mantenimiento / fuera de servicio ({len(mant)}): {', '.join(mant)}.")
+
+    for etiqueta, consulta in (
+        ("Solicitudes web pendientes", "SELECT COUNT(*) FROM solicitudes WHERE estado = 'pendiente'"),
+        ("Reservas confirmadas/en_casa", "SELECT COUNT(*) FROM reservas WHERE estado IN ('confirmada', 'en_casa')"),
+        ("Incidencias abiertas", "SELECT COUNT(*) FROM incidencias WHERE estado = 'abierta'"),
+    ):
+        try:
+            cnt = int(conexion.execute(consulta).fetchone()[0])
+            lineas.append(f"- {etiqueta}: {cnt}.")
+        except Exception:
+            pass
+
+    try:
+        incs = conexion.execute(
+            "SELECT habitacion_id, gravedad, left(descripcion, 90) FROM incidencias WHERE estado = 'abierta' ORDER BY creada_en DESC LIMIT 5"
+        ).fetchall()
+        if incs:
+            resumen_inc = "; ".join(f"{r[0]} [{r[1]}]: {r[2]}" for r in incs)
+            lineas.append(f"- Detalle incidencias abiertas: {resumen_inc}.")
+    except Exception:
+        pass
+
+    try:
+        convs = conexion.execute(
+            "SELECT nombre, tipo FROM convenios_tarifarios WHERE activo = true ORDER BY nombre LIMIT 10"
+        ).fetchall()
+        if convs:
+            lineas.append("- Convenios activos: " + ", ".join(f"{r[0]} ({r[1]})" for r in convs) + ".")
+    except Exception:
+        pass
+
+    return "\n".join(lineas)
 
 
 def responder_publico(conexion, empresa_id: str, pregunta: str, modelo, cache: CacheRespuestas,
@@ -201,11 +281,37 @@ def responder_publico(conexion, empresa_id: str, pregunta: str, modelo, cache: C
     return resultado
 
 
-def responder_interno(conexion, empresa_id: str, pregunta: str, modelo, tarifas: list[dict]) -> dict:
+def responder_interno(
+    conexion,
+    empresa_id: str,
+    pregunta: str,
+    modelo,
+    tarifas: list[dict],
+    ruta: str | None = None,
+    historial: list[dict] | None = None,
+) -> dict:
     pregunta = agente.redactar((pregunta or "").strip())  # lo que el personal pegue no sale con datos personales
     vista = politicas.vista_publica(politicas.de(conexion, empresa_id))
-    contexto = GUIA_SISTEMA + "\n" + contexto_publico(vista, tarifas)
-    return {"respuesta": _llamar(modelo, INSTRUCCION_INTERNA, contexto, pregunta), "fuente": "modelo"}
+    bloques = [GUIA_SISTEMA, contexto_publico(vista, tarifas), contexto_operativo_interno(conexion, empresa_id)]
+    if ruta and ruta in RUTA_AYUDA:
+        bloques.append(f"PANTALLA ACTUAL ({ruta}): {RUTA_AYUDA[ruta]}")
+    elif ruta:
+        bloques.append(f"PANTALLA ACTUAL: {ruta}")
+    if historial:
+        ultimos = [
+            f"{'Personal' if t.get('rol') == 'usuario' else 'HerencIA'}: {agente.redactar(str(t.get('texto') or ''))}"
+            for t in historial[-4:]
+        ]
+        if ultimos:
+            bloques.append("HISTORIAL RECIENTE:\n" + "\n".join(ultimos))
+    contexto = "\n\n".join(bloques)
+    return {
+        "respuesta": _llamar(
+            modelo, INSTRUCCION_INTERNA, contexto, pregunta,
+            max_tokens=MAX_TOKENS_INTERNO, max_chars=MAX_RESPUESTA_INTERNA,
+        ),
+        "fuente": "modelo",
+    }
 
 
 def texto_solicitud_web(inicio: str, fin: str, personas: int, tipo: str | None) -> str:

@@ -19,8 +19,15 @@ class PreguntaIn(BaseModel):
     pregunta: str = Field(min_length=2, max_length=asistente.MAX_PREGUNTA)
 
 
+class TurnoChatIn(BaseModel):
+    rol: str = Field(pattern="^(usuario|asistente)$")
+    texto: str = Field(min_length=1, max_length=800)
+
+
 class PreguntaInternaIn(BaseModel):
     pregunta: str = Field(min_length=2, max_length=500)
+    ruta: str | None = Field(default=None, max_length=120)
+    historial: list[TurnoChatIn] = Field(default_factory=list, max_length=8)
 
 
 def _cache(request: Request) -> asistente.CacheRespuestas:
@@ -74,6 +81,8 @@ def preguntar_interno(
         resultado = asistente.responder_interno(
             conexion, sesion.empresa_id, cuerpo.pregunta, getattr(request.app.state, "modelo_agente", None),
             tarifas_publicas_lista(request, conexion),
+            ruta=cuerpo.ruta,
+            historial=[{"rol": t.rol, "texto": t.texto} for t in cuerpo.historial],
         )
     except asistente.NoDisponible:
         raise HTTPException(status_code=503, detail="el asistente no está disponible; consulta la guía o a administración")
