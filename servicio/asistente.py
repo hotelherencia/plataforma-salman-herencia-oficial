@@ -195,22 +195,14 @@ def _llamar(modelo, sistema: str, contexto: str, pregunta: str,
 def contexto_operativo_interno(conexion, empresa_id: str) -> str:
     """Resumen en vivo del estado del hotel para uso interno (sin PII de huéspedes ni montos privados)."""
     lineas = ["ESTADO EN VIVO DEL HOTEL (solo lectura, sin PII):"]
+    habs = []
     try:
-        habs = conexion.execute(
-            "SELECT id, tipo, estado_operativo, estado_preparacion, mantenimiento "
-            "FROM habitaciones WHERE establecimiento_id IN "
-            "(SELECT id FROM establecimientos WHERE empresa_id = %s) OR true "
-            "ORDER BY id",
-            (empresa_id,),
-        ).fetchall()
-    except Exception:
-        habs = []
-        try:
+        with conexion.transaction():
             habs = conexion.execute(
                 "SELECT id, tipo, estado_operativo, estado_preparacion, mantenimiento FROM habitaciones ORDER BY id"
             ).fetchall()
-        except Exception:
-            habs = []
+    except Exception:
+        habs = []
 
     if habs:
         disp = [f"{r[0]} ({r[1]})" for r in habs if r[2] == "disponible" and r[3] == "limpia" and not r[4]]
@@ -229,27 +221,30 @@ def contexto_operativo_interno(conexion, empresa_id: str) -> str:
         ("Incidencias abiertas", "SELECT COUNT(*) FROM incidencias WHERE estado = 'abierta'"),
     ):
         try:
-            cnt = int(conexion.execute(consulta).fetchone()[0])
-            lineas.append(f"- {etiqueta}: {cnt}.")
+            with conexion.transaction():
+                cnt = int(conexion.execute(consulta).fetchone()[0])
+                lineas.append(f"- {etiqueta}: {cnt}.")
         except Exception:
             pass
 
     try:
-        incs = conexion.execute(
-            "SELECT habitacion_id, gravedad, left(descripcion, 90) FROM incidencias WHERE estado = 'abierta' ORDER BY creada_en DESC LIMIT 5"
-        ).fetchall()
-        if incs:
-            resumen_inc = "; ".join(f"{r[0]} [{r[1]}]: {r[2]}" for r in incs)
-            lineas.append(f"- Detalle incidencias abiertas: {resumen_inc}.")
+        with conexion.transaction():
+            incs = conexion.execute(
+                "SELECT habitacion_id, gravedad, left(descripcion, 90) FROM incidencias WHERE estado = 'abierta' ORDER BY creada_en DESC LIMIT 5"
+            ).fetchall()
+            if incs:
+                resumen_inc = "; ".join(f"{r[0]} [{r[1]}]: {r[2]}" for r in incs)
+                lineas.append(f"- Detalle incidencias abiertas: {resumen_inc}.")
     except Exception:
         pass
 
     try:
-        convs = conexion.execute(
-            "SELECT nombre, tipo FROM convenios_tarifarios WHERE activo = true ORDER BY nombre LIMIT 10"
-        ).fetchall()
-        if convs:
-            lineas.append("- Convenios activos: " + ", ".join(f"{r[0]} ({r[1]})" for r in convs) + ".")
+        with conexion.transaction():
+            convs = conexion.execute(
+                "SELECT nombre, tipo FROM convenios_tarifarios WHERE activo = true ORDER BY nombre LIMIT 10"
+            ).fetchall()
+            if convs:
+                lineas.append("- Convenios activos: " + ", ".join(f"{r[0]} ({r[1]})" for r in convs) + ".")
     except Exception:
         pass
 

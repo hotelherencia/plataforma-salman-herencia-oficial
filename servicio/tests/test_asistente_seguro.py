@@ -205,6 +205,7 @@ if __name__ == "__main__":
         self.assertEqual(len(capturado), 1)
         prompt, _, max_tok = capturado[0]
         self.assertIn("ESTADO EN VIVO DEL HOTEL", prompt)
+        self.assertIn("Habitaciones totales:", prompt)
         self.assertIn("PANTALLA ACTUAL (/hotel/reservas)", prompt)
         self.assertIn("HISTORIAL RECIENTE", prompt)
         self.assertEqual(max_tok, asistente.MAX_TOKENS_INTERNO)
