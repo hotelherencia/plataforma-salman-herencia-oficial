@@ -38,7 +38,7 @@ SIN_ROL_A_PROPOSITO = {
 }
 PUBLICAS = {
     ("POST", "/sesion"), ("DELETE", "/sesion"), ("POST", "/auth/google/totp"), ("POST", "/publico/solicitudes"),
-    ("POST", "/publico/leads"), ("POST", "/mensajeria/whatsapp/webhook"),
+    ("POST", "/publico/leads"), ("POST", "/publico/asistente"), ("POST", "/mensajeria/whatsapp/webhook"),
 }
 # Operaciones que solo administración (hotel o plataforma) puede hacer.
 SOLO_ADMIN = [
