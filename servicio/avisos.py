@@ -49,6 +49,7 @@ TIPOS: dict[str, tuple[str, str]] = {
     "consulta_recibida": ("Nueva consulta de la web", "Cuando llega una consulta desde el formulario de la landing."),
     "reserva_confirmada": ("Reserva confirmada", "Cuando se confirma una reserva (en recepción o al convertir una solicitud)."),
     "pago_registrado": ("Pago registrado", "Cuando se registra un pago confirmado en Caja."),
+    "observacion_dueno": ("Observación del dueño", "Cuando el dueño deja una observación para la administración."),
     "resumen_diario": ("Resumen del día (08:00)", "Llegadas y Salidas de hoy y solicitudes pendientes, cada mañana."),
 }
 TIPO_PRUEBA = "prueba"

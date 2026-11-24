@@ -7,6 +7,7 @@ los módulos de rutas no necesitan capturar la fábrica.
 from __future__ import annotations
 
 import logging
+import dataclasses
 import re
 from typing import Iterator
 
@@ -36,6 +37,14 @@ def conexion(request: Request) -> Iterator[psycopg.Connection]:
     with psycopg.connect(database_url) as conn:
         yield conn
 
+
+# Dueño: lee todo lo que lee la administración del hotel (GET), pero no cambia datos; solo estas
+# rutas aceptan escritura (su cuenta y las observaciones a la administración).
+RUTAS_DUENO = tuple(re.compile(p) for p in (
+    r"^/cuenta(/.*)?$",
+    r"^/hotel/observaciones(/.*)?$",
+))
+_RUTAS_SIN_ELEVAR = re.compile(r"^/(sesion|cuenta)(/.*)?$")
 
 # #362: el rol aseo solo alcanza estas rutas (lista blanca); el resto → 403.
 RUTAS_ASEO = tuple(re.compile(p) for p in (
@@ -110,8 +119,17 @@ def requerir_sesion(
                 headers={"set-cookie": borrado.headers["set-cookie"]},
             )
         raise seguridad.ErrorPermiso("empresa ajena a la del servicio")
+    request.state.actor, request.state.rol = sesion.nombre, sesion.rol  # para los logs (nunca la clave ni la cookie)
     if sesion.rol == roles.ASEO and not any(p.match(request.url.path) for p in RUTAS_ASEO):
         raise seguridad.ErrorPermiso("el rol aseo no tiene acceso a esta operación")
+    if sesion.rol == roles.DUENO:
+        ruta = request.url.path
+        if request.method in ("GET", "HEAD"):
+            # Lectura global: se evalúa como administración del hotel, salvo su propia sesión y cuenta.
+            if not _RUTAS_SIN_ELEVAR.match(ruta) and not ruta.startswith("/hotel/observaciones"):
+                return dataclasses.replace(sesion, rol=roles.ADMIN_HOTEL)
+        elif not any(p.match(ruta) for p in RUTAS_DUENO):
+            raise seguridad.ErrorPermiso("el rol dueño es de lectura: deja una observación a la administración")
     return sesion
 
 

@@ -23,7 +23,7 @@ from nucleo.stock import (
 class RolesCoreTest(unittest.TestCase):
     def test_catalogo_separa_roles_core_y_hotel(self):
         solo_core = CATALOGO.codigos([MODULO_CORE])
-        self.assertEqual(solo_core, ("administrador", "admin_plataforma"))
+        self.assertEqual(solo_core, ("dueno", "administrador", "admin_plataforma"))
 
         con_hotel = CATALOGO.codigos([MODULO_CORE, MODULO_HOTEL])
         self.assertIn("admin_hotel", con_hotel)

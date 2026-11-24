@@ -127,6 +127,30 @@ def evento_seguridad(tipo: str, nivel: int = logging.WARNING, **campos) -> None:
     log_seguridad.log(nivel, tipo, extra={"evento": tipo, **campos})
 
 
+class DetectorEscalada:
+    """Cuenta los 403 de una misma persona autenticada: varios seguidos son un intento de saltar de rol
+    (cuenta tomada o curiosidad peligrosa). Alerta una vez por ventana; no bloquea."""
+
+    def __init__(self, umbral: int = 5, ventana_segundos: int = 300) -> None:
+        self.umbral, self.ventana = umbral, ventana_segundos
+        self._marcas: dict[str, list[float]] = {}
+        self._alertado: dict[str, float] = {}
+        self._cerrojo = threading.Lock()
+
+    def registrar(self, actor: str) -> bool:
+        ahora = time.monotonic()
+        with self._cerrojo:
+            marcas = [t for t in self._marcas.get(actor, []) if ahora - t < self.ventana] + [ahora]
+            self._marcas[actor] = marcas
+            if len(marcas) >= self.umbral and ahora - self._alertado.get(actor, -1e9) >= self.ventana:
+                self._alertado[actor] = ahora
+                return True
+        return False
+
+
+DETECTOR_ESCALADA = DetectorEscalada()
+
+
 class DetectorAmenazas:
     """Ventana deslizante en memoria por proceso (igual que FrenoDeLogins).
 
@@ -242,6 +266,17 @@ def instalar(app) -> None:
                            "resultado": resultado, "ms": ms},
                 )
 
+            actor = getattr(request.state, "actor", None)
+            rol = getattr(request.state, "rol", None)
+            if estado == 403 and actor:
+                # Persona autenticada a la que se le negó algo: queda con quién, qué rol y qué pidió.
+                evento_seguridad("acceso_denegado", actor=actor, rol=rol, metodo=request.method,
+                                 ruta=ruta[:200], ip=ip)
+                if DETECTOR_ESCALADA.registrar(actor):
+                    evento_seguridad(
+                        "escalada_privilegios_sospechada", nivel=logging.ERROR, actor=actor, rol=rol,
+                        umbral=DETECTOR_ESCALADA.umbral, ventana_s=DETECTOR_ESCALADA.ventana,
+                        ultima_ruta=ruta[:200], ip=ip)
             if ruta not in _RUTAS_SIN_LOG or estado >= 400:
                 nivel = (
                     logging.ERROR if estado >= 500
@@ -258,6 +293,7 @@ def instalar(app) -> None:
                         "ms": ms,
                         "ip": ip,
                         "agente": (request.headers.get("user-agent") or "")[:120],
+                        **({"actor": actor, "rol": rol} if actor else {}),
                     },
                 )
             return respuesta
