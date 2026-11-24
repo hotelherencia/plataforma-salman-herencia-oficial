@@ -84,7 +84,7 @@ export default function Turnos({ usuario, puedeAdministrar = false }) {
         </div>
       </div>
       {error && <p role="alert" className="alerta">{error}</p>}
-      {aviso && <p role="status" className="estado">{aviso}</p>}
+      {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       <div className="tabla-contenedor" tabIndex={0} role="region" aria-label="Turnos (desliza para ver todos los días)">
         <table className="tabla">
           <thead>

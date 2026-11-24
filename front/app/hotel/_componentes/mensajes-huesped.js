@@ -26,7 +26,7 @@ export default function MensajesHuesped({ reservaId }) {
     return () => { vivo = false }
   }, [reservaId, version])
 
-  if (!datos) return null
+  if (!datos || !Array.isArray(datos.mensajes) || datos.mensajes.length === 0) return null
   const actual = datos.mensajes.find((m) => m.plantilla === plantilla) || datos.mensajes[0]
 
   async function registrar(canal) {

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { api, MarcoHotel, urlApi, Campo, CampoClave, useClaveOperacion, refrescarSesion } from '../../lib/api'
+import { useMensajes } from '../_componentes/centro-mensajes'
 
 export default function Cuenta() {
+  const { confirmar, notificarExito } = useMensajes()
   const [sesion, setSesion] = useState(null)
   const [alta, setAlta] = useState(null)
   const [codigo, setCodigo] = useState('')
@@ -115,7 +117,13 @@ export default function Cuenta() {
   async function desactivar() {
     // V1-ISSUE-36: las acciones destructivas piden confirmación explícita.
     // SEC-A02 (#327): además exige la clave actual (reautenticación).
-    if (!window.confirm('¿Desactivar el doble factor? El acceso quedará solo con usuario y clave.')) return
+    const confirmado = await confirmar({
+      titulo: 'Desactivar doble factor',
+      mensaje: 'El acceso quedará solo con usuario y clave. ¿Confirmas desactivar el doble factor?',
+      textoConfirmar: 'Desactivar',
+      variante: 'peligro',
+    })
+    if (!confirmado) return
     setError('')
     setExito('')
     if (!claveReauth) {
@@ -127,6 +135,7 @@ export default function Cuenta() {
       if (r.estado >= 400) setError(r.datos?.detail ?? 'No se pudo desactivar')
       else {
         setExito('Doble factor desactivado.')
+        notificarExito('Doble factor desactivado.')
         setClaveReauth('')
         recargarSesion()
       }

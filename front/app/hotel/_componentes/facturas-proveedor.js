@@ -14,6 +14,7 @@ import {
   etiquetaLectura, etiquetaOrigen, lineaManualVacia, lineasManuales, proveedorDocumento, resumenCorreo, tituloDocumento,
 } from '../../../lib/facturas'
 import { Revision } from './importar-productos'
+import { useMensajes } from '../../_componentes/centro-mensajes'
 import css from './operacion.module.css'
 
 const TONO = { exito: css.chipExito, aviso: css.chipAviso, info: css.chipInfo, neutro: '', error: css.chipError }
@@ -119,6 +120,7 @@ function Cargar({ alCargar }) {
 
 /** Lista de documentos por revisar (y pedidos en borrador). */
 function Bandeja({ version, alAbrir, alCambiar }) {
+  const { confirmar, notificarExito } = useMensajes()
   const [datos, setDatos] = useState(null)
   const [aviso, setAviso] = useState('')
   const [error, setError] = useState('')
@@ -151,12 +153,18 @@ function Bandeja({ version, alAbrir, alCambiar }) {
   }
 
   async function descartar(d) {
-    const texto = d.clase === 'nota_credito' ? '¿Archivar esta nota de crédito?' : '¿Descartar este documento? No suma stock.'
-    if (!window.confirm(texto)) return
+    const esNc = d.clase === 'nota_credito'
+    const confirmado = await confirmar({
+      titulo: esNc ? 'Archivar nota de crédito' : 'Descartar documento',
+      mensaje: esNc ? '¿Archivar esta nota de crédito?' : '¿Descartar este documento? No sumará stock.',
+      textoConfirmar: esNc ? 'Archivar' : 'Descartar',
+      variante: 'peligro',
+    })
+    if (!confirmado) return
     const r = await api(`/hotel/productos/documentos/${encodeURIComponent(d.documento_id)}/descarte`, { metodo: 'POST' }).catch(() => null)
     if (!r) setError(SIN_CONEXION)
     else if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
-    else { await cargar(); alCambiar?.() }
+    else { notificarExito(esNc ? 'Nota de crédito archivada.' : 'Documento descartado.'); await cargar(); alCambiar?.() }
   }
 
   if (!datos) return error ? <p className="alerta" role="alert">{error}</p> : null
@@ -177,7 +185,7 @@ function Bandeja({ version, alAbrir, alCambiar }) {
           : 'Lectura automática de fotos desactivada: de la foto se lee el timbre del SII y las líneas se escriben a mano.'}
         {datos.buzon_recepcion ? ' Las facturas que llegan al correo de intercambio aparecen aquí solas.' : ''}
       </p>
-      {aviso && <p className="aviso" role="status">{aviso}</p>}
+      {aviso && <p className="aviso-ok" role="status">{aviso}</p>}
       {error && <p className="alerta" role="alert">{error}</p>}
       {!docs.length ? (
         <p className={css.ayuda}>No hay facturas ni pedidos pendientes.</p>
@@ -402,6 +410,7 @@ function Documento({ documentoId, catalogo, alVolver, alTerminar }) {
 
 /** Unidades por envase y producto recordados por proveedor (editables). */
 function Equivalencias({ version, catalogo }) {
+  const { confirmar, notificarExito } = useMensajes()
   const [items, setItems] = useState(null)
   const [cambios, setCambios] = useState({})
   const [error, setError] = useState('')
@@ -424,10 +433,16 @@ function Equivalencias({ version, catalogo }) {
     cargar()
   }
   async function olvidar(e) {
-    if (!window.confirm(`¿Olvidar «${e.descripcion}»? La próxima factura se volverá a revisar a mano.`)) return
+    const confirmado = await confirmar({
+      titulo: 'Olvidar equivalencia de producto',
+      mensaje: `¿Olvidar «${e.descripcion}»? La próxima factura se volverá a revisar a mano.`,
+      textoConfirmar: 'Olvidar',
+      variante: 'peligro',
+    })
+    if (!confirmado) return
     const r = await api(`/hotel/productos/equivalencias/${encodeURIComponent(e.equivalencia_id)}`, { metodo: 'DELETE' }).catch(() => null)
     if (!r || r.estado >= 400) setError(r ? mensajeDeError(r.datos, r.estado) : SIN_CONEXION)
-    else cargar()
+    else { notificarExito('Equivalencia eliminada.'); cargar() }
   }
   return (
     <details className="tarjeta">

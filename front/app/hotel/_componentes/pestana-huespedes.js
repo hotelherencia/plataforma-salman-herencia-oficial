@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { api, clp, mensajeDeError } from '../../../lib/api'
 import { validarDocumento } from '../../../lib/documento'
 import { plural } from '../../../lib/formato'
+import { useMensajes } from '../../_componentes/centro-mensajes'
 
 const FORM_INICIAL = {
   huesped_id: null,
@@ -18,6 +19,7 @@ const FORM_INICIAL = {
 }
 
 export default function PestanaHuespedes({ reservaId, puedeEditar = false, alCambiar }) {
+  const { confirmar, notificarExito } = useMensajes()
   const [datos, setDatos] = useState(null)
   const [politica, setPolitica] = useState(null)
   const [adultos, setAdultos] = useState('1')
@@ -191,7 +193,13 @@ export default function PestanaHuespedes({ reservaId, puedeEditar = false, alCam
   }
 
   async function quitarHuesped(h) {
-    if (!window.confirm(`¿Quitar a ${h.nombre} de esta reserva?`)) return
+    const confirmado = await confirmar({
+      titulo: 'Quitar acompañante',
+      mensaje: `¿Quitar a ${h.nombre} de esta reserva?`,
+      textoConfirmar: 'Quitar',
+      variante: 'peligro',
+    })
+    if (!confirmado) return
     setError('')
     setAviso('')
     setCargando(true)
@@ -202,6 +210,7 @@ export default function PestanaHuespedes({ reservaId, puedeEditar = false, alCam
       if (r.estado >= 400) setError(mensajeDeError(r.datos, r.estado))
       else {
         setAviso('Acompañante quitado de la reserva.')
+        notificarExito('Acompañante quitado de la reserva.')
         setVersion((v) => v + 1)
         alCambiar?.()
       }

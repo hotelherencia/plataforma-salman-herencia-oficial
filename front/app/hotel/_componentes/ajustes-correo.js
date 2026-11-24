@@ -7,6 +7,7 @@ import {
   aplicarPreset, camposVisibles, cuerpoBuzon, formularioVacio,
 } from '../../../lib/correo'
 import { plural } from '../../../lib/formato'
+import { useMensajes } from '../../_componentes/centro-mensajes'
 
 const NOMBRE_PROPOSITO = Object.fromEntries(PROPOSITOS)
 const NOMBRE_PROVEEDOR = Object.fromEntries([...PROVEEDORES.lectura_enviados, ...PROVEEDORES.envio_avisos])
@@ -32,6 +33,7 @@ function fecha(iso) {
  * Las claves se guardan cifradas y nunca se vuelven a mostrar.
  */
 export default function AjustesCorreo() {
+  const { confirmar } = useMensajes()
   const [datos, setDatos] = useState(null)
   const [form, setForm] = useState(null)
   const [revision, setRevision] = useState(null)
@@ -104,8 +106,14 @@ export default function AjustesCorreo() {
 
   const probar = (b) => llamar(`/hotel/correo/buzones/${b.buzon_id}/prueba`, 'POST', {},
     (d) => (d.ok ? `«${b.etiqueta}»: ${d.detalle}` : `«${b.etiqueta}» falló: ${d.detalle}`), false)
-  const eliminar = (b) => {
-    if (window.confirm(`¿Eliminar el buzón «${b.etiqueta}»? Se borran sus claves guardadas.`)) {
+  const eliminar = async (b) => {
+    const confirmado = await confirmar({
+      titulo: 'Eliminar buzón de correo',
+      mensaje: `¿Eliminar el buzón «${b.etiqueta}»? Se borrarán sus claves guardadas.`,
+      textoConfirmar: 'Eliminar buzón',
+      variante: 'peligro',
+    })
+    if (confirmado) {
       llamar(`/hotel/correo/buzones/${b.buzon_id}`, 'DELETE', undefined, `Buzón «${b.etiqueta}» eliminado.`)
     }
   }
