@@ -1766,7 +1766,7 @@ textarea.entrada {
   text-align: center;
 }
 
-.tarjeta {
+.tarjeta:not(.login-tarjeta) {
   min-width: 0;
   max-width: 100%;
 }
