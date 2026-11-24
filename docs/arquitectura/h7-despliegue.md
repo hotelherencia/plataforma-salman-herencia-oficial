@@ -615,7 +615,7 @@ recepción, caja y aseo; el súper administrador crea los administradores y el d
 
 **Todo cambio de rol se valida:** un alta con rol privilegiado y cualquier cambio de rol (`POST /usuarios/{id}/rol`) quedan
 pendientes hasta que los aprueba un `admin_hotel` o `administrador` que no sea quien los pidió ni el afectado
-(panel del hotel → «Cambios de rol pendientes»). Hasta entonces la cuenta nueva está inactiva. Excepción única y
+(la administradora del hotel, `hotelherencia01@gmail.com` con rol `admin_hotel`, que **no** es súper administradora, los ve y los aprueba en `/hotel/usuarios` y en el panel → «Cambios de rol pendientes»; ahí también ve el listado de usuarios, en solo lectura). Hasta entonces la cuenta nueva está inactiva. Excepción única y
 registrada (`sin_aprobador`): aún no existe ningún aprobador activo.
 
 Alta de la administradora del hotel (p. ej. `hotelherencia01@gmail.com`): el súper administrador crea una cuenta
