@@ -40,3 +40,14 @@ python scripts/cargar_apertura_operativa.py \
 ```
 
 La conexión se toma desde `DATABASE_URL` (o `--database-url` apuntando a una BD de prueba). El script nunca imprime valores de variables de entorno ni credenciales.
+
+## Carga desde el Excel de levantamiento (#468)
+
+1. `python scripts/preparar_apertura_desde_excel.py "<libro>.xlsx" --salida <carpeta fuera del repo>` genera
+   `inventario_inicial.csv`, `incidencias_iniciales.csv` y `activos_iniciales.csv`. No toca la base y nunca lee la hoja `Redes`.
+2. `python scripts/cargar_apertura_operativa.py --dry-run --inventarios ... --incidencias ... --activos ...` valida y emite el acta.
+3. Con autorización expresa, repetir con `--aplicar` (idempotente: re-ejecutar no duplica filas).
+
+Los insumos de desayuno y aseo se cargan con `activo=false` (no se venden) y `costo_clp` = precio unitario del proveedor.
+Los equipos de cocina y lavandería, y el aire acondicionado y calefont de cada habitación, entran como activos con plan de mantención anual.
+Los CSV generados llevan precios de proveedores: no se suben al repositorio.

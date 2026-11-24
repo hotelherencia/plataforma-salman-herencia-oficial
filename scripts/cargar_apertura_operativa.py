@@ -41,6 +41,7 @@ def parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
     grupo_modo.add_argument("--aplicar", action="store_true", help="Aplica los CSV validados de forma idempotente.")
     parser.add_argument("--inventarios", type=Path, default=None, help="Ruta a CSV saneado de inventarios iniciales (0055).")
     parser.add_argument("--incidencias", type=Path, default=None, help="Ruta a CSV saneado de incidencias iniciales (0059).")
+    parser.add_argument("--activos", type=Path, default=None, help="Ruta a CSV saneado de activos y planes de mantención (0069).")
     parser.add_argument("--reservas", type=Path, default=None, help="Ruta a CSV saneado de reservas futuras y anticipos al 31-12-2026.")
     parser.add_argument("--empresa-id", default=EMPRESA_TITULAR.id, help="Identificador de la empresa en la BD.")
     parser.add_argument("--actor", default="migracion_apertura", help="Actor registrado en auditoría.")
@@ -51,8 +52,8 @@ def parsear_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parsear_args(argv)
-    if not (args.inventarios or args.incidencias or args.reservas):
-        print("Error: indica al menos un archivo (--inventarios, --incidencias o --reservas).", file=sys.stderr)
+    if not (args.inventarios or args.incidencias or args.reservas or args.activos):
+        print("Error: indica al menos un archivo (--inventarios, --incidencias, --activos o --reservas).", file=sys.stderr)
         return 2
     db_url = args.database_url or os.environ.get("DATABASE_URL")
     if not db_url:
@@ -71,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
             inventarios_csv=args.inventarios,
             incidencias_csv=args.incidencias,
             reservas_csv=args.reservas,
+            activos_csv=args.activos,
             aplicar=bool(args.aplicar),
             actor=args.actor,
             nucleo=app_dom.nucleo,

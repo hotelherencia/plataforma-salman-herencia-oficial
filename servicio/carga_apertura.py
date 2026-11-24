@@ -3,7 +3,7 @@
 Soporta `--dry-run` (emite acta de validación sin escribir en la base) y `--aplicar`
 (carga 100 % idempotente y auditable sin PII) desde CSV saneados:
 1. Inventarios iniciales (`Lavandería`, `Insumos Aseo`, `Insumos Desayuno`, `Cocina`) en `0055`.
-2. Incidencias operativas iniciales de mantenimiento en `0059`.
+2. Incidencias operativas iniciales de mantenimiento en `0059` y activos con plan de mantención en `0069`.
 3. Reservas futuras y anticipos heredados al corte 31-12-2026.
 """
 from __future__ import annotations
@@ -21,6 +21,8 @@ from . import contabilidad, documento as documento_mod, hotel_sql, productos as 
 FECHA_CORTE_APERTURA = date(2026, 12, 31)
 CATEGORIAS_PRODUCTO = {"minibar", "cafeteria", "servicio", "extra"}
 GRAVEDADES_INCIDENCIA = {"baja", "media", "alta", "critica"}
+CATEGORIAS_ACTIVO = {"mobiliario", "electrico", "climatizacion", "sanitario", "electronico", "otro"}
+ESTADOS_ACTIVO = {"operativo", "en_reparacion", "de_baja"}
 MEDIOS_ANTICIPO = {"efectivo", "debito", "credito", "transferencia"}
 COLUMNAS_PROHIBIDAS = {"password", "clave", "clave_hash", "contrasena", "contraseña", "secret", "token", "tarjeta", "cvv"}
 
@@ -291,6 +293,100 @@ def cargar_incidencias_csv(
     }
 
 
+# --- 2b. Activos y planes de mantención iniciales en 0069 ---------------------
+
+def cargar_activos_csv(
+    conexion: psycopg.Connection,
+    ruta_csv: Path,
+    *,
+    aplicar: bool = False,
+    actor: str = "migracion_apertura",
+) -> dict:
+    """Activos por habitación o área común, con su plan de mantención opcional. Idempotente:
+    el id sale del `codigo_externo`, así que repetir la carga no duplica filas."""
+    cabeceras, filas = _leer_csv(ruta_csv)
+    errores: list[dict] = [{"linea": 1, "error": e} for e in _validar_sin_columnas_sensibles(cabeceras)]
+    requeridas = {"codigo_externo", "nombre"}
+    faltantes = sorted(requeridas - set(cabeceras))
+    if faltantes:
+        errores.append({"linea": 1, "error": f"faltan columnas obligatorias: {', '.join(faltantes)}"})
+        return {"archivo": str(ruta_csv.name), "total_filas": len(filas), "validos": 0, "aplicados": 0, "omitidos": 0, "errores": errores}
+
+    habs_validas = {r[0] for r in conexion.execute("SELECT id FROM habitaciones").fetchall()}
+    validas = []
+    vistos: set[str] = set()
+    for f in filas:
+        linea = int(f["_linea"])
+        try:
+            cod = f["codigo_externo"].strip()
+            if not cod:
+                raise ValueError("codigo_externo es obligatorio")
+            if cod.lower() in vistos:
+                raise ValueError(f"codigo_externo duplicado en CSV: {cod}")
+            vistos.add(cod.lower())
+            hab_id = f.get("habitacion_id", "").strip() or None
+            area = f.get("area", "").strip() or None
+            if not hab_id and not area:
+                raise ValueError("indica habitacion_id o area")
+            if hab_id and hab_id not in habs_validas:
+                raise ValueError(f"habitacion_id inexistente: «{hab_id}»")
+            if area and not (2 <= len(area) <= 60):
+                raise ValueError("area debe tener entre 2 y 60 caracteres")
+            nombre = f["nombre"].strip()
+            if not (2 <= len(nombre) <= 80):
+                raise ValueError("nombre debe tener entre 2 y 80 caracteres")
+            categoria = (f.get("categoria") or "otro").strip().lower()
+            if categoria not in CATEGORIAS_ACTIVO:
+                raise ValueError(f"categoria inválida «{categoria}»")
+            estado = (f.get("estado") or "operativo").strip().lower()
+            if estado not in ESTADOS_ACTIVO:
+                raise ValueError(f"estado inválido «{estado}»")
+            notas = (f.get("notas") or "").strip()[:300] or None
+            plan = None
+            desc = (f.get("mantencion_descripcion") or "").strip()
+            if desc:
+                if not (3 <= len(desc) <= 200):
+                    raise ValueError("mantencion_descripcion debe tener entre 3 y 200 caracteres")
+                cada = _int_csv(f.get("mantencion_cada_dias") or "", "mantencion_cada_dias", minimo=1)
+                if cada > 1830:
+                    raise ValueError("mantencion_cada_dias debe ser <= 1830")
+                plan = {"descripcion": desc, "cada_dias": cada,
+                        "proxima": _fecha_csv(f.get("mantencion_proxima") or "", "mantencion_proxima")}
+            digest = hashlib.md5(cod.lower().encode()).hexdigest()[:10]
+            validas.append({"linea": linea, "id": f"ACT-{digest}", "plan_id": f"MNP-{digest}", "habitacion_id": hab_id,
+                            "area": area, "nombre": nombre, "categoria": categoria, "estado": estado,
+                            "notas": notas, "plan": plan})
+        except ValueError as err:
+            errores.append({"linea": linea, "error": str(err)})
+
+    aplicados = omitidos = 0
+    if aplicar and not errores:
+        with conexion.transaction():
+            for item in validas:
+                if conexion.execute("SELECT 1 FROM activos WHERE id = %s", (item["id"],)).fetchone():
+                    omitidos += 1
+                    continue
+                conexion.execute(
+                    "INSERT INTO activos (id, habitacion_id, area, nombre, categoria, estado, notas, creado_por) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (item["id"], item["habitacion_id"], item["area"], item["nombre"], item["categoria"],
+                     item["estado"], item["notas"], actor),
+                )
+                if item["plan"]:
+                    conexion.execute(
+                        "INSERT INTO mantenciones_plan (id, activo_id, descripcion, cada_dias, proxima, creado_por) "
+                        "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",
+                        (item["plan_id"], item["id"], item["plan"]["descripcion"], item["plan"]["cada_dias"],
+                         item["plan"]["proxima"], actor),
+                    )
+                aplicados += 1
+            seguridad.auditar(conexion, actor, "apertura_activos", ruta_csv.name,
+                              f"aplicados={aplicados},omitidos={omitidos}")
+
+    return {"archivo": str(ruta_csv.name), "total_filas": len(filas), "validos": len(validas),
+            "aplicados": aplicados, "omitidos": omitidos, "errores": errores}
+
+
 # --- 3. Reservas futuras y anticipos heredados (corte 31-12-2026) --------------
 
 def cargar_reservas_apertura_csv(
@@ -478,6 +574,7 @@ def ejecutar_apertura(
     inventarios_csv: Path | None = None,
     incidencias_csv: Path | None = None,
     reservas_csv: Path | None = None,
+    activos_csv: Path | None = None,
     aplicar: bool = False,
     actor: str = "migracion_apertura",
     nucleo=None,
@@ -495,6 +592,8 @@ def ejecutar_apertura(
         acta["secciones"]["inventarios"] = cargar_inventarios_csv(conexion, inventarios_csv, aplicar=aplicar, actor=actor)
     if incidencias_csv is not None:
         acta["secciones"]["incidencias"] = cargar_incidencias_csv(conexion, incidencias_csv, aplicar=aplicar, actor=actor)
+    if activos_csv is not None:
+        acta["secciones"]["activos"] = cargar_activos_csv(conexion, activos_csv, aplicar=aplicar, actor=actor)
     if reservas_csv is not None:
         acta["secciones"]["reservas"] = cargar_reservas_apertura_csv(
             conexion, empresa_id, reservas_csv, aplicar=aplicar, actor=actor, nucleo=nucleo, hotel=hotel,
