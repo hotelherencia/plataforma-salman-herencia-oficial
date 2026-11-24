@@ -25,6 +25,7 @@ from .. import documental
 from .. import hotel_sql
 from .. import huespedes as huespedes_db
 from .. import idempotencia
+from .. import asistente
 from .. import inventario_documental
 from .. import leads as leads_mod
 from .. import observabilidad
@@ -894,17 +895,12 @@ def _es_reintento(conexion, registrada, empresa_id: str, clave: str, accion: str
     return True
 
 
-@router.get("/publico/tarifas")
-def listar_tarifas_publicas(
-    request: Request,
-    conexion=Depends(comun.conexion),
-) -> JSONResponse:
-    """Tarifas base públicas vigentes por tipo de habitación (CLP, IVA incluido).
-    Sin sesión, solo lectura, sin IDs de habitación ni PII."""
+def tarifas_publicas_lista(request: Request, conexion) -> list[dict]:
+    """Tipos con tarifa base pública (sin IDs de habitación ni PII). Lo usan /publico/tarifas y el asistente."""
     es_titular = not request.app.state.aplicacion.nucleo.empresa.es_sintetico
     filtro = inventario_documental.es_inventario_operativo if es_titular else None
     lista = tipos_habitacion.listar(conexion, date.today(), filtro_inventario=filtro)
-    tipos_publicos = [
+    return [
         {
             "tipo": t["tipo_id"],
             "nombre": t["nombre"],
@@ -914,9 +910,18 @@ def listar_tarifas_publicas(
         for t in lista
         if t.get("activo", True) and t.get("precio_base_clp") and t["precio_base_clp"] > 0
     ]
+
+
+@router.get("/publico/tarifas")
+def listar_tarifas_publicas(
+    request: Request,
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Tarifas base públicas vigentes por tipo de habitación (CLP, IVA incluido).
+    Sin sesión, solo lectura, sin IDs de habitación ni PII."""
     return JSONResponse(
         status_code=200,
-        content={"moneda": "CLP", "iva_incluido": True, "tipos": tipos_publicos},
+        content={"moneda": "CLP", "iva_incluido": True, "tipos": tarifas_publicas_lista(request, conexion)},
         headers={"Cache-Control": "public, max-age=300"},
     )
 
@@ -1036,6 +1041,14 @@ def crear_solicitud_publica(
     despachador = getattr(request.app.state, "avisos", None)
     if codigo == 201 and despachador is not None and despachador.activo:
         tareas.add_task(despachador.despachar_seguro)
+    # Borrador automático en /hotel/agente (sin nombre ni contacto; montos de las herramientas del agente).
+    config = getattr(request.app.state, "configuracion", None)
+    if codigo == 201 and config is not None and config.database_url:
+        tareas.add_task(
+            asistente.crear_borrador_desde_solicitud, config.database_url, empresa_id,
+            getattr(request.app.state, "modelo_agente", None), None,
+            asistente.texto_solicitud_web(str(solicitud.inicio), str(solicitud.fin), solicitud.personas, tipo),
+        )
     return JSONResponse(status_code=codigo, content=resultado)
 
 

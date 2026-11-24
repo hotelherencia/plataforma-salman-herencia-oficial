@@ -2,6 +2,7 @@ import './globals.css'
 import './diseno.css'
 import Lienzo from './lienzo.jsx'
 import { ProveedorMensajes } from './_componentes/centro-mensajes'
+import AsistenteAyuda from './_componentes/asistente-ayuda'
 import { NOMBRE_COMERCIAL } from '../lib/marca'
 
 // Iconos PNG de la hoja del logo oficial (16/32/48 + ICO) y apple-touch 180
@@ -28,6 +29,7 @@ export default function Layout({ children }) {
       <body>
         <ProveedorMensajes>
           <Lienzo>{children}</Lienzo>
+          <AsistenteAyuda />
         </ProveedorMensajes>
       </body>
     </html>

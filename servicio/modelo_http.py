@@ -174,3 +174,30 @@ class ModeloHttp:
         if not isinstance(herramienta, str) or not isinstance(argumentos, dict):
             raise ModeloFallo("respuesta fuera del contrato decidir(): tipos inválidos")
         return {"herramienta": herramienta, "argumentos": argumentos}
+
+    def responder(self, sistema: str, pregunta: str, max_tokens: int = 300) -> str:
+        """Respuesta de texto libre (asistente público/interno). Mismas defensas que `decidir`:
+        sin redirecciones, respuesta acotada y fallo reportado como ModeloFallo."""
+        cuerpo = json.dumps({
+            "model": self._modelo,
+            "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": pregunta}],
+            "max_tokens": int(max_tokens),
+            "temperature": 0.2,
+        }).encode("utf-8")
+        peticion = urllib.request.Request(
+            self._url, data=cuerpo, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"},
+        )
+        try:
+            with _ABRIDOR.open(peticion, timeout=self._timeout) as respuesta:
+                crudo = respuesta.read(TOPE_RESPUESTA_BYTES + 1)
+                if len(crudo) > TOPE_RESPUESTA_BYTES:
+                    raise ValueError("respuesta del modelo demasiado grande")
+                payload = json.loads(crudo.decode("utf-8"))
+            return str(payload["choices"][0]["message"]["content"]).strip()
+        except urllib.error.HTTPError as error:
+            codigo = error.code
+            error.close()
+            raise ModeloFallo(f"el modelo no respondió usable: HTTP {codigo}") from error
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError, IndexError, TypeError) as error:
+            raise ModeloFallo(f"el modelo no respondió usable: {error}") from error
