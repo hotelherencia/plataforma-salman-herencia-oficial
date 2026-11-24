@@ -189,7 +189,7 @@ export default function LibroNovedades({ puedeOperar = false }) {
               {TURNOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
             </CampoSelect>
             <Campo etiqueta="Desayunos servidos" type="number" min="0" value={desayunos} onChange={(e) => setDesayunos(e.target.value)} />
-            <Campo etiqueta="Resumen de novedades" value={resumen} placeholder="Llegadas pendientes, recados, incidencias del turno" onChange={(e) => setResumen(e.target.value)} />
+            <div style={{ gridColumn: "span 2", minWidth: "16rem" }}><Campo etiqueta="Resumen de novedades" value={resumen} placeholder="Llegadas pendientes, recados, incidencias del turno" onChange={(e) => setResumen(e.target.value)} /></div>
             <button type="submit" className="boton-primario">Registrar novedad</button>
           </form>
 
