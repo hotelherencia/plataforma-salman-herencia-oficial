@@ -206,6 +206,22 @@ if __name__ == "__main__":
         prompt, _, max_tok = capturado[0]
         self.assertIn("ESTADO EN VIVO DEL HOTEL", prompt)
         self.assertIn("Habitaciones totales:", prompt)
+        self.assertIn("CONVENIOS Y RESERVA PROVISORIA", prompt)
         self.assertIn("PANTALLA ACTUAL (/hotel/reservas)", prompt)
         self.assertIn("HISTORIAL RECIENTE", prompt)
         self.assertEqual(max_tok, asistente.MAX_TOKENS_INTERNO)
+
+    def test_respuesta_sin_markdown_ni_caracteres_especiales(self):
+        class _Md:
+            def responder(self, prompt, pregunta, max_tokens=300):
+                return "### Guía\n* Ve a **Clientes** (`/hotel/clientes`) y revisa __Convenios__."
+
+        self.app.state.modelo_agente = _Md()
+        r = self._login("recep_as").post("/hotel/asistente", json={"pregunta": "¿cómo creo un convenio?"})
+        self.assertEqual(r.status_code, 200, r.text)
+        resp = r.json()["respuesta"]
+        self.assertNotIn("**", resp)
+        self.assertNotIn("`", resp)
+        self.assertNotIn("###", resp)
+        self.assertNotIn("__", resp)
+        self.assertIn("- Ve a Clientes (/hotel/clientes) y revisa Convenios.", resp)
