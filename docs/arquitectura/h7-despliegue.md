@@ -606,6 +606,8 @@ con rol `administrador` o `admin_plataforma`) y `SUPER_ADMIN_EMAIL` (el correo i
 a esa cuenta). Al arrancar, si no hay súper administrador, esa cuenta lo es. Falla cerrado: sin ambas variables o con
 otro correo, no promueve. Después se pueden retirar las variables.
 
+**Segundo factor estricto (#461):** `MFA_ESTRICTO=1` hace que administración y dueño sin TOTP activo solo alcancen `/sesion` y `/cuenta` (para enrolarlo). Activarlo cuando cada persona ya enroló su TOTP; el súper administrador siempre es estricto.
+
 **Jerarquía** (`servicio/roles.py`, `RANGO`): súper administrador 100 > dueño 90 > administrador 80 > administrador de
 plataforma / de hotel 60 > recepción, caja, aseo 10. Nadie crea, cambia la clave, vincula correo, revoca ni da de baja
 una cuenta de rango igual o superior; intentarlo da 403 y deja alerta. El administrador de plataforma solo gobierna

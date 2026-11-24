@@ -224,6 +224,18 @@ class CuentasHttpTest(unittest.TestCase):
         for k in ("ah", "dn", "rc"):
             self.assertEqual(self.c[k].get("/usuarios").status_code, 403, k)
 
+    def test_con_mfa_estricto_admin_y_dueno_sin_totp_solo_se_enrolan(self):
+        # #461: con MFA_ESTRICTO=1 la administración y el dueño sin segundo factor solo pueden enrolarse.
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"MFA_ESTRICTO": "1"}):
+            for k in ("adm", "ah", "dn", "ap"):
+                self.assertEqual(self.c[k].get("/sesion").status_code, 200, k)
+                self.assertEqual(self.c[k].get("/hotel/solicitudes").status_code, 403, k)
+            self.assertEqual(self.c["rc"].get("/hotel/solicitudes").status_code, 200)  # sin 2FA obligatorio
+            self._totp("adm")
+            self.assertEqual(self.c["adm"].get("/hotel/solicitudes").status_code, 200)
+        self.assertEqual(self.c["ah"].get("/hotel/solicitudes").status_code, 200)  # sin la variable, como antes
+
 
 class CuentaInicialTest(unittest.TestCase):
     CORREO = "institucional@example.com"
@@ -260,3 +272,4 @@ class CuentaInicialTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

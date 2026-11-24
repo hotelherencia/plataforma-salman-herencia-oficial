@@ -7,6 +7,7 @@ los módulos de rutas no necesitan capturar la fábrica.
 from __future__ import annotations
 
 import logging
+import os
 import dataclasses
 import re
 from typing import Iterator
@@ -71,6 +72,15 @@ RUTAS_ASEO = tuple(re.compile(p) for p in (
 ))
 
 
+def _exige_enrolado(rol: str) -> bool:
+    """El súper administrador nunca opera sin segundo factor. El resto de los roles que lo exigen
+    (administración y dueño) lo hacen con MFA_ESTRICTO=1: se activa cuando ya enrolaron su TOTP,
+    para no dejar sin acceso a quien aún no lo hizo (#461)."""
+    if rol == roles.SUPER_ADMIN:
+        return True
+    return os.environ.get("MFA_ESTRICTO") == "1" and roles.exige_doble_factor(rol)
+
+
 def requerir_sesion(
     request: Request,
     response: Response,
@@ -122,11 +132,11 @@ def requerir_sesion(
     request.state.actor, request.state.rol = sesion.nombre, sesion.rol  # para los logs (nunca la clave ni la cookie)
     if sesion.rol == roles.ASEO and not any(p.match(request.url.path) for p in RUTAS_ASEO):
         raise seguridad.ErrorPermiso("el rol aseo no tiene acceso a esta operación")
-    if sesion.rol == roles.SUPER_ADMIN and not _RUTAS_SIN_ELEVAR.match(request.url.path):
-        # Sin segundo factor activo, el súper administrador solo alcanza su sesión y su cuenta (para enrolarlo).
+    if _exige_enrolado(sesion.rol) and not _RUTAS_SIN_ELEVAR.match(request.url.path):
+        # #461: sin segundo factor activo, estos roles solo alcanzan su sesión y su cuenta (para enrolarlo).
         (con_totp,) = conn.execute("SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)).fetchone()
         if not con_totp:
-            raise seguridad.ErrorPermiso("el súper administrador debe activar el segundo factor en /cuenta antes de operar")
+            raise seguridad.ErrorPermiso("activa el segundo factor en /cuenta antes de operar")
     if sesion.rol == roles.DUENO:
         ruta = request.url.path
         if request.method in ("GET", "HEAD"):
