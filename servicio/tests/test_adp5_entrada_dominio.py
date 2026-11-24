@@ -121,11 +121,11 @@ class EntradaDominioTest(unittest.TestCase):
         self.assertEqual(self.entrada(rid, {"documento": " 12.345.678-5 "}).status_code, 200)
         self.assertEqual(self.sql("SELECT huesped_documento FROM reservas WHERE id=%s", rid)[0][0], "12.345.678-5")
 
-    def test_antes_de_las_15_del_dia_de_inicio_409_y_a_las_15_pasa(self):
+    def test_antes_de_las_14_del_dia_de_inicio_409_y_a_las_14_pasa(self):
         rid = self.reservar(a=0, b=2)
-        with a_las(HOY, time(14, 59)):
+        with a_las(HOY, time(13, 59)):
             self.assertEqual(self.entrada(rid).status_code, 409)
-        with a_las(HOY, time(15, 0)):
+        with a_las(HOY, time(14, 0)):
             self.assertEqual(self.entrada(rid).status_code, 200)
 
     def test_futuro_409(self):
