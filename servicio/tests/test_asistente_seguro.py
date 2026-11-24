@@ -53,7 +53,7 @@ class AsistenteTest(unittest.TestCase):
         with psycopg.connect(URL_TEST) as c:
             c.execute("TRUNCATE freno_solicitudes_eventos, consultas_agente, solicitudes, reserva_noches, reservas, tarifas, "
                       "excepciones_precio, habitaciones, claves_idempotencia, sesiones CASCADE")
-            for nombre, rol in (("recep_as", "recepcion"), ("aseo_as", "aseo"), ("dueno_as", "dueno")):
+            for nombre, rol in (("recep_as", "recepcion"), ("aseo_as", "aseo"), ("dueno_as", "dueno"), ("admin_as", "admin_hotel")):
                 c.execute("INSERT INTO usuarios (id, nombre, clave_hash, rol, empresa_id, activo) VALUES (%s,%s,%s,%s,"
                           "'EMP-SINTETICA-001', true) ON CONFLICT (id) DO UPDATE SET clave_hash=EXCLUDED.clave_hash, "
                           "rol=EXCLUDED.rol, activo=true", (f"USR-AS-{nombre}", nombre, h, rol))
@@ -148,7 +148,7 @@ class AsistenteTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertNotIn("ana@example.com", self.modelo.llamadas[-1]["pregunta"])
         self.assertIn("Caja", self.modelo.llamadas[-1]["sistema"])
-        self.assertEqual(self._login("root_as").post(url, json={"pregunta": "¿dónde veo las solicitudes?"}).status_code, 200)
+        self.assertEqual(self._login("admin_as").post(url, json={"pregunta": "¿dónde veo las solicitudes?"}).status_code, 200)
 
     def _solicitud(self, n):
         return self.pub.post("/publico/solicitudes", headers={"Idempotency-Key": f"pub-asist-{n}-xxxxxxxxxxxxxx"}, json={
