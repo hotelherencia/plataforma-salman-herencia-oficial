@@ -595,23 +595,33 @@ con estado vendible. No se inventa el listado en código.
 5. Bloqueo: sin el listado del propietario esta historia no se cierra. #314
    (razón social/RUT) sigue aparte.
 
-### Cuenta administradora del hotel (V1-ISSUE-43 / #338)
+### Cuentas privilegiadas y súper administrador (V1-ISSUE-43 / #338)
 
-No hay rol nuevo. El rol es `administrador` de la empresa del núcleo.
+**Un solo súper administrador:** la cuenta institucional (`hotelherenciacl@gmail.com`). Nadie crea ni asigna
+ese rol por la API (índice único `uq_un_super_admin_por_empresa`). Exige segundo factor activo: sin él solo puede
+entrar a `/cuenta` a enrolarlo.
 
-1. Entrar con un administrador existente → `/hotel/usuarios`.
-2. Alta: nombre nominado, rol `administrador`, clave temporal (≥ 6).
-3. La persona entra en `/login` (usuario/clave **o** «Entrar con Google» si
-   su correo está en `usuarios.email`) y cambia la clave en `/cuenta` (pide
-   la clave actual).
-4. **TOTP / autenticador no es obligatorio.** En producción el admin operativo
-   tiene `totp_activado=false` (validado 2026-11-10): el dueño no habilitó
-   un segundo factor distinto del correo vía Google. Activar TOTP en `/cuenta`
-   queda opcional; no se exige para cerrar esta historia.
-5. Puede: habitaciones/tarifas, reservas (con documento), entrada/salida,
-   leads, solicitudes, agente, alta de `recepcion`/`caja`.
-6. Evidencia: anotar en #338 el nombre de usuario y la fecha (sin clave).
-   #323 (roles fuera del hotel) sigue fuera de V1.
+**Primera promoción (una sola vez, en Railway):** definir `SUPER_ADMIN_USUARIO` (nombre de la cuenta de arranque,
+con rol `administrador` o `admin_plataforma`) y `SUPER_ADMIN_EMAIL` (el correo institucional, que debe estar vinculado
+a esa cuenta). Al arrancar, si no hay súper administrador, esa cuenta lo es. Falla cerrado: sin ambas variables o con
+otro correo, no promueve. Después se pueden retirar las variables.
+
+**Segundo factor estricto (#461):** `MFA_ESTRICTO=1` hace que administración y dueño sin TOTP activo solo alcancen `/sesion` y `/cuenta` (para enrolarlo). Activarlo cuando cada persona ya enroló su TOTP; el súper administrador siempre es estricto.
+
+**Jerarquía** (`servicio/roles.py`, `RANGO`): súper administrador 100 > dueño 90 > administrador 80 > administrador de
+plataforma / de hotel 60 > recepción, caja, aseo 10. Nadie crea, cambia la clave, vincula correo, revoca ni da de baja
+una cuenta de rango igual o superior; intentarlo da 403 y deja alerta. El administrador de plataforma solo gobierna
+recepción, caja y aseo; el súper administrador crea los administradores y el dueño.
+
+**Todo cambio de rol se valida:** un alta con rol privilegiado y cualquier cambio de rol (`POST /usuarios/{id}/rol`) quedan
+pendientes hasta que los aprueba un `admin_hotel` o `administrador` que no sea quien los pidió ni el afectado
+(la administradora del hotel, `hotelherencia01@gmail.com` con rol `admin_hotel`, que **no** es súper administradora, los ve y los aprueba en `/hotel/usuarios` y en el panel → «Cambios de rol pendientes»; ahí también ve el listado de usuarios, en solo lectura). Hasta entonces la cuenta nueva está inactiva. Excepción única y
+registrada (`sin_aprobador`): aún no existe ningún aprobador activo.
+
+Alta de la administradora del hotel (p. ej. `hotelherencia01@gmail.com`): el súper administrador crea una cuenta
+`admin_hotel` con ese correo vinculado (la primera se aplica sin aprobador; las siguientes las valida ella). Entra con
+usuario/clave o «Entrar con Google», cambia su clave en `/cuenta` y activa el segundo factor. Evidencia en #338: nombre de
+usuario y fecha, sin clave. Una cuenta por persona: el buzón compartido no es una identidad.
 
 ### Enlace Maps / Business Profile (V1-ISSUE-44 / #339)
 

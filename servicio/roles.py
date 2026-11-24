@@ -28,19 +28,61 @@ from core.incremento1.nucleo.roles import (
     MODULOS_ACTIVOS_POR_DEFECTO,
     RECEPCION,
     DUENO,
+    SUPER_ADMIN,
     CatalogoRoles,
     DefinicionRol,
 )
 
-ROLES_VALIDOS = (DUENO, ADMINISTRADOR, ADMIN_HOTEL, ADMIN_PLATAFORMA, RECEPCION, CAJA, ASEO)
+ROLES_VALIDOS = (SUPER_ADMIN, DUENO, ADMINISTRADOR, ADMIN_HOTEL, ADMIN_PLATAFORMA, RECEPCION, CAJA, ASEO)
 PATRON_ROL = "^(" + "|".join(ROLES_VALIDOS) + ")$"
 
-ROLES_ADMIN_HOTEL = frozenset({ADMINISTRADOR, ADMIN_HOTEL})
-ROLES_ADMIN_PLATAFORMA = frozenset({ADMINISTRADOR, ADMIN_PLATAFORMA})
+ROLES_ADMIN_HOTEL = frozenset({SUPER_ADMIN, ADMINISTRADOR, ADMIN_HOTEL})
+ROLES_ADMIN_PLATAFORMA = frozenset({SUPER_ADMIN, ADMINISTRADOR, ADMIN_PLATAFORMA})
 # Roles que exigen doble factor (TOTP).
 ROLES_ADMIN = ROLES_ADMIN_HOTEL | ROLES_ADMIN_PLATAFORMA
 
 ETIQUETAS = CATALOGO.etiquetas()
+
+# Jerarquía de cuentas: nadie crea, cambia la clave, vincula el correo, revoca ni da de baja una cuenta
+# de rango igual o superior al suyo. Solo el súper administrador gobierna cuentas privilegiadas
+# (incluidas otras de súper administrador); así un administrador de plataforma comprometido no puede
+# tomar la cuenta del dueño ni de un administrador. Un rol desconocido vale 0.
+RANGO = {
+    SUPER_ADMIN: 100,
+    DUENO: 90,
+    ADMINISTRADOR: 80,
+    ADMIN_PLATAFORMA: 60,
+    ADMIN_HOTEL: 60,
+    RECEPCION: 10,
+    CAJA: 10,
+    ASEO: 10,
+}
+RANGO_PRIVILEGIADO = 60  # desde aquí una cuenta es «privilegiada» (alertas y registro reforzado)
+
+
+def es_super_admin(rol: str | None) -> bool:
+    return rol == SUPER_ADMIN
+
+
+def puede_gestionar(rol_actor: str | None, rol_objetivo: str | None) -> bool:
+    """¿Puede `rol_actor` crear o administrar cuentas con `rol_objetivo`? Exige ser administración de
+    plataforma y tener rango estrictamente mayor. El rol súper administrador no se crea ni se asigna
+    por la API (hay uno solo, ligado al correo institucional): nadie lo gestiona."""
+    if rol_objetivo == SUPER_ADMIN or rol_objetivo not in RANGO or not es_admin_plataforma(rol_actor):
+        return False
+    return rol_actor == SUPER_ADMIN or RANGO.get(rol_actor, 0) > RANGO[rol_objetivo]
+
+
+# Quienes validan un cambio de rol: la administración del hotel (nunca quien lo pidió ni el afectado).
+ROLES_APROBADORES = frozenset({ADMIN_HOTEL, ADMINISTRADOR})
+
+
+def es_privilegiado(rol: str | None) -> bool:
+    return RANGO.get(rol, 0) >= RANGO_PRIVILEGIADO
+
+
+def roles_gestionables(rol_actor: str | None) -> list[str]:
+    return [r for r in ROLES_VALIDOS if puede_gestionar(rol_actor, r)]
 
 
 def es_admin_hotel(rol: str | None) -> bool:
@@ -102,6 +144,13 @@ def listar_catalogo(conexion: psycopg.Connection, empresa_id: str | None = None)
 
 __all__ = [
     "ADMINISTRADOR",
+    "SUPER_ADMIN",
+    "RANGO",
+    "ROLES_APROBADORES",
+    "es_super_admin",
+    "puede_gestionar",
+    "es_privilegiado",
+    "roles_gestionables",
     "ADMIN_HOTEL",
     "ADMIN_PLATAFORMA",
     "ASEO",

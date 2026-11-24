@@ -26,7 +26,7 @@ from servicio.rutas import comun
 URL_TEST = os.environ.get(
     "DATABASE_URL_TEST", "postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma_test_aislamiento")
 CLAVE = "Clave123!"
-ROLES = ["administrador", "admin_hotel", "admin_plataforma", "dueno", "recepcion", "caja", "aseo"]
+ROLES = ["super_admin", "administrador", "admin_hotel", "admin_plataforma", "dueno", "recepcion", "caja", "aseo"]
 RX_ROL = re.compile(
     r"exigir_|ROLES_|roles\.(es_|ROLES|con_)|es_admin|\.rol\b|sesion\.rol|permite\(|firma_valida|verify_token|app_secret")
 
@@ -98,7 +98,7 @@ class BarridoPorRolTest(unittest.TestCase):
                 c.execute(
                     "INSERT INTO usuarios (id, nombre, clave_hash, rol, empresa_id, activo) VALUES "
                     "(%s, %s, %s, %s, 'EMP-SINTETICA-001', true) ON CONFLICT (id) DO UPDATE SET "
-                    "clave_hash = EXCLUDED.clave_hash, rol = EXCLUDED.rol, activo = true",
+                    "clave_hash = EXCLUDED.clave_hash, rol = EXCLUDED.rol, activo = true, totp_activado = false",
                     (f"USR-AISL-{rol}", f"aisl_{rol}", h, rol))
             c.commit()
         cls.cli = {}
@@ -107,6 +107,9 @@ class BarridoPorRolTest(unittest.TestCase):
             r = cl.post("/sesion", json={"usuario": f"aisl_{rol}", "clave": CLAVE})
             assert r.status_code == 200, (rol, r.text)
             cls.cli[rol] = cl
+        with psycopg.connect(URL_TEST) as c:  # el súper administrador solo opera con segundo factor activo
+            c.execute("UPDATE usuarios SET totp_activado = true WHERE nombre = 'aisl_super_admin'")
+            c.commit()
         cls.esquema = cls.app.openapi()
         cls._n = 0
 
@@ -196,6 +199,11 @@ class BarridoPorRolTest(unittest.TestCase):
         # Y las dos sí pueden lo suyo (cualquier cosa menos 401/403).
         self.assertNotIn(self._enviar("admin_hotel", "POST", "/hotel/precios/excepciones"), (401, 403))
         self.assertNotIn(self._enviar("admin_plataforma", "POST", "/usuarios"), (401, 403))
+
+    def test_super_admin_hace_lo_de_ambas_administraciones(self):
+        self.assertNotIn(self._enviar("super_admin", "POST", "/usuarios"), (401, 403))
+        self.assertNotIn(self._enviar("super_admin", "POST", "/hotel/precios/excepciones"), (401, 403))
+        self.assertNotIn(self._enviar("super_admin", "PUT", "/hotel/politicas"), (401, 403))
 
     def test_sin_sesion_toda_ruta_protegida_responde_401(self):
         anonimo = TestClient(self.app)

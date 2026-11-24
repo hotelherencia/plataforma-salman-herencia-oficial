@@ -13,6 +13,7 @@ MODULO_CORE = "core"
 MODULO_HOTEL = "hotel"
 MODULOS_ACTIVOS_POR_DEFECTO = (MODULO_CORE, MODULO_HOTEL)
 
+SUPER_ADMIN = "super_admin"
 DUENO = "dueno"
 ADMINISTRADOR = "administrador"
 ADMIN_HOTEL = "admin_hotel"
@@ -44,6 +45,14 @@ class DefinicionRol:
 
 
 CATALOGO_BASE: tuple[DefinicionRol, ...] = (
+    DefinicionRol(
+        codigo=SUPER_ADMIN,
+        modulo=MODULO_CORE,
+        etiqueta="Súper administrador",
+        descripcion="Gobierna las cuentas privilegiadas (administradores, dueño y otros súper administradores) y la seguridad; tiene todo lo de la administración",
+        exige_doble_factor=True,
+        orden=1,
+    ),
     DefinicionRol(
         codigo=DUENO,
         modulo=MODULO_CORE,

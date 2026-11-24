@@ -41,9 +41,11 @@ export function FilaUsuario({ usuario, alElegir }) {
         {usuario.google_vinculado && ' · Google'}
       </span>
       <span role="cell" className="usuario-accion">
-        <button type="button" className="boton-fantasma" onClick={() => alElegir(usuario.id)}>
-          Seleccionar
-        </button>
+        {alElegir && (
+          <button type="button" className="boton-fantasma" onClick={() => alElegir(usuario.id)}>
+            Seleccionar
+          </button>
+        )}
       </span>
     </li>
   )

@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoClave, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
-import { ETIQUETAS_ROL, ROLES, esAdminPlataforma } from '../../../lib/roles'
+import { ETIQUETAS_ROL, ROLES, apruebaCambiosDeRol, esAdminPlataforma } from '../../../lib/roles'
 import { useMensajes } from '../../_componentes/centro-mensajes'
+import CambiosDeRol from '../_componentes/cambios-de-rol'
 
 export default function Usuarios() {
   const sesion = useSesion()
@@ -20,6 +21,7 @@ export default function Usuarios() {
   const [error, setError] = useState('')
   const [usuarios, setUsuarios] = useState(null)
   const [catalogoRoles, setCatalogoRoles] = useState(null)
+  const [rolesCreables, setRolesCreables] = useState(null)
   const [claveAlta, renovarClaveAlta] = useClaveOperacion()
   const [claveCambioOp, renovarClaveCambio] = useClaveOperacion()
   const [claveRevocacion, renovarClaveRevocacion] = useClaveOperacion()
@@ -27,11 +29,16 @@ export default function Usuarios() {
   const [claveVinculo, renovarClaveVinculo] = useClaveOperacion()
 
   const esAdmin = sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol)
+  // La administración del hotel no gestiona cuentas, pero valida los cambios de rol y ve quién tiene qué rol.
+  const soloValida = sesion.fase === 'ok' && !esAdmin && apruebaCambiosDeRol(sesion.usuario.rol)
 
   async function cargarUsuarios() {
     try {
       const r = await api('/usuarios')
-      if (r.estado === 200) setUsuarios(r.datos.usuarios)
+      if (r.estado === 200) {
+        setUsuarios(r.datos.usuarios)
+        setRolesCreables(r.datos.roles_que_puedes_crear || null)
+      }
       else setUsuarios([])
     } catch {
       setUsuarios([])
@@ -39,6 +46,7 @@ export default function Usuarios() {
   }
 
   useEffect(() => {
+    if (soloValida) cargarUsuarios()
     if (!esAdmin) return
     cargarUsuarios()
     api('/roles')
@@ -46,7 +54,7 @@ export default function Usuarios() {
         if (r.estado === 200 && Array.isArray(r.datos?.roles)) setCatalogoRoles(r.datos.roles)
       })
       .catch(() => {})
-  }, [esAdmin])
+  }, [esAdmin, soloValida])
 
   async function postear(ruta, cuerpo, clave, alExito, e) {
     e.preventDefault()
@@ -77,6 +85,28 @@ export default function Usuarios() {
     setVinculo((v) => ({ ...v, id }))
   }
 
+  if (soloValida) {
+    return (
+      <MarcoHotel titulo="Usuarios y cambios de rol">
+        <CambiosDeRol rol={sesion.usuario.rol} />
+        <section className="tarjeta">
+          <h2>Usuarios de la empresa</h2>
+          {usuarios === null ? (
+            <p className="estado" role="status" aria-busy="true">Cargando usuarios…</p>
+          ) : usuarios.length === 0 ? (
+            <UsuariosVacios />
+          ) : (
+            <ListaUsuarios usuarios={usuarios} total={usuarios.length} />
+          )}
+          <p className="nota-chica">
+            Aquí validas los cambios de rol que pide la administración de plataforma. Un rol administrativo o del dueño no
+            queda activo hasta que lo apruebas; quien lo pidió no puede aprobarlo.
+          </p>
+        </section>
+      </MarcoHotel>
+    )
+  }
+
   if (sesion.fase === 'ok' && !esAdminPlataforma(sesion.usuario.rol)) {
     return (
       <MarcoHotel titulo="Usuarios">
@@ -89,6 +119,7 @@ export default function Usuarios() {
     <MarcoHotel titulo="Gestión de usuarios (administración de plataforma)">
       <section className="tarjeta">
         <h2>Usuarios de la empresa</h2>
+        <CambiosDeRol rol={sesion.fase === 'ok' ? sesion.usuario.rol : null} />
         {usuarios === null ? (
           <p className="estado" role="status" aria-busy="true">Cargando usuarios…</p>
         ) : usuarios.length === 0 ? (
@@ -103,7 +134,7 @@ export default function Usuarios() {
         <form className="formulario" onSubmit={(e) => postear('/usuarios', { nombre: alta.nombre, rol: alta.rol, clave: alta.clave, ...(alta.email.trim() ? { email: alta.email.trim() } : {}) }, claveAlta, renovarClaveAlta, e)}>
           <Campo etiqueta="Nombre" value={alta.nombre} onChange={(e) => setAlta({ ...alta, nombre: e.target.value })} />
           <CampoSelect etiqueta="Rol" value={alta.rol} onChange={(e) => setAlta({ ...alta, rol: e.target.value })}>
-            {(catalogoRoles || ROLES.map((codigo) => ({ codigo, etiqueta: ETIQUETAS_ROL[codigo] || codigo, modulo: codigo === 'administrador' || codigo === 'admin_plataforma' ? 'core' : 'hotel' }))).map((item) => (
+            {(catalogoRoles || ROLES.map((codigo) => ({ codigo, etiqueta: ETIQUETAS_ROL[codigo] || codigo, modulo: codigo === 'administrador' || codigo === 'admin_plataforma' ? 'core' : 'hotel' }))).filter((item) => !rolesCreables || rolesCreables.includes(item.codigo)).map((item) => (
               <option key={item.codigo} value={item.codigo}>
                 {item.etiqueta} ({item.modulo === 'core' ? 'Plataforma' : item.modulo === 'hotel' ? 'Hotel' : item.modulo})
               </option>
@@ -112,6 +143,10 @@ export default function Usuarios() {
           <p className="nota-chica">
             Administrador del hotel: precios, tipos, habitaciones, reservas, caja y reportes. Administrador de plataforma:
             usuarios, seguridad y ajustes del sistema (tasa de IVA). Todo rol administrativo exige doble factor.
+          </p>
+          <p className="nota-chica">
+            Solo se ofrecen los roles que tu cuenta puede asignar. Un rol administrativo o del dueño queda pendiente hasta que lo valide
+            la administración del hotel; la cuenta no puede entrar mientras tanto.
           </p>
           <CampoClave etiqueta="Clave" autoComplete="new-password" value={alta.clave} onChange={(e) => setAlta({ ...alta, clave: e.target.value })} />
           <Campo etiqueta="Correo de Google (opcional)" type="email" autoComplete="off" value={alta.email} onChange={(e) => setAlta({ ...alta, email: e.target.value })} />

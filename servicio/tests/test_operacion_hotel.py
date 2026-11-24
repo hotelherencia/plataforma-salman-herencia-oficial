@@ -101,6 +101,11 @@ class OperacionBaseTest(unittest.TestCase):
             headers={"Idempotency-Key": self.clave()},
         )
 
+    def select_escribir(self, sql, parametros=()):
+        with psycopg.connect(URL_TEST) as conexion:
+            conexion.execute(sql, parametros)
+            conexion.commit()
+
     def select(self, sql, parametros=()):
         with psycopg.connect(URL_TEST) as conexion:
             exigir_base_libre(conexion)
@@ -335,10 +340,11 @@ class GestionUsuariosTest(OperacionBaseTest):
         admin_id = self.select("SELECT id FROM usuarios WHERE nombre='admin'")[0][0]
         self.assertEqual(self.cliente.post(f"/usuarios/{admin_id}/baja",
                                            headers={"Idempotency-Key": self.clave()}).status_code, 409)
-        # la baja sobre OTRO administrador sí se permite y deja el conteo en uno
-        otro_admin = self.crear_usuario("admin2", "administrador")
+        # la baja sobre OTRO administrador de rango menor sí se permite y deja el conteo en uno
+        otro_admin = self.crear_usuario("admin2", "recepcion")
+        self.select_escribir("UPDATE usuarios SET rol='admin_plataforma' WHERE id=%s", (otro_admin,))  # un administrador no crea a otro
         self.assertEqual(self.select(
-            "SELECT count(*) FROM usuarios WHERE empresa_id=%s AND rol='administrador' AND activo",
+            "SELECT count(*) FROM usuarios WHERE empresa_id=%s AND rol IN ('administrador', 'admin_plataforma') AND activo",
             (EMPRESA,))[0][0], 2)
         respuesta = self.cliente.post(f"/usuarios/{otro_admin}/baja", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)

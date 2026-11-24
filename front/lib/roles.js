@@ -6,10 +6,12 @@
 // - admin_plataforma: Administrador de plataforma (usuarios, seguridad,
 //   ajustes del sistema como la tasa de IVA).
 // - administrador: rol histórico = ambas administraciones.
+// - super_admin: la cuenta institucional (una sola). Gobierna las cuentas privilegiadas; nadie la crea por la API.
 
-export const ROLES = ['dueno', 'administrador', 'admin_hotel', 'admin_plataforma', 'recepcion', 'caja', 'aseo']
+export const ROLES = ['super_admin', 'dueno', 'administrador', 'admin_hotel', 'admin_plataforma', 'recepcion', 'caja', 'aseo']
 
 export const ETIQUETAS_ROL = {
+  super_admin: 'Súper administrador',
   dueno: 'Dueño (lectura global)',
   administrador: 'Administrador (hotel y plataforma)',
   admin_hotel: 'Administrador del hotel',
@@ -20,11 +22,16 @@ export const ETIQUETAS_ROL = {
 }
 
 export function esAdminHotel(rol) {
-  return rol === 'administrador' || rol === 'admin_hotel'
+  return rol === 'super_admin' || rol === 'administrador' || rol === 'admin_hotel'
 }
 
 export function esAdminPlataforma(rol) {
-  return rol === 'administrador' || rol === 'admin_plataforma'
+  return rol === 'super_admin' || rol === 'administrador' || rol === 'admin_plataforma'
+}
+
+/** Valida los cambios de rol: la administración del hotel (nunca quien los pidió; la API lo exige). */
+export function apruebaCambiosDeRol(rol) {
+  return rol === 'administrador' || rol === 'admin_hotel'
 }
 
 /** Dueño del grupo: lee todo y deja observaciones a la administración; no cambia datos. */

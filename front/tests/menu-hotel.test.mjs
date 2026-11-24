@@ -50,7 +50,7 @@ describe('menú del hotel (entrega 1A.3)', () => {
   it('#455: lista exacta de enlaces por rol', () => {
     const enlaces = (rol, extra = {}) => seccionesVisibles({
       puedeVerAgente: ['administrador', 'admin_hotel', 'recepcion'].includes(rol),
-      puedeVerUsuarios: ['administrador', 'admin_plataforma'].includes(rol),
+      puedeVerUsuarios: ['administrador', 'admin_hotel', 'admin_plataforma'].includes(rol),
       puedeVerAseo: ['administrador', 'admin_hotel', 'recepcion', 'aseo'].includes(rol),
       puedeVerClientes: ['administrador', 'admin_hotel', 'recepcion', 'caja'].includes(rol),
       soloAseo: rol === 'aseo', rol, ...extra,
@@ -58,7 +58,7 @@ describe('menú del hotel (entrega 1A.3)', () => {
     const base = ['/hotel/panel', '/hotel/ocupacion', '/hotel/habitaciones', '/hotel/aseo', '/hotel/reservas',
       '/hotel/solicitudes', '/hotel/agente', '/hotel/clientes', '/hotel/estadia', '/hotel/salida', '/hotel/caja',
       '/hotel/configuracion', '/hotel/productos']
-    assert.deepEqual(enlaces('admin_hotel'), base)
+    assert.deepEqual(enlaces('admin_hotel'), [...base, '/hotel/usuarios'])  // valida cambios de rol
     assert.deepEqual(enlaces('administrador'), [...base, '/hotel/usuarios'])
     assert.deepEqual(enlaces('recepcion'), base)
     assert.deepEqual(enlaces('caja'), ['/hotel/panel', '/hotel/ocupacion', '/hotel/reservas', '/hotel/clientes', '/hotel/caja', '/hotel/productos'])

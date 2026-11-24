@@ -5,15 +5,19 @@ estado que antes capturaban las closures (freno, estados OAuth, config) se
 lee de `request.app.state`.
 """
 import json
+import logging
 import os
 import secrets
 import time
 
+import psycopg
+
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
 from .. import roles
-from .. import google_oidc, idempotencia, observabilidad, seguridad, totp, totp_qr
+from .. import cambios_rol, google_oidc, idempotencia, observabilidad, seguridad, totp, totp_qr
 from ..canal_publico import ip_visible
 from . import comun
 from .modelos import ClaveActualIn, ClaveIn, CodigoTotpIn, Credenciales, EmailUsuarioIn, UsuarioIn
@@ -389,13 +393,35 @@ def listar_roles_catalogo(
     return roles.listar_catalogo(conexion, sesion.empresa_id)
 
 
+def _exigir_gestion(conexion, sesion, rol_objetivo: str | None, accion: str, objetivo: str) -> None:
+    """Jerarquía de cuentas: nadie administra una cuenta de rango igual o superior al suyo (ver roles.RANGO).
+    Un intento fallido se audita y alerta: es lo que haría quien intenta tomar la cuenta de un superior."""
+    if roles.puede_gestionar(sesion.rol, rol_objetivo):
+        if roles.es_privilegiado(rol_objetivo):
+            observabilidad.evento_seguridad(
+                "cuenta_privilegiada_modificada", nivel=logging.WARNING, actor=sesion.nombre[:64],
+                accion=accion, rol_objetivo=rol_objetivo,
+            )
+        return
+    seguridad.auditar(conexion, sesion.nombre, "usuario-jerarquia", objetivo, f"{accion} denegado sobre rol {rol_objetivo}")
+    conexion.commit()
+    observabilidad.evento_seguridad(
+        "gestion_cuenta_denegada", actor=sesion.nombre[:64], accion=accion, rol_actor=sesion.rol, rol_objetivo=rol_objetivo,
+    )
+    raise seguridad.ErrorPermiso("no puedes administrar una cuenta de rango igual o superior al tuyo")
+
+
 @router.get("/usuarios")
 def listar_usuarios(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    comun.exigir_admin_plataforma(sesion)
-    return {"usuarios": seguridad.listar_usuarios(conexion, sesion.empresa_id)}
+    # La administración del hotel (que valida los cambios de rol) ve el listado, sin poder gestionar a nadie.
+    comun.exigir_rol(sesion, roles.ROLES_ADMIN_PLATAFORMA | roles.ROLES_APROBADORES)
+    usuarios = seguridad.listar_usuarios(conexion, sesion.empresa_id)
+    for u in usuarios:
+        u["gestionable"] = roles.puede_gestionar(sesion.rol, u["rol"]) and u["id"] != sesion.usuario_id
+    return {"usuarios": usuarios, "roles_que_puedes_crear": roles.roles_gestionables(sesion.rol)}
 
 
 @router.post("/usuarios")
@@ -406,6 +432,7 @@ def alta_usuario(
     conexion=Depends(comun.conexion),
 ) -> JSONResponse:
     comun.exigir_admin_plataforma(sesion)
+    _exigir_gestion(conexion, sesion, usuario.rol, "alta", f"rol:{usuario.rol}")
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = json.loads(usuario.model_dump_json())
 
@@ -424,6 +451,16 @@ def alta_usuario(
         # La auditoría registra el vínculo sin copiar el correo (Ley 21.719).
         seguridad.auditar(conexion, sesion.nombre, "usuario", usuario_id,
                           "creado con Google" if usuario.email else "creado")
+        if roles.es_privilegiado(usuario.rol):
+            # Un rol privilegiado no queda activo hasta que lo valide la administración del hotel.
+            conexion.execute("UPDATE usuarios SET activo = false WHERE id = %s", (usuario_id,))
+            cambio = cambios_rol.solicitar(conexion, sesion.empresa_id, usuario_id, None, usuario.rol,
+                                           "alta con rol privilegiado", sesion.usuario_id, sesion.nombre)
+            aplicado = cambio["estado"] == "aprobado"
+            return (201 if aplicado else 202), {
+                "id": usuario_id, "nombre": usuario.nombre, "rol": usuario.rol, "activo": aplicado,
+                "google_vinculado": bool(usuario.email), "estado": "activa" if aplicado else "pendiente_validacion",
+                "cambio_id": cambio["cambio_id"]}
         return 201, {"id": usuario_id, "nombre": usuario.nombre, "rol": usuario.rol, "activo": True,
                      "google_vinculado": bool(usuario.email)}
 
@@ -433,6 +470,88 @@ def alta_usuario(
         raise HTTPException(status_code=409, detail=str(error))
     conexion.commit()
     return JSONResponse(status_code=codigo, content=cuerpo_respuesta)
+
+class CambioRolIn(BaseModel):
+    rol: str = Field(pattern=roles.PATRON_ROL)
+    motivo: str | None = Field(default=None, max_length=300)
+
+
+class ResolucionCambioIn(BaseModel):
+    comentario: str | None = Field(default=None, max_length=300)
+
+
+@router.post("/usuarios/{usuario_id}/rol")
+def solicitar_cambio_de_rol(
+    usuario_id: str,
+    cuerpo: CambioRolIn,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    """Pide cambiar el rol de una cuenta. Nunca se aplica solo: lo valida la administración del hotel."""
+    comun.exigir_admin_plataforma(sesion)
+    if usuario_id == sesion.usuario_id:
+        raise HTTPException(status_code=409, detail="no puedes cambiar tu propio rol")
+    _id, _nombre, rol_actual, activo = seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)
+    _exigir_gestion(conexion, sesion, rol_actual, "cambio-rol", usuario_id)
+    _exigir_gestion(conexion, sesion, cuerpo.rol, "cambio-rol-a", usuario_id)
+    if cuerpo.rol == rol_actual:
+        raise HTTPException(status_code=409, detail="la cuenta ya tiene ese rol")
+    try:
+        resultado = cambios_rol.solicitar(conexion, sesion.empresa_id, usuario_id, rol_actual, cuerpo.rol,
+                                          cuerpo.motivo, sesion.usuario_id, sesion.nombre)
+    except psycopg.errors.UniqueViolation:
+        conexion.rollback()
+        raise HTTPException(status_code=409, detail="ya hay un cambio de rol pendiente para esa cuenta")
+    conexion.commit()
+    return JSONResponse(status_code=200 if resultado["sin_aprobador"] else 202, content=resultado)
+
+
+@router.get("/usuarios/cambios-rol")
+def listar_cambios_de_rol(
+    estado: str | None = None,
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> dict:
+    comun.exigir_rol(sesion, roles.ROLES_ADMIN_PLATAFORMA | roles.ROLES_APROBADORES)
+    if estado not in (None, "pendiente", "aprobado", "rechazado"):
+        raise HTTPException(status_code=422, detail="estado inválido")
+    return {"cambios": cambios_rol.listar(conexion, sesion.empresa_id, estado)}
+
+
+def _resolver_cambio(cambio_id, aprobar, cuerpo, sesion, conexion) -> JSONResponse:
+    comun.exigir_rol(sesion, roles.ROLES_APROBADORES)
+    try:
+        resultado = cambios_rol.resolver(conexion, sesion.empresa_id, cambio_id, aprobar, sesion, cuerpo.comentario)
+    except cambios_rol.CambioNoEncontrado:
+        raise seguridad.ErrorPermiso("acceso denegado")
+    except cambios_rol.CambioNoPermitido as error:
+        raise seguridad.ErrorPermiso(str(error))
+    except cambios_rol.CambioYaResuelto as error:
+        raise HTTPException(status_code=409, detail=f"el cambio ya está {error}")
+    conexion.commit()
+    return JSONResponse(status_code=200, content=resultado)
+
+
+@router.post("/usuarios/cambios-rol/{cambio_id}/aprobacion")
+def aprobar_cambio_de_rol(
+    cambio_id: str,
+    cuerpo: ResolucionCambioIn = Body(default_factory=ResolucionCambioIn),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, roles.ROLES_APROBADORES)
+    return _resolver_cambio(cambio_id, True, cuerpo, sesion, conexion)
+
+
+@router.post("/usuarios/cambios-rol/{cambio_id}/rechazo")
+def rechazar_cambio_de_rol(
+    cambio_id: str,
+    cuerpo: ResolucionCambioIn = Body(default_factory=ResolucionCambioIn),
+    sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
+    conexion=Depends(comun.conexion),
+) -> JSONResponse:
+    comun.exigir_rol(sesion, roles.ROLES_APROBADORES)
+    return _resolver_cambio(cambio_id, False, cuerpo, sesion, conexion)
 
 
 @router.post("/usuarios/{usuario_id}/email")
@@ -446,6 +565,8 @@ def vincular_email_usuario(
     """#352: la administración de plataforma vincula o desvincula el correo de
     Google con que entra un usuario. Un correo pertenece a un solo usuario."""
     comun.exigir_admin_plataforma(sesion)
+    _exigir_gestion(conexion, sesion, seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)[2],
+                    "vinculo-correo", usuario_id)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_email.model_dump_json())}
 
@@ -476,6 +597,9 @@ def cambiar_clave_usuario(
 ) -> JSONResponse:
     if not roles.es_admin_plataforma(sesion.rol) and sesion.usuario_id != usuario_id:
         raise HTTPException(status_code=403, detail="acceso denegado")
+    if sesion.usuario_id != usuario_id:
+        _exigir_gestion(conexion, sesion, seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)[2],
+                        "cambio-clave", usuario_id)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"usuario_id": usuario_id, **json.loads(cuerpo_clave.model_dump_json())}
     try:
@@ -530,6 +654,8 @@ def revocar_usuario(
     comun.exigir_admin_plataforma(sesion)
     if usuario_id == sesion.usuario_id:
         raise HTTPException(status_code=409, detail="para cerrar tu sesión usa DELETE /sesion")
+    _exigir_gestion(conexion, sesion, seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)[2],
+                    "revocacion", usuario_id)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"usuario_id": usuario_id, "operacion": "revocacion"}
 
@@ -557,6 +683,8 @@ def baja_usuario(
     comun.exigir_admin_plataforma(sesion)
     if usuario_id == sesion.usuario_id:
         raise HTTPException(status_code=409, detail="no puedes darte de baja a ti mismo")
+    _exigir_gestion(conexion, sesion, seguridad.buscar_usuario_en_empresa(conexion, sesion.empresa_id, usuario_id)[2],
+                    "baja", usuario_id)
     clave = comun.clave_idempotencia_o_400(idempotency_key)
     cuerpo = {"usuario_id": usuario_id, "operacion": "baja"}
 
@@ -566,6 +694,8 @@ def baja_usuario(
         )
         if not activo:
             return 409, {"detail": "el usuario ya está de baja"}
+        if rol == roles.SUPER_ADMIN and seguridad.contar_super_admins_activos(conexion, sesion.empresa_id) <= 1:
+            return 409, {"detail": "no se puede dar de baja al último súper administrador activo"}
         if roles.es_admin_plataforma(rol) and seguridad.contar_administradores_activos(
             conexion, sesion.empresa_id
         ) <= 1:

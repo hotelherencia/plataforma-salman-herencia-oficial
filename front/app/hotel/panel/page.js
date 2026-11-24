@@ -14,6 +14,7 @@ import Turnos from '../_componentes/turnos'
 import Biblioteca from '../_componentes/biblioteca'
 import LibroNovedades from '../_componentes/libro-novedades'
 import ObservacionesDireccion from '../_componentes/observaciones-direccion'
+import CambiosDeRol from '../_componentes/cambios-de-rol'
 import { esAdminHotel, gestionaRecepcion, veDireccion } from '../../../lib/roles'
 import { fechaCorta, plural, porcentaje } from '../../../lib/formato'
 import { nombreTipo } from '../../reservar/continuidad'
@@ -185,6 +186,7 @@ export default function Panel() {
         <>
           {veDireccion(sesion.usuario.rol) && <ResumenDueno corte={datos.fecha_corte} />}
           {veDireccion(sesion.usuario.rol) && <ObservacionesDireccion rol={sesion.usuario.rol} />}
+          {esAdminHotel(sesion.usuario.rol) && <CambiosDeRol rol={sesion.usuario.rol} />}
           <Atencion atencion={datos.atencion} />
           <Mantenciones puedeGestionar={gestionaRecepcion(sesion.usuario.rol)} />
           <Comunicados puedePublicar={esAdminHotel(sesion.usuario.rol)} />
