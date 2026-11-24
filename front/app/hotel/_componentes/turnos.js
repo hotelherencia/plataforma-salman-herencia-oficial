@@ -146,15 +146,16 @@ export default function Turnos({ usuario, puedeAdministrar = false }) {
         </div>
       )}
       {puedeAdministrar && (
-        <form
-          className="formulario"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            if (!nuevo.fecha || !nuevo.usuario.trim()) return setError('Indica el día y la persona.')
-            await enviar('/hotel/turnos', { ...nuevo, usuario: nuevo.usuario.trim() }, 'tur', 'Turno agregado.')
-          }}
-        >
+        <>
           <h3 className="subtitulo">Agregar turno</h3>
+          <form
+            className="formulario"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (!nuevo.fecha || !nuevo.usuario.trim()) return setError('Indica el día y la persona.')
+              await enviar('/hotel/turnos', { ...nuevo, usuario: nuevo.usuario.trim() }, 'tur', 'Turno agregado.')
+            }}
+          >
           <Campo etiqueta="Día" type="date" value={nuevo.fecha} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} />
           <label className="campo">Área
             <select value={nuevo.area} onChange={(e) => setNuevo({ ...nuevo, area: e.target.value })}>
@@ -171,7 +172,8 @@ export default function Turnos({ usuario, puedeAdministrar = false }) {
             <input type="time" value={nuevo.hora_fin} onChange={(e) => setNuevo({ ...nuevo, hora_fin: e.target.value })} />
           </label>
           <button type="submit" className="boton-primario">Agregar</button>
-        </form>
+          </form>
+        </>
       )}
     </section>
   )

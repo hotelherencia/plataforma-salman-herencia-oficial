@@ -12,8 +12,26 @@ function clave(prefijo) {
 }
 
 /** #415: reporte rápido desde el móvil, con foto y bloqueo opcional de la habitación. */
+function sugerirReporte(texto, habitacion) {
+  const base = texto.trim()
+  if (!base) return null
+  const lower = base.toLowerCase()
+  let gravedad = 'media'
+  if (/(volt|eléctric|electric|corte|fuga|filtraci|agua caliente|cerradura|aire|calefont|inunda|sin luz)/.test(lower)) {
+    gravedad = 'alta'
+  }
+  const habTxt = habitacion ? `Habitación ${habitacion}: ` : ''
+  const limpio = base.charAt(0).toUpperCase() + base.slice(1)
+  const punto = /[.!?]$/.test(limpio) ? '' : '.'
+  return {
+    texto: `${habTxt}${limpio}${punto} Se solicita revisión técnica y seguimiento en turno.`,
+    gravedad,
+  }
+}
+
 export function ReporteIncidencia({ habitacionId, alGuardar }) {
   const [habitacion, setHabitacion] = useState(habitacionId || '')
+  const [habitaciones, setHabitaciones] = useState([])
   const [descripcion, setDescripcion] = useState('')
   const [gravedad, setGravedad] = useState('media')
   const [bloquea, setBloquea] = useState(false)
@@ -21,6 +39,15 @@ export function ReporteIncidencia({ habitacionId, alGuardar }) {
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
   const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    if (habitacionId) return
+    api('/hotel/habitaciones').then((r) => {
+      if (r.estado === 200 && Array.isArray(r.datos?.habitaciones)) {
+        setHabitaciones(r.datos.habitaciones)
+      }
+    }).catch(() => {})
+  }, [habitacionId])
 
   async function enviar(e) {
     e.preventDefault()
@@ -63,19 +90,44 @@ export function ReporteIncidencia({ habitacionId, alGuardar }) {
     }
   }
 
+  function aplicarAsistente() {
+    const res = sugerirReporte(descripcion, habitacion.trim())
+    if (!res) {
+      setError('Escribe primero una nota breve (ej. "aire no enfría, voltaje 206V") para redactarla.')
+      return
+    }
+    setError('')
+    setDescripcion(res.texto)
+    setGravedad(res.gravedad)
+    setAviso(`Redacción sugerida aplicada (gravedad: ${ETIQUETA_GRAVEDAD[res.gravedad] || res.gravedad}).`)
+  }
+
   return (
-    <form className="formulario" onSubmit={enviar} aria-label="Reportar incidencia" data-reporte-incidencia>
+    <>
       <h3 className="subtitulo">Reportar incidencia</h3>
-      {!habitacionId && (
+      <form className="formulario" onSubmit={enviar} aria-label="Reportar incidencia" data-reporte-incidencia>
+        {!habitacionId && (
+          <label className="campo">
+            <span className="campo-etiqueta">Habitación</span>
+            {habitaciones.length > 0 ? (
+              <select className="entrada" value={habitacion} onChange={(e) => setHabitacion(e.target.value)}>
+                <option value="">Selecciona habitación…</option>
+                {habitaciones.map((h) => (
+                  <option key={h.id} value={h.id}>{h.id}</option>
+                ))}
+              </select>
+            ) : (
+              <input className="entrada" value={habitacion} onChange={(e) => setHabitacion(e.target.value)} placeholder="HAB-01" />
+            )}
+          </label>
+        )}
         <label className="campo">
-          <span className="campo-etiqueta">Habitación</span>
-          <input className="entrada" value={habitacion} onChange={(e) => setHabitacion(e.target.value)} placeholder="HAB-01" />
+          <span className="campo-etiqueta">¿Qué pasó?</span>
+          <textarea className="entrada" rows={3} maxLength={1000} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Describe brevemente el problema (ej. filtración en ducha o aire sin enfriar)" />
+          <button type="button" className="boton-fantasma" style={{ justifySelf: 'start', marginTop: '0.25rem' }} onClick={aplicarAsistente}>
+            Redactar con asistente
+          </button>
         </label>
-      )}
-      <label className="campo">
-        <span className="campo-etiqueta">¿Qué pasó?</span>
-        <textarea className="entrada" rows={3} maxLength={1000} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
-      </label>
       <label className="campo">
         <span className="campo-etiqueta">Gravedad</span>
         <select className="entrada" value={gravedad} onChange={(e) => setGravedad(e.target.value)}>
@@ -93,7 +145,8 @@ export function ReporteIncidencia({ habitacionId, alGuardar }) {
       {error && <p role="alert" className="alerta">{error}</p>}
       {aviso && <p role="status" className="aviso-ok">{aviso}</p>}
       <button type="submit" className="boton-primario" disabled={enviando}>{enviando ? 'Enviando…' : 'Registrar incidencia'}</button>
-    </form>
+      </form>
+    </>
   )
 }
 

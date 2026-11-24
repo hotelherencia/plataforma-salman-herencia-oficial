@@ -186,6 +186,8 @@ def ejecutar_limpieza(
     identificadores = sql.SQL(", ").join(sql.Identifier(t) for t in objetivo)
     with conn.cursor() as cur:
         cur.execute(sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY CASCADE").format(identificadores))
+        if "habitaciones" in existentes and "reservas" in objetivo:
+            cur.execute("UPDATE habitaciones SET estado_operativo = 'disponible' WHERE estado_operativo = 'ocupada'")
     conn.commit()
     return objetivo
 

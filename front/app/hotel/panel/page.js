@@ -137,6 +137,7 @@ export default function Panel() {
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [detalleAbierto, setDetalleAbierto] = useState({})
 
   async function cargar(f) {
     setError('')
@@ -467,18 +468,21 @@ export default function Panel() {
                   <div className="grafico-barras-contenedor">
                     <div className="grafico-barras">
                       {datos.serie.map((s) => {
-                        const max = s.unidades || 1
+                        const max = s.unidades || 0
                         const ocupadas = s.ocupadas_estadias ?? 0
-                        const reservadas = Math.max(0, (s.reservadas || 0) - ocupadas)
-                        const libres = Math.max(0, max - ocupadas - reservadas)
-                        const pctOcupadas = Math.min(100, (ocupadas / max) * 100)
-                        const pctReservadas = Math.min(100 - pctOcupadas, (reservadas / max) * 100)
-                        const pctLibre = Math.max(0, 100 - pctOcupadas - pctReservadas)
+                        const reservadas = max > 0 ? Math.max(0, (s.reservadas || 0) - ocupadas) : 0
+                        const libres = max > 0 ? Math.max(0, max - ocupadas - reservadas) : 0
+                        const pctOcupadas = max > 0 ? Math.min(100, (ocupadas / max) * 100) : 0
+                        const pctReservadas = max > 0 ? Math.min(100 - pctOcupadas, (reservadas / max) * 100) : 0
+                        const pctLibre = max > 0 ? Math.max(0, 100 - pctOcupadas - pctReservadas) : 0
                         const dia = diaSemana(s.fecha)
                         const fechaCortaNoche = fechaCorta(s.fecha)
+                        const tituloBarra = max > 0
+                          ? `${formatearFecha(s.fecha)}: ${ocupadas} en casa, ${reservadas} reservadas, ${libres} disponibles de ${max} unidades`
+                          : `${formatearFecha(s.fecha)}: sin inventario registrado`
                         return (
                           <div key={s.fecha} className="columna-noche">
-                            <div className="barra-pila" title={`${formatearFecha(s.fecha)}: ${ocupadas} en casa, ${reservadas} reservadas, ${libres} disponibles de ${max} unidades`}>
+                            <div className="barra-pila" title={tituloBarra}>
                               {libres > 0 && <div className="barra-porcion porcion-libre" style={{ height: `${pctLibre}%`, minHeight: '1.15rem' }}>{libres}</div>}
                               {reservadas > 0 && <div className="barra-porcion porcion-reservada" style={{ height: `${pctReservadas}%`, minHeight: '1.15rem' }}>{reservadas}</div>}
                               {ocupadas > 0 && <div className="barra-porcion porcion-ocupada" style={{ height: `${pctOcupadas}%`, minHeight: '1.15rem' }}>{ocupadas}</div>}
@@ -504,27 +508,47 @@ export default function Panel() {
                   <th>Capacidad</th>
                   <th>Ocupadas</th>
                   <th>Reservadas</th>
+                  <th>Disponibles</th>
                 </tr>
               </thead>
               <tbody>
-                {datos.serie.map((s) => (
-                  <Fragment key={s.fecha}>
-                    <tr>
-                      <td><strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span></td>
-                      <td>{s.unidades}</td>
-                      <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
-                      <td>{s.reservadas}</td>
-                    </tr>
-                    {Array.isArray(s.detalle_por_tipo) && s.detalle_por_tipo.map((d) => (
-                      <tr key={`${s.fecha}-${d.tipo_habitacion}`} style={{ fontSize: '0.88em', opacity: 0.85 }}>
-                        <td style={{ paddingLeft: '1.5rem' }}>↳ {d.tipo_habitacion}</td>
-                        <td>{d.capacidad_total}</td>
-                        <td>{d.en_casa}</td>
-                        <td>{d.reservadas} (disp: {d.disponibles})</td>
+                {datos.serie.map((s) => {
+                  const tieneDetalle = Array.isArray(s.detalle_por_tipo) && s.detalle_por_tipo.length > 0 && (s.unidades || 0) > 0
+                  const abierto = Boolean(detalleAbierto[s.fecha])
+                  const disp = Math.max(0, (s.unidades || 0) - (s.reservadas || 0))
+                  return (
+                    <Fragment key={s.fecha}>
+                      <tr>
+                        <td>
+                          <strong>{formatearFecha(s.fecha)}</strong> <span className="noche-dia">({diaSemana(s.fecha)})</span>
+                          {tieneDetalle && (
+                            <button
+                              type="button"
+                              className="boton-fantasma"
+                              style={{ marginLeft: '0.5rem', padding: '0.15rem 0.5rem', fontSize: '0.8em', minHeight: 'auto' }}
+                              onClick={() => setDetalleAbierto((prev) => ({ ...prev, [s.fecha]: !prev[s.fecha] }))}
+                            >
+                              {abierto ? 'Ocultar tipos' : 'Por tipo'}
+                            </button>
+                          )}
+                        </td>
+                        <td>{s.unidades}</td>
+                        <td>{s.ocupadas_estadias === null ? 'futura' : s.ocupadas_estadias}</td>
+                        <td>{s.reservadas}</td>
+                        <td>{disp}</td>
                       </tr>
-                    ))}
-                  </Fragment>
-                ))}
+                      {abierto && s.detalle_por_tipo.map((d) => (
+                        <tr key={`${s.fecha}-${d.tipo_habitacion}`} style={{ fontSize: '0.88em', opacity: 0.88 }}>
+                          <td style={{ paddingLeft: '1.5rem' }}>↳ {nombreTipo(d.tipo_habitacion)}</td>
+                          <td>{d.capacidad_total}</td>
+                          <td>{d.en_casa}</td>
+                          <td>{d.reservadas}</td>
+                          <td>{d.disponibles}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
             </div>

@@ -1686,6 +1686,9 @@ input[type="radio"] {
   height: 2.75rem;
 }
 
+.formulario > .subtitulo,
+.formulario > h2,
+.formulario > h3,
 .formulario > .acciones-fila,
 .formulario > .filtros,
 .formulario > .nota-clave,
@@ -2212,4 +2215,20 @@ textarea.entrada {
   .dialogo-fondo {
     backdrop-filter: none;
   }
+}
+
+/* Cabeceras con filtro integrado y selector de archivo legible */
+.tarjeta-cabecera {
+  align-items: flex-end;
+}
+.tarjeta-cabecera > .filtros {
+  width: auto;
+  flex: 0 1 auto;
+}
+.campo input[type="file"],
+.campo .entrada[type="file"] {
+  height: auto;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.65rem;
+  font-size: var(--t-sm);
 }
