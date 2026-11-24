@@ -45,12 +45,12 @@ ESTADO_NO_VENDIBLE = "estado no vendible"
 EMPRESA_DESCONOCIDA = "empresa desconocida"
 TAREA_INEXISTENTE = "tarea inexistente"
 
-# Propuesta técnica (README del incremento 1): cancelación gratuita hasta 48 h
-# antes de la llegada; la llegada se toma a la hora de check-in fijada abajo.
-LIMITE_CANCELACION_GRATUITA = timedelta(hours=48)
-HORA_LLEGADA = time(15, 0)
+# Propuesta técnica (README del incremento 1): cancelación gratuita hasta 24 h
+# antes de la llegada (ratificado por Administración 21-11-2026); la llegada se toma a la hora de check-in fijada abajo.
+LIMITE_CANCELACION_GRATUITA = timedelta(hours=24)
+HORA_LLEGADA = time(14, 0)
 POLITICA_CANCELACION = (
-    "cancelación gratuita hasta 48 horas antes de la llegada; "
+    "cancelación gratuita hasta 24 horas antes de la llegada; "
     "después se carga la primera noche"
 )
 VIGENCIA_OFERTA = timedelta(minutes=15)

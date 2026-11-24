@@ -2,8 +2,8 @@
 
 Verifica en aislamiento contra PostgreSQL real:
 1. Cancelación explícita dentro y fuera de plazo: transición única a `cancelada`,
-   un único reverso por cada cargo previo, penalidad única cuando faltan < 48 h
-   para las 15:00 del día de inicio, `reembolso: "no configurado"` sin tocar pagos.
+   un único reverso por cada cargo previo, penalidad única cuando faltan < 24 h
+   para las 14:00 del día de inicio, `reembolso: "no configurado"` sin tocar pagos.
 2. Idempotencia secuencial y concurrente con la MISMA clave (`Idempotency-Key`):
    dos solicitudes simultáneas con misma clave y mismo cuerpo devuelven ambas 200
    con el mismo payload (sin 409 por UniqueViolation en `claves_idempotencia`) y
@@ -38,8 +38,8 @@ ADMIN = ("admin", "clave-admin-sintetica")
 HOY = date.today()
 FUTURO = (HOY + timedelta(days=20)).isoformat()
 FUTURO_FIN = (HOY + timedelta(days=23)).isoformat()
-CORTO_INICIO = (HOY + timedelta(days=1)).isoformat()
-CORTO_FIN = (HOY + timedelta(days=3)).isoformat()
+CORTO_INICIO = HOY.isoformat()
+CORTO_FIN = (HOY + timedelta(days=2)).isoformat()
 
 
 class CancelacionEstadiaTest(unittest.TestCase):

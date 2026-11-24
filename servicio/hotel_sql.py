@@ -92,7 +92,7 @@ _REGISTRADO = None
 
 def ahora():
     """Reloj del servidor en hora de Chile (America/Santiago, naive para el dominio) para
-    las reglas que dependen de la hora (llegada 15:00, 48 h). Un solo punto para pruebas."""
+    las reglas que dependen de la hora (llegada 14:00, 24 h). Un solo punto para pruebas."""
     from zoneinfo import ZoneInfo
 
     return datetime.now(ZoneInfo("America/Santiago")).replace(tzinfo=None)
@@ -433,7 +433,7 @@ def entrada(
     conexion: psycopg.Connection, hotel, empresa_id: str, reserva_id: str, documento: str | None, ahora,
     documento_tipo: str | None = None, habitacion_id: str | None = None, personas: int | None = None, actor: str = "sistema",
 ) -> dict:
-    """Check-in por `hotel.check_in` (ADP-5): documento, llegada ≥ 15:00, mantenimiento y unidad lista
+    """Check-in por `hotel.check_in` (ADP-5): documento, llegada ≥ 14:00, mantenimiento y unidad lista
     los decide el dominio; los rechazos salen como `TransicionInvalida` (409). Asienta la primera noche
     (la asienta el dominio) y las restantes con el precio de cada noche (#305), para que la salida
     liquide la estadía completa. #360: si recepción elige otra unidad, se reasigna antes de entrar."""
@@ -495,7 +495,7 @@ def entrada(
 
 
 def cancelar(conexion: psycopg.Connection, hotel, empresa_id: str, reserva_id: str, ahora) -> dict:
-    """Cancelación por `hotel.cancelar` (ADP-7): la política de 48 h / primera noche es del dominio.
+    """Cancelación por `hotel.cancelar` (ADP-7): la política de 24 h / primera noche es del dominio.
     Un cargo asentado antes de llegar (recargos, consumo) lo revierte `reversar_cargo` del dominio,
     para que una reserva cancelada no conserve cargos huérfanos. La penalidad no se revierte."""
     from . import cobro  # evita el ciclo de importación

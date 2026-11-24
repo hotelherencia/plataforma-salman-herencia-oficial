@@ -20,8 +20,8 @@ INICIO = date(2026, 11, 10)
 FIN = date(2026, 11, 12)
 TARIFA = 50_000
 HUESPED = Huesped(nombre="Huésped Sintético Uno", documento="DOC-SINT-0001")
-LAS_15 = datetime(2026, 11, 10, 15, 0)
-LAS_1459 = datetime(2026, 11, 10, 14, 59)
+LAS_15 = datetime(2026, 11, 10, 14, 0)
+LAS_1459 = datetime(2026, 11, 10, 13, 59)
 
 
 class _Boom:

@@ -123,7 +123,7 @@ class RecepcionHallazgosTest(unittest.TestCase):
         self.assertEqual(self.mover(rid, "HAB-REC-1").status_code, 409)
         self.assertEqual(self.mover(rid, "HAB-NO-EXISTE").status_code, 409)
 
-    @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (15:00 del día de inicio)
+    @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (14:00 del día de inicio)
     def test_361_en_estadia_destino_ocupada_y_origen_queda_sucia_con_tarea(self):
         rid = self.reservar()
         registrar_acompanantes(self.cliente, rid, 1, self.idem)
@@ -147,7 +147,7 @@ class RecepcionHallazgosTest(unittest.TestCase):
         self.assertEqual(r.status_code, 403, r.text)
 
     # --- #360: unidad confirmada en la entrada ---
-    @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (15:00 del día de inicio)
+    @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (14:00 del día de inicio)
     def test_360_entrada_con_otra_unidad_reasigna_y_ocupa_la_nueva(self):
         rid = self.reservar()
         registrar_acompanantes(self.cliente, rid, 1, self.idem)
@@ -157,7 +157,7 @@ class RecepcionHallazgosTest(unittest.TestCase):
         self.assertEqual(self.habitacion("HAB-REC-2")["estado_operativo"], "ocupada")
         self.assertNotEqual(self.habitacion("HAB-REC-1")["estado_operativo"], "ocupada")
 
-    @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (15:00 del día de inicio)
+    @a_las(HOY)  # ADP-5: la entrada exige la hora de llegada (14:00 del día de inicio)
     def test_360_entrada_captura_documento_validado(self):
         rid = self.reservar(huesped={"nombre": "Sin doc"})
         registrar_acompanantes(self.cliente, rid, 1, self.idem)

@@ -20,24 +20,24 @@ def reservar_101(servicio):
 
 
 class CancelacionTest(unittest.TestCase):
-    def test_cancelar_exactamente_48_horas_antes_no_genera_cargo(self):
+    def test_cancelar_exactamente_24_horas_antes_no_genera_cargo(self):
         servicio = hotel_sintetico()
         reserva_id = reservar_101(servicio)
-        resultado = servicio.cancelar(EMPRESA, reserva_id, LLEGADA - timedelta(hours=48))
+        resultado = servicio.cancelar(EMPRESA, reserva_id, LLEGADA - timedelta(hours=24))
         self.assertIsNone(resultado.cargo)
         self.assertEqual(servicio.cuenta(EMPRESA, reserva_id), ())
 
-    def test_cancelar_mas_de_48_horas_antes_no_genera_cargo(self):
+    def test_cancelar_mas_de_24_horas_antes_no_genera_cargo(self):
         servicio = hotel_sintetico()
         reserva_id = reservar_101(servicio)
         resultado = servicio.cancelar(EMPRESA, reserva_id, LLEGADA - timedelta(days=5))
         self.assertIsNone(resultado.cargo)
         self.assertEqual(servicio.saldo_clp(EMPRESA, reserva_id), 0)
 
-    def test_cancelar_menos_de_48_horas_antes_carga_la_primera_noche(self):
+    def test_cancelar_menos_de_24_horas_antes_carga_la_primera_noche(self):
         servicio = hotel_sintetico()
         reserva_id = reservar_101(servicio)
-        resultado = servicio.cancelar(EMPRESA, reserva_id, LLEGADA - timedelta(hours=47, minutes=59))
+        resultado = servicio.cancelar(EMPRESA, reserva_id, LLEGADA - timedelta(hours=23, minutes=59))
         self.assertIsNotNone(resultado.cargo)
         self.assertIs(resultado.cargo.tipo, TipoCargo.CARGO)
         self.assertEqual(resultado.cargo.monto_clp, TARIFA_PRIMERA_NOCHE)

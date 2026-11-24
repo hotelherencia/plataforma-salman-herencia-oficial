@@ -1,4 +1,4 @@
-"""ADP-7: cancelar aplica la política del dominio (48 h antes de las 15:00; si no, la primera
+"""ADP-7: cancelar aplica la política del dominio (24 h antes de las 14:00; si no, la primera
 noche). Sin reversos: la cuenta nace vacía (ADP-4/5), no hay cargo de estadía que revertir."""
 import os
 import unittest
@@ -72,7 +72,7 @@ class CancelacionDominioTest(unittest.TestCase):
             self.assertEqual(self.cancelar(rid, cli).status_code, 500)
         self.assertEqual(self.sql("SELECT estado FROM reservas WHERE id=%s", rid)[0][0], "confirmada")
 
-    def test_con_48_horas_o_mas_no_hay_penalidad_ni_cargos(self):
+    def test_con_24_horas_o_mas_no_hay_penalidad_ni_cargos(self):
         rid = self.reservar(5, 7)
         r = self.cancelar(rid)
         self.assertEqual(r.status_code, 200, r.text)
@@ -81,8 +81,8 @@ class CancelacionDominioTest(unittest.TestCase):
         self.assertEqual(self.sql("SELECT count(*) FROM cargos WHERE reserva_id=%s", rid)[0][0], 0)
         self.assertEqual(self.sql("SELECT estado FROM reservas WHERE id=%s", rid)[0][0], "cancelada")
 
-    def test_con_menos_de_48_horas_carga_la_primera_noche_sin_reversos(self):
-        rid = self.reservar(1, 4)
+    def test_con_menos_de_24_horas_carga_la_primera_noche_sin_reversos(self):
+        rid = self.reservar(0, 3)
         j = self.cancelar(rid).json()
         self.assertEqual(j["penalidad_clp"], 45000)
         self.assertEqual(j["reversos"], [])
@@ -90,13 +90,13 @@ class CancelacionDominioTest(unittest.TestCase):
         self.assertEqual(filas, [("Cancelación fuera de plazo: primera noche", 45000, "cargo")])
 
     def test_reintento_409_y_no_duplica_la_penalidad(self):
-        rid = self.reservar(1, 4)
+        rid = self.reservar(0, 3)
         self.assertEqual(self.cancelar(rid).status_code, 200)
         self.assertEqual(self.cancelar(rid).status_code, 409)
         self.assertEqual(self.sql("SELECT count(*) FROM cargos WHERE reserva_id=%s", rid)[0][0], 1)
 
     def test_un_cargo_suelto_previo_se_reversa_por_el_dominio_y_la_penalidad_no(self):
-        rid = self.reservar(1, 4)
+        rid = self.reservar(0, 3)
         self.assertEqual(self.cli.post(f"/hotel/reservas/{rid}/cargos", json={"concepto": "minibar", "monto_clp": 8000},
                                        headers=self.clave()).status_code, 201)
         j = self.cancelar(rid).json()
