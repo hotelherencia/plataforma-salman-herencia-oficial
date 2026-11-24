@@ -550,9 +550,10 @@ class CancelacionTest(OperacionBaseTest):
         self.reservar(inicio=str(_BASE + timedelta(days=1)), fin=str(_BASE + timedelta(days=2)), nombre="Reemplazo")
 
     def test_fuera_de_plazo_carga_la_primera_noche(self):
-        manana = date.today() + timedelta(days=1)
-        pasado = date.today() + timedelta(days=3)
-        rid = self.reservar(inicio=manana.isoformat(), fin=pasado.isoformat())
+        # Llegada hoy: a cualquier hora del día faltan menos de 24 h para las 14:00 (no depende del reloj real).
+        hoy = date.today()
+        pasado = hoy + timedelta(days=2)
+        rid = self.reservar(inicio=hoy.isoformat(), fin=pasado.isoformat())
         respuesta = self.cliente.post(
             f"/hotel/reservas/{rid}/cancelacion", headers={"Idempotency-Key": self.clave()})
         self.assertEqual(respuesta.status_code, 200, respuesta.text)

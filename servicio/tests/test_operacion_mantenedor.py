@@ -454,17 +454,21 @@ class IndicadoresTest(BaseOperacion):
         self.assertIsNone(vacio["ocupacion_reservada"]["valor"])
 
     def test_ca_ind_02_financieros_segun_rol(self):
-        # D-ROL-01 RATIFICADA 2026-11-06 (#297): `ingresos_periodo_clp` lo ve
-        # solo administrador; ADR/RevPAR siguen en no_disponibles (D-IND-02).
+        # D-ROL-01 RATIFICADA 2026-11-06 (#297): los indicadores financieros (ingresos, ADR y RevPAR,
+        # reales desde #395) los ve solo el administrador; recepción y caja no reciben ninguno.
         cuerpo = self.indicadores("")
         self.assertEqual(cuerpo["periodo"], {"desde": HOY.isoformat(), "hasta": iso(7), "noches": 7})
-        self.assertTrue(any("ADR" in x["indicador"] for x in cuerpo["no_disponibles"]))
-        self.assertIn("ingresos_periodo_clp", cuerpo["periodo_indicadores"])  # admin lo recibe
-        texto = str(cuerpo["periodo_indicadores"]) + str(cuerpo["hoy"])
-        self.assertEqual(texto.count("_clp"), 1)  # solo el ingreso; nada más financiero
+        financieros = ("ingreso_alojamiento_clp", "adr_clp", "revpar_clp")
+        for campo in financieros:  # el administrador los recibe
+            self.assertIn(campo, cuerpo["periodo_indicadores"])
+        self.assertFalse(any("ADR" in x["indicador"] for x in cuerpo["no_disponibles"]))  # ya no son «no disponibles»
+        self.assertTrue(any("no-show" in x["indicador"] for x in cuerpo["no_disponibles"]))
+        self.assertNotIn("_clp", str(cuerpo["hoy"]))  # la situación del día no lleva dinero
         for usuario, clave in (("recepcion1", "clave-recepcion"), ("caja1", "clave-caja")):
             vista = self.indicadores("", self.login(usuario, clave))
-            self.assertNotIn("ingresos_periodo_clp", vista["periodo_indicadores"])
+            for campo in financieros:
+                self.assertNotIn(campo, vista["periodo_indicadores"], f"{usuario} no debe ver {campo}")
+            self.assertNotIn("_clp", str(vista["periodo_indicadores"]) + str(vista["hoy"]))
         self.assertEqual(TestClient(self.app).get("/hotel/indicadores").status_code, 401)
         self.assertEqual(self.admin.get(f"/hotel/indicadores?desde={iso(0)}&hasta={iso(93)}").status_code, 422)
 

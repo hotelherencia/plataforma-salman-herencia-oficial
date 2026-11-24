@@ -4,8 +4,8 @@ Definiciones gobernantes: spec-hotel-operacion-v1 §4 (indicadores) y §5
 (ocupación). Solo lectura: nada se escribe. La fecha de corte (`hoy`) es la
 del reloj del servidor, como en la cancelación. Un indicador sin muestra vale
 None, nunca 0 (HECHO DOCUMENTADO: regla del dominio `IndicadoresDiarios`).
-Los indicadores financieros (ADR, RevPAR, ingresos) no se calculan: quedan
-declarados en `no_disponibles` (DECISIÓN PENDIENTE D-IND-01/02, D-ROL-01).
+Los indicadores financieros (ingreso de alojamiento, ADR, RevPAR; #395) los recibe solo
+el administrador (D-ROL-01). Lo que aún no existe queda declarado en `no_disponibles`.
 """
 from datetime import date, timedelta
 
