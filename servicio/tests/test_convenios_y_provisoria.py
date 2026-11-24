@@ -1,7 +1,7 @@
 """Pruebas de integración para SPEC-CONV-01 (convenios y cierre de caja) y SPEC-PROV-01 (reserva provisoria)."""
 import os
 import unittest
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 
 import psycopg
 from fastapi.testclient import TestClient
@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from servicio import migracion, seguridad
 from servicio.aplicacion import crear_app
 from servicio.configuracion import Configuracion
+from servicio.tests.reloj import a_las
 
 URL_TEST = os.environ.get(
     "DATABASE_URL_TEST", "postgresql://plataforma:plataforma@127.0.0.1:5432/plataforma_test_conv01"
@@ -183,6 +184,7 @@ class ConveniosYProvisoriaTest(unittest.TestCase):
         )
         self.assertEqual(r_rech.status_code, 409)
 
+    @a_las(date.today(), time(23, 0))  # el check-in exige la hora de llegada: no depender de la hora real del día
     def test_reserva_provisoria_grupo_bloqueo_llegada_y_reemplazo_real(self):
         hoy = date.today()
         cli_resp = self.admin.post(

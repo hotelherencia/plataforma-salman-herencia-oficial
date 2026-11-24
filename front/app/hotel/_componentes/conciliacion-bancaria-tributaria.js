@@ -237,6 +237,24 @@ export default function ConciliacionBancariaTributaria({ esAdmin = false }) {
               <span className="kpi-detalle">
                 {plural(f29.compras_credito_fiscal.facturas_cantidad, 'factura')} · {plural(f29.compras_credito_fiscal.notas_credito_cantidad, 'nota de crédito')}
               </span>
+              {(() => {
+                const cc = f29.compras_credito_fiscal
+                const ajenas = (cc.excluidas_otro_receptor?.facturas_cantidad || 0) + (cc.excluidas_otro_receptor?.notas_credito_cantidad || 0)
+                return (
+                  <>
+                    {ajenas > 0 && (
+                      <span className="kpi-detalle">
+                        No suma {plural(ajenas, 'documento')} emitidos a otra sociedad del grupo.
+                      </span>
+                    )}
+                    {cc.sin_receptor_cantidad > 0 && (
+                      <span className="kpi-detalle">
+                        {plural(cc.sin_receptor_cantidad, 'documento')} sin sociedad receptora: complétala para confirmar el crédito.
+                      </span>
+                    )}
+                  </>
+                )
+              })()}
             </div>
             <div className="kpi">
               <span className="kpi-titulo">IVA determinado estimado</span>

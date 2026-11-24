@@ -129,13 +129,14 @@ def _insertar(conexion, *, clase, origen, lectura, documento, lineas, ted, refer
     conexion.execute(
         "INSERT INTO documentos_proveedor (id, clase, origen, estado, lectura, emisor_rut, emisor_razon_social, tipo_dte, "
         "folio, fecha_emision, monto_neto_clp, monto_exento_clp, iva_clp, monto_total_clp, lineas, ted, referencias, "
-        "discrepancias, archivo_id, buzon_id, mensaje_id, remitente, actor) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        "discrepancias, archivo_id, buzon_id, mensaje_id, remitente, actor, receptor_rut, receptor_razon_social) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (documento_id, clase, origen, estado, lectura, documento.get("emisor_rut"), documento.get("emisor_razon_social"),
          documento.get("tipo_dte"), documento.get("folio"), documento.get("fecha_emision"),
          documento.get("monto_neto_clp"), documento.get("monto_exento_clp"), documento.get("iva_clp"),
          documento.get("monto_total_clp"), Jsonb(lineas), Jsonb(ted) if ted else None, Jsonb(referencias or []),
-         Jsonb(discrepancias), archivo_id, buzon_id, (mensaje_id or "")[:200] or None, (remitente or "")[:200] or None, actor),
+         Jsonb(discrepancias), archivo_id, buzon_id, (mensaje_id or "")[:200] or None, (remitente or "")[:200] or None, actor,
+         documento.get("receptor_rut"), documento.get("receptor_razon_social")),
     )
     return documento_id
 
@@ -272,7 +273,7 @@ def crear_desde_archivo(conexion: psycopg.Connection, contenido: bytes, tipo_mim
 _COLUMNAS = ("id, clase, origen, estado, lectura, emisor_rut, emisor_razon_social, tipo_dte, folio, fecha_emision, "
              "monto_neto_clp, monto_exento_clp, iva_clp, monto_total_clp, lineas, ted, referencias, discrepancias, "
              "archivo_id, remitente, importacion_id, pedido_id, actor, creado_en, actualizado_en, "
-             "factura_referencia_id, aplicada_en, aplicada_por")
+             "factura_referencia_id, aplicada_en, aplicada_por, receptor_rut, receptor_razon_social")
 
 
 def _vista(f) -> dict:
@@ -288,6 +289,8 @@ def _vista(f) -> dict:
         "factura_referencia_id": f[25],
         "aplicada_en": f[26].isoformat() if f[26] else None,
         "aplicada_por": f[27],
+        "receptor_rut": f[28],
+        "receptor_razon_social": f[29],
     }
 
 
