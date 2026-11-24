@@ -220,9 +220,15 @@ class CuentasHttpTest(unittest.TestCase):
         self.assertTrue(gest["sa_t_rc"])
         self.assertNotIn("super_admin", self.c["sa"].get("/usuarios").json()["roles_que_puedes_crear"])
 
-    def test_hotel_y_dueno_siguen_sin_gestionar_usuarios(self):
-        for k in ("ah", "dn", "rc"):
-            self.assertEqual(self.c[k].get("/usuarios").status_code, 403, k)
+    def test_el_hotel_ve_los_usuarios_para_validar_pero_no_gestiona_a_nadie(self):
+        j = self.c["ah"].get("/usuarios")
+        self.assertEqual(j.status_code, 200)
+        self.assertEqual(j.json()["roles_que_puedes_crear"], [])
+        self.assertFalse(any(u["gestionable"] for u in j.json()["usuarios"]))
+        self.assertEqual(self.c["rc"].get("/usuarios").status_code, 403)
+        for ruta in ("clave", "baja", "revocacion"):
+            self.assertEqual(self.c["ah"].post(f"/usuarios/{self._uid('rc')}/{ruta}", json={"clave": "OtraClave123!"}, headers=self._h()).status_code, 403, ruta)
+        self.assertEqual(self._crear("ah", "recepcion", "zz_ah_rec").status_code, 403)
 
     def test_con_mfa_estricto_admin_y_dueno_sin_totp_solo_se_enrolan(self):
         # #461: con MFA_ESTRICTO=1 la administración y el dueño sin segundo factor solo pueden enrolarse.

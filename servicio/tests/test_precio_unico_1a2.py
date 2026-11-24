@@ -255,7 +255,8 @@ class PrecioUnico1A2Test(unittest.TestCase):
                 self.assertEqual(listado.json()["puede_editar_iva"], nombre in ("administrador", "admin_plataforma"))
 
     def test_usuarios_y_seguridad_solo_plataforma(self):
-        self.assertEqual(self.hotel.get("/usuarios").status_code, 403)
+        self.assertEqual(self.hotel.get("/usuarios").status_code, 200)  # solo lectura, para validar cambios de rol
+        self.assertEqual(self.recepcion.get("/usuarios").status_code, 403)
         self.assertEqual(self.plataforma.get("/usuarios").status_code, 200)
         r = self.hotel.post("/usuarios", json={"nombre": "x1", "rol": "caja", "clave": "clave-larga-x1"},
                             headers=self.clave())
@@ -306,8 +307,8 @@ class PrecioUnico1A2Test(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         with psycopg.connect(URL_TEST) as conexion:
             self.assertEqual(seguridad.contar_administradores_activos(conexion, EMPRESA), 1)  # solo queda `admin`
-        # El administrador de hotel no gestiona usuarios y nadie se da de baja a sí mismo.
-        self.assertEqual(self.hotel.get("/usuarios").status_code, 403)
+        # El administrador de hotel solo ve el listado y nadie se da de baja a sí mismo.
+        self.assertEqual(self.hotel.post(f"/usuarios/{ids['admin']}/baja", headers=self.clave()).status_code, 403)
         self.assertEqual(self.admin.post(f"/usuarios/{ids['admin']}/baja", headers=self.clave()).status_code, 409)
 
 

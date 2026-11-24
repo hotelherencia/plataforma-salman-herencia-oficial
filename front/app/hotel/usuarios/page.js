@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api, alRechazar, mensajeDeError, MarcoHotel, SalidaJson, Campo, CampoClave, CampoSelect, useClaveOperacion, useSesion } from '../../../lib/api'
 import { ListaUsuarios, UsuariosVacios } from '../../hotel/_componentes/lista-usuarios'
-import { ETIQUETAS_ROL, ROLES, esAdminPlataforma } from '../../../lib/roles'
+import { ETIQUETAS_ROL, ROLES, apruebaCambiosDeRol, esAdminPlataforma } from '../../../lib/roles'
 import { useMensajes } from '../../_componentes/centro-mensajes'
 import CambiosDeRol from '../_componentes/cambios-de-rol'
 
@@ -29,6 +29,8 @@ export default function Usuarios() {
   const [claveVinculo, renovarClaveVinculo] = useClaveOperacion()
 
   const esAdmin = sesion.fase === 'ok' && esAdminPlataforma(sesion.usuario.rol)
+  // La administración del hotel no gestiona cuentas, pero valida los cambios de rol y ve quién tiene qué rol.
+  const soloValida = sesion.fase === 'ok' && !esAdmin && apruebaCambiosDeRol(sesion.usuario.rol)
 
   async function cargarUsuarios() {
     try {
@@ -44,6 +46,7 @@ export default function Usuarios() {
   }
 
   useEffect(() => {
+    if (soloValida) cargarUsuarios()
     if (!esAdmin) return
     cargarUsuarios()
     api('/roles')
@@ -51,7 +54,7 @@ export default function Usuarios() {
         if (r.estado === 200 && Array.isArray(r.datos?.roles)) setCatalogoRoles(r.datos.roles)
       })
       .catch(() => {})
-  }, [esAdmin])
+  }, [esAdmin, soloValida])
 
   async function postear(ruta, cuerpo, clave, alExito, e) {
     e.preventDefault()
@@ -80,6 +83,28 @@ export default function Usuarios() {
     setRevocacionId(id)
     setBajaId(id)
     setVinculo((v) => ({ ...v, id }))
+  }
+
+  if (soloValida) {
+    return (
+      <MarcoHotel titulo="Usuarios y cambios de rol">
+        <CambiosDeRol rol={sesion.usuario.rol} />
+        <section className="tarjeta">
+          <h2>Usuarios de la empresa</h2>
+          {usuarios === null ? (
+            <p className="estado" role="status" aria-busy="true">Cargando usuarios…</p>
+          ) : usuarios.length === 0 ? (
+            <UsuariosVacios />
+          ) : (
+            <ListaUsuarios usuarios={usuarios} total={usuarios.length} />
+          )}
+          <p className="nota-chica">
+            Aquí validas los cambios de rol que pide la administración de plataforma. Un rol administrativo o del dueño no
+            queda activo hasta que lo apruebas; quien lo pidió no puede aprobarlo.
+          </p>
+        </section>
+      </MarcoHotel>
+    )
   }
 
   if (sesion.fase === 'ok' && !esAdminPlataforma(sesion.usuario.rol)) {

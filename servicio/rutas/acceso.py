@@ -416,7 +416,8 @@ def listar_usuarios(
     sesion: seguridad.SesionActiva = Depends(comun.requerir_sesion),
     conexion=Depends(comun.conexion),
 ) -> dict:
-    comun.exigir_admin_plataforma(sesion)
+    # La administración del hotel (que valida los cambios de rol) ve el listado, sin poder gestionar a nadie.
+    comun.exigir_rol(sesion, roles.ROLES_ADMIN_PLATAFORMA | roles.ROLES_APROBADORES)
     usuarios = seguridad.listar_usuarios(conexion, sesion.empresa_id)
     for u in usuarios:
         u["gestionable"] = roles.puede_gestionar(sesion.rol, u["rol"]) and u["id"] != sesion.usuario_id
