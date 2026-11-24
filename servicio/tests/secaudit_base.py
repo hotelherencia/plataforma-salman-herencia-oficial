@@ -85,6 +85,13 @@ class BaseSesiones(unittest.TestCase):
         return uid
 
     def alta(self, nombre, rol, clave, idem):
-        r = self.admin.post("/usuarios", json={"nombre": nombre, "rol": rol, "clave": clave},
+        # Un rol privilegiado no se da de alta por la API con la cuenta de arranque (jerarquía y validación
+        # de cambios de rol, #338): se crea como cuenta operativa y se fija el rol en la base, como fixture.
+        privilegiado = rol in ("administrador", "admin_hotel", "admin_plataforma", "dueno")
+        r = self.admin.post("/usuarios", json={"nombre": nombre, "rol": "recepcion" if privilegiado else rol, "clave": clave},
                             headers={"Idempotency-Key": idem})
         self.assertEqual(r.status_code, 201, r.text)
+        if privilegiado:
+            with psycopg.connect(URL_TEST) as conexion:
+                conexion.execute("UPDATE usuarios SET rol = %s WHERE id = %s", (rol, r.json()["id"]))
+                conexion.commit()

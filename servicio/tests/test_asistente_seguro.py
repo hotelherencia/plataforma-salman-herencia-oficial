@@ -51,7 +51,7 @@ class AsistenteTest(unittest.TestCase):
     def setUp(self):
         h = seguridad.hashear_clave(CLAVE)
         with psycopg.connect(URL_TEST) as c:
-            c.execute("TRUNCATE freno_solicitudes_eventos, consultas_agente, solicitudes, reserva_noches, reservas, tarifas, "
+            c.execute("TRUNCATE politicas_hotel, freno_solicitudes_eventos, consultas_agente, solicitudes, reserva_noches, reservas, tarifas, "
                       "excepciones_precio, habitaciones, claves_idempotencia, sesiones CASCADE")
             for nombre, rol in (("recep_as", "recepcion"), ("aseo_as", "aseo"), ("dueno_as", "dueno"), ("admin_as", "admin_hotel")):
                 c.execute("INSERT INTO usuarios (id, nombre, clave_hash, rol, empresa_id, activo) VALUES (%s,%s,%s,%s,"

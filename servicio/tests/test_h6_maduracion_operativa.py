@@ -211,7 +211,7 @@ class MaduracionOperativaTest(unittest.TestCase):
         usuarios = {u["nombre"]: u for u in respuesta.json()["usuarios"]}
         self.assertEqual(set(usuarios), {"admin", "recepcion1"})
         # #352: se agrega solo el booleano google_vinculado; nunca el correo ni el hash.
-        self.assertEqual(set(usuarios["recepcion1"]), {"id", "nombre", "rol", "activo", "google_vinculado"})
+        self.assertEqual(set(usuarios["recepcion1"]), {"id", "nombre", "rol", "activo", "google_vinculado", "gestionable"})
 
     def test_cambio_de_clave_propio_o_administrador(self):
         self.alta_usuario("recepcion1", "recepcion", "clave-rec", "u-1")

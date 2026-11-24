@@ -260,10 +260,18 @@ class PrecioUnico1A2Test(unittest.TestCase):
         r = self.hotel.post("/usuarios", json={"nombre": "x1", "rol": "caja", "clave": "clave-larga-x1"},
                             headers=self.clave())
         self.assertEqual(r.status_code, 403)
-        for rol in ("admin_hotel", "admin_plataforma"):
+        # Jerarquía (#338): la administración de plataforma solo da de alta cuentas operativas.
+        for rol in ("admin_hotel", "admin_plataforma", "administrador", "super_admin"):
             r = self.plataforma.post("/usuarios", json={"nombre": f"nuevo-{rol}", "rol": rol,
                                                         "clave": "clave-larga-nuevo"}, headers=self.clave())
-            self.assertEqual(r.status_code, 201, r.text)
+            self.assertEqual(r.status_code, 403, f"{rol}: {r.text}")
+        r = self.plataforma.post("/usuarios", json={"nombre": "nuevo-caja", "rol": "caja", "clave": "clave-larga-nuevo"},
+                                 headers=self.clave())
+        self.assertEqual(r.status_code, 201, r.text)
+        # El administrador sí asigna roles de plataforma y de hotel, pero quedan pendientes de validación.
+        r = self.admin.post("/usuarios", json={"nombre": "nuevo-ah", "rol": "admin_hotel", "clave": "clave-larga-nuevo"},
+                            headers=self.clave())
+        self.assertIn(r.status_code, (201, 202), r.text)
         r = self.plataforma.post("/usuarios", json={"nombre": "malo", "rol": "gerencia", "clave": "clave-larga-x"},
                                  headers=self.clave())
         self.assertEqual(r.status_code, 422)
@@ -290,26 +298,17 @@ class PrecioUnico1A2Test(unittest.TestCase):
 
     def test_no_se_da_de_baja_al_ultimo_admin_de_plataforma(self):
         ids = dict(self.sql("SELECT nombre, id FROM usuarios"))
-        # Con dos (administrador + admin_plataforma) se puede dar de baja a uno.
+        # Jerarquía (#338): la administración de plataforma no da de baja a un administrador (rango superior).
         r = self.plataforma.post(f"/usuarios/{ids['admin']}/baja", headers=self.clave())
+        self.assertEqual(r.status_code, 403, r.text)
+        # El administrador sí puede dar de baja a plataforma1 mientras él siga activo.
+        r = self.admin.post(f"/usuarios/{ids['plataforma1']}/baja", headers=self.clave())
         self.assertEqual(r.status_code, 200, r.text)
-        # Queda uno: el admin del hotel no cuenta como administración de plataforma.
-        otro = self.login("plataforma1", "clave-plataforma1")
-        self.sql("UPDATE usuarios SET rol = 'administrador' WHERE nombre = 'hotel1' RETURNING id")
-        hotel_como_admin = self.login("hotel1", "clave-hotel1")
-        r = hotel_como_admin.post(f"/usuarios/{ids['plataforma1']}/baja", headers=self.clave())
-        self.assertEqual(r.status_code, 200, r.text)
-        self.sql("UPDATE usuarios SET rol = 'admin_plataforma', activo = true WHERE nombre = 'plataforma1' RETURNING id")
-        otro = self.login("plataforma1", "clave-plataforma1")
-        r = otro.post(f"/usuarios/{ids['hotel1']}/baja", headers=self.clave())
-        self.assertEqual(r.status_code, 200, r.text)
-        self.sql("UPDATE usuarios SET activo = true WHERE nombre = 'hotel1' RETURNING id")
-        self.sql("UPDATE usuarios SET rol = 'admin_hotel' WHERE nombre = 'hotel1' RETURNING id")
-        ultimo = self.login("hotel1", "clave-hotel1")
-        self.assertEqual(ultimo.get("/usuarios").status_code, 403)
-        # plataforma1 es el único de plataforma activo: no puede quedar sin ninguno.
         with psycopg.connect(URL_TEST) as conexion:
-            self.assertEqual(seguridad.contar_administradores_activos(conexion, EMPRESA), 1)
+            self.assertEqual(seguridad.contar_administradores_activos(conexion, EMPRESA), 1)  # solo queda `admin`
+        # El administrador de hotel no gestiona usuarios y nadie se da de baja a sí mismo.
+        self.assertEqual(self.hotel.get("/usuarios").status_code, 403)
+        self.assertEqual(self.admin.post(f"/usuarios/{ids['admin']}/baja", headers=self.clave()).status_code, 409)
 
 
 if __name__ == "__main__":

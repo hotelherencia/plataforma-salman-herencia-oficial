@@ -37,7 +37,7 @@ class UsuarioGoogleTest(unittest.TestCase):
         self.cliente = TestClient(self.app)
         self.assertEqual(self.cliente.post("/sesion", json={"usuario": ADMIN[0], "clave": ADMIN[1]}).status_code, 200)
 
-    def alta(self, nombre, email, rol="administrador"):
+    def alta(self, nombre, email, rol="recepcion"):
         return self.cliente.post("/usuarios", json={"nombre": nombre, "rol": rol, "clave": "clave-segura-1", "email": email},
                                  headers={"Idempotency-Key": f"k-{uuid.uuid4().hex[:10]}"})
 
