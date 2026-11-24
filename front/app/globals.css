@@ -3036,3 +3036,5 @@ a.boton-primario {
   line-height: 1.35;
   white-space: pre-wrap;
 }
+
+.ayuda-asistente__hoja { width: 1.2rem; height: 1.2rem; object-fit: contain; display: block; }

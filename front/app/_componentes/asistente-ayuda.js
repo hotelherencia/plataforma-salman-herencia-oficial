@@ -29,7 +29,7 @@ export function sugerenciasParaRuta(ruta) {
 function AvatarHerencIA() {
   return (
     <span className="ayuda-asistente__avatar" aria-hidden="true">
-      ✨
+      <img src="/logo-herencia-hoja.svg" alt="" width={20} height={20} className="ayuda-asistente__hoja" />
     </span>
   )
 }
