@@ -183,3 +183,29 @@ class AsistenteTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_interno_recibe_contexto_operativo_y_ruta(self):
+        capturado = []
+
+        class _Espia:
+            def responder(self, prompt, pregunta, max_tokens=300):
+                capturado.append((prompt, pregunta, max_tokens))
+                return "Hay habitaciones disponibles listas para asignar."
+
+        self.app.state.modelo_agente = _Espia()
+        r = self._login("recep_as").post(
+            "/hotel/asistente",
+            json={
+                "pregunta": "¿qué queda libre?",
+                "ruta": "/hotel/reservas",
+                "historial": [{"rol": "usuario", "texto": "hola"}],
+            },
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(len(capturado), 1)
+        prompt, _, max_tok = capturado[0]
+        self.assertIn("ESTADO EN VIVO DEL HOTEL", prompt)
+        self.assertIn("Habitaciones totales:", prompt)
+        self.assertIn("PANTALLA ACTUAL (/hotel/reservas)", prompt)
+        self.assertIn("HISTORIAL RECIENTE", prompt)
+        self.assertEqual(max_tok, asistente.MAX_TOKENS_INTERNO)
