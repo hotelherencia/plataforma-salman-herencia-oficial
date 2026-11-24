@@ -63,7 +63,10 @@ class RolDuenoTest(unittest.TestCase):
         r = self.dueno.get("/hotel/indicadores", params={"desde": str(hoy), "hasta": str(hoy + timedelta(days=7))})
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(self.dueno.get("/hotel/contabilidad/cuentas-por-cobrar").status_code, 200)
-        self.assertEqual(self.dueno.get("/usuarios").status_code, 403)
+        lista = self.dueno.get("/usuarios")  # lectura global: ve quién tiene qué rol, pero no gestiona a nadie
+        self.assertEqual(lista.status_code, 200)
+        self.assertFalse(any(u["gestionable"] for u in lista.json()["usuarios"]))
+        self.assertEqual(lista.json()["roles_que_puedes_crear"], [])
         # La recepción no ve lo financiero que sí ve el dueño.
         fin = self.dueno.get("/hotel/indicadores", params={"desde": str(hoy), "hasta": str(hoy + timedelta(days=7))}).json()
         fin_recep = self.recep.get("/hotel/indicadores", params={"desde": str(hoy), "hasta": str(hoy + timedelta(days=7))}).json()
