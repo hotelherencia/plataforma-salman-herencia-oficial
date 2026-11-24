@@ -24,3 +24,7 @@ test('la ayuda llama solo a /hotel/asistente, sin pop-ups nativos y con controle
 test('la ayuda está montada una sola vez en el layout', () => {
   assert.equal((layout.match(/<AsistenteAyuda \/>/g) || []).length, 1)
 })
+
+test('el asistente usa la identidad visual HerencIA', () => {
+  assert.match(fuente, /HerencIA/)
+})
