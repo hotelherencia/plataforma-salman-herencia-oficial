@@ -110,6 +110,10 @@ class ReservaIn(BaseModel):
     canal: Literal["recepcion", "landing", "directo", "google", "ota", "telefono", "whatsapp", "otro"] = "recepcion"
     # SPEC-UPG-01: 1 persona, sin single libre, habitación superior cobrada a tarifa Single.
     upgrade_a_single: bool = False
+    # SPEC-CONV-01 / SPEC-PROV-01: convenio tarifario vigente y reserva provisoria de empresa/institución.
+    convenio_id: str | None = Field(default=None, max_length=50)
+    cliente_id: str | None = Field(default=None, max_length=50)
+    es_huesped_provisorio: bool = False
 
 
 class ReceptorFacturaIn(BaseModel):
@@ -878,6 +882,9 @@ class GrupoIn(BaseModel):
     habitaciones: list[GrupoHabitacionIn] = Field(min_length=1, max_length=20)
     canal: Literal["recepcion", "landing", "directo", "google", "ota", "telefono", "whatsapp", "otro"] = "recepcion"
     notas: str | None = Field(default=None, max_length=500)
+    convenio_id: str | None = Field(default=None, max_length=50)
+    cliente_id: str | None = Field(default=None, max_length=50)
+    es_huesped_provisorio: bool = False
 
 
 class GrupoReservaIn(BaseModel):

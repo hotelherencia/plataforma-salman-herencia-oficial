@@ -76,3 +76,17 @@ npx next build
 npx next start -p 3111 &
 UIUX_BASE_URL=http://127.0.0.1:3111 python tests/auditoria_uiux_e2e.py
 ```
+
+---
+
+## 5. Evidencia visual móvil y escritorio (`#405`)
+
+Capturas generadas con Chromium headless (Playwright) sobre el build de producción (`next start`) usando exclusivamente **datos sintéticos** (sin datos personales reales de huéspedes ni acceso a producción), verificando la barra contextual única (`BarraContextual` + `SelectorFila`), alineación de formularios y cero desborde horizontal en móvil (`390×844`) y escritorio (`1366×768`):
+
+| Vista | Escritorio (`1366×768`) | Móvil (`390×844`) |
+|---|---|---|
+| `/reservar` (solicitud pública) | [reservar-desktop-1366.png](evidencia-uiux-2026-11-23/reservar-desktop-1366.png) | [reservar-movil-390.png](evidencia-uiux-2026-11-23/reservar-movil-390.png) |
+| `/hotel/reservas` (listado y barra contextual) | [reservas-desktop-1366.png](evidencia-uiux-2026-11-23/reservas-desktop-1366.png) | [reservas-movil-390.png](evidencia-uiux-2026-11-23/reservas-movil-390.png) |
+| `/hotel/leads` (bandeja de contactos) | [leads-desktop-1366.png](evidencia-uiux-2026-11-23/leads-desktop-1366.png) | [leads-movil-390.png](evidencia-uiux-2026-11-23/leads-movil-390.png) |
+| `/hotel/clientes` (clientes y CxC) | [clientes-desktop-1366.png](evidencia-uiux-2026-11-23/clientes-desktop-1366.png) | [clientes-movil-390.png](evidencia-uiux-2026-11-23/clientes-movil-390.png) |
+| `/hotel/productos` (catálogo y stock) | [productos-desktop-1366.png](evidencia-uiux-2026-11-23/productos-desktop-1366.png) | [productos-movil-390.png](evidencia-uiux-2026-11-23/productos-movil-390.png) |

@@ -174,7 +174,8 @@ def obtener_huespedes_reserva(
 ) -> dict:
     cobro._reserva_de_la_empresa(conexion, reserva_id, empresa_id)
     r = conexion.execute(
-        "SELECT r.adultos, r.ninos, r.personas, h.capacidad, r.estado, r.habitacion_id, r.grupo_id, r.titular_aloja "
+        "SELECT r.adultos, r.ninos, r.personas, h.capacidad, r.estado, r.habitacion_id, r.grupo_id, "
+        "r.titular_aloja, r.es_huesped_provisorio "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id WHERE r.id = %s",
         (reserva_id,),
     ).fetchone()
@@ -202,13 +203,14 @@ def obtener_huespedes_reserva(
         "habitacion_id": r[5],
         "grupo_id": r[6],
         "titular_aloja": bool(r[7]) if r[7] is not None else True,
+        "es_huesped_provisorio": bool(r[8]) if r[8] is not None else False,
         "capacidad_habitacion": r[3],
         "adultos": adultos,
         "ninos": ninos,
         "total_esperado": total_esperado,
         "registrados": registrados,
         "faltantes": faltantes,
-        "completo": faltantes == 0,
+        "completo": faltantes == 0 and not bool(r[8]),
         "huespedes": lista,
     }
 
@@ -331,10 +333,10 @@ def agregar_huesped(
 ) -> dict:
     cobro._reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     r = conexion.execute(
-        "SELECT estado, adultos, ninos, personas FROM reservas WHERE id = %s",
+        "SELECT estado, adultos, ninos, personas, es_huesped_provisorio FROM reservas WHERE id = %s",
         (reserva_id,),
     ).fetchone()
-    estado, a, n, p = r
+    estado, a, n, p, era_provisorio = r
     if estado not in cobro.ESTADOS_CON_CUENTA_ABIERTA:
         raise cobro.TransicionInvalida(f"la reserva está {estado}")
     total_esperado = (a if a is not None else (p or 1)) + (n if n is not None else 0)
@@ -348,12 +350,14 @@ def agregar_huesped(
 
     rol = datos.get("rol") or "acompanante"
     es_nino = bool(datos.get("es_nino", False))
-    if rol == "titular":
-        tiene_titular = conexion.execute(
-            "SELECT 1 FROM reserva_huespedes WHERE reserva_id = %s AND rol = 'titular'", (reserva_id,),
-        ).fetchone()
-        if tiene_titular:
-            raise HuespedConflicto("la reserva ya tiene un huésped titular")
+    tiene_titular = conexion.execute(
+        "SELECT 1 FROM reserva_huespedes WHERE reserva_id = %s AND rol = 'titular'", (reserva_id,),
+    ).fetchone()
+    if era_provisorio and not tiene_titular and not es_nino:
+        # Al reemplazar una reserva provisoria, el primer huésped adulto real pasa a ser titular.
+        rol = "titular"
+    if rol == "titular" and tiene_titular:
+        raise HuespedConflicto("la reserva ya tiene un huésped titular")
 
     huesped_id = datos.get("huesped_id")
     if huesped_id:
@@ -403,6 +407,18 @@ def agregar_huesped(
             )
     except UniqueViolation as error:
         raise HuespedConflicto("ese huésped ya está registrado en esta reserva") from error
+
+    if era_provisorio and rol == "titular":
+        h_real = conexion.execute(
+            "SELECT nombre, documento, documento_tipo FROM huespedes WHERE id = %s",
+            (huesped_id,),
+        ).fetchone()
+        if h_real and h_real[0] and h_real[1]:
+            conexion.execute(
+                "UPDATE reservas SET huesped_nombre = %s, huesped_documento = %s, "
+                "huesped_documento_tipo = %s, es_huesped_provisorio = FALSE WHERE id = %s",
+                (h_real[0], h_real[1], h_real[2], reserva_id),
+            )
 
     seguridad.auditar(conexion, actor, "reserva_huesped_alta", reserva_id, f"rol={rol},es_nino={es_nino}")
     return obtener_huespedes_reserva(conexion, empresa_id, reserva_id, ver_documento=True)
@@ -479,9 +495,10 @@ def editar_huesped_en_reserva(
 
     if rol_actual == "titular":
         conexion.execute(
-            "UPDATE reservas SET huesped_nombre = %s, huesped_documento = %s, huesped_documento_tipo = %s "
+            "UPDATE reservas SET huesped_nombre = %s, huesped_documento = %s, huesped_documento_tipo = %s, "
+            "es_huesped_provisorio = CASE WHEN %s THEN FALSE ELSE es_huesped_provisorio END "
             "WHERE id = %s",
-            (nombre_nuevo, doc_nuevo, tipo_nuevo, reserva_id),
+            (nombre_nuevo, doc_nuevo, tipo_nuevo, bool(doc_nuevo), reserva_id),
         )
 
     if cambiados:
@@ -522,12 +539,17 @@ def verificar_huespedes_para_entrada(conexion: psycopg.Connection, reserva_id: s
     el titular no duerme), nunca auto-inserta al titular: exige registrar a los ocupantes reales."""
     r = conexion.execute(
         "SELECT empresa_id, adultos, ninos, personas, huesped_nombre, huesped_documento, "
-        "huesped_documento_tipo, titular_aloja FROM reservas WHERE id = %s",
+        "huesped_documento_tipo, titular_aloja, es_huesped_provisorio FROM reservas WHERE id = %s",
         (reserva_id,),
     ).fetchone()
     if not r:
         return
-    empresa_id, adultos, ninos, personas, nombre, documento, documento_tipo, aloja = r
+    empresa_id, adultos, ninos, personas, nombre, documento, documento_tipo, aloja, provisorio = r
+    if provisorio:
+        raise cobro.TransicionInvalida(
+            "Esta reserva está a nombre provisorio de una empresa o institución. "
+            "Registra los nombres y documentos reales de los huéspedes antes de la Llegada."
+        )
     titular_aloja = True if aloja is None else bool(aloja)
     esperado = (adultos if adultos is not None else (personas or 1)) + (ninos if ninos is not None else 0)
     registrados = conexion.execute(

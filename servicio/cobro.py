@@ -221,8 +221,10 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
     r = conexion.execute(
         "SELECT r.id, r.habitacion_id, h.tipo, r.inicio, r.fin, r.huesped_nombre, r.huesped_documento, r.estado, "
         "r.tarifa_noche_aceptada_clp, r.creado_en, r.personas, r.total_aceptado_clp, r.canal, r.adultos, r.ninos, "
-        "r.grupo_id, r.titular_aloja "
+        "r.grupo_id, r.titular_aloja, r.convenio_id, c.nombre, r.cliente_id, r.tarifa_lista_clp, "
+        "r.diferencia_convenio_clp, r.es_huesped_provisorio "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
+        "LEFT JOIN convenios_tarifarios c ON c.id = r.convenio_id "
         "WHERE r.id = %s",
         (reserva_id,),
     ).fetchone()
@@ -248,6 +250,12 @@ def detalle_reserva(conexion: psycopg.Connection, hotel, empresa_id: str, reserv
         "ninos": r[14] if r[14] is not None else 0,
         "grupo_id": r[15],
         "titular_aloja": bool(r[16]) if r[16] is not None else True,
+        "convenio_id": r[17],
+        "convenio_nombre": r[18],
+        "cliente_id": r[19],
+        "tarifa_lista_clp": r[20],
+        "diferencia_convenio_clp": r[21],
+        "es_huesped_provisorio": bool(r[22]) if r[22] is not None else False,
         "creada_en": r[9].isoformat(),
         # Entrega 1A: total y precio congelado por noche (null/vacío en
         # reservas anteriores a la migración 0021).
@@ -488,7 +496,7 @@ def editar_huesped(
             raise HuespedInvalido(str(error)) from error
     _reserva_de_la_empresa(conexion, reserva_id, empresa_id, bloqueo=True)
     actual = conexion.execute(
-        "SELECT huesped_nombre, huesped_documento, huesped_documento_tipo FROM reservas WHERE id = %s",
+        "SELECT huesped_nombre, huesped_documento, huesped_documento_tipo, es_huesped_provisorio FROM reservas WHERE id = %s",
         (reserva_id,),
     ).fetchone()
     doc_final, tipo_final = (documento, documento_tipo) if documento is not None else (actual[1], actual[2])
@@ -499,11 +507,24 @@ def editar_huesped(
         cambiados.append("huesped_nombre")
     if documento is not None and (documento, documento_tipo) != (actual[1], actual[2]):
         cambiados.append("huesped_documento")
+    desactivar_provisorio = bool(actual[3]) and bool(doc_final)
+    if desactivar_provisorio:
+        cambiados.append("es_huesped_provisorio")
     if cambiados:
         conexion.execute(
-            "UPDATE reservas SET huesped_nombre = %s, huesped_documento = %s, huesped_documento_tipo = %s "
-            "WHERE id = %s",
-            (nombre, doc_final, tipo_final, reserva_id),
+            "UPDATE reservas SET huesped_nombre = %s, huesped_documento = %s, huesped_documento_tipo = %s, "
+            "es_huesped_provisorio = %s WHERE id = %s",
+            (nombre, doc_final, tipo_final, False if desactivar_provisorio else bool(actual[3]), reserva_id),
         )
+        if desactivar_provisorio:
+            from . import huespedes as huespedes_db
+            huespedes_db.asegurar_titular_reserva(
+                conexion, empresa_id, reserva_id, nombre, doc_final, tipo_final,
+            )
         seguridad.auditar(conexion, actor, "reserva_edicion_huesped", reserva_id, ",".join(cambiados))
-    return {"reserva_id": reserva_id, "huesped_nombre": nombre, "cambiados": cambiados}
+    return {
+        "reserva_id": reserva_id,
+        "huesped_nombre": nombre,
+        "es_huesped_provisorio": False if desactivar_provisorio else bool(actual[3]),
+        "cambiados": cambiados,
+    }

@@ -23,7 +23,7 @@ from datetime import date, datetime
 
 import psycopg
 
-from . import clientes, cobro, hotel_sql, huespedes as huespedes_db, reservas as reservas_db, roles, seguridad
+from . import clientes, cobro, convenios as convenios_db, hotel_sql, huespedes as huespedes_db, reservas as reservas_db, roles, seguridad
 
 ROLES_GRUPOS = roles.con_admin_hotel("recepcion")
 
@@ -39,7 +39,7 @@ class GrupoInvalido(ValueError):
 def _grupo_de_la_empresa(conexion: psycopg.Connection, grupo_id: str, empresa_id: str, bloqueo: bool = False) -> tuple:
     sql = (
         "SELECT id, empresa_id, huesped_titular_id, titular_nombre, titular_documento_tipo, "
-        "titular_documento, canal, notas, creado_por, creado_en "
+        "titular_documento, canal, notas, creado_por, creado_en, convenio_id, cliente_id, es_huesped_provisorio "
         "FROM reservas_grupo WHERE id = %s"
     )
     if bloqueo:
@@ -98,6 +98,10 @@ def _crear_reserva_de_grupo(
     canal: str,
     hab: dict,
     actor: str,
+    *,
+    convenio_id: str | None = None,
+    cliente_id: str | None = None,
+    es_huesped_provisorio: bool = False,
 ) -> dict:
     inicio: date = hab["inicio"]
     fin: date = hab["fin"]
@@ -108,7 +112,7 @@ def _crear_reserva_de_grupo(
     if adultos < 1 or ninos < 0:
         raise GrupoInvalido("indica al menos 1 adulto y niños >= 0 por habitación")
     personas = adultos + ninos
-    titular_aloja = bool(hab.get("titular_aloja", True))
+    titular_aloja = False if es_huesped_provisorio else bool(hab.get("titular_aloja", True))
     creada = reservas_db.crear_reserva(
         conexion,
         empresa_id=empresa_id,
@@ -125,6 +129,9 @@ def _crear_reserva_de_grupo(
         titular_aloja=titular_aloja,
         adultos=adultos,
         ninos_ocupacion=ninos,
+        convenio_id=convenio_id,
+        cliente_id=cliente_id,
+        es_huesped_provisorio=es_huesped_provisorio,
     )
     reserva_id = creada["reserva_id"]
     for huesped_extra in hab.get("huespedes") or []:
@@ -146,6 +153,9 @@ def crear_grupo(
     canal: str = "recepcion",
     notas: str | None = None,
     actor: str = "sistema",
+    convenio_id: str | None = None,
+    cliente_id: str | None = None,
+    es_huesped_provisorio: bool = False,
 ) -> dict:
     """Crea una cabecera de grupo y todas sus habitaciones en una sola transacción atómica.
 
@@ -163,33 +173,48 @@ def crear_grupo(
     if titular_documento and titular_documento_tipo == "rut":
         clientes.exigir_nombre_coherente(conexion, clientes.rut_clave(titular_documento), nombre)
 
+    cliente_final = cliente_id.strip() if isinstance(cliente_id, str) and cliente_id.strip() else None
+    if convenio_id:
+        conv = convenios_db.obtener(conexion, empresa_id, convenio_id)
+        if conv is None or not conv["activo"]:
+            raise GrupoConflicto("el convenio indicado no existe o no está activo")
+        if cliente_final is None and conv.get("cliente_id"):
+            cliente_final = conv["cliente_id"]
+
     grupo_id = f"GRP-{uuid.uuid4().hex[:12]}"
     try:
         with conexion.transaction():
-            titular_huesped_id = _asegurar_huesped_titular(
+            titular_huesped_id = None if es_huesped_provisorio else _asegurar_huesped_titular(
                 conexion, empresa_id, nombre, titular_documento, titular_documento_tipo,
             )
             conexion.execute(
                 "INSERT INTO reservas_grupo "
                 "(id, empresa_id, huesped_titular_id, titular_nombre, titular_documento_tipo, "
-                "titular_documento, canal, notas, creado_por) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "titular_documento, canal, notas, creado_por, convenio_id, cliente_id, es_huesped_provisorio) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     grupo_id, empresa_id, titular_huesped_id, nombre,
                     titular_documento_tipo, titular_documento, canal_norm, notas_limpias, actor,
+                    convenio_id, cliente_final, bool(es_huesped_provisorio),
                 ),
             )
             for hab in habitaciones:
                 _crear_reserva_de_grupo(
                     conexion, empresa_id, grupo_id, nombre,
                     titular_documento, titular_documento_tipo, canal_norm, hab, actor,
+                    convenio_id=convenio_id, cliente_id=cliente_final,
+                    es_huesped_provisorio=bool(es_huesped_provisorio),
                 )
-            seguridad.auditar(conexion, actor, "grupo_alta", grupo_id, f"habitaciones={len(habitaciones)}")
+            seguridad.auditar(
+                conexion, actor, "grupo_alta", grupo_id,
+                f"habitaciones={len(habitaciones)},provisorio={bool(es_huesped_provisorio)}",
+            )
     except (
         reservas_db.SinCupo,
         reservas_db.SinTarifaVigente,
         reservas_db.HabitacionNoVendible,
         clientes.ClienteConflicto,
+        convenios_db.ConvenioConflicto,
         huespedes_db.HuespedConflicto,
         huespedes_db.OcupacionInvalida,
     ) as error:
@@ -211,6 +236,7 @@ def agregar_reserva_a_grupo(
     """Agrega una nueva habitación o vincula una reserva existente al grupo (atómico)."""
     fila_g = _grupo_de_la_empresa(conexion, grupo_id, empresa_id, bloqueo=True)
     titular_nombre, doc_tipo, doc, canal = fila_g[3], fila_g[4], fila_g[5], fila_g[6]
+    conv_id, cli_id, prov_grupo = fila_g[10], fila_g[11], bool(fila_g[12])
 
     try:
         with conexion.transaction():
@@ -239,6 +265,7 @@ def agregar_reserva_a_grupo(
             else:
                 creada = _crear_reserva_de_grupo(
                     conexion, empresa_id, grupo_id, titular_nombre, doc, doc_tipo, canal, datos, actor,
+                    convenio_id=conv_id, cliente_id=cli_id, es_huesped_provisorio=prov_grupo,
                 )
                 reserva_id = creada["reserva_id"]
             seguridad.auditar(conexion, actor, "grupo_agregar_reserva", grupo_id, f"reserva={reserva_id}")
@@ -247,6 +274,7 @@ def agregar_reserva_a_grupo(
         reservas_db.SinTarifaVigente,
         reservas_db.HabitacionNoVendible,
         clientes.ClienteConflicto,
+        convenios_db.ConvenioConflicto,
         huespedes_db.HuespedConflicto,
         huespedes_db.OcupacionInvalida,
     ) as error:
@@ -271,7 +299,8 @@ def obtener_grupo(
         "SELECT r.id, r.habitacion_id, h.tipo, h.capacidad, r.inicio, r.fin, r.estado, "
         "r.tarifa_noche_aceptada_clp, r.total_aceptado_clp, r.personas, r.adultos, r.ninos, "
         "r.titular_aloja, "
-        "(SELECT COUNT(*) FROM reserva_huespedes rh WHERE rh.reserva_id = r.id) "
+        "(SELECT COUNT(*) FROM reserva_huespedes rh WHERE rh.reserva_id = r.id), "
+        "r.es_huesped_provisorio, r.convenio_id, r.tarifa_lista_clp, r.diferencia_convenio_clp "
         "FROM reservas r JOIN habitaciones h ON h.id = r.habitacion_id "
         "WHERE r.empresa_id = %s AND r.grupo_id = %s "
         "ORDER BY r.inicio, r.habitacion_id, r.id",
@@ -282,6 +311,7 @@ def obtener_grupo(
     total_aceptado = 0
     total_cargos = 0
     total_pagado = 0
+    total_personas = 0
     estados: dict[str, int] = {}
 
     for f in filas:
@@ -293,10 +323,12 @@ def obtener_grupo(
         esperado = adultos + ninos
         registrados = int(f[13] or 0)
         faltantes = max(0, esperado - registrados)
+        provisorio = bool(f[14]) if f[14] is not None else False
         estado = f[6]
         estados[estado] = estados.get(estado, 0) + 1
         if estado != "cancelada":
             total_aceptado += int(f[8] or 0)
+            total_personas += esperado
         total_cargos += neto
         total_pagado += pagado
         reservas_lista.append({
@@ -309,16 +341,20 @@ def obtener_grupo(
             "noches": (f[5] - f[4]).days,
             "estado": estado,
             "tarifa_noche_aceptada_clp": f[7],
+            "tarifa_lista_clp": f[16],
+            "diferencia_convenio_clp": f[17],
+            "convenio_id": f[15],
             "total_aceptado_clp": f[8],
             "personas": f[9] or esperado,
             "adultos": adultos,
             "ninos": ninos,
             "titular_aloja": bool(f[12]),
+            "es_huesped_provisorio": provisorio,
             "huespedes": {
                 "total_esperado": esperado,
                 "registrados": registrados,
                 "faltantes": faltantes,
-                "completo": faltantes == 0,
+                "completo": faltantes == 0 and not provisorio,
             },
             "cuenta": {
                 "cargos_netos_clp": neto,
@@ -327,17 +363,28 @@ def obtener_grupo(
             },
         })
 
+    abono_sugerido_pct = 50 if total_personas > 10 else None
+    if g[10]:
+        conv_g = convenios_db.obtener(conexion, empresa_id, g[10])
+        if conv_g is not None:
+            abono_sugerido_pct = max(abono_sugerido_pct or 0, conv_g["requiere_abono_pct"])
+
     resultado = {
         "grupo_id": g[0],
         "titular_nombre": g[3],
         "titular_documento_tipo": g[4],
         "canal": g[6],
         "notas": g[7],
+        "convenio_id": g[10],
+        "cliente_id": g[11],
+        "es_huesped_provisorio": bool(g[12]) if g[12] is not None else False,
+        "abono_sugerido_pct": abono_sugerido_pct,
         "creado_por": g[8],
         "creado_en": g[9].isoformat(),
         "reservas": reservas_lista,
         "resumen": {
             "total_habitaciones": len(reservas_lista),
+            "total_personas": total_personas,
             "total_aceptado_clp": total_aceptado,
             "cargos_netos_clp": total_cargos,
             "pagado_clp": total_pagado,
