@@ -2996,3 +2996,43 @@ a.boton-primario {
   line-height: 1.45;
   white-space: pre-wrap;
 }
+
+.ayuda-asistente__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.ayuda-asistente__chip {
+  font-size: 0.78rem;
+  line-height: 1.25;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(23, 50, 38, 0.18);
+  background: #f7f4ec;
+  color: var(--c-primario, #173226);
+  cursor: pointer;
+  text-align: left;
+}
+.ayuda-asistente__chip:hover {
+  border-color: rgba(200, 164, 93, 0.75);
+  background: #f0eadc;
+}
+.ayuda-asistente__hilo {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+.ayuda-asistente__burbuja-user {
+  margin: 0;
+  justify-self: end;
+  max-width: 90%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--c-primario, #173226);
+  color: #fdfbf7;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
