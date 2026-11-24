@@ -181,7 +181,7 @@ columnas y tabla — `habitaciones.mantenimiento boolean`, `tareas_operativas`
     `en_estadia` — si la reserva aún no lo trae (p. ej. conversión de
     solicitud pública), el cuerpo de la entrada lo captura
     (`{"documento": ...}`); si falta en ambos → 409 «registra el documento
-    del huésped». La hora de llegada (15:00 del dominio) queda fuera por
+    del huésped». La hora de llegada (14:00 del dominio) queda fuera por
     ahora: nadie opera fuera de horario. La entrada sigue sin asentar cargo:
     el alojamiento completo nace al confirmar la reserva.
 - `POST /hotel/reservas/{id}/salida` (ya publicada): con el saldo neto
@@ -206,13 +206,13 @@ columnas y tabla — `habitaciones.mantenimiento boolean`, `tareas_operativas`
 ## Cancelación
 
 DECISIÓN (2026-10-30, fuente: dominio `hotel_inventario/servicio.py`,
-`cancelar`, `LIMITE_CANCELACION_GRATUITA = 48 h`, `HORA_LLEGADA = 15:00`,
+`cancelar`, `LIMITE_CANCELACION_GRATUITA = 24 h`, `HORA_LLEGADA = 14:00`,
 `solo desde CONFIRMADA`): `POST /hotel/reservas/{id}/cancelacion`, rol
 `recepcion` o `administrador`; con `Idempotency-Key`. Solo desde `confirmada`:
 `en_estadia`, `finalizada` o `cancelada` → **409**. La hora de corte es el
-inicio de la reserva a las 15:00 en el reloj del servidor.
+inicio de la reserva a las 14:00 en el reloj del servidor.
 
-- Si llegada menos ahora es al menos 48 horas: sin cargo. Si no: se asienta el
+- Si llegada menos ahora es al menos 24 horas: sin cargo. Si no: se asienta el
   concepto del dominio «Cancelación fuera de plazo: primera noche» por la
   tarifa de esa reserva.
 - V1 ya inserta en crear la reserva el cargo del alojamiento completo:
@@ -484,8 +484,7 @@ registro de llegada/salida y las preguntas frecuentes. Las edita la
 `PUT /plataforma/ajustes/iva` (administración de plataforma).
 
 Los valores iniciales salen de lo ya publicado en la landing o de lo que
-estaba en el código. Lo no ratificado (en particular la cancelación de 48 h y
-la hora de llegada 14:00 frente a un comentario interno de 15:00) se marca
+estaba en el código. Lo no ratificado se marca
 `pendiente_confirmar` y la UI lo resalta. El servicio no inventa datos.
 
 `GET /publico/disponibilidad` y `GET /hotel/oferta` aceptan de forma opcional
@@ -611,8 +610,8 @@ los compone el servidor.
 | `GET /hotel/productos/equivalencias` | (2026-11-19) Equivalencias recordadas por proveedor: ítem del proveedor → producto y unidades por envase. Solo administración del hotel. |
 | `PUT /hotel/productos/equivalencias/{id}` | (2026-11-19) Cambia producto, unidades por envase o nota de una equivalencia. Solo administración del hotel. |
 | `DELETE /hotel/productos/equivalencias/{id}` | (2026-11-19) Olvida una equivalencia. Solo administración del hotel. |
-| `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con la regla de 48 h que decide `cancelar` del dominio (ver «Cancelación»); la cuenta nace vacía (ENMIENDA ADP-4/7, 2026-11-19), así que solo se revierten los cargos sueltos que hubiera (recargos, consumos) y no hay reverso de alojamiento. Roles recepción o administrador. |
-| `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **ya llegó la hora de entrada** (15:00 del día de inicio según el reloj del servidor; antes → 409 «aún no es hora de llegada»; ENMIENDA ADP-5, 2026-11-19: lo decide `check_in` del dominio). Al pasar asienta la cuenta del alojamiento, una noche por cargo, con el precio de cada noche (#305). Exige el documento del huésped (D-ENT-01, DECISIÓN 2026-11-06): si la reserva no lo trae, el cuerpo `{"documento"}` lo registra; sin documento en ninguno → 409. Roles recepción o administrador (D-ROL-ENT, #304). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
+| `POST /hotel/reservas/{id}/cancelacion` | Cancela desde `confirmada` con la regla de 24 h que decide `cancelar` del dominio (ver «Cancelación»); la cuenta nace vacía (ENMIENDA ADP-4/7, 2026-11-19), así que solo se revierten los cargos sueltos que hubiera (recargos, consumos) y no hay reverso de alojamiento. Roles recepción o administrador. |
+| `POST /hotel/reservas/{id}/entrada` | Check-in si la habitación está lista (mantenimiento abierto, `bloqueada`/`fuera_de_servicio`, sucia u otra estadía solapada en la unidad bloquean → 409; `ocupada` no bloquea el turnover) y **ya llegó la hora de entrada** (14:00 del día de inicio según el reloj del servidor; antes → 409 «aún no es hora de llegada»; ENMIENDA ADP-5, 2026-11-19: lo decide `check_in` del dominio). Al pasar asienta la cuenta del alojamiento, una noche por cargo, con el precio de cada noche (#305). Exige el documento del huésped (D-ENT-01, DECISIÓN 2026-11-06): si la reserva no lo trae, el cuerpo `{"documento"}` lo registra; sin documento en ninguno → 409. Roles recepción o administrador (D-ROL-ENT, #304). Al pasar, la reserva queda `en_estadia` y la habitación `ocupada`. |
 | `POST /hotel/reservas/{id}/salida` | Liquida la cuenta (saldo neto cargo-menos-reverso en cero) y devuelve la liquidación. Roles recepción o administrador (D-ROL-ENT, DECISIÓN 2026-11-06, #304). La habitación queda `disponible` y `sucia`, con tarea de limpieza pendiente, aunque otra estadía contigua siga en curso (ENMIENDA ADP-6, 2026-11-19: lo decide `check_out` del dominio; reemplaza la excepción de V1-ISSUE-15). |
 | `POST /hotel/habitaciones/{id}/limpieza` | Completa la limpieza pendiente y, si estaba sucia, deja la unidad `limpia`. Sin limpieza pendiente → 409 (ENMIENDA ADP-8, 2026-11-19: no hay tarea que completar). Roles recepción o administrador. |
 | `POST /hotel/habitaciones/{id}/mantenimiento` | Abre o cierra el mantenimiento de la unidad (con su tarea). Solo administrador. Con mantenimiento abierto la oferta no la incluye y la entrada responde 409. |

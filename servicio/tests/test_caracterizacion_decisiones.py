@@ -13,7 +13,7 @@ Hechos caracterizados:
 3. Salida anticipada: la reserva finaliza conservando su fin original y su
    precio aceptado completo — no hay prorrateo por salida antes de tiempo.
 4. ENMENDADO por ADP-5 (2026-11-19): `check_in` del dominio exige la hora de llegada
-   (15:00 del día de inicio, reloj del servidor); antes admitía entrada a cualquier hora.
+   (14:00 del día de inicio, reloj del servidor); antes admitía entrada a cualquier hora.
 5. Roles de entrada/salida (#304): hoy CUALQUIER rol autenticado puede
    registrar entrada y salida (la ruta solo exige sesión).
 """
@@ -166,7 +166,7 @@ class SalidaAnticipadaTest(CaracterizacionBaseTest):
 
 
 class FechasSinHoraTest(CaracterizacionBaseTest):
-    """Hecho 4 (ADP-5): la entrada exige que haya llegado la hora (15:00 del día de inicio)."""
+    """Hecho 4 (ADP-5): la entrada exige que haya llegado la hora (14:00 del día de inicio)."""
 
     def test_reserva_que_comienza_hoy_admite_entrada_desde_las_15(self):
         from datetime import datetime, time
@@ -175,11 +175,11 @@ class FechasSinHoraTest(CaracterizacionBaseTest):
         r = self.reservar(HOY, HOY + timedelta(days=2))
         self.assertEqual(r.status_code, 201, r.text)
         rid = r.json()["reserva_id"]
-        with mock.patch("servicio.hotel_sql.ahora", return_value=datetime.combine(HOY, time(14, 59))):
+        with mock.patch("servicio.hotel_sql.ahora", return_value=datetime.combine(HOY, time(13, 59))):
             temprano = self.cliente.post(f"/hotel/reservas/{rid}/entrada", json={"documento": "DOC-CAR-1"},
                                          headers={"Idempotency-Key": self.clave()})
         self.assertEqual(temprano.status_code, 409, temprano.text)
-        with mock.patch("servicio.hotel_sql.ahora", return_value=datetime.combine(HOY, time(15, 0))):
+        with mock.patch("servicio.hotel_sql.ahora", return_value=datetime.combine(HOY, time(14, 0))):
             entrada = self.cliente.post(f"/hotel/reservas/{rid}/entrada", json={"documento": "DOC-CAR-1"},
                                         headers={"Idempotency-Key": self.clave()})
         self.assertEqual(entrada.status_code, 200, entrada.text)

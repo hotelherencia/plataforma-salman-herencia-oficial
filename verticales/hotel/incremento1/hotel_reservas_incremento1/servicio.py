@@ -25,7 +25,7 @@ RESERVA_INEXISTENTE = "reserva inexistente"
 CARGO_INEXISTENTE = "cargo inexistente"
 CARGO_NO_REVERSIBLE = "cargo no reversible"
 CANCELACION_TARDIA = "cancelacion_tardia"
-HORAS_CANCELACION_GRATUITA = 48
+HORAS_CANCELACION_GRATUITA = 24
 
 
 class AccesoDenegado(Exception):
