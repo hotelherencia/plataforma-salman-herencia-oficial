@@ -122,6 +122,11 @@ def requerir_sesion(
     request.state.actor, request.state.rol = sesion.nombre, sesion.rol  # para los logs (nunca la clave ni la cookie)
     if sesion.rol == roles.ASEO and not any(p.match(request.url.path) for p in RUTAS_ASEO):
         raise seguridad.ErrorPermiso("el rol aseo no tiene acceso a esta operación")
+    if sesion.rol == roles.SUPER_ADMIN and not _RUTAS_SIN_ELEVAR.match(request.url.path):
+        # Sin segundo factor activo, el súper administrador solo alcanza su sesión y su cuenta (para enrolarlo).
+        (con_totp,) = conn.execute("SELECT totp_activado FROM usuarios WHERE id = %s", (sesion.usuario_id,)).fetchone()
+        if not con_totp:
+            raise seguridad.ErrorPermiso("el súper administrador debe activar el segundo factor en /cuenta antes de operar")
     if sesion.rol == roles.DUENO:
         ruta = request.url.path
         if request.method in ("GET", "HEAD"):

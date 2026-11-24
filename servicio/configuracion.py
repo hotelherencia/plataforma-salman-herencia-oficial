@@ -62,6 +62,8 @@ class Configuracion:
     whatsapp_verify_token: str | None = None
     whatsapp_phone_number_id: str | None = None
     recaptcha_secret_key: str | None = None
+    super_admin_usuario: str | None = None
+    super_admin_email: str | None = None
     # #353: avisos al administrador. Cada canal se enciende solo con su
     # configuración completa; sin ella queda apagado (la solicitud se guarda igual).
     aviso_correo_destino: str | None = None
@@ -140,6 +142,8 @@ def cargar_desde_entorno() -> Configuracion:
         whatsapp_verify_token=os.environ.get("WHATSAPP_VERIFY_TOKEN"),
         whatsapp_phone_number_id=os.environ.get("WHATSAPP_PHONE_NUMBER_ID"),
         recaptcha_secret_key=os.environ.get("RECAPTCHA_SECRET_KEY") or None,
+        super_admin_usuario=os.environ.get("SUPER_ADMIN_USUARIO") or None,
+        super_admin_email=(os.environ.get("SUPER_ADMIN_EMAIL") or "").strip().lower() or None,
         aviso_correo_destino=os.environ.get("AVISO_CORREO_DESTINO") or None,
         smtp_host=os.environ.get("SMTP_HOST") or None,
         smtp_puerto=int(os.environ.get("SMTP_PUERTO") or "587"),

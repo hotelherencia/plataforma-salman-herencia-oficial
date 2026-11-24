@@ -48,7 +48,7 @@ export const SUBNAV_CAJA = [
 // #455: qué rol ve cada entrada. Espejo de lo que la API deja usar (servicio/roles.py, cobro.py):
 // recepción y administración del hotel operan Llegada, Salida, solicitudes y habitaciones; caja solo
 // consulta reservas y ocupación y trabaja en Caja y pagos. Sin `roles` la entrada es para todos.
-const ADMIN_HOTEL = ['administrador', 'admin_hotel']
+const ADMIN_HOTEL = ['super_admin', 'administrador', 'admin_hotel']
 const ROLES_RECEPCION = [...ADMIN_HOTEL, 'recepcion']
 const ROLES_FRENTE = [...ROLES_RECEPCION, 'caja', 'dueno']
 // El dueño lee, pero no opera: ve habitaciones, solicitudes y configuración solo en consulta.

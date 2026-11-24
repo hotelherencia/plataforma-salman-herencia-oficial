@@ -134,6 +134,8 @@ def _preparar_base_de_datos(config: Configuracion, aplicacion: Aplicacion) -> No
                 admin_clave=config.admin_clave,
             )
             agente.asegurar_agente_servicio(conexion, aplicacion.nucleo.empresa.id)
+            seguridad.asegurar_super_admin_inicial(conexion, aplicacion.nucleo.empresa.id, config.super_admin_usuario,
+                                                   config.super_admin_email)
             if config.admin_email and config.admin_usuario:
                 seguridad.vincular_email(conexion, config.admin_usuario, config.admin_email)
             # ADP-3: el servicio arranca sin habitaciones sembradas; el inventario lo crea la API

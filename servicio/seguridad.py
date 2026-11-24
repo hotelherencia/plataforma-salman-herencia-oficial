@@ -354,6 +354,15 @@ def listar_usuarios(conexion: psycopg.Connection, empresa_id: str) -> list[dict]
     return [{"id": f[0], "nombre": f[1], "rol": f[2], "activo": f[3], "google_vinculado": f[4]} for f in filas]
 
 
+def super_admins_o_privilegiados_en_aviso(conexion: psycopg.Connection, empresa_id: str) -> int:
+    """Cuentas privilegiadas activas (para el aviso de seguridad del listado)."""
+    (n,) = conexion.execute(
+        "SELECT count(*) FROM usuarios WHERE empresa_id = %s AND activo AND rol = ANY(%s)",
+        (empresa_id, [r for r in roles.RANGO if roles.es_privilegiado(r)]),
+    ).fetchone()
+    return n
+
+
 def buscar_usuario_en_empresa(conexion: psycopg.Connection, empresa_id: str, usuario_id: str):
     fila = conexion.execute(
         "SELECT id, nombre, rol, activo FROM usuarios WHERE id = %s AND empresa_id = %s",
@@ -377,6 +386,34 @@ def contar_administradores_activos(conexion: psycopg.Connection, empresa_id: str
         (empresa_id, sorted(roles.ROLES_ADMIN_PLATAFORMA)),
     ).fetchone()
     return n
+
+
+def contar_super_admins_activos(conexion: psycopg.Connection, empresa_id: str) -> int:
+    (n,) = conexion.execute(
+        "SELECT count(*) FROM usuarios WHERE empresa_id = %s AND rol = %s AND activo = true",
+        (empresa_id, roles.SUPER_ADMIN),
+    ).fetchone()
+    return n
+
+
+def asegurar_super_admin_inicial(conexion: psycopg.Connection, empresa_id: str, usuario: str | None,
+                                 email_requerido: str | None) -> bool:
+    """Promueve a súper administrador a la cuenta SUPER_ADMIN_USUARIO, y solo si su correo vinculado es
+    SUPER_ADMIN_EMAIL (la cuenta institucional). Falla cerrado: sin ambos datos, o con otro correo, no
+    promueve. Solo actúa mientras no haya súper administrador; hay uno solo (índice único en la base)."""
+    if not usuario or not email_requerido or contar_super_admins_activos(conexion, empresa_id) > 0:
+        return False
+    fila = conexion.execute(
+        "SELECT id FROM usuarios WHERE empresa_id = %s AND nombre = %s AND activo = true AND rol = ANY(%s) "
+        "AND lower(email) = lower(%s)",
+        (empresa_id, usuario, [roles.ADMINISTRADOR, roles.ADMIN_PLATAFORMA], email_requerido),
+    ).fetchone()
+    if fila is None:
+        return False
+    conexion.execute("UPDATE usuarios SET rol = %s WHERE id = %s", (roles.SUPER_ADMIN, fila[0]))
+    revocar_sesiones_de_usuario(conexion, fila[0])  # la sesión vieja no conserva el rol anterior
+    auditar(conexion, "sistema", "super_admin", fila[0], "promovida la cuenta institucional (no había súper administrador)")
+    return True
 
 
 def dar_de_baja(conexion: psycopg.Connection, usuario_id: str) -> None:
