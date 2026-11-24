@@ -21,7 +21,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 import psycopg
 
-from . import conciliacion_bancaria, contabilidad, iva, roles
+from . import conciliacion_bancaria, contabilidad, facturas_proveedor, iva, roles
 
 ROLES_TRIBUTARIO = roles.con_admin_hotel("caja")
 
@@ -124,20 +124,37 @@ def resumen_tributario_mensual(
 
     total_ventas_con_pendientes = sum(b["total_clp"] for b in por_documento.values())
 
-    # 2. Crédito fiscal referencial de compras de proveedores (0040 + 0062)
-    compras_facturas = conexion.execute(
-        "SELECT COUNT(*), COALESCE(SUM(monto_neto_clp), 0), COALESCE(SUM(iva_clp), 0), COALESCE(SUM(monto_total_clp), 0) "
-        "FROM documentos_proveedor WHERE clase = 'factura' AND estado = 'cargada' "
-        "AND fecha_emision >= %s AND fecha_emision < %s",
-        (desde, hasta),
-    ).fetchone()
-    compras_nc = conexion.execute(
-        "SELECT COUNT(*), COALESCE(SUM(monto_neto_clp), 0), COALESCE(SUM(iva_clp), 0), COALESCE(SUM(monto_total_clp), 0) "
-        "FROM documentos_proveedor WHERE clase = 'nota_credito' AND estado = 'aplicada' "
-        "AND fecha_emision >= %s AND fecha_emision < %s",
-        (desde, hasta),
-    ).fetchone()
+    # 2. Crédito fiscal referencial de compras de proveedores (0040 + 0062).
+    # #469: el grupo factura a varias sociedades y el IVA crédito de una no se imputa a otra. Solo suma
+    # lo emitido al RUT de esta empresa (EMPRESA_RUT); lo emitido a otro RUT se informa aparte y no
+    # resta del IVA. Los documentos sin receptor registrado cuentan, pero se avisan para que se completen.
+    rut_empresa = facturas_proveedor.rut_hotel()
+
+    def _compras(clase: str, estado: str) -> tuple:
+        filtro, parametros = ("", [])
+        if rut_empresa:
+            filtro, parametros = (" AND receptor_rut IS NOT NULL AND receptor_rut <> %s", [rut_empresa])
+        propias = conexion.execute(
+            "SELECT COUNT(*), COALESCE(SUM(monto_neto_clp), 0), COALESCE(SUM(iva_clp), 0), COALESCE(SUM(monto_total_clp), 0), "
+            "COUNT(*) FILTER (WHERE receptor_rut IS NULL) "
+            "FROM documentos_proveedor WHERE clase = %s AND estado = %s "
+            "AND fecha_emision >= %s AND fecha_emision < %s"
+            + (" AND (receptor_rut IS NULL OR receptor_rut = %s)" if rut_empresa else ""),
+            [clase, estado, desde, hasta] + ([rut_empresa] if rut_empresa else []),
+        ).fetchone()
+        ajenas = (0, 0)
+        if rut_empresa:
+            ajenas = conexion.execute(
+                "SELECT COUNT(*), COALESCE(SUM(iva_clp), 0) FROM documentos_proveedor WHERE clase = %s AND estado = %s "
+                "AND fecha_emision >= %s AND fecha_emision < %s" + filtro,
+                [clase, estado, desde, hasta] + parametros,
+            ).fetchone()
+        return propias, ajenas
+
+    (compras_facturas, facturas_otro_rut) = _compras("factura", "cargada")
+    (compras_nc, nc_otro_rut) = _compras("nota_credito", "aplicada")
     credito_fiscal_clp = int(compras_facturas[2] or 0) - int(compras_nc[2] or 0)
+    sin_receptor = int(compras_facturas[4] or 0) + int(compras_nc[4] or 0)
 
     # Caja cobrada efectivamente en el mes (para explicar diferencia vs ventas tributarias)
     (caja_mes_clp,) = conexion.execute(
@@ -165,6 +182,14 @@ def resumen_tributario_mensual(
             "notas_credito_cantidad": int(compras_nc[0] or 0),
             "notas_credito_iva_clp": int(compras_nc[2] or 0),
             "credito_fiscal_neto_clp": credito_fiscal_clp,
+            "rut_empresa": rut_empresa,
+            "excluidas_otro_receptor": {
+                "facturas_cantidad": int(facturas_otro_rut[0] or 0),
+                "facturas_iva_clp": int(facturas_otro_rut[1] or 0),
+                "notas_credito_cantidad": int(nc_otro_rut[0] or 0),
+                "notas_credito_iva_clp": int(nc_otro_rut[1] or 0),
+            },
+            "sin_receptor_cantidad": sin_receptor,
         },
         "borrador_f29": {
             "ventas_tributarias_neto_clp": neto_afecto_ventas,
