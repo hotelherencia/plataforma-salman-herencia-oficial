@@ -270,6 +270,38 @@ export default function Reserva() {
                 </option>
               ))}
             </CampoSelect>
+            {(() => {
+              const convSel = convenios.find((c) => c.convenio_id === campos.convenio_id)
+              return (
+                <div className="nota-clave" style={{ gridColumn: '1 / -1' }}>
+                  {convSel ? (
+                    <p style={{ margin: 0 }}>
+                      <strong>Convenio aplicado ({convSel.nombre}):</strong> {resumenConvenio(convSel) || 'tarifa especial vigente'}.{' '}
+                      La tarifa normal, el monto cobrado y la diferencia quedan registrados en la reserva y en el cierre de caja.
+                    </p>
+                  ) : convenios.length === 0 ? (
+                    <p style={{ margin: 0 }}>
+                      No hay convenios vigentes cargados hoy. Administración puede crearlos en{' '}
+                      <Link href="/hotel/clientes">Clientes → Convenios</Link>.
+                    </p>
+                  ) : (
+                    <p style={{ margin: 0 }}>
+                      Hay {convenios.length} convenio{convenios.length === 1 ? '' : 's'} vigente{convenios.length === 1 ? '' : 's'} disponible{convenios.length === 1 ? '' : 's'}.{' '}
+                      Puedes administrarlos en <Link href="/hotel/clientes">Clientes</Link>.
+                    </p>
+                  )}
+                  <details style={{ marginTop: '0.35rem' }}>
+                    <summary style={{ cursor: 'pointer', fontSize: '0.85em' }}>¿Cómo funciona el proceso de convenio y reserva provisoria?</summary>
+                    <ol style={{ margin: '0.35rem 0 0 1.2rem', padding: 0, fontSize: '0.85em', lineHeight: 1.45 }}>
+                      <li><strong>Crear convenio:</strong> Administración define la empresa, delegación o evento y su descuento o tarifa fija en <Link href="/hotel/clientes">Clientes</Link>.</li>
+                      <li><strong>Aplicar al reservar:</strong> Al elegir el convenio aquí (para 1 o varias habitaciones), el sistema calcula automáticamente la tarifa especial y guarda la diferencia respecto al precio lista.</li>
+                      <li><strong>Reserva provisoria (opcional):</strong> Si aún no tienes los nombres de los pasajeros, marca la casilla provisoria; al hacer la <strong>Llegada</strong> se exigirá registrar los huéspedes reales.</li>
+                      <li><strong>Cierre de caja:</strong> En <Link href="/hotel/caja">Caja y pagos</Link>, el cierre muestra qué reservas usaron convenio, a qué institución pertenecen y la diferencia de precio.</li>
+                    </ol>
+                  </details>
+                </div>
+              )
+            })()}
             <label className="campo-check">
               <input
                 type="checkbox"
