@@ -98,6 +98,9 @@ class Configuracion:
     # el arranque real los enciende; las apps de prueba no (evita que hilos
     # de pruebas anteriores toquen la base o servidores ficticios).
     tareas_de_fondo: bool = False
+    # Integración read-only hacia PEI CORE (core.finance.v1.1). Deshabilitada
+    # por defecto (fail-closed 503) mientras no se configure el token.
+    core_export_token: str | None = None
 
 
 def _normalizar_origenes(valor: str | None) -> str | None:
@@ -168,4 +171,5 @@ def cargar_desde_entorno() -> Configuracion:
         migrar_al_arrancar=os.environ.get("MIGRAR_AL_ARRANCAR", "1") != "0",
         en_vercel=os.environ.get("VERCEL", "") == "1",
         tareas_de_fondo=os.environ.get("VERCEL", "") != "1" and os.environ.get("TAREAS_DE_FONDO", "1") != "0",
+        core_export_token=(os.environ.get("CORE_EXPORT_TOKEN") or "").strip() or None,
     )
