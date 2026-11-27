@@ -20,7 +20,7 @@ import io
 import re
 import uuid
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -31,10 +31,10 @@ ROLES_CONCILIACION = roles.con_admin_hotel("caja")
 ROLES_COMISIONES = roles.con_admin_hotel()
 
 _COMISIONES_DEFECTO = {
-    "efectivo": {"proveedor": "caja", "porcentaje_comision": 0.0, "iva_comision": False, "dias_habiles_abono": 0, "cuenta_deposito": None, "mapeo_columnas": {}},
-    "transferencia": {"proveedor": "banco", "porcentaje_comision": 0.0, "iva_comision": False, "dias_habiles_abono": 0, "cuenta_deposito": None, "mapeo_columnas": {}},
-    "debito": {"proveedor": "transbank", "porcentaje_comision": 0.0, "iva_comision": True, "dias_habiles_abono": 1, "cuenta_deposito": None, "mapeo_columnas": {}},
-    "credito": {"proveedor": "transbank", "porcentaje_comision": 0.0, "iva_comision": True, "dias_habiles_abono": 2, "cuenta_deposito": None, "mapeo_columnas": {}},
+    "efectivo": {"proveedor": "caja", "porcentaje_comision": Decimal("0"), "iva_comision": False, "dias_habiles_abono": 0, "cuenta_deposito": None, "mapeo_columnas": {}},
+    "transferencia": {"proveedor": "banco", "porcentaje_comision": Decimal("0"), "iva_comision": False, "dias_habiles_abono": 0, "cuenta_deposito": None, "mapeo_columnas": {}},
+    "debito": {"proveedor": "transbank", "porcentaje_comision": Decimal("0"), "iva_comision": True, "dias_habiles_abono": 1, "cuenta_deposito": None, "mapeo_columnas": {}},
+    "credito": {"proveedor": "transbank", "porcentaje_comision": Decimal("0"), "iva_comision": True, "dias_habiles_abono": 2, "cuenta_deposito": None, "mapeo_columnas": {}},
 }
 
 
@@ -81,17 +81,42 @@ def _parsear_monto(texto: str) -> int:
 
 # --- Configuración de comisiones y desfase por medio ----------------------------
 
+def _parsear_porcentaje_exacto(valor) -> Decimal:
+    """Convierte porcentaje de comisión a Decimal exacto (sin pasar por float), máximo 3 decimales."""
+    if isinstance(valor, bool):
+        raise ConciliacionInvalida("porcentaje de comisión inválido")
+    try:
+        dec = valor if isinstance(valor, Decimal) else Decimal(str(valor).strip())
+    except (InvalidOperation, ValueError, TypeError) as err:
+        raise ConciliacionInvalida("porcentaje de comisión inválido") from err
+    if not dec.is_finite():
+        raise ConciliacionInvalida("porcentaje de comisión inválido")
+    if dec < Decimal("0") or dec > Decimal("30"):
+        raise ConciliacionInvalida("el porcentaje de comisión debe estar entre 0 y 30 %")
+    return dec.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+
+
 def obtener_comisiones(conexion: psycopg.Connection, empresa_id: str) -> dict[str, dict]:
-    salida = {m: {"medio": m, **cfg} for m, cfg in _COMISIONES_DEFECTO.items()}
+    salida = {
+        m: {
+            "medio": m,
+            **cfg,
+            "porcentaje_comision": float(cfg["porcentaje_comision"]),
+            "porcentaje_comision_exacto": str(cfg["porcentaje_comision"].quantize(Decimal("0.001"))),
+        }
+        for m, cfg in _COMISIONES_DEFECTO.items()
+    }
     for f in conexion.execute(
         "SELECT medio, proveedor, porcentaje_comision, iva_comision, dias_habiles_abono, "
         "cuenta_deposito, mapeo_columnas FROM comisiones_medios WHERE empresa_id = %s",
         (empresa_id,),
     ).fetchall():
+        pct_exacto = _parsear_porcentaje_exacto(f[2])
         salida[f[0]] = {
             "medio": f[0],
             "proveedor": f[1],
-            "porcentaje_comision": float(f[2]),
+            "porcentaje_comision": float(pct_exacto),
+            "porcentaje_comision_exacto": str(pct_exacto),
             "iva_comision": bool(f[3]),
             "dias_habiles_abono": int(f[4]),
             "cuenta_deposito": f[5],
@@ -113,9 +138,7 @@ def guardar_comisiones(
             medio = it["medio"]
             if medio not in _COMISIONES_DEFECTO:
                 raise ConciliacionInvalida(f"medio inválido: {medio}")
-            pct = float(it.get("porcentaje_comision", 0))
-            if not (0 <= pct <= 30):
-                raise ConciliacionInvalida("el porcentaje de comisión debe estar entre 0 y 30 %")
+            pct = _parsear_porcentaje_exacto(it.get("porcentaje_comision", Decimal("0")))
             dias = int(it.get("dias_habiles_abono", 0))
             if not (0 <= dias <= 30):
                 raise ConciliacionInvalida("los días hábiles de abono deben estar entre 0 y 30")
@@ -141,17 +164,21 @@ def guardar_comisiones(
 
 
 def calcular_abono_esperado(monto_bruto_clp: int, cfg_medio: dict, tasa_iva: Decimal) -> tuple[int, int]:
-    """Devuelve (abono_esperado_clp, comision_total_clp) según la configuración del medio."""
-    pct = Decimal(str(cfg_medio.get("porcentaje_comision") or 0))
-    if pct <= 0:
-        return monto_bruto_clp, 0
-    comision_neta = (Decimal(monto_bruto_clp) * pct / Decimal(100))
+    """Devuelve (abono_esperado_clp, comision_total_clp) usando aritmética Decimal exacta (sin float)."""
+    raw_pct = cfg_medio.get("porcentaje_comision_exacto")
+    if raw_pct is None:
+        raw_pct = cfg_medio.get("porcentaje_comision")
+    pct = raw_pct if isinstance(raw_pct, Decimal) else _parsear_porcentaje_exacto(raw_pct or 0)
+    if pct <= Decimal("0"):
+        return int(monto_bruto_clp), 0
+    tasa = tasa_iva if isinstance(tasa_iva, Decimal) else Decimal(str(tasa_iva))
+    comision_neta = (Decimal(int(monto_bruto_clp)) * pct) / Decimal("100")
     if cfg_medio.get("iva_comision", True):
-        comision_total = comision_neta * (Decimal(1) + tasa_iva / Decimal(100))
+        comision_total = comision_neta * (Decimal("1") + tasa / Decimal("100"))
     else:
         comision_total = comision_neta
-    comision_clp = int(comision_total.quantize(Decimal(1), rounding=ROUND_HALF_UP))
-    return max(0, monto_bruto_clp - comision_clp), comision_clp
+    comision_clp = int(comision_total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return max(0, int(monto_bruto_clp) - comision_clp), comision_clp
 
 
 # --- Vista previa e importación de cartola CSV ----------------------------------
@@ -363,17 +390,23 @@ def importar_y_conciliar_cartola(
                     continue
                 prioridad_ref = 0
                 if cand["comprobante"] and (cand["comprobante"] == ref_mov or cand["comprobante"] in desc_mov):
-                    prioridad_ref = 1
+                    prioridad_ref = 2
+                elif cand["medio"] in ("debito", "credito"):
+                    prov = (cfg.get("proveedor") or "").strip().lower()
+                    if prov and prov != "general" and (prov in desc_mov or prov in ref_mov):
+                        prioridad_ref = 1
                 calces.append((prioridad_ref, cand, abono_esp, com_clp))
 
-            # Regla FIN-006: si hay 1 solo calce único (o 1 único con comprobante coincidente), auto-concilia;
-            # si hay ambigüedad múltiple sin comprobante, queda pendiente para revisión manual.
+            # Regla FIN-006 endurecida: coincidir solo en monto (prioridad 0) JAMÁS auto-concilia;
+            # exige evidencia secundaria (comprobante/autorización o proveedor de adquirente de tarjeta)
+            # y unicidad. Cualquier coincidencia solo por monto o ambigua queda pendiente para revisión manual.
             elegido = None
-            con_ref = [x for x in calces if x[0] == 1]
-            if len(con_ref) == 1:
-                elegido = con_ref[0]
-            elif len(calces) == 1:
-                elegido = calces[0]
+            con_comprobante = [x for x in calces if x[0] == 2]
+            con_proveedor = [x for x in calces if x[0] == 1]
+            if len(con_comprobante) == 1:
+                elegido = con_comprobante[0]
+            elif len(con_comprobante) == 0 and len(con_proveedor) == 1 and len(calces) == 1:
+                elegido = con_proveedor[0]
 
             if elegido is not None:
                 _p, cand, abono_esp, com_clp = elegido
